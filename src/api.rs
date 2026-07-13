@@ -1,3 +1,4 @@
+use crate::bot::services::moderation::ModerationState;
 use crate::recruit::RecruitEngine;
 use axum::{extract::State, routing::get, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,7 @@ use std::sync::Arc;
 /// アプリ全体で共有する状態。今後 DB やキャッシュもここに載せられる。
 pub struct AppState {
     pub recruit: RecruitEngine,
+    pub moderation: ModerationState,
 }
 
 /// Python の OCRRawData に対応。
