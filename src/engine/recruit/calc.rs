@@ -6,10 +6,19 @@ use chrono::{NaiveDate, LocalResult, TimeZone, Utc};
 use chrono_tz::Asia::Tokyo;
 use std::env;
 
+/// パース済みの future プール。実装時刻と、その時刻に紐づくオペレーター一覧を保持する。
+struct FuturePool {
+    /// 実装時刻（Asia/Tokyo、指定 hour:00:00）
+    release: chrono::DateTime<chrono_tz::Tz>,
+    operators: Vec<Operator>,
+}
+
 /// 起動時に一度読み込んで保持するデータ。
 pub struct RecruitData {
     operators_main: Vec<Operator>,
     operators_new: Vec<Operator>,
+    /// 未実装オペレーターのプール。calculate() 呼び出し時に現在時刻で判定する。
+    future: Vec<FuturePool>,
     tag_list: TagList,
     /// tagList の全タグを定義順に並べたもの（入力の並べ替え・フィルタに使う）
     /// Python: tagNameList = jobTags + positionTags + eliteTags + otherTags
@@ -31,10 +40,8 @@ impl RecruitData {
         tag_name_order.extend(tag_list.elite_tags.iter().cloned());
         tag_name_order.extend(tag_list.other_tags.iter().cloned());
 
-        // Handle `future` entries: decide whether each future opList belongs to `new` or `main`
-        // based on whether now is before the date at configured hour (default 16).
-        let mut operators_main = db.main;
-        let mut operators_new = db.new;
+        let operators_main = db.main;
+        let operators_new = db.new;
 
         // configurable hour via env RECRUIT_FUTURE_HOUR (0-23), default 16
         let future_hour: u32 = env::var("RECRUIT_FUTURE_HOUR")
@@ -43,16 +50,16 @@ impl RecruitData {
             .filter(|&h| h < 24)
             .unwrap_or(16);
 
-        // get current time in Asia/Tokyo explicitly
-        let now = Utc::now().with_timezone(&Tokyo);
-        for fe in db.future.iter() {
+        // future エントリは確定振り分けせず、実装時刻をパースして保持する。
+        // main/new への振り分けは calculate() 呼び出し時に現在時刻で判定する。
+        let mut future = Vec::new();
+        for fe in db.future.into_iter() {
             match Self::parse_future_date(&fe.yyyymmdd, future_hour) {
-                Some(t_dt) => {
-                    if now < t_dt {
-                        operators_new.extend(fe.op_list.clone());
-                    } else {
-                        operators_main.extend(fe.op_list.clone());
-                    }
+                Some(release) => {
+                    future.push(FuturePool {
+                        release,
+                        operators: fe.op_list,
+                    });
                 }
                 None => {
                     eprintln!("warning: failed to parse future date '{}', skipping", fe.yyyymmdd);
@@ -63,23 +70,24 @@ impl RecruitData {
         Ok(Self {
             operators_main,
             operators_new,
+            future,
             tag_list,
             tag_name_order,
         })
     }
 
-/// Parse a yyyymmdd or yymmdd string and return a Local datetime at the given hour.
-fn parse_future_date(s: &str, hour: u32) -> Option<chrono::DateTime<chrono_tz::Tz>> {
-    // try YYYYMMDD then YYMMDD
-    let parsed_date = NaiveDate::parse_from_str(s, "%Y%m%d")
-        .or_else(|_| NaiveDate::parse_from_str(s, "%y%m%d")).ok()?;
-    let naive_dt = parsed_date.and_hms_opt(hour, 0, 0)?;
-    match Tokyo.from_local_datetime(&naive_dt) {
-        LocalResult::Single(dt) => Some(dt.with_timezone(&Tokyo)),
-        LocalResult::Ambiguous(dt1, _) => Some(dt1.with_timezone(&Tokyo)),
-        LocalResult::None => None,
+    /// Parse a yyyymmdd or yymmdd string and return a Local datetime at the given hour.
+    fn parse_future_date(s: &str, hour: u32) -> Option<chrono::DateTime<chrono_tz::Tz>> {
+        // try YYYYMMDD then YYMMDD
+        let parsed_date = NaiveDate::parse_from_str(s, "%Y%m%d")
+            .or_else(|_| NaiveDate::parse_from_str(s, "%y%m%d")).ok()?;
+        let naive_dt = parsed_date.and_hms_opt(hour, 0, 0)?;
+        match Tokyo.from_local_datetime(&naive_dt) {
+            LocalResult::Single(dt) => Some(dt.with_timezone(&Tokyo)),
+            LocalResult::Ambiguous(dt1, _) => Some(dt1.with_timezone(&Tokyo)),
+            LocalResult::None => None,
+        }
     }
-}
 
     /// タグ名から種別を判定（Python の tagType 相当）
     fn tag_type(&self, name: &str) -> TagType {
@@ -138,15 +146,21 @@ fn parse_future_date(s: &str, hour: u32) -> Option<chrono::DateTime<chrono_tz::T
             }
         }
 
-        // 対象オペレータープール
-        let pool: Vec<&Operator> = if is_global {
-            self.operators_main.iter().collect()
-        } else {
-            self.operators_main
-                .iter()
-                .chain(self.operators_new.iter())
-                .collect()
-        };
+        // 対象オペレータープール（future は現在時刻で実装済みかどうかを判定する）
+        let now = Utc::now().with_timezone(&Tokyo);
+        let mut pool: Vec<&Operator> = self.operators_main.iter().collect();
+        if !is_global {
+            pool.extend(self.operators_new.iter());
+        }
+        for fp in &self.future {
+            if now >= fp.release {
+                // 実装済み → main 相当（is_global に関わらずプールに入る）
+                pool.extend(fp.operators.iter());
+            } else if !is_global {
+                // 未実装 → new 相当（is_global=false のときだけプールに入る）
+                pool.extend(fp.operators.iter());
+            }
+        }
 
         // minStar==4 のとき showRobot=true（Python の recruitDoProcess）
         let show_robot = min_star == 4;
