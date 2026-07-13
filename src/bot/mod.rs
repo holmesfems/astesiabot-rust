@@ -1,36 +1,39 @@
-pub mod channels;   // ← 追加
+pub mod channels;
 pub mod commands;
 pub mod data;
 pub mod handler;
-pub mod services;   // ← 追加
+pub mod reply;
+pub mod services;
 
+use crate::api::AppState;
 use data::Data;
 use poise::serenity_prelude as serenity;
+use std::sync::Arc;
 
-pub async fn run_bot(token: String) {
-    // 汎用ハンドラで本文を読むなら MESSAGE_CONTENT を足す。
-    // スラッシュコマンドのみなら non_privileged() だけでよい。
+pub async fn run_bot(token: String, state: Arc<AppState>) {
+    // スラッシュコマンドは MESSAGE_CONTENT 不要だが、
+    // 汎用メッセージハンドラで本文を読むため MESSAGE_CONTENT を足す。
     let intents =
         serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            // ← 大元の振り分け。コマンドを増やすときはここに足す。
+            // 大元の振り分け。コマンドを増やすときはここに足す。
             commands: vec![
                 commands::ping::ping(),
                 commands::echo::echo(),
                 commands::add::add(),
             ],
-            // ← 汎用メッセージハンドラの登録
+            // 汎用メッセージハンドラの登録
             event_handler: |ctx, event, framework, data| {
                 Box::pin(handler::event_handler(ctx, event, framework, data))
             },
             ..Default::default()
         })
-        .setup(|ctx, _ready, framework| {
+        .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(Data {})
+                Ok(Data { state })
             })
         })
         .build();

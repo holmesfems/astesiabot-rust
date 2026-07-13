@@ -10,14 +10,14 @@ pub struct Operator {
     pub stars: u8,
 }
 
-/// recruitmentOperators.json 全体。今は main のみ使用。
+/// recruitmentOperators.json 全体。今は main / new のみ使用。
 #[derive(Debug, Deserialize)]
 pub struct OperatorDb {
     #[serde(default)]
     pub main: Vec<Operator>,
     #[serde(default)]
     pub new: Vec<Operator>,
-    // future は後回し（beginFrom の時刻計算が絡むため）
+    // future は後回し（beginFrom の時刻計算が絡むため未実装）
 }
 
 /// tagList.json に対応。タグ名を種別ごとに分類するために使う。

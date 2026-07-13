@@ -1,7 +1,7 @@
 use super::model::{Operator, OperatorDb, Tag, TagList, TagType};
-use crate::bot::data::Error;
+use super::Error;
 use itertools::Itertools;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 /// 起動時に一度読み込んで保持するデータ。
 pub struct RecruitData {
@@ -9,6 +9,7 @@ pub struct RecruitData {
     operators_new: Vec<Operator>,
     tag_list: TagList,
     /// tagList の全タグを定義順に並べたもの（入力の並べ替え・フィルタに使う）
+    /// Python: tagNameList = jobTags + positionTags + eliteTags + otherTags
     tag_name_order: Vec<String>,
 }
 
@@ -21,7 +22,6 @@ impl RecruitData {
         let tag_text = std::fs::read_to_string("data/tagList.json")?;
         let tag_list: TagList = serde_json::from_str(&tag_text)?;
 
-        // Python の tagNameList = jobTags + positionTags + eliteTags + otherTags
         let mut tag_name_order = Vec::new();
         tag_name_order.extend(tag_list.job_tags.iter().cloned());
         tag_name_order.extend(tag_list.position_tags.iter().cloned());
@@ -55,10 +55,7 @@ impl RecruitData {
             .into_iter()
             .filter(|t| self.tag_name_order.contains(t))
             .collect();
-        // 定義順にソート
-        valid.sort_by_key(|t| {
-            self.tag_name_order.iter().position(|x| x == *t).unwrap()
-        });
+        valid.sort_by_key(|t| self.tag_name_order.iter().position(|x| x == *t).unwrap());
         valid
             .into_iter()
             .map(|name| Tag {
@@ -68,13 +65,23 @@ impl RecruitData {
             .collect()
     }
 
-    /// 計算本体。入力タグから、★minStar 以上が確定するタグ組み合わせを返す。
+    /// title 用：既知タグのみ・定義順ソートした「名前」を返す。
+    pub fn normalize_names(&self, input: &[String]) -> Vec<String> {
+        self.normalize_input(input)
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    }
+
+    /// 計算本体。入力タグから、条件を満たすタグ組み合わせを返す。
     /// is_global=false なら new（大陸版）も対象に含める。
+    /// pickup があれば、その対象を含む組み合わせを星に関わらず採用する。
     pub fn calculate(
         &self,
         input_tags: &[String],
         is_global: bool,
         min_star: u8,
+        pickup: Option<&[String]>,
     ) -> Vec<MatchItem> {
         let tags = self.normalize_input(input_tags);
 
@@ -101,7 +108,7 @@ impl RecruitData {
 
         let mut result = Vec::new();
         for combo in &combos {
-            let satisfied: Vec<&Operator> = pool
+            let mut satisfied: Vec<&Operator> = pool
                 .iter()
                 .filter(|op| satisfy_tags(op, combo))
                 .copied()
@@ -109,22 +116,52 @@ impl RecruitData {
             if satisfied.is_empty() {
                 continue;
             }
+            // 星昇順ソート（Python の OperatorList は stars 昇順）
+            satisfied.sort_by_key(|o| o.stars);
             let ms = min_star_of(&satisfied);
-            // Python: minStar==1 でrobot表示 or minStar>=閾値 なら採用
-            let keep = (ms == 1 && show_robot) || ms >= min_star;
-            if keep {
-                let names: Vec<String> =
-                    satisfied.iter().map(|o| o.name.clone()).collect();
-                result.push(MatchItem {
-                    combo: combo.iter().map(|t| t.name.clone()).collect(),
-                    min_star: ms,
-                    operators: names,
-                    star_set: satisfied.iter().map(|o| o.stars).collect(),
-                });
+
+            // ピックアップ判定
+            let (contains_pickup, pickup_target) = match pickup {
+                Some(pu) => {
+                    let names: Vec<String> =
+                        satisfied.iter().map(|o| o.name.clone()).collect();
+                    let pt: Vec<String> =
+                        pu.iter().filter(|t| names.contains(t)).cloned().collect();
+                    (!pt.is_empty(), pt)
+                }
+                None => (false, Vec::new()),
+            };
+
+            // 採用判定（Python: containsPickup優先 → robot → minStar閾値）
+            let keep = contains_pickup || (ms == 1 && show_robot) || ms >= min_star;
+            if !keep {
+                continue;
             }
+
+            result.push(MatchItem {
+                combo: combo.iter().map(|t| t.name.clone()).collect(),
+                min_star: ms,
+                operators: satisfied
+                    .iter()
+                    .map(|o| OperatorRef {
+                        name: o.name.clone(),
+                        stars: o.stars,
+                    })
+                    .collect(),
+                star_set: satisfied.iter().map(|o| o.stars).collect(),
+                contains_pickup,
+                pickup_target,
+            });
         }
         result
     }
+}
+
+/// オペレーター参照（名前＋星）
+#[derive(Debug, Clone)]
+pub struct OperatorRef {
+    pub name: String,
+    pub stars: u8,
 }
 
 /// 1組み合わせ分の計算結果。
@@ -132,8 +169,12 @@ impl RecruitData {
 pub struct MatchItem {
     pub combo: Vec<String>,
     pub min_star: u8,
-    pub operators: Vec<String>,
-    pub star_set: HashSet<u8>,
+    /// 星昇順ソート済み
+    pub operators: Vec<OperatorRef>,
+    /// 表示順を安定させるため BTreeSet（Python の出力は昇順）
+    pub star_set: BTreeSet<u8>,
+    pub contains_pickup: bool,
+    pub pickup_target: Vec<String>,
 }
 
 /// オペレーターが全タグを満たすか（Python の satisfyTags）。
