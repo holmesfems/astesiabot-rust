@@ -1,7 +1,8 @@
+pub mod embed;
 pub mod ocr;
 
 use crate::bot::data::{Data, Error};
-use crate::recruit::EmbedReply;
+use crate::bot::reply::EmbedReply;
 use poise::serenity_prelude as serenity;
 
 pub async fn handle(
@@ -17,7 +18,7 @@ pub async fn handle(
         None => return Ok(Some(EmbedReply::error("画像から文字を検出できませんでした"))),
     };
 
-    let reply = data.state.recruit.process_for_embed(&text);
+    let reply = embed::build_embed_reply(&data.state.recruit, &text);
     if reply.chunks.is_empty() {
         return Ok(None);
     }

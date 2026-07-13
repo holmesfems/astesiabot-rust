@@ -1,5 +1,5 @@
 use crate::bot::data::Error;
-use crate::recruit::EmbedReply;
+use crate::bot::reply::EmbedReply;
 use poise::serenity_prelude as serenity;
 
 /// 占い館チャンネル。今は骨組みのみ。
