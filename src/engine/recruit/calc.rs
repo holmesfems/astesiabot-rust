@@ -2,6 +2,9 @@ use super::model::{Operator, OperatorDb, Tag, TagList, TagType};
 use super::Error;
 use itertools::Itertools;
 use std::collections::{BTreeSet, HashSet};
+use chrono::{NaiveDate, LocalResult, TimeZone, Utc};
+use chrono_tz::Asia::Tokyo;
+use std::env;
 
 /// 起動時に一度読み込んで保持するデータ。
 pub struct RecruitData {
@@ -28,13 +31,55 @@ impl RecruitData {
         tag_name_order.extend(tag_list.elite_tags.iter().cloned());
         tag_name_order.extend(tag_list.other_tags.iter().cloned());
 
+        // Handle `future` entries: decide whether each future opList belongs to `new` or `main`
+        // based on whether now is before the date at configured hour (default 16).
+        let mut operators_main = db.main;
+        let mut operators_new = db.new;
+
+        // configurable hour via env RECRUIT_FUTURE_HOUR (0-23), default 16
+        let future_hour: u32 = env::var("RECRUIT_FUTURE_HOUR")
+            .ok()
+            .and_then(|s| s.parse::<u32>().ok())
+            .filter(|&h| h < 24)
+            .unwrap_or(16);
+
+        // get current time in Asia/Tokyo explicitly
+        let now = Utc::now().with_timezone(&Tokyo);
+        for fe in db.future.iter() {
+            match Self::parse_future_date(&fe.yyyymmdd, future_hour) {
+                Some(t_dt) => {
+                    if now < t_dt {
+                        operators_new.extend(fe.op_list.clone());
+                    } else {
+                        operators_main.extend(fe.op_list.clone());
+                    }
+                }
+                None => {
+                    eprintln!("warning: failed to parse future date '{}', skipping", fe.yyyymmdd);
+                }
+            }
+        }
+
         Ok(Self {
-            operators_main: db.main,
-            operators_new: db.new,
+            operators_main,
+            operators_new,
             tag_list,
             tag_name_order,
         })
     }
+
+/// Parse a yyyymmdd or yymmdd string and return a Local datetime at the given hour.
+fn parse_future_date(s: &str, hour: u32) -> Option<chrono::DateTime<chrono_tz::Tz>> {
+    // try YYYYMMDD then YYMMDD
+    let parsed_date = NaiveDate::parse_from_str(s, "%Y%m%d")
+        .or_else(|_| NaiveDate::parse_from_str(s, "%y%m%d")).ok()?;
+    let naive_dt = parsed_date.and_hms_opt(hour, 0, 0)?;
+    match Tokyo.from_local_datetime(&naive_dt) {
+        LocalResult::Single(dt) => Some(dt.with_timezone(&Tokyo)),
+        LocalResult::Ambiguous(dt1, _) => Some(dt1.with_timezone(&Tokyo)),
+        LocalResult::None => None,
+    }
+}
 
     /// タグ名から種別を判定（Python の tagType 相当）
     fn tag_type(&self, name: &str) -> TagType {

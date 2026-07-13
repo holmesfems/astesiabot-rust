@@ -17,7 +17,21 @@ pub struct OperatorDb {
     pub main: Vec<Operator>,
     #[serde(default)]
     pub new: Vec<Operator>,
-    // future は後回し（beginFrom の時刻計算が絡むため未実装）
+    #[serde(default)]
+    pub future: Vec<FutureEntry>,
+}
+
+/// `future` 要素。data/recruitmentOperators.json の形式に合わせる。
+#[derive(Debug, Deserialize)]
+pub struct FutureEntry {
+    // human-readable label for future entries; not used by code
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub comment: Option<String>,
+    #[serde(rename = "yyyymmdd")]
+    pub yyyymmdd: String,
+    #[serde(rename = "opList")]
+    pub op_list: Vec<Operator>,
 }
 
 /// tagList.json に対応。タグ名を種別ごとに分類するために使う。
