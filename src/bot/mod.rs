@@ -1,6 +1,8 @@
+pub mod channels;   // ← 追加
 pub mod commands;
 pub mod data;
 pub mod handler;
+pub mod services;   // ← 追加
 
 use data::Data;
 use poise::serenity_prelude as serenity;
