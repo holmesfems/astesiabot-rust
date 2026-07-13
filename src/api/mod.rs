@@ -1,7 +1,7 @@
 mod recruitment;
 
 use crate::bot::services::moderation::ModerationState;
-use crate::recruit::RecruitEngine;
+use crate::engine::recruit::RecruitEngine;
 use axum::{routing::get, routing::post, Router};
 use std::sync::Arc;
 

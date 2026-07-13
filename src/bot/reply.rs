@@ -1,5 +1,5 @@
 use crate::bot::data::Error;
-use crate::recruit::format::arrangement_chunks;
+use crate::engine::recruit::format::arrangement_chunks;
 use poise::serenity_prelude as serenity;
 
 const MAX_LENGTH: usize = 1900; // Python と同じ

@@ -1,5 +1,5 @@
 use crate::bot::reply::{EmbedReply, MsgType};
-use crate::recruit::{format, RecruitEngine};
+use crate::engine::recruit::{format, RecruitEngine};
 
 /// OCR生テキスト → タグ抽出 → 計算 → EmbedReply（bot の embed 表示用）。
 /// Python bot の embed 表示に対応。recruit は計算だけを担い、
