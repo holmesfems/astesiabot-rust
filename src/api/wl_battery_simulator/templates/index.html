@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>武陵高精度発電制御</title>
+  <link rel="stylesheet" href="/WLBatterySimulator/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+  <header class="container">
+    <h1>武陵発電制御計算機</h1>
+    <p class="muted">必要電力（5刻み）を入力すると、最適な設定値とチャートを表示します。最大発電量を超える場合は自動的に按分して計算します。</p>
+  </header>
+
+  <main class="container grid">
+    <section class="card">
+      <h2>発電値計算</h2>
+      <form id="calcForm" class="form"
+        hx-post = "/WLBatterySimulator/calculate"
+        hx-swap = "none"
+        hx-encoding = "multipart/form-data"
+      >
+        <label>必要な発電量を入力してください</label>
+        <input id="required_power" name="required_power" type="number" min="5" step="5" required
+                placeholder="例: 250" value="{% if let Some(rp) = required_power %}{{ rp }}{% endif %}"/>
+
+        <label>残電量安全マージン</label>
+        <input name="storage_margin" type="number" min="0" max="100000" step="1000"  required
+                placeholder="例: 10000" value="{{ storage_margin }}"/>
+        <!-- 追加：5分割以下のみマージン適用トグル -->
+        <label class="toggle">
+          <span class="toggle-label">5分割以下のみマージン適用</span>
+
+          <input type="checkbox" name="use_margin_under_5" {% if use_margin_under_5 %}checked{% endif %}/>
+          <span class="toggle-track" aria-hidden="true">
+            <span class="toggle-thumb"></span>
+          </span>
+        </label>
+        <button type="submit">最適設定を計算</button>
+      </form>
+      <div id="error" class="error" hidden="true">
+        {{ error_html|safe }}
+      </div>
+
+      <div id="result" class="result" hidden = "true">
+        {{ result_html|safe }}
+      </div>
+
+    </section>
+    <section class="card">
+      <h2 id="title">回路図選択</h2>
+
+      <!-- 追加：selector -->
+      <div class="code_selector style="gap:12px; align-items:center;">
+        <label class="muted" for="blueprintSelector">図面選択:</label>
+        <select id="blueprintSelector" class="select-modern" name="blueprintId" form="calcForm">
+          <!-- value を「項目ID」として扱う（= お嬢様の言う “id” の役割） -->
+          <option value="CTL_1">標準制御器(800/400/200/100/50/25/5/5/5/5/5)</option>
+          <option value="CTL_2">可変周期入力式標準制御器(beta)</option>
+          <option value="CTL_3">可変周期発電(武陵小電池)</option>
+          <option value="CTL_4" selected>可変周期発電(武陵中電池)</option>
+        </select>
+      </div>
+
+      <div class="code-row">
+        <label class="muted">
+          入力: <span id="input_freq">1.5/s</span><br> コード: <span id="codeValue">EFO01iUIAE8OIE29i72U4</span>
+        </label>
+        <button type="button" class="copy-btn" id="copyBtn">コピー</button>
+      </div>
+      <span id="tutorial_link" hidden></span>
+      </div>
+
+      <div id="toast" class="toast" role="status" aria-live="polite">コピー完了しました</div>
+
+      <img class="blueprint" id="blueprintImg"
+          src="/WLBatterySimulator/static/blueprint.png"
+          alt="発電制御器 設計図" />
+
+      <script>
+        const codeValue = document.getElementById("codeValue");
+        const inputFreq = document.getElementById("input_freq");
+        const copyBtn = document.getElementById("copyBtn");
+        const toast = document.getElementById("toast");
+        const selector = document.getElementById("blueprintSelector");
+        const blueprintImg = document.getElementById("blueprintImg");
+        const tutorial = document.getElementById("tutorial_link")
+
+        let toastTimer;
+
+        function showToast(message = "コピー完了しました") {
+          toast.textContent = message;
+          toast.classList.add("show");
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => toast.classList.remove("show"), 1400);
+        }
+
+        // 「項目ID（お嬢様の欲しい id）」 -> 表示内容 のマップ
+        const blueprintMap = {
+          CTL_1: {
+            code: "EFO01iUIAE8OIE29i72U4",
+            inputFreq: "1.5/s",
+            imgSrc: "/WLBatterySimulator/static/blueprint.png",
+            imgAlt: "発電制御器 設計図（入力1.5/min）",
+            maxPower: 1600,
+            tutorial: null
+          },
+          CTL_2: {
+            code: "EFO018Ieo6U9e6166UI73",
+            inputFreq: "可変周期",
+            imgSrc: "/WLBatterySimulator/static/blueprint2.png",
+            imgAlt: "発電制御器 設計図（可変周期）",
+            maxPower: 1600,
+            tutorial: "/WLBatterySimulator/static/tutorial_CTL2.html"
+          },
+          CTL_3: {
+            code: "EFO01iUIAE8OIE2u272U4",
+            inputFreq: "30/s 倉庫入力",
+            imgSrc: "/WLBatterySimulator/static/blueprint3.png",
+            imgAlt: "発電制御器 設計図（可変周期）",
+            maxPower: 1600,
+            tutorial: "https://youtu.be/Wq1ki2xgoEQ"
+          },
+          CTL_4: {
+            code: "EFO012O9Eo1I9o819eIOo",
+            inputFreq: "30/s 倉庫入力",
+            imgSrc: "/WLBatterySimulator/static/blueprint3.png",
+            imgAlt: "発電制御器 設計図（可変周期）",
+            maxPower: 3200,
+            tutorial: "https://youtu.be/Wq1ki2xgoEQ"
+          },
+        };
+
+        function applySelection(itemId) {
+          const item = blueprintMap[itemId];
+          if (!item) return;
+
+          codeValue.textContent = item.code;
+          inputFreq.textContent = item.inputFreq;
+          blueprintImg.src = item.imgSrc;
+          blueprintImg.alt = item.imgAlt;
+
+          blueprintImg.dataset.itemId = itemId;
+
+          // チュートリアルリンクの表示制御
+          if (item.tutorial) {
+            tutorial.hidden = false;
+
+            // 中身をリンクに差し替え（安全に作る）
+            tutorial.innerHTML = ""; // 前の内容をクリア
+            const a = document.createElement("a");
+            a.href = item.tutorial;
+            a.classList.add("muted")
+            a.textContent = "チュートリアルを見る";
+            a.target = "_blank";           // 別タブで開く（不要なら削除）
+            a.rel = "noopener noreferrer"; // セキュリティお作法
+            tutorial.appendChild(a);
+          } else {
+            tutorial.hidden = true;
+            tutorial.innerHTML = "";
+          }
+        }
+        selector.addEventListener("change", (e) => {
+          applySelection(e.target.value);
+
+          // 必要電力が入力済みなら、図面切替と同時に再計算する
+          const requiredPowerInput = document.getElementById("required_power");
+          const calcForm = document.getElementById("calcForm");
+          if (requiredPowerInput && requiredPowerInput.value && calcForm) {
+            if (typeof calcForm.requestSubmit === "function") {
+              calcForm.requestSubmit();
+            } else {
+              calcForm.querySelector('button[type="submit"]').click();
+            }
+          }
+        });
+
+        // 初期反映（ページ表示時にselectの値から反映）
+        applySelection(selector.value);
+
+        copyBtn.addEventListener("click", async () => {
+          const text = codeValue.textContent.trim();
+          await navigator.clipboard.writeText(text);
+          showToast("コピー完了しました");
+        });
+      </script>
+    </section>
+    <script>
+      let chartInstance = null;
+
+      function renderBatteryChart(cardEl) {
+        const canvas = cardEl.querySelector('#chart');
+        if (!canvas) {
+          // result が無いときは <p> だけなので何もしない
+          if (chartInstance) {
+            chartInstance.destroy();
+            chartInstance = null;
+          }
+          return;
+        }
+
+        const labels = JSON.parse(canvas.dataset.labels || '[]');
+        const data = JSON.parse(canvas.dataset.values || '[]');
+        // 既存のチャートがあれば破棄（重複描画防止）
+        if (chartInstance) {
+          chartInstance.destroy();
+          chartInstance = null;
+
+        }
+
+        const ctx = canvas.getContext('2d');
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: '残電量',
+              data,
+              borderWidth: 2,
+              tension: 0,
+              pointRadius: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                type: 'linear',          // ← ここが重要
+                title: { display: true, text: '時間（秒）' }
+              },
+              y: {
+                title: { display: true, text: '残電量' },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+
+      }
+    // 初回表示時
+    document.addEventListener('DOMContentLoaded', () => {
+      const card = document.querySelector('#tvChart');
+      if (card) renderBatteryChart(card);
+    });
+
+    // htmx による部分更新後
+    document.body.addEventListener('htmx:afterSettle', (evt) => {
+      const swapped = evt.target;
+      if (swapped.id === 'tvChart') {
+        renderBatteryChart(swapped);
+      }
+    });
+  </script>
+  <section id="tvChart" class="card full">
+    {{ chart_html|safe }}
+  </section>
+
+  </main>
+
+  <footer class="container muted">
+    <small>
+      <a class="muted" href="https://github.com/holmesfems/RiseiCalculatorBot-main/tree/main/htmlResources/WLBatterySimulator"
+        target="_blank" rel="noopener noreferrer">
+        GitHub
+      </a>
+      © <span id="year"></span> holmesfems. Licensed under the MIT License:
+      <a class="muted" href="https://opensource.org/license/mit/"
+        target="_blank" rel="noopener noreferrer">
+        https://opensource.org/license/mit/
+      </a>
+    </small>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

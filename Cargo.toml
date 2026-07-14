@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 poise = "0.6"
-axum = { version = "0.7", features = ["json"] }
+axum = { version = "0.7", features = ["json", "multipart"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
@@ -16,3 +16,5 @@ chrono = "0.4"
 chrono-tz = "0.6"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 dotenvy = "0.15"
+askama = { version = "0.12", features = ["serde-json"] }
+tower-http = { version = "0.5", features = ["fs"] }

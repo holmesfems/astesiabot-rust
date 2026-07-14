@@ -1,0 +1,14 @@
+<h2>チャート（時間 / 残電量）</h2>
+{% if let Some(result) = result %}
+  {% if result.remainder != 0 %}
+  <div class="chartBox">
+      <canvas id="chart" height="300"
+          data-labels='{{ result.time_series|json }}'
+          data-values='{{ result.remaining_series|json }}'></canvas>
+  </div>
+  {% else %}
+  <p class="muted">最大発電量の倍数で丁度賄えるため、常時フル稼働で運用できます。周期制御は不要です。</p>
+  {% endif %}
+{% else %}
+  <p class="muted">計算後に表示されます。</p>
+{% endif %}
