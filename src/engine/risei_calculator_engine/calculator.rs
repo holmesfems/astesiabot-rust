@@ -19,6 +19,12 @@ use super::Error;
 /// 合成レシピの副産物ドロップ率（Python `ConvertionMatrix.__init__` のデフォルト値）。
 const CONVERTION_DROP_RATE: f64 = 0.18;
 
+/// 基準マップ差し替え収束ループ(`BaseStageMatrix::update`)の最大反復回数。
+/// Python版は`while(baseMatrix.update(values))`で無条件に回し続けるが、
+/// カテゴリ数（数十件）に対して十分すぎるほど大きい値を安全弁として設定し、
+/// 収束しないケース（データ不整合等）でテスト・実運用が無限ループしないようにする。
+const MAX_BASE_STAGE_UPDATE_ITERATIONS: usize = 1_000;
+
 /// 換算行列・基準マップ行列などの1行分（Python `Calculator.ConvertionItem`）。
 struct ConvertionItem {
     #[allow(dead_code)]
@@ -337,7 +343,7 @@ impl Calculator {
         let const_stage_items = build_const_stage_matrix(server);
         let value_target_list = value_target(server);
 
-        let seed = stage_info.generate_category_seed(valid_base_min_times);
+        let seed = stage_info.generate_category_seed(valid_base_min_times)?;
         let mut base_stage_matrix = BaseStageMatrix::from_seed(valid_base_min_times, seed, &stage_info);
 
         let mut values = solve_values(
@@ -352,7 +358,12 @@ impl Calculator {
 
         // 明らかに現在の基準マップより効率の良いステージが見つからなくなるまで、
         // 基準マップを差し替えて再計算し続ける（Python `solveOptimizedValue`）。
-        while base_stage_matrix.update(&stage_info, &values)? {
+        let mut converged = false;
+        for _ in 0..MAX_BASE_STAGE_UPDATE_ITERATIONS {
+            if !base_stage_matrix.update(&stage_info, &values)? {
+                converged = true;
+                break;
+            }
             values = solve_values(
                 server,
                 &value_target_list,
@@ -362,6 +373,13 @@ impl Calculator {
                 item_names.clone(),
                 const_values.clone(),
             )?;
+        }
+        if !converged {
+            return Err(format!(
+                "基準マップの差し替えが{MAX_BASE_STAGE_UPDATE_ITERATIONS}回反復しても収束しませんでした。\
+                 理性効率の計算が振動している可能性があります"
+            )
+            .into());
         }
 
         // 誤差(標準偏差)を計算する。

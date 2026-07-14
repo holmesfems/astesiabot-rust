@@ -10,6 +10,10 @@ pub struct ItemArray {
     dict: HashMap<String, f64>,
 }
 
+/// Python `rcutils.itemArray.ItemArray.normalize` の閾値（`EPSILON = 0.0001`）。
+/// `stage.rs` の `EPSILON`（1e-6、理性効率の収束判定用）とは別物なので混同しないこと。
+const NORMALIZE_EPSILON: f64 = 0.0001;
+
 impl ItemArray {
     pub fn from_id_count(dict: HashMap<String, f64>) -> Self {
         Self { dict }
@@ -49,9 +53,14 @@ impl ItemArray {
         self.dict.values().sum()
     }
 
+    /// Python `ItemArray.toZHStrCountDict`（内部で`normalize()`を呼ぶ）に相当。
+    /// `normalize()`はゼロ近傍(`abs(value) <= NORMALIZE_EPSILON`)の項を除去してから
+    /// 辞書化するため、ここでも同じ閾値でフィルタする（順序・龍門幣統合は辞書化に
+    /// 無関係のため移植不要）。
     pub fn to_zh_count_dict(&self, item_names: &ItemNames) -> HashMap<String, f64> {
         self.dict
             .iter()
+            .filter(|(_, v)| v.abs() > NORMALIZE_EPSILON)
             .map(|(id, v)| (item_names.get_zh(id).to_string(), *v))
             .collect()
     }

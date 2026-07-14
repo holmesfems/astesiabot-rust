@@ -12,6 +12,11 @@ use std::sync::Arc;
 /// オートコンプリート等で使うデフォルトの最小試行数（Python `DEFAULT_SHOW_MIN_TIMES`）。
 pub const DEFAULT_SHOW_MIN_TIMES: i64 = 1000;
 
+/// `generate_category_seed` の重複リトライ上限。Python版は無条件でリトライし続けるが
+/// （`while(True)` + `hasduplicates`）、カテゴリ定義次第では重複が構造的に解消しない
+/// 場合があり得るため、テスト・実運用双方が無限ループしないよう上限を設ける。
+const MAX_SEED_GENERATION_ATTEMPTS: usize = 10_000;
+
 pub struct CategoryInstance {
     pub info: StageCategoryInfo,
     pub stage_ids: Vec<String>,
@@ -41,9 +46,22 @@ pub struct StageInfo {
 
 impl StageInfo {
     /// Python `StageInfo.init`/`initMatrix` に相当。
-    /// 新章の期間限定ドロップ倍率イベント(`eventMainList`)は既に終了済みの
-    /// 過去データ用の暫定コードだったため移植していない
-    /// （Python版のコメント「新章実装時...実装次第削除してOK」の通り、恒久対応ではない）。
+    ///
+    /// `eventMainList`（新章実装直後の期間限定ドロップ倍率ウィンドウを`(Event)`ステージへ
+    /// 退避する仕組み）自体は移植していない（対象の新章はとうに実装済みで
+    /// `eventMainDict`に一致するウィンドウが来ることはない）。
+    /// ただし、この仕組みが担っていた「MAIN/SUBステージ向けの`end`付き（期間限定）
+    /// matrixレコードは通常のdropListに混ぜない」という前提は今も有効。
+    /// penguin-statsの`/result/matrix`は本編ステージであっても、新章実装直後の
+    /// 一時的なブースト期間のレコード（`end`が設定され、他アイテムと桁違いの
+    /// `times`を持つ）を返し続けることがある（例: 14章実装時の酮凝集組ドロップ、
+    /// `end=1715716800000`のレコードが実装から1年以上経った現在も残っている）。
+    /// これをそのまま合算するとそのステージの`maxTimes`や特定アイテムのドロップ率が
+    /// 汚染され、基準マップ差し替えループが収束しなくなる実害があったため、
+    /// `end`付きレコードはMAIN/SUBステージについては読み飛ばす
+    /// （Python版が`(Event)`ステージへ退避して本編ステージのdropListに
+    /// 混ぜないのと同じ効果）。ACTIVITYステージ（`event_stage_dict`）は
+    /// 元々期間限定運用が前提のため対象外（Python版と同じ）。
     pub fn build(
         server: Server,
         stage_category_file: &StageCategoryFile,
@@ -97,7 +115,11 @@ impl StageInfo {
 
         for record in &ark_matrix.matrix {
             if let Some(stage) = main_stage_dict.get_mut(&record.stage_id) {
-                stage.add_drop_record(record, &value_target_list, &item_names);
+                // 期間限定（`end`付き）レコードはMAIN/SUBの通常dropListに混ぜない
+                // （このimpl冒頭のコメント参照）。
+                if record.end.is_none() {
+                    stage.add_drop_record(record, &value_target_list, &item_names);
+                }
             } else if let Some(stage) = event_stage_dict.get_mut(&record.stage_id) {
                 stage.add_drop_record(record, &value_target_list, &item_names);
             }
@@ -181,9 +203,14 @@ impl StageInfo {
 
     /// カテゴリごとにランダムなステージを選び、基準マップの初期seedを作る
     /// （重複した場合はやり直す。Python `generateCategorySeed`）。
-    pub fn generate_category_seed(&self, valid_base_min_times: i64) -> HashMap<String, Arc<StageItem>> {
+    /// `MAX_SEED_GENERATION_ATTEMPTS` 回リトライしても重複が解消しない場合はエラーを返す
+    /// （カテゴリ定義が競合していて構造的に解消不可能なケースの安全弁。詳細は定数コメント参照）。
+    pub fn generate_category_seed(
+        &self,
+        valid_base_min_times: i64,
+    ) -> Result<HashMap<String, Arc<StageItem>>, super::Error> {
         let mut rng = rand::thread_rng();
-        loop {
+        for _ in 0..MAX_SEED_GENERATION_ATTEMPTS {
             let mut ret = HashMap::new();
             for key in self.category_instance_dict.keys() {
                 let candidates = self.category_valid_stages(key, valid_base_min_times);
@@ -194,9 +221,14 @@ impl StageInfo {
             let mut seen = HashSet::new();
             let has_dup = ret.values().any(|stage| !seen.insert(stage.stage_id.clone()));
             if !has_dup {
-                return ret;
+                return Ok(ret);
             }
         }
+        Err(format!(
+            "基準マップの初期seed生成が{MAX_SEED_GENERATION_ATTEMPTS}回のリトライでも重複を解消できませんでした。\
+             カテゴリ定義（data/risei/stage_category.json）で複数カテゴリが同じステージしか候補に持てない状態になっている可能性があります"
+        )
+        .into())
     }
 
     /// 全基準候補ステージの中で最大効率のものを探す（Python `getCategoryMaxEfficiency`）。
