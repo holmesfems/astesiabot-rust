@@ -1,6 +1,11 @@
+pub mod ark_matrix;
+pub mod ark_stages;
 pub mod cache;
+pub mod formulas;
 pub mod http;
+pub mod item_names;
 pub mod operator_names;
+pub mod zones;
 
 pub use cache::{BoxFuture, FetchError, Source};
 
@@ -24,6 +29,11 @@ pub use cache::{BoxFuture, FetchError, Source};
 ///    に1行ずつ追加する。
 pub struct OuterSourceRegistry {
     pub operator_names: Source<operator_names::OperatorNames>,
+    pub item_names: Source<item_names::ItemNames>,
+    pub zones: Source<zones::Zones>,
+    pub ark_stages: Source<ark_stages::ArkStages>,
+    pub ark_matrix: Source<ark_matrix::ArkMatrix>,
+    pub formulas: Source<formulas::Formulas>,
 }
 
 impl OuterSourceRegistry {
@@ -37,21 +47,40 @@ impl OuterSourceRegistry {
                 operator_names::fetch,
             )
             .await,
+            item_names: Source::load("item_names", Some(item_names::SEED_PATH), item_names::fetch).await,
+            zones: Source::load("zones", Some(zones::SEED_PATH), zones::fetch).await,
+            ark_stages: Source::load("ark_stages", Some(ark_stages::SEED_PATH), ark_stages::fetch).await,
+            ark_matrix: Source::load("ark_matrix", Some(ark_matrix::SEED_PATH), ark_matrix::fetch).await,
+            formulas: Source::load("formulas", Some(formulas::SEED_PATH), formulas::fetch).await,
         }
     }
 
     /// 全情報源を再fetchする（1日1回程度の定期実行を想定）。ある情報源の
     /// fetchが失敗しても他の情報源には影響しない。
     pub async fn refresh_all(&self) {
-        tokio::join!(self.operator_names.refresh());
+        tokio::join!(
+            self.operator_names.refresh(),
+            self.item_names.refresh(),
+            self.zones.refresh(),
+            self.ark_stages.refresh(),
+            self.ark_matrix.refresh(),
+            self.formulas.refresh(),
+        );
     }
 
-    /// 名前を指定して1つだけ再fetchする（機能側からのオンデマンド更新用）。
+    /// 名前を指定して1つだけ再fetchする（機能側からのオンデマンド更新用。
+    /// risei_calculator_engine が自前のキャッシュ期限切れ時に ark_stages /
+    /// ark_matrix を再fetchする用途を想定）。
     /// 該当する情報源が無ければ `None`。
     #[allow(dead_code)]
     pub async fn refresh_by_name(&self, name: &str) -> Option<bool> {
         match name {
             "operator_names" => Some(self.operator_names.refresh().await),
+            "item_names" => Some(self.item_names.refresh().await),
+            "zones" => Some(self.zones.refresh().await),
+            "ark_stages" => Some(self.ark_stages.refresh().await),
+            "ark_matrix" => Some(self.ark_matrix.refresh().await),
+            "formulas" => Some(self.formulas.refresh().await),
             _ => None,
         }
     }
@@ -66,8 +95,35 @@ pub struct SeedJob {
 
 /// Seedを持つ情報源の一覧。`cargo run --bin regen_seeds` がこれを順に実行する。
 /// 新しい情報源にSeedを持たせたら、ここに1エントリ追加すること。
-pub const SEED_JOBS: &[SeedJob] = &[SeedJob {
-    name: "operator_names",
-    path: operator_names::SEED_PATH,
-    update: operator_names::update_seed,
-}];
+pub const SEED_JOBS: &[SeedJob] = &[
+    SeedJob {
+        name: "operator_names",
+        path: operator_names::SEED_PATH,
+        update: operator_names::update_seed,
+    },
+    SeedJob {
+        name: "item_names",
+        path: item_names::SEED_PATH,
+        update: item_names::update_seed,
+    },
+    SeedJob {
+        name: "zones",
+        path: zones::SEED_PATH,
+        update: zones::update_seed,
+    },
+    SeedJob {
+        name: "ark_stages",
+        path: ark_stages::SEED_PATH,
+        update: ark_stages::update_seed,
+    },
+    SeedJob {
+        name: "ark_matrix",
+        path: ark_matrix::SEED_PATH,
+        update: ark_matrix::update_seed,
+    },
+    SeedJob {
+        name: "formulas",
+        path: formulas::SEED_PATH,
+        update: formulas::update_seed,
+    },
+];

@@ -4,6 +4,7 @@ mod wl_battery_simulator;
 use crate::bot::services::moderation::ModerationState;
 use crate::engine::outer_source::OuterSourceRegistry;
 use crate::engine::recruit::RecruitEngine;
+use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
 use axum::response::Redirect;
 use axum::{routing::get, routing::post, Router};
 use std::sync::Arc;
@@ -14,6 +15,8 @@ pub struct AppState {
     pub moderation: ModerationState,
     /// 外部サイトから取得する情報のレジストリ（operator_names など）。
     pub outer_source: OuterSourceRegistry,
+    /// 理性価値表の計算エンジン（グローバル版・大陸版）。
+    pub risei_calculator: RiseiCalculatorEngine,
 }
 
 pub async fn run_api(state: Arc<AppState>) {

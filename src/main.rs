@@ -19,10 +19,15 @@ async fn main() {
     let moderation = ModerationState::from_env();
     // 外部サイト情報も起動時に一括fetch（失敗時の扱いは Source::load 参照）。
     let outer_source = engine::outer_source::OuterSourceRegistry::load().await;
+    // 理性価値表もここで一括計算（グローバル版・大陸版とも）。
+    let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
+        .await
+        .expect("理性価値表の初期計算に失敗");
     let state = Arc::new(AppState {
         recruit: recruit_engine,
         moderation,
         outer_source,
+        risei_calculator,
     });
     let bot_state = state.clone();
 

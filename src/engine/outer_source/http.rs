@@ -17,9 +17,23 @@ pub fn client() -> reqwest::Client {
 /// URLからJSONをfetchする共通ヘルパー。最大 [`FETCH_RETRIES`] 回まで
 /// リトライする（各回のタイムアウトは `client` 生成時に設定した7s）。
 pub async fn fetch_json_with_retry(client: &reqwest::Client, url: &str) -> Result<Value, FetchError> {
+    fetch_json_with_retry_headers(client, url, &[]).await
+}
+
+/// [`fetch_json_with_retry`] にヘッダー指定を足したもの。penguin-stats系の
+/// fetchは `User-Agent: ArkPlanner` が必要なため、これを使う。
+pub async fn fetch_json_with_retry_headers(
+    client: &reqwest::Client,
+    url: &str,
+    headers: &[(&str, &str)],
+) -> Result<Value, FetchError> {
     let mut last_err: Option<FetchError> = None;
     for _ in 0..FETCH_RETRIES {
-        match client.get(url).send().await {
+        let mut req = client.get(url);
+        for (key, value) in headers {
+            req = req.header(*key, *value);
+        }
+        match req.send().await {
             Ok(resp) => match resp.error_for_status() {
                 Ok(resp) => match resp.json::<Value>().await {
                     Ok(json) => return Ok(json),

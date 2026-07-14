@@ -23,6 +23,10 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
                 commands::ping::ping(),
                 commands::echo::echo(),
                 commands::add::add(),
+                commands::risei::riseimaterials::riseimaterials(),
+                commands::risei::riseistages::riseistages(),
+                commands::risei::riseievents::riseievents(),
+                commands::risei::riseilists::riseilists(),
             ],
             // 汎用メッセージハンドラの登録
             event_handler: |ctx, event, framework, data| {
