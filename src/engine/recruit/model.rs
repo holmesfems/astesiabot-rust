@@ -10,13 +10,13 @@ pub struct Operator {
     pub stars: u8,
 }
 
-/// recruitmentOperators.json 全体。今は main / new のみ使用。
+/// recruitmentOperators.json 全体。
+/// JSON 側には歴史的経緯で "new" フィールドが残っているが、実データは常に空で
+/// 将来実装予定は "future" が一元管理するため、Rust 側では読み込まない。
 #[derive(Debug, Deserialize)]
 pub struct OperatorDb {
     #[serde(default)]
     pub main: Vec<Operator>,
-    #[serde(default)]
-    pub new: Vec<Operator>,
     #[serde(default)]
     pub future: Vec<FutureEntry>,
 }
