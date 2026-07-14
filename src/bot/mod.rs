@@ -32,6 +32,7 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
                 commands::operator_cost_calc::operatorelitecost::operatorelitecost(),
                 commands::operator_cost_calc::operatormodulecost::operatormodulecost(),
                 commands::operator_cost_calc::operatorcostlist::operatorcostlist(),
+                commands::fksearch::fksearch(),
             ],
             // 汎用メッセージハンドラの登録
             event_handler: |ctx, event, framework, data| {

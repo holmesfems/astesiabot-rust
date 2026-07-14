@@ -2,6 +2,7 @@ mod recruitment;
 mod wl_battery_simulator;
 
 use crate::bot::services::moderation::ModerationState;
+use crate::engine::fk_data_search::FkDataSearchEngine;
 use crate::engine::outer_source::OuterSourceRegistry;
 use crate::engine::recruit::RecruitEngine;
 use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
@@ -17,6 +18,8 @@ pub struct AppState {
     pub outer_source: OuterSourceRegistry,
     /// 理性価値表の計算エンジン（グローバル版・大陸版）。
     pub risei_calculator: RiseiCalculatorEngine,
+    /// FK情報スプレッドシートの鮮度管理（読み取り駆動で1時間毎に再fetch）。
+    pub fk_data_search: FkDataSearchEngine,
 }
 
 pub async fn run_api(state: Arc<AppState>) {

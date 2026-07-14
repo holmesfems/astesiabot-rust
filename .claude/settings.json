@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/skill_table.json\" -o /tmp/skill_cn.json)",
+      "Bash(taskkill //PID 30700 //F)"
+    ]
+  }
+}

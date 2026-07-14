@@ -1,6 +1,7 @@
 pub mod ark_matrix;
 pub mod ark_stages;
 pub mod cache;
+pub mod fk_data;
 pub mod formulas;
 pub mod http;
 pub mod item_names;
@@ -40,6 +41,10 @@ pub struct OuterSourceRegistry {
     pub ark_stages: Source<ark_stages::ArkStages>,
     pub ark_matrix: Source<ark_matrix::ArkMatrix>,
     pub formulas: Source<formulas::Formulas>,
+    /// FK情報スプレッドシートの生データ。1時間毎の鮮度管理は
+    /// `engine::fk_data_search::FkDataSearchEngine` が読み取り駆動で行うため、
+    /// ここでの日次一括更新（[`refresh_all`](Self::refresh_all)）の対象には含めない。
+    pub fk_data: Source<fk_data::FkSheetData>,
 }
 
 impl OuterSourceRegistry {
@@ -54,6 +59,7 @@ impl OuterSourceRegistry {
             ark_stages: Source::load("ark_stages", Some(ark_stages::SEED_PATH), ark_stages::fetch).await,
             ark_matrix: Source::load("ark_matrix", Some(ark_matrix::SEED_PATH), ark_matrix::fetch).await,
             formulas: Source::load("formulas", Some(formulas::SEED_PATH), formulas::fetch).await,
+            fk_data: Source::load("fk_data", Some(fk_data::SEED_PATH), fk_data::fetch).await,
         }
     }
 
@@ -134,5 +140,10 @@ pub const SEED_JOBS: &[SeedJob] = &[
         name: "formulas",
         path: formulas::SEED_PATH,
         update: formulas::update_seed,
+    },
+    SeedJob {
+        name: "fk_data",
+        path: fk_data::SEED_PATH,
+        update: fk_data::update_seed,
     },
 ];

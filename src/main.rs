@@ -50,11 +50,13 @@ async fn main() {
     let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
         .await
         .expect("理性価値表の初期計算に失敗");
+    let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
     let state = Arc::new(AppState {
         recruit: recruit_engine,
         moderation,
         outer_source,
         risei_calculator,
+        fk_data_search,
     });
     let bot_state = state.clone();
 

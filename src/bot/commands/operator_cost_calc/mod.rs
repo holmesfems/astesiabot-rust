@@ -231,11 +231,13 @@ mod golden_tests {
         let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
             .await
             .expect("risei engine should build against real network data");
+        let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
         AppState {
             recruit,
             moderation,
             outer_source,
             risei_calculator,
+            fk_data_search,
         }
     }
 
