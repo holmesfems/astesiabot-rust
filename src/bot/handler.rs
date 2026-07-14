@@ -1,6 +1,6 @@
 use crate::bot::data::{Data, Error};
 use crate::bot::reply::send_embed_reply;
-use crate::bot::services::{anniversary, koukai_kyujin, moderation, uranai};
+use crate::bot::services::{anniversary, recruit, moderation, uranai};
 use crate::bot::utils::channel_id_env;
 use poise::serenity_prelude as serenity;
 
@@ -51,7 +51,7 @@ pub async fn event_handler(
 
         // 4. チャンネル別のサービス振り分け（計算 → 返ってきたら送信）
         if msg.channel_id == data.channel_routing.koukai_kyujin {
-            if let Some(reply) = koukai_kyujin::handle(ctx, msg, data).await? {
+            if let Some(reply) = recruit::handle(ctx, msg, data).await? {
                 send_embed_reply(ctx, msg.channel_id, &reply).await?;
             }
         } else if msg.channel_id == data.channel_routing.uranai {
