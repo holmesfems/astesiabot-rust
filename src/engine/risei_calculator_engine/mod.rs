@@ -1,6 +1,7 @@
 pub mod calculator;
 pub mod formula;
 pub mod item_array;
+pub mod kakin;
 pub mod server;
 pub mod stage;
 pub mod stage_info;
@@ -182,6 +183,89 @@ impl RiseiCalculatorEngine {
         snapshot.ticket_efficiency_list(&items, &self.static_data.price_special)
     }
 
+    /// riseilists(cclist)相当。
+    pub async fn cc_list(&self, server: Server, outer_source: &OuterSourceRegistry) -> Vec<TicketEfficiency> {
+        let snapshot = self.snapshot(server, outer_source).await;
+        exchange_efficiency_list(&self.static_data.price_cc, &snapshot.values)
+    }
+
+    /// riseikakin(target)の単一パック表示相当。グローバル版固定
+    /// （Mainland版課金パックは元々使用頻度が低くオミット済み。`Design.md`参照）。
+    pub async fn kakin_pack(&self, name: &str, outer_source: &OuterSourceRegistry) -> Result<kakin::KakinPack, String> {
+        let def = self
+            .static_data
+            .kakin_list
+            .get(name)
+            .cloned()
+            .ok_or_else(|| format!("存在しない課金パック：{name}"))?;
+        let snapshot = self.snapshot(Server::Global, outer_source).await;
+        Ok(kakin::build_kakin_pack(
+            name,
+            &def,
+            &snapshot.values,
+            &self.static_data.kakin_list,
+            &self.static_data.const_gacha,
+        ))
+    }
+
+    /// riseikakin の参考用課金効率(constantList)相当。常にグローバル版。
+    pub async fn kakin_constants(&self, outer_source: &OuterSourceRegistry) -> Vec<kakin::KakinPack> {
+        let snapshot = self.snapshot(Server::Global, outer_source).await;
+        self.static_data
+            .kakin_list
+            .iter()
+            .filter(|(_, def)| def.is_constant)
+            .map(|(name, def)| {
+                kakin::build_kakin_pack(name, def, &snapshot.values, &self.static_data.kakin_list, &self.static_data.const_gacha)
+            })
+            .collect()
+    }
+
+    /// riseikakin の全体比較(limitedList)相当。総合効率の降順ソート済み。
+    pub async fn kakin_limited_sorted(&self, outer_source: &OuterSourceRegistry) -> Vec<kakin::KakinPack> {
+        let snapshot = self.snapshot(Server::Global, outer_source).await;
+        let mut list: Vec<kakin::KakinPack> = self
+            .static_data
+            .kakin_list
+            .iter()
+            .filter(|(_, def)| !def.is_constant)
+            .map(|(name, def)| {
+                kakin::build_kakin_pack(name, def, &snapshot.values, &self.static_data.kakin_list, &self.static_data.const_gacha)
+            })
+            .collect();
+        list.sort_by(|a, b| b.total_efficiency.total_cmp(&a.total_efficiency));
+        list
+    }
+
+    /// riseikakin の target 引数のオートコンプリート相当（Python
+    /// `autoCompletion_riseikakin`）。まず期間限定パック名(+全体比較)を部分一致で探し、
+    /// 何も無ければ恒常パック名にフォールバックする。
+    pub fn kakin_autocomplete(&self, current: &str, limit: usize) -> Vec<(String, String)> {
+        const TOTAL_OPTION: (&str, &str) = ("全体比較(グローバル)", "Total_Global");
+        let limited: Vec<(String, String)> = std::iter::once((TOTAL_OPTION.0.to_string(), TOTAL_OPTION.1.to_string()))
+            .chain(
+                self.static_data
+                    .kakin_list
+                    .iter()
+                    .filter(|(_, def)| !def.is_constant)
+                    .map(|(name, _)| (name.clone(), name.clone())),
+            )
+            .filter(|(name, _)| name.contains(current))
+            .take(limit)
+            .collect();
+        if !limited.is_empty() {
+            return limited;
+        }
+        self.static_data
+            .kakin_list
+            .iter()
+            .filter(|(_, def)| def.is_constant)
+            .map(|(name, _)| (name.clone(), name.clone()))
+            .filter(|(name, _)| name.contains(current))
+            .take(limit)
+            .collect()
+    }
+
     /// riseimaterials/riseicalculator の target_item 選択肢（Python版は常に大陸版の
     /// 全カテゴリ(main+new)を選択肢に使う）。(表示名, カテゴリキー) のリスト。
     pub fn category_choices(&self) -> Vec<(String, String)> {
@@ -297,6 +381,21 @@ fn drop_per_minute(
         drop_values += stage.get_drop_rate(item, &values.value_target, &values.item_names) / (*order as f64);
     }
     drop_values / stage.min_clear_time * 120.0
+}
+
+/// 契約賞金引換証(CC)・結晶交換所(PO)の交換効率一覧を計算する
+/// （Python `riseilists`のCCLIST/POLISTブランチ相当）。総合効率の降順ソート済み。
+fn exchange_efficiency_list(items: &[kakin::CCExchangeItem], values: &RiseiValues) -> Vec<TicketEfficiency> {
+    let mut list: Vec<TicketEfficiency> = items
+        .iter()
+        .map(|item| TicketEfficiency {
+            name_ja: item.full_name(&values.item_names),
+            efficiency: item.efficiency(values),
+            std_dev: item.std_dev_efficiency(values),
+        })
+        .collect();
+    list.sort_by(|a, b| b.efficiency.total_cmp(&a.efficiency));
+    list
 }
 
 /// 試行数が足りないステージを除外する。全滅した場合は無条件で全部返す
@@ -515,5 +614,42 @@ mod tests {
             .expect("源岩 category should resolve");
         assert!(!materials.stages.is_empty(), "源岩 category should have candidate stages");
         println!("源岩 top stage: {}", materials.stages[0].name);
+    }
+
+    /// riseikakin/cclist/polist の疎通確認。`cargo test -- --ignored` で明示実行する。
+    #[tokio::test]
+    #[ignore]
+    async fn kakin_and_exchange_lists_against_real_network() {
+        let outer_source = OuterSourceRegistry::load().await;
+        let engine = RiseiCalculatorEngine::load(&outer_source)
+            .await
+            .expect("engine should build against real network data");
+
+        let autocomplete = engine.kakin_autocomplete("", 25);
+        assert!(!autocomplete.is_empty(), "kakin autocomplete should list at least the total-comparison option");
+        println!("kakin autocomplete[0] = {:?}", autocomplete[0]);
+
+        let constants = engine.kakin_constants(&outer_source).await;
+        assert!(!constants.is_empty(), "constant kakin packs should not be empty");
+        for pack in &constants {
+            assert!(pack.total_efficiency.is_finite(), "{} total_efficiency should be finite", pack.name);
+            println!("[constant] {}: total_efficiency={:.3} gacha_efficiency={:.3}", pack.name, pack.total_efficiency, pack.gacha_efficiency);
+        }
+
+        let limited = engine.kakin_limited_sorted(&outer_source).await;
+        assert!(!limited.is_empty(), "limited kakin packs should not be empty");
+        println!("[limited top] {}: total_efficiency={:.3}", limited[0].name, limited[0].total_efficiency);
+
+        let single = engine
+            .kakin_pack(&constants[0].name, &outer_source)
+            .await
+            .expect("known constant pack name should resolve");
+        assert!((single.total_efficiency - constants[0].total_efficiency).abs() < 1e-9);
+
+        for server in [Server::Global, Server::Mainland] {
+            let cc = engine.cc_list(server, &outer_source).await;
+            assert!(!cc.is_empty(), "cc_list should not be empty for {server:?}");
+            println!("[{server:?}] cc top: {} = {:.3}", cc[0].name_ja, cc[0].efficiency);
+        }
     }
 }

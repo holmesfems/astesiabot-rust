@@ -1,4 +1,5 @@
 pub mod riseievents;
+pub mod riseikakin;
 pub mod riseilists;
 pub mod riseimaterials;
 pub mod riseistages;

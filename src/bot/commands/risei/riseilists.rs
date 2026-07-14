@@ -1,6 +1,7 @@
 use super::{fmt_percent, fmt_value, send_reply, server_from_bool};
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
+use crate::engine::risei_calculator_engine::kakin::CC_NUMBER;
 use crate::engine::risei_calculator_engine::TicketEfficiency;
 
 #[derive(Debug, poise::ChoiceParameter)]
@@ -15,6 +16,10 @@ pub enum RiseiListTarget {
     Te3List,
     #[name = "特別引換証効率表"]
     SpecialList,
+    // poise::ChoiceParameterの#[name]はコンパイル時文字列リテラルのみ。
+    // kakin::CC_NUMBERの値が変わったらここも手動で同期させること。
+    #[name = "契約賞金引換効率表(CC#4)"]
+    CcList,
 }
 
 fn ticket_list_chunks(list: Vec<TicketEfficiency>) -> Vec<String> {
@@ -67,6 +72,10 @@ pub async fn riseilists(
         RiseiListTarget::SpecialList => (
             "特別引換証効率".to_string(),
             ticket_list_chunks(engine.special_list(server, outer_source).await),
+        ),
+        RiseiListTarget::CcList => (
+            format!("契約賞金引換効率(CC#{CC_NUMBER})"),
+            ticket_list_chunks(engine.cc_list(server, outer_source).await),
         ),
     };
 

@@ -20,3 +20,4 @@ askama = { version = "0.12", features = ["serde-json"] }
 tower-http = { version = "0.5", features = ["fs"] }
 nalgebra = "0.33"
 rand = "0.8"
+indexmap = { version = "2", features = ["serde"] }
