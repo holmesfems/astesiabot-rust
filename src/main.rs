@@ -39,6 +39,8 @@ async fn main() {
         }
     });
 
+    println!("astesia-bot rust ready!");
+
     tokio::select! {
         _ = run_bot(token, bot_state) => {},
         _ = run_api(state) => {},

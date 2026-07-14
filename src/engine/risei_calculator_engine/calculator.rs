@@ -208,6 +208,10 @@ impl BaseStageMatrix {
             .choose(&mut rand::thread_rng())
             .expect("categories is checked non-empty above")
             .clone();
+        println!(
+            "[risei_calculator_engine] stage {}: {target_category} category eff={} replacing",
+            max_item.stage.name, max_item.max_value
+        );
         let to_ja = stage_info
             .category_instance_dict
             .get(&target_category)
@@ -330,6 +334,7 @@ impl Calculator {
         const_values: Arc<HashMap<String, f64>>,
         valid_base_min_times: i64,
     ) -> Result<Self, Error> {
+        println!("[risei_calculator_engine] Risei calculate start ({server:?})");
         let stage_info = Arc::new(StageInfo::build(
             server,
             stage_category_file,
@@ -381,6 +386,7 @@ impl Calculator {
             )
             .into());
         }
+        println!("[risei_calculator_engine] Risei calculate end ({server:?})");
 
         // 誤差(標準偏差)を計算する。
         let prob_matrix = build_prob_matrix(&value_target_list, &item_names, &convertion_items, &const_stage_items, &base_stage_matrix)?;

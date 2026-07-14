@@ -28,8 +28,9 @@ pub async fn fetch_json_with_retry_headers(
     headers: &[(&str, &str)],
 ) -> Result<Value, FetchError> {
     let mut last_err: Option<FetchError> = None;
-    for _ in 0..FETCH_RETRIES {
+    for i in 0..FETCH_RETRIES {
         let mut req = client.get(url);
+        print!("[fetch_json] try {i} url={url} headers={:?}\n", headers);
         for (key, value) in headers {
             req = req.header(*key, *value);
         }
