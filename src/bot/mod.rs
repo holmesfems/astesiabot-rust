@@ -1,9 +1,9 @@
-pub mod channels;
 pub mod commands;
 pub mod data;
 pub mod handler;
 pub mod reply;
 pub mod services;
+pub mod utils;
 
 use crate::api::AppState;
 use data::Data;
@@ -33,7 +33,16 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
         .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(Data { state })
+
+                // 誕生日お祝い機能。起動時に一度だけチャンネルIDを解決してスケジューラを起動する。
+                let ctx_for_birthday = ctx.clone();
+                let happybirthday_channel = utils::channel_id_env("CHANNEL_ID_HAPPYBIRTHDAY");
+                tokio::spawn(services::birthday::run(ctx_for_birthday, happybirthday_channel));
+
+                Ok(Data {
+                    state,
+                    channel_routing: handler::ChannelRouting::from_env(),
+                })
             })
         })
         .build();

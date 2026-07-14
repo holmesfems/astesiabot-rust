@@ -1,4 +1,5 @@
 use crate::bot::data::Error;
+use crate::bot::utils::channel_id_env;
 use fancy_regex::Regex;
 use poise::serenity_prelude as serenity;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -68,13 +69,6 @@ impl ModerationState {
             same_ch_history: Mutex::new(HashMap::new()),
         }
     }
-}
-
-fn channel_id_env(key: &str) -> serenity::ChannelId {
-    std::env::var(key)
-        .unwrap_or_else(|_| panic!("{key} not set"))
-        .parse()
-        .unwrap_or_else(|_| panic!("{key} is not a valid channel id"))
 }
 
 /// 発言者が ADMINISTRATOR 権限を持つか判定する。DM やメンバー情報未取得なら false。

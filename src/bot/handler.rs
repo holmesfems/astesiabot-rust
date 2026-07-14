@@ -1,8 +1,26 @@
-use crate::bot::channels;
 use crate::bot::data::{Data, Error};
 use crate::bot::reply::send_embed_reply;
 use crate::bot::services::{anniversary, koukai_kyujin, moderation, uranai};
+use crate::bot::utils::channel_id_env;
 use poise::serenity_prelude as serenity;
+
+/// チャンネル別振り分け先のID。起動時に一度だけ環境変数から解決し、Data に載せて
+/// bot 起動中ずっと使い回す。新しい振り分け先を増やす時はここにフィールドと
+/// from_env() の解決を足し、event_handler の振り分けに分岐を足すだけでよい
+/// （Data・bot/mod.rs 側の変更は不要）。
+pub struct ChannelRouting {
+    koukai_kyujin: serenity::ChannelId,
+    uranai: serenity::ChannelId,
+}
+
+impl ChannelRouting {
+    pub fn from_env() -> Self {
+        Self {
+            koukai_kyujin: channel_id_env("CHANNEL_ID_KOUKAI_KYUJIN"),
+            uranai: channel_id_env("CHANNEL_ID_URANAI"),
+        }
+    }
+}
 
 pub async fn event_handler(
     ctx: &serenity::Context,
@@ -32,21 +50,17 @@ pub async fn event_handler(
         anniversary::handle(ctx, msg).await?;
 
         // 4. チャンネル別のサービス振り分け（計算 → 返ってきたら送信）
-        match msg.channel_id {
-            channels::KOUKAI_KYUJIN => {
-                if let Some(reply) = koukai_kyujin::handle(ctx, msg, data).await? {
-                    send_embed_reply(ctx, msg.channel_id, &reply).await?;
-                }
+        if msg.channel_id == data.channel_routing.koukai_kyujin {
+            if let Some(reply) = koukai_kyujin::handle(ctx, msg, data).await? {
+                send_embed_reply(ctx, msg.channel_id, &reply).await?;
             }
-            channels::URANAI => {
-                if let Some(reply) = uranai::handle(ctx, msg).await? {
-                    send_embed_reply(ctx, msg.channel_id, &reply).await?;
-                }
+        } else if msg.channel_id == data.channel_routing.uranai {
+            if let Some(reply) = uranai::handle(ctx, msg).await? {
+                send_embed_reply(ctx, msg.channel_id, &reply).await?;
             }
-            _ => {
-                // どのサービスにも該当しないチャンネル。今はログのみ。
-                println!("[msg] {}: {}", msg.author.name, msg.content);
-            }
+        } else {
+            // どのサービスにも該当しないチャンネル。今はログのみ。
+            println!("[msg] {}: {}", msg.author.name, msg.content);
         }
     }
     Ok(())
