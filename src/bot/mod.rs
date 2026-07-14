@@ -37,7 +37,11 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
                 // 誕生日お祝い機能。起動時に一度だけチャンネルIDを解決してスケジューラを起動する。
                 let ctx_for_birthday = ctx.clone();
                 let happybirthday_channel = utils::channel_id_env("CHANNEL_ID_HAPPYBIRTHDAY");
-                tokio::spawn(services::birthday::run(ctx_for_birthday, happybirthday_channel));
+                tokio::spawn(services::birthday::run(
+                    ctx_for_birthday,
+                    happybirthday_channel,
+                    state.clone(),
+                ));
 
                 Ok(Data {
                     state,

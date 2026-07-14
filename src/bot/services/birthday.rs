@@ -1,9 +1,11 @@
+use crate::api::AppState;
 use crate::bot::data::Error;
 use crate::bot::reply::{send_embed_reply, EmbedReply, MsgType};
-use crate::engine::operator_names::OperatorNames;
+use crate::engine::outer_source::operator_names::OperatorNames;
 use chrono::{DateTime, Datelike, FixedOffset, TimeZone, Utc};
 use poise::serenity_prelude as serenity;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// 個別の反映先名（Python の reflectDict 相当）。
 const REFLECT_DICT: &[(&str, &str)] = &[("アステシア", "私"), ("アステジーニ", "エレナ")];
@@ -99,7 +101,9 @@ fn duration_until_next_midnight_jst() -> std::time::Duration {
 /// 毎日 JST 0:00 に誕生日をチェックして送信し続けるループ（Python の
 /// `@tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=JST))` 相当）。
 /// bot起動中ずっと動き続ける想定なので、呼び出し側は `tokio::spawn` すること。
-pub async fn run(ctx: serenity::Context, channel_id: serenity::ChannelId) {
+/// オペレーター名は `state.outer_source` がメモリに保持する最新の変換辞書を
+/// チェックの都度参照する（定期fetchで更新されればここにも反映される）。
+pub async fn run(ctx: serenity::Context, channel_id: serenity::ChannelId, state: Arc<AppState>) {
     let data = match BirthdayData::load() {
         Ok(d) => d,
         Err(e) => {
@@ -107,11 +111,11 @@ pub async fn run(ctx: serenity::Context, channel_id: serenity::ChannelId) {
             return;
         }
     };
-    let names = OperatorNames::load().await;
 
     loop {
         tokio::time::sleep(duration_until_next_midnight_jst()).await;
         let now_jst = Utc::now().with_timezone(&jst());
+        let names = state.outer_source.operator_names.get().await;
         if let Some(reply) = check_birthday(&data, &names, now_jst) {
             if let Err(e) = send_embed_reply(&ctx, channel_id, &reply).await {
                 eprintln!("[birthday] 誕生日メッセージの送信に失敗しました: {e}");

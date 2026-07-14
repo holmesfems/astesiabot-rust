@@ -16,15 +16,39 @@ Discord bot（poise/serenity）と web API（axum）を1プロセスで並行稼
 バージョンが原因なら Cargo.toml のバージョンを調整してよい。
 API の使い方が変わっている場合は各クレートの最新ドキュメントに合わせて修正。
 
+`src/bin/` に新しい単独ツールを足すとき: Windows では実行ファイル名に
+`update`/`install`/`setup`/`patch` 等を含めると UAC のインストーラー検出
+ヒューリスティックに引っかかり、実行に管理者権限が要求される（os error 740）。
+`regen_seeds` のような紛らわしくない名前にすること。
+
 ## アーキテクチャ
 
 ```
 src/
-├── main.rs        … RecruitEngine を起動時ロード → bot と api に Arc で共有
+├── lib.rs         … astesiabot_rust ライブラリクレート本体（pub mod api/bot/engine）。
+│                    main.rs と src/bin/*.rs の両方がここに依存する
+├── main.rs        … bot 本体のエントリポイント。RecruitEngine / OuterSourceRegistry を
+│                    起動時ロード → bot と api に Arc で共有。1日1回
+│                    OuterSourceRegistry::refresh_all() を叩くループも起動
+├── bin/
+│   └── regen_seeds.rs … outer_source の Seed（data/seed/*.json）を手動再生成する
+│                          独立ツール。main.rs には依存しない。使い方は後述
 ├── engine/
-│   ├── operator_names.rs … オペレーターCN→JA名変換。起動時にArknights CN/JP
-│   │                        character_table.json を1回fetchして突き合わせ
-│   │                        （bot にも api にも依存しない。birthday.rs が利用）
+│   ├── outer_source/ … 外部サイトから取得する情報のレジストリ（bot にも api にも
+│   │   │                依存しない）。起動時に一括fetchしてメモリ保持し、以後は
+│   │   │                機能側がそこから参照する（例: birthday.rs が operator_names を参照）
+│   │   ├── mod.rs        … OuterSourceRegistry。load / refresh_all（定期実行用の一括fetch）/
+│   │   │                    refresh_by_name（機能側からの個別オンデマンド更新用）。
+│   │   │                    SEED_JOBS（regen_seeds が使うSeed生成ジョブ一覧）もここ。
+│   │   │                    情報源を増やす手順はこのファイルのコメントを参照
+│   │   ├── cache.rs      … Source<T>。fetch結果をメモリ保持しつつ、任意でSeed（fetch失敗時の
+│   │   │                    代替用JSONファイル）を読む。起動時fetch失敗→Seedがあれば使用、
+│   │   │                    無ければpanic。起動後の再fetch失敗→直前のメモリを保持したまま継続。
+│   │   │                    Seedの書き込み（write_seed_file）は実行時には呼ばない
+│   │   │                    （regen_seeds からのみ使う。理由は下記ポイント参照）
+│   │   ├── http.rs       … 全情報源共通のfetch戦略（7sタイムアウト・最大10回リトライ）
+│   │   └── operator_names.rs … オペレーターCN→JA名変換。Arknights CN/JP character_table.json
+│   │                            をfetch。SEED_PATH = data/seed/operator_names.json
 │   └── recruit/   … ★求人ドメインの純粋ロジック（bot にも api にも依存しない）
 │       ├── mod.rs     … RecruitEngine。process_from_ocr（API用）/ process_for_embed（bot用）
 │       ├── model.rs   … Operator, Tag, TagType
@@ -63,11 +87,14 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 ├── tagList.json               … タグ種別定義
 ├── tagJaToJa.yaml / tagEnToJa.yaml / tagZhToJa.yaml … 3言語辞書
 ├── birthdayRev.yaml           … 日付→誕生日オペレーター(中国語名)一覧
-└── customZhToJa.yaml          … CN限定オペレーターのCN→JA名前フォールバック
+├── customZhToJa.yaml          … CN限定オペレーターのCN→JA名前フォールバック
+└── seed/                      … outer_source の Seed（`cargo run --bin regen_seeds` で
+                                   生成し、git commitして含めておく。詳細は下記ポイント参照）
+    └── operator_names.json
 ```
 
-依存方向: recruit / operator_names は何にも依存しない純粋ロジック。bot と api が
-これらに依存する。これにより求人計算ロジックを bot でも web API でも共有できる。
+依存方向: recruit / outer_source は何にも依存しない純粋ロジック。bot と api が
+これらに依存する。これにより求人計算ロジックや外部情報を bot でも web API でも共有できる。
 
 ## 設計上の重要ポイント（壊さないこと）
 
@@ -82,6 +109,20 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   HashSet に変えない。
 - **fancy-regex を使う理由**: matcher.rs の `(?!上級)`（否定先読み）が標準 regex
   では書けないため。標準 regex に置き換えないこと。
+- **outer_source の fetch 失敗ポリシー**: 起動時fetch失敗 → Seedがあれば使用、
+  無ければ panic。起動後の再fetch失敗 → 直前のメモリを保持して継続（panicしない）。
+  この非対称性（起動時はpanicし得る／再fetchはしない）を崩さないこと。
+- **Seedは実行時に書き込まない**: Heroku 等は実行時のファイル書き込みが dyno
+  再起動・再デプロイで揮発するため、`Source` は起動時に Seed を**読む**だけで、
+  fetch成功時に書き戻すことはしない。Seedの更新は `cargo run --bin regen_seeds`
+  （main.rs 非依存の独立ツール。`engine/outer_source/mod.rs` の `SEED_JOBS` を
+  順に実行して `data/seed/*.json` を書き換える）を手元で実行し、差分を
+  `git commit`/`push` してリポジトリに含める運用。push前に思い出したタイミングで
+  都度実行すればよい（自動化はしていない）。
+- **fetchの共通戦略**: `engine/outer_source/http.rs` の `client()` /
+  `fetch_json_with_retry()`（7sタイムアウト・最大10回リトライ）が全情報源共通。
+  新しい情報源を足すときもこれを使い、fetch fn ごとに個別のタイムアウト/リトライ
+  ロジックを実装しないこと。
 
 ## 動作確認手順
 
@@ -101,6 +142,9 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
    ```
    → title と reply（responseForAI 形式）が返れば OK
 5. Discord の求人チャンネルに求人画面のスクショを貼る → embed で結果表示
+
+Seedの更新（push前に思い出したら）: `cargo run --bin regen_seeds`。
+`data/seed/*.json` が更新されるので `git status` で差分を確認して commit/push する。
 
 ## Python 版との出力一致の検証（推奨）
 
