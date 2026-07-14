@@ -90,13 +90,39 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> Source<T> {
 /// SeedのJSONファイルを書き出す（親ディレクトリが無ければ作成する）。
 /// 実行時の `Source` からは呼ばない。各ソースモジュールの `update_seed()`
 /// から、Seed手動更新ツール（`cargo run --bin regen_seeds`）実行時にのみ使う。
+///
+/// 書き出し直前にオブジェクトのキーを再帰的にソートする。元データ（HashMap等）
+/// の反復順はプロセス毎に不定なため、ソートしないとgit diffが毎回発生してしまう。
+/// 内部の計算ロジックやデータ構造には手を入れず、シリアライズ直前のこの関数内でのみ
+/// 順序を正規化する。
 pub fn write_seed_file<T: Serialize>(path: &str, data: &T) -> Result<(), FetchError> {
-    let json = serde_json::to_string_pretty(data)?;
+    let value = serde_json::to_value(data)?;
+    let sorted = sort_json_keys(value);
+    let json = serde_json::to_string_pretty(&sorted)?;
     if let Some(parent) = Path::new(path).parent() {
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(path, json)?;
     Ok(())
+}
+
+/// JSON値のオブジェクトキーを再帰的に辞書順ソートする。配列の順序は保持する。
+fn sort_json_keys(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(map) => {
+            let mut entries: Vec<(String, serde_json::Value)> = map.into_iter().collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            let sorted: serde_json::Map<String, serde_json::Value> = entries
+                .into_iter()
+                .map(|(k, v)| (k, sort_json_keys(v)))
+                .collect();
+            serde_json::Value::Object(sorted)
+        }
+        serde_json::Value::Array(arr) => {
+            serde_json::Value::Array(arr.into_iter().map(sort_json_keys).collect())
+        }
+        other => other,
+    }
 }
 
 #[cfg(test)]
