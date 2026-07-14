@@ -2,11 +2,38 @@ use astesiabot_rust::api::{run_api, AppState};
 use astesiabot_rust::bot::run_bot;
 use astesiabot_rust::bot::services::moderation::ModerationState;
 use astesiabot_rust::engine;
+use chrono::{FixedOffset, TimeZone, Utc};
 use std::sync::Arc;
-use std::time::Duration;
 
-/// 外部サイト情報（operator_data など）の定期再fetch間隔。
-const OUTER_SOURCE_REFRESH_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+/// 外部サイト情報の定期再fetchを行う時刻（可用性確保のため、利用者が少ない深夜帯に寄せる）。
+const OUTER_SOURCE_REFRESH_HOUR_JST: u32 = 3;
+
+fn jst() -> FixedOffset {
+    FixedOffset::east_opt(9 * 3600).expect("valid JST offset")
+}
+
+/// 次の JST 3:00 までの Duration。
+fn duration_until_next_refresh_jst() -> std::time::Duration {
+    let offset = jst();
+    let now_jst = Utc::now().with_timezone(&offset);
+    let today_3am = offset
+        .from_local_datetime(
+            &now_jst
+                .date_naive()
+                .and_hms_opt(OUTER_SOURCE_REFRESH_HOUR_JST, 0, 0)
+                .expect("valid time"),
+        )
+        .single()
+        .expect("JST has no DST, always unambiguous");
+    let next_3am = if today_3am > now_jst {
+        today_3am
+    } else {
+        today_3am + chrono::Duration::days(1)
+    };
+    (next_3am - now_jst)
+        .to_std()
+        .unwrap_or(std::time::Duration::from_secs(1))
+}
 
 #[tokio::main]
 async fn main() {
@@ -34,7 +61,7 @@ async fn main() {
     let refresh_state = state.clone();
     tokio::spawn(async move {
         loop {
-            tokio::time::sleep(OUTER_SOURCE_REFRESH_INTERVAL).await;
+            tokio::time::sleep(duration_until_next_refresh_jst()).await;
             refresh_state.outer_source.refresh_all().await;
         }
     });
