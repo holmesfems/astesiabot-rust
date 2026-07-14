@@ -4,7 +4,8 @@ pub mod cache;
 pub mod formulas;
 pub mod http;
 pub mod item_names;
-pub mod operator_names;
+pub mod operator_data;
+pub mod skill_names;
 pub mod zones;
 
 pub use cache::{BoxFuture, FetchError, Source};
@@ -17,7 +18,7 @@ pub use cache::{BoxFuture, FetchError, Source};
 /// 1. `outer_source/` 配下に新規モジュールを作り、対象データ型
 ///    （`Serialize + DeserializeOwned`）と
 ///    `pub fn fetch() -> BoxFuture<'static, Result<T, FetchError>>` を定義する
-///    （中身は `operator_names.rs` を参照）。HTTP fetchは `http::client()` /
+///    （中身は `operator_data.rs` を参照）。HTTP fetchは `http::client()` /
 ///    `http::fetch_json_with_retry()`（7sタイムアウト・最大10回リトライ、
 ///    全情報源共通）を使う。
 /// 2. Seedで代替したいなら `pub const SEED_PATH: &str = "data/seed/xxx.json";`
@@ -28,7 +29,12 @@ pub use cache::{BoxFuture, FetchError, Source};
 ///    [`OuterSourceRegistry::refresh_all`] / [`OuterSourceRegistry::refresh_by_name`]
 ///    に1行ずつ追加する。
 pub struct OuterSourceRegistry {
-    pub operator_names: Source<operator_names::OperatorNames>,
+    /// オペレーターの中国語→日本語名変換 + 昇進/スキル特化/モジュール消費素材データ
+    /// （character_table.json / uniequip_table.json / char_patch_table.json を1回のfetchで
+    /// まとめて構築する。旧`operator_names`はこれに統合済み）。
+    pub operator_data: Source<operator_data::OperatorData>,
+    /// スキルID→表示名のみ（説明文はスコープ外）。
+    pub skill_names: Source<skill_names::SkillNames>,
     pub item_names: Source<item_names::ItemNames>,
     pub zones: Source<zones::Zones>,
     pub ark_stages: Source<ark_stages::ArkStages>,
@@ -41,12 +47,8 @@ impl OuterSourceRegistry {
     /// [`Source::load`] を参照（Seedがあればそれで代替、無ければpanic）。
     pub async fn load() -> Self {
         Self {
-            operator_names: Source::load(
-                "operator_names",
-                Some(operator_names::SEED_PATH),
-                operator_names::fetch,
-            )
-            .await,
+            operator_data: Source::load("operator_data", Some(operator_data::SEED_PATH), operator_data::fetch).await,
+            skill_names: Source::load("skill_names", Some(skill_names::SEED_PATH), skill_names::fetch).await,
             item_names: Source::load("item_names", Some(item_names::SEED_PATH), item_names::fetch).await,
             zones: Source::load("zones", Some(zones::SEED_PATH), zones::fetch).await,
             ark_stages: Source::load("ark_stages", Some(ark_stages::SEED_PATH), ark_stages::fetch).await,
@@ -59,7 +61,8 @@ impl OuterSourceRegistry {
     /// fetchが失敗しても他の情報源には影響しない。
     pub async fn refresh_all(&self) {
         tokio::join!(
-            self.operator_names.refresh(),
+            self.operator_data.refresh(),
+            self.skill_names.refresh(),
             self.item_names.refresh(),
             self.zones.refresh(),
             self.ark_stages.refresh(),
@@ -75,7 +78,8 @@ impl OuterSourceRegistry {
     #[allow(dead_code)]
     pub async fn refresh_by_name(&self, name: &str) -> Option<bool> {
         match name {
-            "operator_names" => Some(self.operator_names.refresh().await),
+            "operator_data" => Some(self.operator_data.refresh().await),
+            "skill_names" => Some(self.skill_names.refresh().await),
             "item_names" => Some(self.item_names.refresh().await),
             "zones" => Some(self.zones.refresh().await),
             "ark_stages" => Some(self.ark_stages.refresh().await),
@@ -97,9 +101,14 @@ pub struct SeedJob {
 /// 新しい情報源にSeedを持たせたら、ここに1エントリ追加すること。
 pub const SEED_JOBS: &[SeedJob] = &[
     SeedJob {
-        name: "operator_names",
-        path: operator_names::SEED_PATH,
-        update: operator_names::update_seed,
+        name: "operator_data",
+        path: operator_data::SEED_PATH,
+        update: operator_data::update_seed,
+    },
+    SeedJob {
+        name: "skill_names",
+        path: skill_names::SEED_PATH,
+        update: skill_names::update_seed,
     },
     SeedJob {
         name: "item_names",

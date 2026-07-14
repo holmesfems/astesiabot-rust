@@ -5,7 +5,7 @@ use astesiabot_rust::engine;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// 外部サイト情報（operator_names など）の定期再fetch間隔。
+/// 外部サイト情報（operator_data など）の定期再fetch間隔。
 const OUTER_SOURCE_REFRESH_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[tokio::main]

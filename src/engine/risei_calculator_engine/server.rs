@@ -130,6 +130,10 @@ pub const ITEM_RARITY3: &[&str] = &[
 ];
 pub const ITEM_RARITY3_NEW: &[&str] = &["聚能动力单元", "液化醚吸聚体"];
 
+/// 上級素材(Item_rarity4)。中級換算(`rare3and4ToRare2`)専用で、資格証効率表には出てこない
+/// （Python `Item_rarity4`。`_new`側は空のため定数を用意していない）。
+pub const ITEM_RARITY4: &[&str] = &["聚合剂", "双极纳米片", "D32钢", "晶体电子单元", "烧结核凝晶", "重相位对映体"];
+
 /// 大陸版実装済み、グローバル版未実装のゾーン一覧。新章実装時にここへ追記し、
 /// グローバル版で実装され次第削除する運用（Python版 `new_zone` と同じ役割）。
 pub const NEW_ZONE_MAINLAND_ONLY: &[&str] = &["main_17"];
@@ -152,6 +156,11 @@ pub fn item_rarity2(server: Server) -> Vec<&'static str> {
 
 pub fn item_rarity3(server: Server) -> Vec<&'static str> {
     for_server(ITEM_RARITY3, ITEM_RARITY3_NEW, server)
+}
+
+/// 上級素材一覧（`_new`側が無いためサーバに関わらず同一。Python `getItemRarity4`）。
+pub fn item_rarity4(_server: Server) -> Vec<&'static str> {
+    ITEM_RARITY4.to_vec()
 }
 
 /// `data/risei/stage_category.json` の1カテゴリ分（Python `StageCategoryInfo`）。

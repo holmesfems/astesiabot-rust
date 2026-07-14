@@ -64,4 +64,10 @@ impl ItemArray {
             .map(|(id, v)| (item_names.get_zh(id).to_string(), *v))
             .collect()
     }
+
+    /// id→個数の生の中身をそのまま複製する（`engine::operator_cost_calc`が合成レシピの
+    /// 中級換算(`rare3and4ToRare2`)で、この型からアイテムIDベースの`ItemCost`へ持ち替える際に使う）。
+    pub fn to_id_count_dict(&self) -> HashMap<String, f64> {
+        self.dict.clone()
+    }
 }

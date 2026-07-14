@@ -19,6 +19,150 @@
       "goldCost": 800.0
     },
     {
+      "itemId": "3132",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "3113",
+          "count": 2.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 100.0,
+          "itemId": "3113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 2400.0
+    },
+    {
+      "itemId": "3133",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "3114",
+          "count": 2.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 100.0,
+          "itemId": "3114",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 7200.0
+    },
+    {
+      "itemId": "3113",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "3112",
+          "count": 3.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 100.0,
+          "itemId": "3113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 0.0
+    },
+    {
+      "itemId": "3114",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "3113",
+          "count": 3.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 100.0,
+          "itemId": "3114",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 0.0
+    },
+    {
+      "itemId": "3401",
+      "count": 4.0,
+      "costs": [
+        {
+          "id": "3112",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 100.0,
+          "itemId": "3112",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 200.0
+    },
+    {
+      "itemId": "3401",
+      "count": 8.0,
+      "costs": [
+        {
+          "id": "3113",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 100.0,
+          "itemId": "3113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 200.0
+    },
+    {
+      "itemId": "3401",
+      "count": 12.0,
+      "costs": [
+        {
+          "id": "3114",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 100.0,
+          "itemId": "3114",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 200.0
+    },
+    {
+      "itemId": "3401",
+      "count": 8.0,
+      "costs": [
+        {
+          "id": "3131",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 100.0,
+          "itemId": "3112",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 0.0
+    },
+    {
       "itemId": "3401",
       "count": 16.0,
       "costs": [
@@ -53,6 +197,384 @@
         }
       ],
       "goldCost": 0.0
+    },
+    {
+      "itemId": "30165",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31094",
+          "count": 2.0
+        },
+        {
+          "id": "31084",
+          "count": 1.0
+        },
+        {
+          "id": "31074",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 71.0,
+          "itemId": "30014",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30024",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30034",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30044",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30054",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 35.0,
+          "itemId": "30064",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 61.0,
+          "itemId": "30074",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30084",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30094",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30104",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 61.0,
+          "itemId": "31014",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31024",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "31034",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31044",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31054",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31064",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31074",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 50.0,
+          "itemId": "31084",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31094",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31104",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31114",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 400.0
+    },
+    {
+      "itemId": "30155",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31064",
+          "count": 1.0
+        },
+        {
+          "id": "31054",
+          "count": 1.0
+        },
+        {
+          "id": "31044",
+          "count": 2.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 71.0,
+          "itemId": "30014",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30024",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30034",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30044",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30054",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 35.0,
+          "itemId": "30064",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 61.0,
+          "itemId": "30074",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30084",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30094",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30104",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 61.0,
+          "itemId": "31014",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31024",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "31034",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31044",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31054",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31064",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31074",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 50.0,
+          "itemId": "31084",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31094",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31104",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31114",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 400.0
+    },
+    {
+      "itemId": "30145",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31034",
+          "count": 1.0
+        },
+        {
+          "id": "31014",
+          "count": 2.0
+        },
+        {
+          "id": "31024",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 71.0,
+          "itemId": "30014",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30024",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30034",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30044",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30054",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 35.0,
+          "itemId": "30064",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 61.0,
+          "itemId": "30074",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30084",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "30094",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "30104",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 61.0,
+          "itemId": "31014",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31024",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 47.0,
+          "itemId": "31034",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31044",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31054",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31064",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31074",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 50.0,
+          "itemId": "31084",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31094",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 57.0,
+          "itemId": "31104",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 53.0,
+          "itemId": "31114",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 400.0
     },
     {
       "itemId": "30135",
@@ -427,6 +949,1392 @@
         }
       ],
       "goldCost": 400.0
+    },
+    {
+      "itemId": "31114",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "30063",
+          "count": 1.0
+        },
+        {
+          "id": "31103",
+          "count": 1.0
+        },
+        {
+          "id": "31113",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31104",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "30053",
+          "count": 1.0
+        },
+        {
+          "id": "31093",
+          "count": 1.0
+        },
+        {
+          "id": "31103",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31094",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31093",
+          "count": 1.0
+        },
+        {
+          "id": "31083",
+          "count": 1.0
+        },
+        {
+          "id": "30023",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31084",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31083",
+          "count": 1.0
+        },
+        {
+          "id": "31073",
+          "count": 1.0
+        },
+        {
+          "id": "31063",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31074",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31073",
+          "count": 1.0
+        },
+        {
+          "id": "30033",
+          "count": 2.0
+        },
+        {
+          "id": "30013",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31064",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31063",
+          "count": 1.0
+        },
+        {
+          "id": "31043",
+          "count": 1.0
+        },
+        {
+          "id": "30023",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31044",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31043",
+          "count": 1.0
+        },
+        {
+          "id": "31053",
+          "count": 1.0
+        },
+        {
+          "id": "31013",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31054",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31053",
+          "count": 1.0
+        },
+        {
+          "id": "31033",
+          "count": 1.0
+        },
+        {
+          "id": "30103",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31034",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "31033",
+          "count": 2.0
+        },
+        {
+          "id": "31013",
+          "count": 1.0
+        },
+        {
+          "id": "31023",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31024",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "30063",
+          "count": 1.0
+        },
+        {
+          "id": "30093",
+          "count": 1.0
+        },
+        {
+          "id": "31023",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
+    },
+    {
+      "itemId": "31014",
+      "count": 1.0,
+      "costs": [
+        {
+          "id": "30043",
+          "count": 1.0
+        },
+        {
+          "id": "31013",
+          "count": 1.0
+        },
+        {
+          "id": "31023",
+          "count": 1.0
+        }
+      ],
+      "extraOutcomeGroup": [
+        {
+          "weight": 50.0,
+          "itemId": "30013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 42.0,
+          "itemId": "30073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "30083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "30093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "30103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31013",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31023",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 36.0,
+          "itemId": "31033",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31043",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31053",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31063",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31073",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 25.0,
+          "itemId": "31083",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31093",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 28.0,
+          "itemId": "31103",
+          "itemCount": 1.0
+        },
+        {
+          "weight": 31.0,
+          "itemId": "31113",
+          "itemCount": 1.0
+        }
+      ],
+      "goldCost": 300.0
     },
     {
       "itemId": "30104",
@@ -974,24 +2882,6 @@
         }
       ],
       "goldCost": 100.0
-    },
-    {
-      "itemId": "3132",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "3113",
-          "count": 2.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 100.0,
-          "itemId": "3113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 2400.0
     },
     {
       "itemId": "30063",
@@ -1673,24 +3563,6 @@
       "goldCost": 200.0
     },
     {
-      "itemId": "3133",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "3114",
-          "count": 2.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 100.0,
-          "itemId": "3114",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 7200.0
-    },
-    {
       "itemId": "30034",
       "count": 1.0,
       "costs": [
@@ -2322,24 +4194,6 @@
       "goldCost": 0.0
     },
     {
-      "itemId": "3113",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "3112",
-          "count": 3.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 100.0,
-          "itemId": "3113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 0.0
-    },
-    {
       "itemId": "3261",
       "count": 2.0,
       "costs": [
@@ -2870,24 +4724,6 @@
       "goldCost": 0.0
     },
     {
-      "itemId": "3114",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "3113",
-          "count": 3.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 100.0,
-          "itemId": "3114",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 0.0
-    },
-    {
       "itemId": "3252",
       "count": 2.0,
       "costs": [
@@ -3147,1842 +4983,6 @@
         {
           "weight": 100.0,
           "itemId": "3282",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 0.0
-    },
-    {
-      "itemId": "31024",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "30063",
-          "count": 1.0
-        },
-        {
-          "id": "30093",
-          "count": 1.0
-        },
-        {
-          "id": "31023",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "31014",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "30043",
-          "count": 1.0
-        },
-        {
-          "id": "31013",
-          "count": 1.0
-        },
-        {
-          "id": "31023",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "30145",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31034",
-          "count": 1.0
-        },
-        {
-          "id": "31014",
-          "count": 2.0
-        },
-        {
-          "id": "31024",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 71.0,
-          "itemId": "30014",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30024",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30034",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30044",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30054",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 35.0,
-          "itemId": "30064",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 61.0,
-          "itemId": "30074",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30084",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30094",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30104",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 61.0,
-          "itemId": "31014",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31024",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "31034",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31044",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31054",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31064",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31074",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 50.0,
-          "itemId": "31084",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31094",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31104",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31114",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 400.0
-    },
-    {
-      "itemId": "31034",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31033",
-          "count": 2.0
-        },
-        {
-          "id": "31013",
-          "count": 1.0
-        },
-        {
-          "id": "31023",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "31044",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31043",
-          "count": 1.0
-        },
-        {
-          "id": "31053",
-          "count": 1.0
-        },
-        {
-          "id": "31013",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "3401",
-      "count": 4.0,
-      "costs": [
-        {
-          "id": "3112",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 100.0,
-          "itemId": "3112",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 200.0
-    },
-    {
-      "itemId": "31054",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31053",
-          "count": 1.0
-        },
-        {
-          "id": "31033",
-          "count": 1.0
-        },
-        {
-          "id": "30103",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "31064",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31063",
-          "count": 1.0
-        },
-        {
-          "id": "31043",
-          "count": 1.0
-        },
-        {
-          "id": "30023",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "30155",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31064",
-          "count": 1.0
-        },
-        {
-          "id": "31054",
-          "count": 1.0
-        },
-        {
-          "id": "31044",
-          "count": 2.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 71.0,
-          "itemId": "30014",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30024",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30034",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30044",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30054",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 35.0,
-          "itemId": "30064",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 61.0,
-          "itemId": "30074",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30084",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30094",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30104",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 61.0,
-          "itemId": "31014",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31024",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "31034",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31044",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31054",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31064",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31074",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 50.0,
-          "itemId": "31084",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31094",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31104",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31114",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 400.0
-    },
-    {
-      "itemId": "31074",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31073",
-          "count": 1.0
-        },
-        {
-          "id": "30033",
-          "count": 2.0
-        },
-        {
-          "id": "30013",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "31084",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31083",
-          "count": 1.0
-        },
-        {
-          "id": "31073",
-          "count": 1.0
-        },
-        {
-          "id": "31063",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "31094",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31093",
-          "count": 1.0
-        },
-        {
-          "id": "31083",
-          "count": 1.0
-        },
-        {
-          "id": "30023",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "30165",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "31094",
-          "count": 2.0
-        },
-        {
-          "id": "31084",
-          "count": 1.0
-        },
-        {
-          "id": "31074",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 71.0,
-          "itemId": "30014",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30024",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30034",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30044",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30054",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 35.0,
-          "itemId": "30064",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 61.0,
-          "itemId": "30074",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30084",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "30094",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "30104",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 61.0,
-          "itemId": "31014",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31024",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 47.0,
-          "itemId": "31034",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31044",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31054",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31064",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31074",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 50.0,
-          "itemId": "31084",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31094",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 57.0,
-          "itemId": "31104",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 53.0,
-          "itemId": "31114",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 400.0
-    },
-    {
-      "itemId": "31104",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "30053",
-          "count": 1.0
-        },
-        {
-          "id": "31093",
-          "count": 1.0
-        },
-        {
-          "id": "31103",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "31114",
-      "count": 1.0,
-      "costs": [
-        {
-          "id": "30063",
-          "count": 1.0
-        },
-        {
-          "id": "31103",
-          "count": 1.0
-        },
-        {
-          "id": "31113",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 50.0,
-          "itemId": "30013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 42.0,
-          "itemId": "30073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "30083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "30093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "30103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31013",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31023",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 36.0,
-          "itemId": "31033",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31043",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31053",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31063",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31073",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 25.0,
-          "itemId": "31083",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31093",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 28.0,
-          "itemId": "31103",
-          "itemCount": 1.0
-        },
-        {
-          "weight": 31.0,
-          "itemId": "31113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 300.0
-    },
-    {
-      "itemId": "3401",
-      "count": 8.0,
-      "costs": [
-        {
-          "id": "3113",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 100.0,
-          "itemId": "3113",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 200.0
-    },
-    {
-      "itemId": "3401",
-      "count": 12.0,
-      "costs": [
-        {
-          "id": "3114",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 100.0,
-          "itemId": "3114",
-          "itemCount": 1.0
-        }
-      ],
-      "goldCost": 200.0
-    },
-    {
-      "itemId": "3401",
-      "count": 8.0,
-      "costs": [
-        {
-          "id": "3131",
-          "count": 1.0
-        }
-      ],
-      "extraOutcomeGroup": [
-        {
-          "weight": 100.0,
-          "itemId": "3112",
           "itemCount": 1.0
         }
       ],

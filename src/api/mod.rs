@@ -13,7 +13,7 @@ use std::sync::Arc;
 pub struct AppState {
     pub recruit: RecruitEngine,
     pub moderation: ModerationState,
-    /// 外部サイトから取得する情報のレジストリ（operator_names など）。
+    /// 外部サイトから取得する情報のレジストリ（operator_data など）。
     pub outer_source: OuterSourceRegistry,
     /// 理性価値表の計算エンジン（グローバル版・大陸版）。
     pub risei_calculator: RiseiCalculatorEngine,

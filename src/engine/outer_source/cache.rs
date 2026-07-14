@@ -10,7 +10,7 @@ pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// 各情報源が実装するfetch関数の型。キャプチャの無い関数ポインタなので、
 /// クロージャではなく `pub fn fetch() -> BoxFuture<'static, Result<T, FetchError>>`
-/// という形のトップレベル関数として定義する（operator_names.rs を参照）。
+/// という形のトップレベル関数として定義する（operator_data.rs を参照）。
 pub type FetchFn<T> = fn() -> BoxFuture<'static, Result<T, FetchError>>;
 
 /// 外部サイトから取得する情報1つ分のキャッシュ。

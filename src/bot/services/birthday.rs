@@ -1,7 +1,7 @@
 use crate::api::AppState;
 use crate::bot::data::Error;
 use crate::bot::reply::{send_embed_reply, EmbedReply, MsgType};
-use crate::engine::outer_source::operator_names::OperatorNames;
+use crate::engine::outer_source::operator_data::OperatorData;
 use chrono::{DateTime, Datelike, FixedOffset, TimeZone, Utc};
 use poise::serenity_prelude as serenity;
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ impl BirthdayData {
 }
 
 /// Python の reflectName 相当。中国語名→表示名（日本語化＋敬称付け）。
-fn reflect_name(names: &OperatorNames, cn_name: &str) -> String {
+fn reflect_name(names: &OperatorData, cn_name: &str) -> String {
     let ja_name = names.to_ja(cn_name);
     if let Some((_, reflect)) = REFLECT_DICT.iter().find(|(name, _)| *name == ja_name) {
         return reflect.to_string();
@@ -54,7 +54,7 @@ fn mention_str(names: &[String]) -> String {
 /// Python の checkBirthday 相当。該当者がいなければ None。
 pub fn check_birthday(
     data: &BirthdayData,
-    names: &OperatorNames,
+    names: &OperatorData,
     now: DateTime<FixedOffset>,
 ) -> Option<EmbedReply> {
     let key = format!("{}月{}日", now.month(), now.day());
@@ -115,7 +115,7 @@ pub async fn run(ctx: serenity::Context, channel_id: serenity::ChannelId, state:
     loop {
         tokio::time::sleep(duration_until_next_midnight_jst()).await;
         let now_jst = Utc::now().with_timezone(&jst());
-        let names = state.outer_source.operator_names.get().await;
+        let names = state.outer_source.operator_data.get().await;
         if let Some(reply) = check_birthday(&data, &names, now_jst) {
             if let Err(e) = send_embed_reply(&ctx, channel_id, &reply).await {
                 eprintln!("[birthday] 誕生日メッセージの送信に失敗しました: {e}");
@@ -128,8 +128,8 @@ pub async fn run(ctx: serenity::Context, channel_id: serenity::ChannelId, state:
 mod tests {
     use super::*;
 
-    fn names() -> OperatorNames {
-        OperatorNames::empty_for_test()
+    fn names() -> OperatorData {
+        OperatorData::empty_for_test()
     }
 
     #[test]

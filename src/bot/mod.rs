@@ -28,6 +28,10 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
                 commands::risei::riseievents::riseievents(),
                 commands::risei::riseilists::riseilists(),
                 commands::risei::riseikakin::riseikakin(),
+                commands::operator_cost_calc::operatormastercost::operatormastercost(),
+                commands::operator_cost_calc::operatorelitecost::operatorelitecost(),
+                commands::operator_cost_calc::operatormodulecost::operatormodulecost(),
+                commands::operator_cost_calc::operatorcostlist::operatorcostlist(),
             ],
             // 汎用メッセージハンドラの登録
             event_handler: |ctx, event, framework, data| {
