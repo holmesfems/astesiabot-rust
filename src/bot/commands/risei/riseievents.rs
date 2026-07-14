@@ -1,10 +1,55 @@
 use super::{fmt_percent, send_reply, server_from_bool};
+use crate::api::AppState;
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
 use crate::engine::risei_calculator_engine::Server;
 use poise::serenity_prelude as serenity;
 
 const MAX_ITEMS: usize = 20;
+
+/// riseievents の1ステージ分の効率情報（Python `riseievents`のjsonForAI各項目相当）。
+pub struct EventStageInfo {
+    pub name: String,
+    pub zone_name: String,
+    pub total_efficiency: f64,
+    pub main_drop_name: String,
+    pub main_drop_rate: f64,
+    pub max_times: i64,
+    pub sanity_cost: f64,
+    pub time_cost: Option<f64>,
+    pub drop_per_minute: Option<f64>,
+}
+
+/// riseievents相当の計算のみを行う共通部。整形は呼び出し側の責務。
+pub async fn event_search(state: &AppState, server: Server, target_code: &str) -> Result<Vec<EventStageInfo>, String> {
+    let snapshot = state.risei_calculator.snapshot(server, &state.outer_source).await;
+    let mut stages = snapshot.search_event_stage(target_code);
+    if stages.is_empty() {
+        return Err(format!("無効なステージ指定{target_code}"));
+    }
+
+    stages.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(stages
+        .iter()
+        .filter_map(|stage| {
+            let (main_drop_name, main_drop_rate) = stage.get_max_efficiency_item(&snapshot.values.item_names)?;
+            let time_cost = (stage.min_clear_time > 0.0).then_some(stage.min_clear_time / 2.0);
+            let drop_per_minute_value =
+                (stage.min_clear_time > 0.0).then(|| main_drop_rate / stage.min_clear_time * 120.0);
+            Some(EventStageInfo {
+                name: stage.name_with_replicate(),
+                zone_name: stage.zone_name.clone(),
+                total_efficiency: stage.get_efficiency(&snapshot.values),
+                main_drop_name,
+                main_drop_rate,
+                max_times: stage.max_times(),
+                sanity_cost: stage.ap_cost,
+                time_cost,
+                drop_per_minute: drop_per_minute_value,
+            })
+        })
+        .collect())
+}
 
 async fn autocomplete_event_stage(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
     let state = ctx.data().state.clone();
@@ -29,7 +74,7 @@ pub async fn riseievents(
     let server = server_from_bool(is_global.unwrap_or(true));
     let state = ctx.data().state.clone();
 
-    let reply = match state.risei_calculator.event_search(server, &stage, &state.outer_source).await {
+    let reply = match event_search(&state, server, &stage).await {
         Err(msg) => EmbedReply::error(&msg),
         Ok(stages) => {
             let mut chunks = vec![format!("検索内容 = {stage}")];
