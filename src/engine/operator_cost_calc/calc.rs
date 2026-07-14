@@ -50,9 +50,11 @@ pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_na
         .position(|c| c.operator_id == op.id && c.skill_id == skill.skill_id)
         .map(|idx| format!("星{}スキル{}個中、第{}位の消費です", op.stars, ranking.len(), idx + 1));
 
+    let description = info.skill_data.get_description(&skill.skill_id).to_string();
     Ok(SkillMasterCostDto {
-        skill_name: info.skill_names.get_str(&skill.skill_id).to_string(),
+        skill_name: info.skill_data.get_str(&skill.skill_id).to_string(),
         skill_num,
+        description,
         masteries,
         total,
         total_r2_items,

@@ -11,6 +11,7 @@ pub struct ItemCostView {
 pub struct SkillMasterCostDto {
     pub skill_name: String,
     pub skill_num: u32,
+    pub description: String,
     /// 特化1〜3。
     pub masteries: Vec<ItemCostView>,
     pub total: ItemCostView,

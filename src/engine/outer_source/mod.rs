@@ -5,7 +5,7 @@ pub mod formulas;
 pub mod http;
 pub mod item_names;
 pub mod operator_data;
-pub mod skill_names;
+pub mod skill_data;
 pub mod zones;
 
 pub use cache::{BoxFuture, FetchError, Source};
@@ -33,8 +33,8 @@ pub struct OuterSourceRegistry {
     /// （character_table.json / uniequip_table.json / char_patch_table.json を1回のfetchで
     /// まとめて構築する。旧`operator_names`はこれに統合済み）。
     pub operator_data: Source<operator_data::OperatorData>,
-    /// スキルID→表示名のみ（説明文はスコープ外）。
-    pub skill_names: Source<skill_names::SkillNames>,
+    /// スキルID→表示名+説明文（最大レベルの説明文をヘッダ込みで組み立て済み）。
+    pub skill_data: Source<skill_data::SkillData>,
     pub item_names: Source<item_names::ItemNames>,
     pub zones: Source<zones::Zones>,
     pub ark_stages: Source<ark_stages::ArkStages>,
@@ -48,7 +48,7 @@ impl OuterSourceRegistry {
     pub async fn load() -> Self {
         Self {
             operator_data: Source::load("operator_data", Some(operator_data::SEED_PATH), operator_data::fetch).await,
-            skill_names: Source::load("skill_names", Some(skill_names::SEED_PATH), skill_names::fetch).await,
+            skill_data: Source::load("skill_data", Some(skill_data::SEED_PATH), skill_data::fetch).await,
             item_names: Source::load("item_names", Some(item_names::SEED_PATH), item_names::fetch).await,
             zones: Source::load("zones", Some(zones::SEED_PATH), zones::fetch).await,
             ark_stages: Source::load("ark_stages", Some(ark_stages::SEED_PATH), ark_stages::fetch).await,
@@ -62,7 +62,7 @@ impl OuterSourceRegistry {
     pub async fn refresh_all(&self) {
         tokio::join!(
             self.operator_data.refresh(),
-            self.skill_names.refresh(),
+            self.skill_data.refresh(),
             self.item_names.refresh(),
             self.zones.refresh(),
             self.ark_stages.refresh(),
@@ -79,7 +79,7 @@ impl OuterSourceRegistry {
     pub async fn refresh_by_name(&self, name: &str) -> Option<bool> {
         match name {
             "operator_data" => Some(self.operator_data.refresh().await),
-            "skill_names" => Some(self.skill_names.refresh().await),
+            "skill_data" => Some(self.skill_data.refresh().await),
             "item_names" => Some(self.item_names.refresh().await),
             "zones" => Some(self.zones.refresh().await),
             "ark_stages" => Some(self.ark_stages.refresh().await),
@@ -106,9 +106,9 @@ pub const SEED_JOBS: &[SeedJob] = &[
         update: operator_data::update_seed,
     },
     SeedJob {
-        name: "skill_names",
-        path: skill_names::SEED_PATH,
-        update: skill_names::update_seed,
+        name: "skill_data",
+        path: skill_data::SEED_PATH,
+        update: skill_data::update_seed,
     },
     SeedJob {
         name: "item_names",

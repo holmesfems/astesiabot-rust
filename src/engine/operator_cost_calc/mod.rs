@@ -5,7 +5,7 @@ pub mod model;
 
 use crate::engine::outer_source::item_names::ItemNames;
 use crate::engine::outer_source::operator_data::{OperatorData, RawOperatorCost};
-use crate::engine::outer_source::skill_names::SkillNames;
+use crate::engine::outer_source::skill_data::SkillData;
 use crate::engine::risei_calculator_engine::server::Server;
 use crate::engine::risei_calculator_engine::values::RiseiValues;
 use model::{FormulaMap, ItemCost};
@@ -74,7 +74,7 @@ impl SkillCostInfo {
 pub struct AllOperatorsInfo {
     pub data: Arc<OperatorData>,
     pub item_names: Arc<ItemNames>,
-    pub skill_names: Arc<SkillNames>,
+    pub skill_data: Arc<SkillData>,
     pub formulas: FormulaMap,
 }
 
@@ -114,7 +114,7 @@ impl AllOperatorsInfo {
                     cn_only: op.cn_only,
                     is_recent: op.is_recent,
                     skill_id: skill.skill_id.clone(),
-                    skill_name: self.skill_names.get_str(&skill.skill_id).to_string(),
+                    skill_name: self.skill_data.get_str(&skill.skill_id).to_string(),
                     index: i + 1,
                     total_cost: ItemCost::sum(&costs),
                 });

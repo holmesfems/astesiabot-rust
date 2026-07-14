@@ -21,13 +21,13 @@ const DISPLAY_EPSILON: f64 = 1e-6;
 pub async fn build_context(state: &AppState) -> (AllOperatorsInfo, ValueSet) {
     let data = state.outer_source.operator_data.get().await;
     let item_names = state.outer_source.item_names.get().await;
-    let skill_names = state.outer_source.skill_names.get().await;
+    let skill_data = state.outer_source.skill_data.get().await;
     let formulas_raw = state.outer_source.formulas.get().await;
     let formulas = build_formula_map(&formulas_raw.formulas, &item_names);
     let info = AllOperatorsInfo {
         data,
         item_names,
-        skill_names,
+        skill_data,
         formulas,
     };
 

@@ -8,7 +8,6 @@ use poise::serenity_prelude as serenity;
 const BASE_TITLE: &str = "スキル特化検索";
 
 /// Python `OperatorCostsCalculator.skillMasterCost`の整形込み版。
-/// スキル説明文(blackboard置換)は対象外（未実装。CLAUDE.md参照）。
 pub async fn master_cost_reply(state: &AppState, operator_name: &str, skill_num: u32) -> EmbedReply {
     let (info, values) = build_context(state).await;
     match skill_master_cost(&info, &values, operator_name, skill_num) {
@@ -19,6 +18,7 @@ pub async fn master_cost_reply(state: &AppState, operator_name: &str, skill_num:
         },
         Ok(dto) => {
             let mut chunks = Vec::new();
+            chunks.push(format!("{}\n\n", dto.description));
             for (i, mastery) in dto.masteries.iter().enumerate() {
                 chunks.push(format!(
                     "特化{} 理性価値:{:.2}{}\n",
