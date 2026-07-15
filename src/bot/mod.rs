@@ -20,9 +20,6 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
         .options(poise::FrameworkOptions {
             // 大元の振り分け。コマンドを増やすときはここに足す。
             commands: vec![
-                commands::ping::ping(),
-                commands::echo::echo(),
-                commands::add::add(),
                 commands::risei::riseimaterials::riseimaterials(),
                 commands::risei::riseistages::riseistages(),
                 commands::risei::riseievents::riseievents(),
