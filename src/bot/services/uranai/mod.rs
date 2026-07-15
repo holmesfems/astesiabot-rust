@@ -10,7 +10,7 @@ use membership::MembershipConfig;
 use openai_client::{AttachmentKind, OpenAiClient, UranaiAttachment};
 use poise::serenity_prelude as serenity;
 use session::ChatSession;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// 会話メモリの無操作タイムアウト（10分）。
 const SESSION_TIMEOUT: Duration = Duration::from_secs(10 * 60);
@@ -49,6 +49,13 @@ pub async fn handle(
     if !membership::check(&data.state.uranai.membership, msg) {
         // チャンネル自体がロール制限されている想定の二重チェックなので、無反応でよい
         return Ok(None);
+    }
+
+    if msg.attachments.is_empty() {
+        println!("[uranai] GPT accepted", msg.channel_id);
+    } else {
+        let names: Vec<&str> = msg.attachments.iter().map(|a| a.filename.as_str()).collect();
+        println!("[uranai] GPT accepted with attachments: [{}]", names.join(", "));
     }
 
     let ctx = ctx.clone();
@@ -101,10 +108,16 @@ pub async fn handle(
         let history_input = session.history_input();
 
         let typing = channel_id.start_typing(&ctx.http);
+        println!("[uranai] ChatGPT start thinking...");
+        let think_start = Instant::now();
         let result = uranai
             .client
             .run_turn(SYSTEM_PROMPT, history_input, &content, &attachments, &state)
             .await;
+        println!(
+            "[uranai] Thinking completed. ({:.2}秒)",
+            think_start.elapsed().as_secs_f64()
+        );
         typing.stop();
 
         let (reply_text, images) = match result {
@@ -196,7 +209,20 @@ async fn send_reply(
         return Ok(());
     }
 
-    let mut attachments = Some(to_attachments(images)).filter(|a| !a.is_empty());
+    let named_images: Vec<(String, Vec<u8>)> = images
+        .into_iter()
+        .enumerate()
+        .map(|(i, bytes)| (format!("astesia_{i}.png"), bytes))
+        .collect();
+
+    if named_images.is_empty() {
+        println!("[uranai] 送信: channel={channel_id} (添付なし)");
+    } else {
+        let names: Vec<&str> = named_images.iter().map(|(n, _)| n.as_str()).collect();
+        println!("[uranai] 送信: channel={channel_id} 添付=[{}]", names.join(", "));
+    }
+
+    let mut attachments = Some(to_attachments(named_images)).filter(|a| !a.is_empty());
     for chunk in chunks {
         if let Some(files) = attachments.take() {
             channel_id
@@ -209,11 +235,10 @@ async fn send_reply(
     Ok(())
 }
 
-fn to_attachments(images: Vec<Vec<u8>>) -> Vec<serenity::CreateAttachment> {
-    images
+fn to_attachments(named_images: Vec<(String, Vec<u8>)>) -> Vec<serenity::CreateAttachment> {
+    named_images
         .into_iter()
-        .enumerate()
-        .map(|(i, bytes)| serenity::CreateAttachment::bytes(bytes, format!("astesia_{i}.png")))
+        .map(|(name, bytes)| serenity::CreateAttachment::bytes(bytes, name))
         .collect()
 }
 

@@ -9,6 +9,9 @@ const RESPONSES_URL: &str = "https://api.openai.com/v1/responses";
 /// 際限なく呼ばれ続けることは想定しないが、暴走時の安全弁として上限を設ける。
 const MAX_TOOL_ROUNDS: usize = 5;
 
+/// タイムアウト時間
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+
 /// ユーザーがDiscordに添付した画像/PDFを表すDTO。呼び出し元(`uranai::mod`)が
 /// `msg.attachments`から分類して渡す。Discordの添付URLは`file_url`/`image_url`として
 /// そのままResponses APIに渡せる（OpenAI側がサーバーサイドでfetchするため、こちら側での
@@ -63,7 +66,7 @@ impl OpenAiClient {
         let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| panic!("OPENAI_API_KEY not set"));
         let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| panic!("OPENAI_MODEL not set"));
         let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(60))
+            .timeout(REQUEST_TIMEOUT)
             .build()
             .expect("failed to build reqwest client for OpenAI");
         let tools = super::tools::load_tool_definitions()
