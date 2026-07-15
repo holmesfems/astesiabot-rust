@@ -60,7 +60,9 @@ pub async fn handle(
 
     let ctx = ctx.clone();
     let channel_id = msg.channel_id;
-    let content = msg.content.trim().to_string();
+    let content_raw = msg.content.trim().to_string();
+    let user_name = msg.author.name.clone();
+    let content = format!("from {}:\n {}", user_name, content_raw);
     let raw_attachments = msg.attachments.clone();
     let state = data.state.clone();
 
