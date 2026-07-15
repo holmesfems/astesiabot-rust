@@ -56,10 +56,10 @@ pub struct RecruitData {
 impl RecruitData {
     /// data/ 以下の2ファイルを読み込む。
     pub fn load() -> Result<Self, Error> {
-        let db_text = std::fs::read_to_string("data/recruitmentOperators.json")?;
+        let db_text = std::fs::read_to_string("data/recruitment/operators.json")?;
         let db: OperatorDb = serde_json::from_str(&db_text)?;
 
-        let tag_text = std::fs::read_to_string("data/tagList.json")?;
+        let tag_text = std::fs::read_to_string("data/recruitment/tagList.json")?;
         let tag_list: TagList = serde_json::from_str(&tag_text)?;
 
         let mut tag_name_order = Vec::new();

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-/// オペレーター1体分。recruitmentOperators.json の要素に対応。
+/// オペレーター1体分。data/recruitment/operators.json の要素に対応。
 #[derive(Debug, Clone, Deserialize)]
 pub struct Operator {
     pub name: String,
@@ -10,7 +10,7 @@ pub struct Operator {
     pub stars: u8,
 }
 
-/// recruitmentOperators.json 全体。
+/// data/recruitment/operators.json 全体。
 /// JSON 側には歴史的経緯で "new" フィールドが残っているが、実データは常に空で
 /// 将来実装予定は "future" が一元管理するため、Rust 側では読み込まない。
 #[derive(Debug, Deserialize)]
@@ -21,7 +21,7 @@ pub struct OperatorDb {
     pub future: Vec<FutureEntry>,
 }
 
-/// `future` 要素。data/recruitmentOperators.json の形式に合わせる。
+/// `future` 要素。data/recruitment/operators.json の形式に合わせる。
 #[derive(Debug, Deserialize)]
 pub struct FutureEntry {
     // human-readable label for future entries; not used by code
@@ -34,7 +34,7 @@ pub struct FutureEntry {
     pub op_list: Vec<Operator>,
 }
 
-/// tagList.json に対応。タグ名を種別ごとに分類するために使う。
+/// data/recruitment/tagList.json に対応。タグ名を種別ごとに分類するために使う。
 #[derive(Debug, Deserialize)]
 pub struct TagList {
     #[serde(rename = "eliteTags")]

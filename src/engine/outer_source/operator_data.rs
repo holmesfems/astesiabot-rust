@@ -74,7 +74,7 @@ pub struct RawOperatorCost {
     pub cn_only: bool,
     /// 昇格オペレーター(前衛/医療アーミヤ等)か。
     pub is_patch: bool,
-    /// 直近実装判定（Python `isRecent`。`cn_only || cn_name が customZhToJa にある`）。
+    /// 直近実装判定（Python `isRecent`。`cn_only || cn_name が customOperatorZhToJa にある`）。
     pub is_recent: bool,
     /// 昇進1,2に必要な素材（`evolveCost`の`[1..]`。Python `OperatorCosts.phases`）。
     pub phases: Vec<Vec<CostEntry>>,
@@ -140,7 +140,7 @@ async fn fetch_impl() -> Result<OperatorData, FetchError> {
         fetch_json_with_retry(&client, PATCH_CHAR_TABLE_URL_JP),
     )?;
 
-    let custom: BTreeMap<String, String> = match std::fs::read_to_string("data/customZhToJa.yaml") {
+    let custom: BTreeMap<String, String> = match std::fs::read_to_string("data/customOperatorZhToJa.yaml") {
         Ok(s) => serde_yaml::from_str(&s).unwrap_or_default(),
         Err(_) => BTreeMap::new(),
     };

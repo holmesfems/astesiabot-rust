@@ -130,11 +130,14 @@ src/
             └── ocr.rs … Google Vision REST（v1〜v1p4beta1 を切替。連続失敗対策）
 
 data/  … 実行時に読み込む（カレントディレクトリ基準なのでプロジェクトルートで実行）
-├── recruitmentOperators.json  … オペレーターDB（main 153体 + future プール）
-├── tagList.json               … タグ種別定義
-├── tagJaToJa.yaml / tagEnToJa.yaml / tagZhToJa.yaml … 3言語辞書
+├── recruitment/               … 求人ドメイン（engine/recruit が読む）
+│   ├── operators.json         … オペレーターDB（main 153体 + future プール）
+│   ├── tagList.json           … タグ種別定義
+│   └── tagJaToJa.yaml / tagEnToJa.yaml / tagZhToJa.yaml … 3言語辞書
 ├── birthdayRev.yaml           … 日付→誕生日オペレーター(中国語名)一覧
-├── customZhToJa.yaml          … CN限定オペレーターのCN→JA名前フォールバック
+├── customOperatorZhToJa.yaml  … オペレーターCN→JA名前フォールバック（JP未実装オペレーター用の仮訳）
+├── customItemId.yaml          … 理性価値計算で使う特殊アイテムのID補完（例外用の予備ファイル）
+├── customItemZhToJa.yaml      … アイテムCN→JA名前フォールバック（customOperatorZhToJaのアイテム版）
 ├── golden/operator_cost_calc/ … Python版charmaterials.pyの出力をゴールデンJSON化したもの。
 │                                 `ref_python/.../dump_charmaterials_golden.py`で生成し、
 │                                 bot/commands/operator_cost_calc の golden_tests が実ネットワーク

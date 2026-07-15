@@ -22,11 +22,11 @@ pub struct Matcher {
 impl Matcher {
     pub fn load() -> Result<Self, Error> {
         let ja: BTreeMap<String, String> =
-            serde_yaml::from_str(&std::fs::read_to_string("data/tagJaToJa.yaml")?)?;
+            serde_yaml::from_str(&std::fs::read_to_string("data/recruitment/tagJaToJa.yaml")?)?;
         let en: BTreeMap<String, String> =
-            serde_yaml::from_str(&std::fs::read_to_string("data/tagEnToJa.yaml")?)?;
+            serde_yaml::from_str(&std::fs::read_to_string("data/recruitment/tagEnToJa.yaml")?)?;
         let zh: BTreeMap<String, String> =
-            serde_yaml::from_str(&std::fs::read_to_string("data/tagZhToJa.yaml")?)?;
+            serde_yaml::from_str(&std::fs::read_to_string("data/recruitment/tagZhToJa.yaml")?)?;
 
         // ja_extra（Python の __jaExtraDict）。順序が意味を持つので Vec で保持。
         let ja_extra = compile_pairs(&[
