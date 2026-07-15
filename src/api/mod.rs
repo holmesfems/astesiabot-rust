@@ -7,6 +7,7 @@ use crate::engine::fk_data_search::FkDataSearchEngine;
 use crate::engine::outer_source::OuterSourceRegistry;
 use crate::engine::recruit::RecruitEngine;
 use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
+use axum::http::StatusCode;
 use axum::response::Redirect;
 use axum::{routing::get, routing::post, Router};
 use std::sync::Arc;
@@ -27,6 +28,7 @@ pub struct AppState {
 
 pub async fn run_api(state: Arc<AppState>) {
     let app = Router::new()
+        .route("/", get(|| async { Redirect::temporary("/WLBatterySimulator") }))
         .route("/health", get(|| async { "ok" }))
         .route("/recruitment/", post(recruitment::do_recruitment)) // Python と同じパス
         // axum の nest() は内側の "/" を末尾スラッシュなしの prefix にのみ割り当てるため、
@@ -36,6 +38,7 @@ pub async fn run_api(state: Arc<AppState>) {
             get(|| async { Redirect::permanent("/WLBatterySimulator") }),
         )
         .nest("/WLBatterySimulator", wl_battery_simulator::router())
+        .fallback(not_found)
         .with_state(state);
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "3000".to_string())
@@ -46,4 +49,8 @@ pub async fn run_api(state: Arc<AppState>) {
         .await
         .unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn not_found() -> (StatusCode, &'static str) {
+    (StatusCode::NOT_FOUND, "404 Not Found")
 }
