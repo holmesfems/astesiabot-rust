@@ -51,12 +51,14 @@ async fn main() {
         .await
         .expect("理性価値表の初期計算に失敗");
     let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
+    let uranai = astesiabot_rust::bot::services::uranai::UranaiState::from_env();
     let state = Arc::new(AppState {
         recruit: recruit_engine,
         moderation,
         outer_source,
         risei_calculator,
         fk_data_search,
+        uranai,
     });
     let bot_state = state.clone();
 

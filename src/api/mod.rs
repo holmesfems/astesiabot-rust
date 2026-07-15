@@ -2,6 +2,7 @@ mod recruitment;
 mod wl_battery_simulator;
 
 use crate::bot::services::moderation::ModerationState;
+use crate::bot::services::uranai::UranaiState;
 use crate::engine::fk_data_search::FkDataSearchEngine;
 use crate::engine::outer_source::OuterSourceRegistry;
 use crate::engine::recruit::RecruitEngine;
@@ -20,6 +21,8 @@ pub struct AppState {
     pub risei_calculator: RiseiCalculatorEngine,
     /// FK情報スプレッドシートの鮮度管理（読み取り駆動で1時間毎に再fetch）。
     pub fk_data_search: FkDataSearchEngine,
+    /// 占い館（OpenAIチャット）の会話セッション・課金ロール判定・APIクライアント。
+    pub uranai: UranaiState,
 }
 
 pub async fn run_api(state: Arc<AppState>) {

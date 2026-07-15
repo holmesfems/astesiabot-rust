@@ -232,12 +232,14 @@ mod golden_tests {
             .await
             .expect("risei engine should build against real network data");
         let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
+        let uranai = crate::bot::services::uranai::UranaiState::from_env();
         AppState {
             recruit,
             moderation,
             outer_source,
             risei_calculator,
             fk_data_search,
+            uranai,
         }
     }
 

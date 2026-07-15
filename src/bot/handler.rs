@@ -55,7 +55,7 @@ pub async fn event_handler(
                 send_embed_reply(ctx, msg.channel_id, &reply).await?;
             }
         } else if msg.channel_id == data.channel_routing.uranai {
-            if let Some(reply) = uranai::handle(ctx, msg).await? {
+            if let Some(reply) = uranai::handle(ctx, msg, data).await? {
                 send_embed_reply(ctx, msg.channel_id, &reply).await?;
             }
         } else {
