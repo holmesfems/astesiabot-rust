@@ -1,3 +1,4 @@
+use crate::api::AppState;
 use crate::bot::data::Error;
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -12,6 +13,8 @@ pub struct OpenAiClient {
     http: reqwest::Client,
     api_key: String,
     model: String,
+    /// data/uranai/toolList.yaml から起動時に一度だけ読み込んだtool定義。
+    tools: Vec<Value>,
 }
 
 impl OpenAiClient {
@@ -22,7 +25,9 @@ impl OpenAiClient {
             .timeout(Duration::from_secs(60))
             .build()
             .expect("failed to build reqwest client for OpenAI");
-        Self { http, api_key, model }
+        let tools = super::tools::load_tool_definitions()
+            .expect("data/uranai/toolList.yaml の読み込みに失敗しました");
+        Self { http, api_key, model, tools }
     }
 
     async fn call(&self, body: &Value) -> Result<Value, Error> {
@@ -52,8 +57,9 @@ impl OpenAiClient {
         instructions: &str,
         history: Vec<Value>,
         user_message: &str,
+        state: &AppState,
     ) -> Result<String, Error> {
-        let tools = super::tools::tool_definitions();
+        let tools = &self.tools;
         let mut input = history;
         input.push(json!({"role": "user", "content": user_message}));
 
@@ -78,7 +84,7 @@ impl OpenAiClient {
             for item in &output {
                 match item.get("type").and_then(Value::as_str) {
                     Some("message") => collected.push_str(&extract_message_text(item)),
-                    Some("function_call") => tool_outputs.push(run_tool_call(item)),
+                    Some("function_call") => tool_outputs.push(run_tool_call(item, state).await),
                     _ => {}
                 }
             }
@@ -137,11 +143,12 @@ fn extract_message_text(item: &Value) -> String {
     text
 }
 
-fn run_tool_call(item: &Value) -> Value {
+async fn run_tool_call(item: &Value, state: &AppState) -> Value {
     let call_id = item.get("call_id").and_then(Value::as_str).unwrap_or_default();
     let name = item.get("name").and_then(Value::as_str).unwrap_or_default();
     let arguments = item.get("arguments").and_then(Value::as_str).unwrap_or("{}");
-    let result = super::tools::dispatch(name, arguments);
+    println!("[uranai] tool called: {name}({arguments})");
+    let result = super::tools::dispatch(name, arguments, state).await;
     json!({
         "type": "function_call_output",
         "call_id": call_id,

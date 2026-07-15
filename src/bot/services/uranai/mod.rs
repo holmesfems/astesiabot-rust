@@ -1,3 +1,4 @@
+pub mod functioncalling;
 mod membership;
 mod openai_client;
 mod session;
@@ -84,7 +85,10 @@ pub async fn handle(
         let history_input = session.history_input();
 
         let typing = channel_id.start_typing(&ctx.http);
-        let result = uranai.client.run_turn(SYSTEM_PROMPT, history_input, &content).await;
+        let result = uranai
+            .client
+            .run_turn(SYSTEM_PROMPT, history_input, &content, &state)
+            .await;
         typing.stop();
 
         let reply_text = match result {

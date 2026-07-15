@@ -95,6 +95,7 @@ name = "astesiabot-rust"
 version = "0.1.0"
 dependencies = [
  "askama",
+ "async-trait",
  "axum",
  "chrono",
  "chrono-tz",

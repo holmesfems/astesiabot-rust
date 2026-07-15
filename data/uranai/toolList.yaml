@@ -1,0 +1,159 @@
+# 占い館(uranai)のOpenAI function calling用ツール定義。
+# `cargo run --bin regen_uranai_tools` で自動生成される。手動編集しないこと。
+# 生成元: src/bot/services/uranai/functioncalling/ に登録された各関数。
+- type: function
+  name: riseiMaterials
+  description: Get the information (e.g. sanity efficiency, sanity cost, time efficiency, time cost, etc.) of stages to farm a kind of material in Arknights
+  parameters:
+    type: object
+    properties:
+      target:
+        type: string
+        description: Category of the material
+        enum:
+        - Orirock
+        - Device
+        - Polyester
+        - Sugar
+        - Ori-iron
+        - Aketon
+        - Kohl
+        - Manganese
+        - Grindstone
+        - RMA
+        - Gel
+        - Incandescent Alloy
+        - Crystalline
+        - Solvent
+        - Cutting Fluid
+        - Transmuted Salt
+        - Fiber
+        - Hydrocarbon
+        - Condensation-like nuclei
+    required:
+    - target
+    additionalProperties: false
+  strict: true
+- type: function
+  name: riseiStages
+  description: Get the information (e.g. efficiency, sanity cost, time cost, main drop, etc.) of constant stages in Arknights
+  parameters:
+    type: object
+    properties:
+      target:
+        type: string
+        description: The code name of the stage. e.g. 1-7 8-3 GA-8 JT8-2
+    required:
+    - target
+    additionalProperties: false
+  strict: true
+- type: function
+  name: riseiLists
+  description: Get the contents of a table about sanity efficiency
+  parameters:
+    type: object
+    properties:
+      target:
+        type: string
+        description: Name of the table
+        enum:
+        - Base stage table
+        - Sanity-Value table
+        - Commendation Certificate Efficiency table
+        - Distinction Certificate Efficiency table
+        - Special Exchange Order Efficiency table
+        - Contract Bounty Efficiency table
+        - Crystal Exchange Efficiency table
+        - Pinch-out Exchange Efficiency table
+    required:
+    - target
+    additionalProperties: false
+  strict: true
+- type: function
+  name: operatorEliteCost
+  description: Get the material cost list to promote an operator
+  parameters:
+    type: object
+    properties:
+      target:
+        type: string
+        description: Name of the operator. e.g. アーミヤ アステシア エイヤフィヤトラ
+    required:
+    - target
+    additionalProperties: false
+  strict: true
+- type: function
+  name: operatorSkillInfo
+  description: Get the material cost list to specialize one of the skill of an operator. Each operator has up to 3 skills.
+  parameters:
+    type: object
+    properties:
+      target:
+        type: string
+        description: Name of the operator. e.g. アーミヤ アステシア エイヤフィヤトラ
+      skillnum:
+        type: number
+        description: The skill number
+    required:
+    - target
+    - skillnum
+    additionalProperties: false
+  strict: true
+- type: function
+  name: operatorModuleCost
+  description: Get the material cost list to unlock or modify the module of an operator
+  parameters:
+    type: object
+    properties:
+      target:
+        type: string
+        description: Name of the operator. e.g. アーミヤ アステシア エイヤフィヤトラ
+    required:
+    - target
+    additionalProperties: false
+  strict: true
+- type: function
+  name: operatorFKInfo
+  description: Get the Frame-Kill(FK) info of a skill of the operator.
+  parameters:
+    type: object
+    properties:
+      target:
+        type: string
+        description: Name of the operator. e.g. アーミヤ アステシア エイヤフィヤトラ
+      skillnum:
+        type: string
+        description: The id to specify the skill. It can be omitted if the skill is not specified
+        enum:
+        - '1'
+        - '2'
+        - '3'
+        - 素質1
+        - 素質2
+        - ''
+    required:
+    - target
+    - skillnum
+    additionalProperties: false
+  strict: true
+- type: function
+  name: getRecruitmentList
+  description: Get a tag combination that will ensure that only characters of the specified star appear
+  parameters:
+    type: object
+    properties:
+      star:
+        type: number
+        description: The star to specify
+        enum:
+        - 4
+        - 5
+      isGlobal:
+        type: boolean
+        description: True for the Global Server, and false for the CN Server. Default is True.
+    required:
+    - star
+    - isGlobal
+    additionalProperties: false
+  strict: true
+- type: web_search
