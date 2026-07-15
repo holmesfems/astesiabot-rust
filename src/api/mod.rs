@@ -37,7 +37,12 @@ pub async fn run_api(state: Arc<AppState>) {
         )
         .nest("/WLBatterySimulator", wl_battery_simulator::router())
         .with_state(state);
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "3000".to_string())
+        .parse::<u16>()
+        .expect("PORT must be a number");
+    let address = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = tokio::net::TcpListener::bind(address)
         .await
         .unwrap();
     axum::serve(listener, app).await.unwrap();
