@@ -26,6 +26,13 @@ fn display_name(skill_num: &str, skill_name: &str) -> String {
     }
 }
 
+pub async fn fk_parse_payload_reply(state: &AppState, payload: &str, reply: &str) -> EmbedReply{
+    let name = payload;
+    let skill_num = reply.trim();
+    println!("[fk_parse_payload_reply] operator_name={name:?} skill_num={skill_num:?}");
+    fk_search_reply(state, name, skill_num).await
+}
+
 /// Python `FKInfo.getReply`の整形込み版。
 pub async fn fk_search_reply(state: &AppState, operator_name: &str, skill_num: &str) -> EmbedReply {
     let view = build_view(state).await;

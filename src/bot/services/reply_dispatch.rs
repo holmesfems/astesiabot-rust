@@ -43,10 +43,9 @@ pub async fn handle(
 
     match key {
         fksearch::REPLY_MARKER_KEY => {
-            let skill_num = msg.content.trim();
-            println!("[reply_dispatch] FKSEARCH operator_name={payload:?} skill_num={skill_num:?}");
+            let reply = msg.content.as_str();
             Ok(Some(
-                fksearch::fk_search_reply(&data.state, payload, skill_num).await,
+                fksearch::fk_parse_payload_reply(&data.state, payload, reply).await,
             ))
         }
         _ => Ok(None),
