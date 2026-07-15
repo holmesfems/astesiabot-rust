@@ -189,9 +189,7 @@ pub enum RiseiListTarget {
     Te3List,
     #[name = "特別引換証効率表"]
     SpecialList,
-    // poise::ChoiceParameterの#[name]はコンパイル時文字列リテラルのみ。
-    // CC_NUMBER定数の値が変わったらここも手動で同期させること。
-    #[name = "契約賞金引換効率表(CC#4)"]
+    #[name = "契約賞金引換効率表"]
     CcList,
 }
 

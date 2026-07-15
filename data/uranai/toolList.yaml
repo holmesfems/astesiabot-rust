@@ -11,25 +11,27 @@
         type: string
         description: Category of the material
         enum:
-        - Orirock
-        - Device
-        - Polyester
-        - Sugar
-        - Ori-iron
-        - Aketon
-        - Kohl
-        - Manganese
-        - Grindstone
         - RMA
-        - Gel
-        - Incandescent Alloy
-        - Crystalline
-        - Solvent
-        - Cutting Fluid
-        - Transmuted Salt
-        - Fiber
-        - Hydrocarbon
-        - Condensation-like nuclei
+        - ゲル
+        - 切削液
+        - 異鉄
+        - 素子結晶
+        - 源岩
+        - 溶剤
+        - 熾合金
+        - 炭化水素
+        - 砥石
+        - 凝固核
+        - 糖原
+        - 繊維
+        - 装置
+        - 転化塩
+        - アケトン
+        - エステル
+        - 合成コール
+        - マンガン
+        - 液化ガス
+        - 電極
     required:
     - target
     additionalProperties: false
@@ -57,14 +59,12 @@
         type: string
         description: Name of the table
         enum:
-        - Base stage table
-        - Sanity-Value table
-        - Commendation Certificate Efficiency table
-        - Distinction Certificate Efficiency table
-        - Special Exchange Order Efficiency table
-        - Contract Bounty Efficiency table
-        - Crystal Exchange Efficiency table
-        - Pinch-out Exchange Efficiency table
+        - 基準マップ
+        - 理性価値表
+        - 初級資格証効率表
+        - 上級資格証効率表
+        - 特別引換証効率表
+        - 契約賞金引換効率表
     required:
     - target
     additionalProperties: false

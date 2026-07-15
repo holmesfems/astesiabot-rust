@@ -5,7 +5,10 @@
       "Bash(curl -s \"https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/skill_table.json\" -o /tmp/skill_cn.json)",
       "Bash(taskkill //PID 30700 //F)",
       "Bash(find / -path /proc -prune -o -type d -name \"serenity-*\" -print 2>/dev/null | head -20)",
-      "Read(//g//**)"
+      "Read(//g//**)",
+      "Bash(powershell -Command \"Get-Process -Id 14232 | Select-Object Id,ProcessName,StartTime,Path\")",
+      "Bash(find / -path /proc -prune -o -type d -iname \"poise-*\" -print 2>/dev/null | head -20)",
+      "Bash(find 'C:\\\\Users\\\\holmesfems/.cargo/registry/src' -maxdepth 2 -iname poise-*)"
     ]
   }
 }

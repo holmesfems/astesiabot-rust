@@ -1,6 +1,8 @@
 use super::{wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
 use crate::api::AppState;
+use crate::bot::commands::risei::riseilists::RiseiListTarget;
 use async_trait::async_trait;
+use poise::ChoiceParameter;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
@@ -10,22 +12,21 @@ struct Args {
     target: String,
 }
 
+/// `/riseilists`の`RiseiListTarget`（poise::ChoiceParameter）の`#[name]`一覧をenum値として使う。
+/// 以前は手書きの英語8件だったが、結晶交換所(Pinch Out)相当の2件は実装されておらず
+/// `RiseiListTarget`には存在しないため実態と食い違っていた。コマンド側の選択肢と
+/// 単一の情報源にすることでズレを防ぐ。
+fn risei_list_targets() -> Vec<String> {
+    RiseiListTarget::list().into_iter().map(|c| c.name).collect()
+}
+
 impl ToolArgs for Args {
     fn schema_properties() -> Value {
         json!({
             "target": {
                 "type": "string",
                 "description": "Name of the table",
-                "enum": [
-                    "Base stage table",
-                    "Sanity-Value table",
-                    "Commendation Certificate Efficiency table",
-                    "Distinction Certificate Efficiency table",
-                    "Special Exchange Order Efficiency table",
-                    "Contract Bounty Efficiency table",
-                    "Crystal Exchange Efficiency table",
-                    "Pinch-out Exchange Efficiency table"
-                ],
+                "enum": risei_list_targets(),
             }
         })
     }
