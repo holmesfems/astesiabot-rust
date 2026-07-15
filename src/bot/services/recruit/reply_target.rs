@@ -13,8 +13,6 @@ const FALLBACK_HISTORY_LIMIT: u8 = 50;
 pub enum Resolution {
     /// 対象embedのタイトルからタグを復元できた。
     Ready(ParsedTitle),
-    /// 明示リプライだが、参照先メッセージにembedが無い（Python の「返信メッセージが違うわ」）。
-    ExplicitNoEmbeds,
     /// 対象が見つからない、またはタイトルが解析不能。サイレント無視。
     Ignore,
 }
@@ -37,6 +35,10 @@ pub async fn resolve(
 }
 
 /// 明示リプライの解決（Python の msgForOCRReply 冒頭に対応）。
+/// 参照先がbot自身の発言でも、embedが無い（誘導メッセージ等のプレーンリプライ）、
+/// またはタイトルが解析不能（エラーembed等）な場合は、明示参照が無かったものとして
+/// フォールバック探索に委譲する。これにより「誘導メッセージやエラーメッセージに
+/// うっかりリプしてしまった」場合でも直近の有効な計算結果を拾える。
 async fn resolve_explicit(
     ctx: &serenity::Context,
     msg: &serenity::Message,
@@ -53,13 +55,25 @@ async fn resolve_explicit(
         None => msg.channel_id.message(&ctx.http, ref_id).await?,
     };
 
-    let Some(title) = target.embeds.first().and_then(|e| e.title.as_deref()) else {
-        return Ok(Resolution::ExplicitNoEmbeds);
-    };
-    Ok(match edit::parse_title(data, title) {
-        Some(parsed) => Resolution::Ready(parsed),
-        None => Resolution::Ignore,
-    })
+    if target.author.id != ctx.cache.current_user().id {
+        // bot以外の発言へのリプライは対象外（Python の
+        // `referenced_message.author != client.user` と同じ）。
+        return Ok(Resolution::Ignore);
+    }
+
+    let parsed = target
+        .embeds
+        .first()
+        .and_then(|e| e.title.as_deref())
+        .and_then(|title| edit::parse_title(data, title));
+
+    match parsed {
+        Some(parsed) => Ok(Resolution::Ready(parsed)),
+        None => Ok(match fallback_search(ctx, msg, data).await? {
+            Some(parsed) => Resolution::Ready(parsed),
+            None => Resolution::Ignore,
+        }),
+    }
 }
 
 /// リプライ参照が無い場合のフォールバック探索。

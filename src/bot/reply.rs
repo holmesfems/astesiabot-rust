@@ -118,3 +118,18 @@ pub async fn reply_embed_reply(
     }
     Ok(())
 }
+
+/// embed を伴わない、プレーンテキストのみの正式リプライ。
+/// Python の `RCReply(plainText=...)` を `message.reply` で送るケースに対応
+/// （例: OCRフローのタグ不足/過多に対するリプライ誘導メッセージ）。
+pub async fn reply_plain_text(
+    cache_http: impl serenity::CacheHttp,
+    trigger: &serenity::Message,
+    content: &str,
+) -> Result<(), Error> {
+    let builder = serenity::CreateMessage::new()
+        .content(content)
+        .reference_message(trigger);
+    trigger.channel_id.send_message(&cache_http, builder).await?;
+    Ok(())
+}

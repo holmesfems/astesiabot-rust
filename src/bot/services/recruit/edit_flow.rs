@@ -16,11 +16,6 @@ pub async fn build(
 
     let parsed = match reply_target::resolve(ctx, msg, engine_data).await? {
         Resolution::Ignore => return Ok(None),
-        Resolution::ExplicitNoEmbeds => {
-            return Ok(Some(EmbedReply::error(
-                "返信メッセージが違うわ。計算結果の方にリプしてちょうだい。",
-            )))
-        }
         Resolution::Ready(parsed) => parsed,
     };
 
