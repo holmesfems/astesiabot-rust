@@ -1,4 +1,5 @@
 use crate::bot::reply::{EmbedReply, MsgType};
+use crate::engine::recruit::calc::MAX_TAG_COUNT;
 use crate::engine::recruit::{format, RecruitEngine};
 
 /// OCR生テキスト → タグ抽出 → 計算 → EmbedReply（bot の embed 表示用）。
@@ -14,8 +15,8 @@ pub fn build_embed_reply(engine: &RecruitEngine, ocr_text: &str) -> EmbedReply {
         };
     }
     let mut matches: Vec<String> = matched.matches.into_iter().collect();
-    if matches.len() > 8 {
-        matches.truncate(8);
+    if matches.len() > MAX_TAG_COUNT {
+        matches.truncate(MAX_TAG_COUNT);
     }
     let is_global = matched.is_global;
     let results = engine.data.calculate(&matches, is_global, 4, None);

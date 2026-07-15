@@ -96,3 +96,25 @@ pub async fn send_embed_reply(
     }
     Ok(())
 }
+
+/// `send_embed_reply` の Discord 正式リプライ版（`message_reference` 付き）。
+/// 複数embedバッチに分かれる場合、リプライとして紐付けるのは先頭バッチのみ
+/// （2バッチ目以降は同一チャンネルへの通常送信）。
+pub async fn reply_embed_reply(
+    cache_http: impl serenity::CacheHttp,
+    trigger: &serenity::Message,
+    reply: &EmbedReply,
+) -> Result<(), Error> {
+    let mut batches = to_embed_batches(reply).into_iter();
+    if let Some(first) = batches.next() {
+        let builder = serenity::CreateMessage::new()
+            .embeds(first)
+            .reference_message(trigger);
+        trigger.channel_id.send_message(&cache_http, builder).await?;
+    }
+    for batch in batches {
+        let builder = serenity::CreateMessage::new().embeds(batch);
+        trigger.channel_id.send_message(&cache_http, builder).await?;
+    }
+    Ok(())
+}

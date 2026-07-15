@@ -6,6 +6,9 @@ use chrono::{NaiveDate, LocalResult, TimeZone, Utc};
 use chrono_tz::Asia::Tokyo;
 use std::env;
 
+/// 入力タグ集合の上限件数（OCR誤検出・編集コマンドの両方で共通のガード）。
+pub const MAX_TAG_COUNT: usize = 8;
+
 /// オペレーター参照（名前＋星）。キャッシュにも計算結果にも使う軽量表現。
 #[derive(Debug, Clone)]
 pub struct OperatorRef {
@@ -161,6 +164,24 @@ impl RecruitData {
         tag_type_of(&self.tag_list, name)
     }
 
+    /// テスト専用: ファイルI/O無しで tag_list だけから RecruitData を組み立てる。
+    /// edit.rs のユニットテスト（is_known_tag のみを使い、main_map/future_map は
+    /// 使わない）向け。
+    #[cfg(test)]
+    pub(crate) fn for_test(tag_list: TagList) -> Self {
+        let mut tag_name_order = Vec::new();
+        tag_name_order.extend(tag_list.job_tags.iter().cloned());
+        tag_name_order.extend(tag_list.position_tags.iter().cloned());
+        tag_name_order.extend(tag_list.elite_tags.iter().cloned());
+        tag_name_order.extend(tag_list.other_tags.iter().cloned());
+        Self {
+            tag_list,
+            tag_name_order,
+            main_map: HashMap::new(),
+            future_map: HashMap::new(),
+        }
+    }
+
     /// 入力タグ列を「既知のタグのみ・重複除去・定義順ソート」に正規化。
     /// Python の recruitDoProcess 冒頭の処理に対応。
     fn normalize_input(&self, input: &[String]) -> Vec<Tag> {
@@ -177,6 +198,12 @@ impl RecruitData {
                 tag_type: self.tag_type(name),
             })
             .collect()
+    }
+
+    /// 指定した名前が既知のタグ（tagList.json に定義済み）かどうか。
+    /// リプライ編集機能で、embedタイトルやコマンドのトークンを検証するために使う。
+    pub fn is_known_tag(&self, name: &str) -> bool {
+        self.tag_name_order.iter().any(|t| t == name)
     }
 
     /// title 用：既知タグのみ・定義順ソートした「名前」を返す。
