@@ -11,6 +11,17 @@ use axum::http::StatusCode;
 use axum::response::Redirect;
 use axum::{routing::get, routing::post, Router};
 use std::sync::Arc;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+/// FastAPI の /docs 相当。JSON API（/recruitment/）のみを対象とする。
+/// WLBatterySimulator は askama+htmx のサーバーレンダリングなので対象外。
+#[derive(OpenApi)]
+#[openapi(
+    paths(recruitment::do_recruitment),
+    components(schemas(recruitment::OcrRawData, recruitment::TagReplyData))
+)]
+struct ApiDoc;
 
 /// アプリ全体で共有する状態。今後 DB やキャッシュもここに載せられる。
 pub struct AppState {
@@ -38,6 +49,7 @@ pub async fn run_api(state: Arc<AppState>) {
             get(|| async { Redirect::permanent("/WLBatterySimulator") }),
         )
         .nest("/WLBatterySimulator", wl_battery_simulator::router())
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .fallback(not_found)
         .with_state(state);
     let port = std::env::var("PORT")

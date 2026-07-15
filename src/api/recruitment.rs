@@ -3,9 +3,10 @@ use crate::engine::recruit::{format, RecruitEngine};
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use utoipa::ToSchema;
 
 /// Python の OCRRawData に対応。
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub(super) struct OcrRawData {
     text: String,
     #[serde(rename = "pickupOperators", default)]
@@ -13,7 +14,7 @@ pub(super) struct OcrRawData {
 }
 
 /// Python の TagReplyData に対応。
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub(super) struct TagReplyData {
     title: String,
     reply: String,
@@ -55,6 +56,14 @@ fn build_tag_reply(engine: &RecruitEngine, ocr_text: &str, pickup: Option<&[Stri
     TagReplyData { title, reply }
 }
 
+#[utoipa::path(
+    post,
+    path = "/recruitment/",
+    request_body = OcrRawData,
+    responses(
+        (status = 200, description = "タグ抽出結果", body = TagReplyData)
+    )
+)]
 pub async fn do_recruitment(
     State(state): State<Arc<AppState>>,
     Json(data): Json<OcrRawData>,

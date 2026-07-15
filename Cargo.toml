@@ -23,3 +23,5 @@ nalgebra = "0.33"
 rand = "0.8"
 indexmap = { version = "2", features = ["serde"] }
 base64 = "0.22"
+utoipa = { version = "4", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "6", features = ["axum"] }
