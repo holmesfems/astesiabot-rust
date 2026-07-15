@@ -1,6 +1,6 @@
 use crate::bot::data::{Data, Error};
-use crate::bot::reply::send_embed_reply;
-use crate::bot::services::{anniversary, recruit, moderation, uranai};
+use crate::bot::reply::{reply_embed_reply, send_embed_reply};
+use crate::bot::services::{anniversary, moderation, recruit, reply_dispatch, uranai};
 use crate::bot::utils::channel_id_env;
 use poise::serenity_prelude as serenity;
 
@@ -56,6 +56,9 @@ pub async fn event_handler(
             if let Some(reply) = uranai::handle(ctx, msg, data).await? {
                 send_embed_reply(ctx, msg.channel_id, &reply).await?;
             }
+        } else if let Some(reply) = reply_dispatch::handle(ctx, msg, data).await? {
+            // スラッシュコマンド応答embedへの明示リプライ（例: fksearchのスキル選び直し）。
+            reply_embed_reply(ctx, msg, &reply).await?;
         } else {
             // どのサービスにも該当しないチャンネル。今はログのみ。
             println!("[msg] {}: {}", msg.author.name, msg.content);

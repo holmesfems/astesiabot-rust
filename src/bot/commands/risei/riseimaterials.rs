@@ -7,7 +7,10 @@ const MAX_ITEMS: usize = 15;
 
 /// riseimaterials/riseicalculator の target_item 選択肢(Python版は常に大陸版の
 /// 全カテゴリ(main+new)を選択肢に使う)。
-async fn autocomplete_target_item(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
+async fn autocomplete_target_item(
+    ctx: Context<'_>,
+    partial: &str,
+) -> Vec<serenity::AutocompleteChoice> {
     let stage_category = ctx.data().state.risei_calculator.stage_category();
     stage_category
         .main
@@ -27,13 +30,18 @@ pub async fn riseimaterials(
     #[description = "昇進素材カテゴリを選択"]
     #[autocomplete = "autocomplete_target_item"]
     target_item: String,
-    #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"] is_global: Option<bool>,
+    #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
+    is_global: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let server = server_from_bool(is_global.unwrap_or(true));
     let state = ctx.data().state.clone();
 
-    let reply = match state.risei_calculator.material_search(&state.outer_source, server, &target_item).await {
+    let reply = match state
+        .risei_calculator
+        .material_search(&state.outer_source, server, &target_item)
+        .await
+    {
         Err(msg) => EmbedReply::error(&msg),
         Ok(result) => {
             let mut chunks = vec![format!(
@@ -54,9 +62,18 @@ pub async fn riseimaterials(
                 if let Some(drop_per_minute) = stage.drop_per_minute {
                     lines.push(format!("分入手数(中級) : {drop_per_minute:.2}"));
                 }
-                lines.push(format!("主素材効率     : {}", fmt_percent(stage.main_item_efficiency)));
-                lines.push(format!("99%信頼区間(3σ): {}", fmt_percent(stage.confidence_3sigma)));
-                lines.push(format!("昇進効率       : {}", fmt_percent(stage.promotion_efficiency)));
+                lines.push(format!(
+                    "主素材効率     : {}",
+                    fmt_percent(stage.main_item_efficiency)
+                ));
+                lines.push(format!(
+                    "99%信頼区間(3σ): {}",
+                    fmt_percent(stage.confidence_3sigma)
+                ));
+                lines.push(format!(
+                    "昇進効率       : {}",
+                    fmt_percent(stage.promotion_efficiency)
+                ));
                 lines.push(format!("試行数         : {}", stage.max_times));
                 chunks.push(format!("```\n{}\n```", lines.join("\n")));
             }
@@ -64,6 +81,7 @@ pub async fn riseimaterials(
                 title: "昇進素材検索".to_string(),
                 chunks,
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
     };

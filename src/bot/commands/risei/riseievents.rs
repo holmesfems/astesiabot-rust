@@ -21,8 +21,15 @@ pub struct EventStageInfo {
 }
 
 /// riseievents相当の計算のみを行う共通部。整形は呼び出し側の責務。
-pub async fn event_search(state: &AppState, server: Server, target_code: &str) -> Result<Vec<EventStageInfo>, String> {
-    let snapshot = state.risei_calculator.snapshot(server, &state.outer_source).await;
+pub async fn event_search(
+    state: &AppState,
+    server: Server,
+    target_code: &str,
+) -> Result<Vec<EventStageInfo>, String> {
+    let snapshot = state
+        .risei_calculator
+        .snapshot(server, &state.outer_source)
+        .await;
     let mut stages = snapshot.search_event_stage(target_code);
     if stages.is_empty() {
         return Err(format!("無効なステージ指定{target_code}"));
@@ -32,7 +39,8 @@ pub async fn event_search(state: &AppState, server: Server, target_code: &str) -
     Ok(stages
         .iter()
         .filter_map(|stage| {
-            let (main_drop_name, main_drop_rate) = stage.get_max_efficiency_item(&snapshot.values.item_names)?;
+            let (main_drop_name, main_drop_rate) =
+                stage.get_max_efficiency_item(&snapshot.values.item_names)?;
             let time_cost = (stage.min_clear_time > 0.0).then_some(stage.min_clear_time / 2.0);
             let drop_per_minute_value =
                 (stage.min_clear_time > 0.0).then(|| main_drop_rate / stage.min_clear_time * 120.0);
@@ -51,9 +59,15 @@ pub async fn event_search(state: &AppState, server: Server, target_code: &str) -
         .collect())
 }
 
-async fn autocomplete_event_stage(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
+async fn autocomplete_event_stage(
+    ctx: Context<'_>,
+    partial: &str,
+) -> Vec<serenity::AutocompleteChoice> {
     let state = ctx.data().state.clone();
-    let snapshot = state.risei_calculator.snapshot(Server::Mainland, &state.outer_source).await;
+    let snapshot = state
+        .risei_calculator
+        .snapshot(Server::Mainland, &state.outer_source)
+        .await;
     snapshot
         .auto_complete_event_stage(partial, 25)
         .into_iter()
@@ -68,7 +82,8 @@ pub async fn riseievents(
     #[description = "ステージ名を入力(例:SV-8 IW-8など)"]
     #[autocomplete = "autocomplete_event_stage"]
     stage: String,
-    #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"] is_global: Option<bool>,
+    #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
+    is_global: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let server = server_from_bool(is_global.unwrap_or(true));
@@ -100,6 +115,7 @@ pub async fn riseievents(
                 title: "イベントステージ検索".to_string(),
                 chunks,
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
     };

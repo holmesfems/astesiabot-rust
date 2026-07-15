@@ -77,6 +77,7 @@ pub fn check_birthday(
         title,
         chunks: vec![message],
         msg_type: MsgType::Ok,
+        reply_marker: None,
     })
 }
 
@@ -169,7 +170,10 @@ mod tests {
             .single()
             .unwrap();
         let reply = check_birthday(&data, &names, jan1).expect("Jan 1 has birthdays");
-        assert_eq!(reply.title, ":birthday:お誕生日:birthday:おめでとう:tada:！！");
+        assert_eq!(
+            reply.title,
+            ":birthday:お誕生日:birthday:おめでとう:tada:！！"
+        );
         assert_eq!(
             reply.chunks,
             vec!["今日は重岳さんと奥达さんの誕生日よ！みんなでお祝い:tada:しましょ！".to_string()]

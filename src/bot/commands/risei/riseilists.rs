@@ -26,7 +26,14 @@ pub enum RiseiListTarget {
 fn ticket_list_chunks(list: Vec<TicketEfficiency>) -> Vec<String> {
     let lines: Vec<String> = list
         .iter()
-        .map(|item| format!("{}: {} ± {}", item.name_ja, fmt_percent(item.efficiency), fmt_percent(item.std_dev * 2.0)))
+        .map(|item| {
+            format!(
+                "{}: {} ± {}",
+                item.name_ja,
+                fmt_percent(item.efficiency),
+                fmt_percent(item.std_dev * 2.0)
+            )
+        })
         .collect();
     vec![format!("```\n{}\n```", lines.join("\n"))]
 }
@@ -36,7 +43,8 @@ fn ticket_list_chunks(list: Vec<TicketEfficiency>) -> Vec<String> {
 pub async fn riseilists(
     ctx: Context<'_>,
     #[description = "表示する効率表を選んでください"] target: RiseiListTarget,
-    #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"] is_global: Option<bool>,
+    #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
+    is_global: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let server = server_from_bool(is_global.unwrap_or(true));
@@ -51,15 +59,28 @@ pub async fn riseilists(
                 .map(|(category, stage)| format!("{category}: {stage}"))
                 .collect::<Vec<_>>()
                 .join("\n");
-            ("基準ステージ表示".to_string(), vec![format!("```\n{body}\n```")])
+            (
+                "基準ステージ表示".to_string(),
+                vec![format!("```\n{body}\n```")],
+            )
         }
         RiseiListTarget::SanValueList => {
             let values = engine.value_list(&state.outer_source, server).await;
             let lines: Vec<String> = values
                 .iter()
-                .map(|entry| format!("{}: {} ± {}", entry.name_ja, fmt_value(entry.value), fmt_value(entry.std_dev * 2.0)))
+                .map(|entry| {
+                    format!(
+                        "{}: {} ± {}",
+                        entry.name_ja,
+                        fmt_value(entry.value),
+                        fmt_value(entry.std_dev * 2.0)
+                    )
+                })
                 .collect();
-            ("理性価値一覧".to_string(), vec![format!("```\n{}\n```", lines.join("\n"))])
+            (
+                "理性価値一覧".to_string(),
+                vec![format!("```\n{}\n```", lines.join("\n"))],
+            )
         }
         RiseiListTarget::Te2List => (
             "初級資格証効率".to_string(),
@@ -85,6 +106,7 @@ pub async fn riseilists(
             title,
             chunks,
             msg_type: MsgType::Ok,
+            reply_marker: None,
         },
     )
     .await

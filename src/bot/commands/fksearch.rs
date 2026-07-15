@@ -5,6 +5,8 @@ use crate::engine::fk_data_search::{FkDataView, FkSearchResult};
 use poise::serenity_prelude as serenity;
 
 const BASE_TITLE: &str = "FK情報検索";
+/// reply_dispatch がリプライ解決時にfooterから読む固有名。
+pub const REPLY_MARKER_KEY: &str = "FKSEARCH";
 
 /// コマンド呼び出し1回分の検索コンテキストを構築する（Python `FKInfo.getInfoFromName`の
 /// TTLチェック込み）。`operator_data`/`skill_data`はスキル名解決にのみ使う。
@@ -32,6 +34,7 @@ pub async fn fk_search_reply(state: &AppState, operator_name: &str, skill_num: &
             title: BASE_TITLE.to_string(),
             chunks: vec!["指定のオペレーターのFK情報は見つかりませんでした".to_string()],
             msg_type: MsgType::Err,
+            reply_marker: None,
         },
         FkSearchResult::NeedsSkillSelection { choices } => {
             let list = choices
@@ -41,14 +44,24 @@ pub async fn fk_search_reply(state: &AppState, operator_name: &str, skill_num: &
                 .join("\n");
             EmbedReply {
                 title: BASE_TITLE.to_string(),
-                chunks: vec![format!("複数のFKスキルがあります:\n{list}\n"), "どのスキルか選んでください".to_string()],
+                chunks: vec![
+                    format!("複数のFKスキルがあります:\n{list}\n"),
+                    "どのスキルか選んでください".to_string(),
+                ],
                 msg_type: MsgType::Err,
+                reply_marker: Some(format!("{REPLY_MARKER_KEY}:{operator_name}")),
             }
         }
         FkSearchResult::SkillNotFound { candidates } => {
             let list = candidates
                 .iter()
-                .map(|c| format!("{}: {}", c.skill_num, display_name(&c.skill_num, &c.skill_name)))
+                .map(|c| {
+                    format!(
+                        "{}: {}",
+                        c.skill_num,
+                        display_name(&c.skill_num, &c.skill_name)
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join("\n");
             EmbedReply {
@@ -57,6 +70,7 @@ pub async fn fk_search_reply(state: &AppState, operator_name: &str, skill_num: &
                     "指定のスキルのFK情報は見つかりませんでした。以下の候補がありますので、一つ選択してください:\n{list}"
                 )],
                 msg_type: MsgType::Err,
+                reply_marker: Some(format!("{REPLY_MARKER_KEY}:{operator_name}")),
             }
         }
         FkSearchResult::Found(skill) => {
@@ -74,6 +88,7 @@ pub async fn fk_search_reply(state: &AppState, operator_name: &str, skill_num: &
                     format!("詳細情報: \n```\n{}\n```", skill.detail),
                 ],
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
     }
@@ -81,7 +96,10 @@ pub async fn fk_search_reply(state: &AppState, operator_name: &str, skill_num: &
 
 /// Python版`operator_name_autocomplete_forfk`相当。TTLチェックは行わない
 /// （Python版の`autoComplete`も鮮度更新をトリガーしない非対称性を踏襲）。
-async fn autocomplete_operator_name(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
+async fn autocomplete_operator_name(
+    ctx: Context<'_>,
+    partial: &str,
+) -> Vec<serenity::AutocompleteChoice> {
     let state = &ctx.data().state;
     let fk_data = state.outer_source.fk_data.get().await;
     crate::engine::fk_data_search::search::autocomplete(&fk_data, partial, 25)

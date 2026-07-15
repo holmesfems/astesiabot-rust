@@ -46,5 +46,6 @@ pub async fn build(
         title,
         chunks,
         msg_type: MsgType::Ok,
+        reply_marker: None,
     }))
 }

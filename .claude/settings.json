@@ -20,7 +20,10 @@
       "Bash(curl -s -L -o /dev/null -w \"final_status=%{http_code} final_url=%{url_effective}\\\\n\" http://localhost:3000/docs)",
       "Bash(curl -s -L http://localhost:3000/docs)",
       "Bash(find ~/.cargo/registry/src -maxdepth 1 -iname 'serenity-*' 2>/dev/null; find / -maxdepth 6 -iname 'serenity-*' -path '*registry*' 2>/dev/null | head -5)",
-      "Bash(find / -maxdepth 8 -type d -iname \"serenity-0.12*\" 2>/dev/null)"
+      "Bash(find / -maxdepth 8 -type d -iname \"serenity-0.12*\" 2>/dev/null)",
+      "Bash(powershell -Command \"Select-String -Path Cargo.toml -Pattern 'serenity|poise'\")",
+      "Bash(cargo fmt *)",
+      "Bash(git checkout *)"
     ]
   }
 }

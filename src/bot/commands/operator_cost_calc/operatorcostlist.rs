@@ -5,7 +5,10 @@ use crate::bot::reply::{EmbedReply, MsgType};
 use crate::engine::operator_cost_calc::calc::{
     cost_list_by_elite, cost_list_cost_of_cn_only, cost_list_cost_of_global, cost_list_master_stats,
 };
-use crate::engine::operator_cost_calc::dto::{CostSummaryDto, EliteRankingDto, MasterStatsDto, MasterStatsFullDto, MasterStatsRecentDto, RankedEntry};
+use crate::engine::operator_cost_calc::dto::{
+    CostSummaryDto, EliteRankingDto, MasterStatsDto, MasterStatsFullDto, MasterStatsRecentDto,
+    RankedEntry,
+};
 
 /// Python `OperatorCostsCalculator.CostListSelection`。`#[name]`はRiseiCalculator.pyの
 /// `Choice(name=...)`表示文字列と一致させること。
@@ -48,22 +51,37 @@ fn elite_ranking_chunks(dto: &EliteRankingDto) -> Vec<String> {
 fn cost_summary_chunks(dto: &CostSummaryDto, unimplemented: bool) -> Vec<String> {
     let mut chunks = Vec::new();
     if unimplemented {
-        chunks.push(format!("未実装オペレーター一覧：{}\n", dump_to_print(&dto.operator_names)));
+        chunks.push(format!(
+            "未実装オペレーター一覧：{}\n",
+            dump_to_print(&dto.operator_names)
+        ));
     }
     let (label_total, label_eq) = if unimplemented {
         ("全昇進、全特化の合計消費:", "未実装モジュールの合計消費:")
     } else {
         ("全昇進、全特化の合計消費:", "実装済モジュールの合計消費:")
     };
-    chunks.push(format!("{label_total}{}\n", fmt_item_block(&dto.total_items, false)));
-    chunks.push(format!("{label_eq}{}\n", fmt_item_block(&dto.eq_items, false)));
+    chunks.push(format!(
+        "{label_total}{}\n",
+        fmt_item_block(&dto.total_items, false)
+    ));
+    chunks.push(format!(
+        "{label_eq}{}\n",
+        fmt_item_block(&dto.eq_items, false)
+    ));
     chunks.push(format!(
         "全合計の中級素材換算:{}\n",
         fmt_item_block(&dto.combined_r2_items, true)
     ));
-    chunks.push(format!("合計理性価値(補完チップ系抜き):{:.3}\n", dto.total_risei_value));
+    chunks.push(format!(
+        "合計理性価値(補完チップ系抜き):{:.3}\n",
+        dto.total_risei_value
+    ));
     chunks.push(format!("源石換算 : {:.3}\n", dto.total_risei_value / 135.0));
-    chunks.push(format!("日本円換算 : {:.0} 円", dto.total_risei_value / 135.0 / 175.0 * 10000.0));
+    chunks.push(format!(
+        "日本円換算 : {:.0} 円",
+        dto.total_risei_value / 135.0 / 175.0 * 10000.0
+    ));
     chunks
 }
 
@@ -112,10 +130,16 @@ fn master_stats_recent_chunks(dto: &MasterStatsRecentDto) -> Vec<String> {
     chunks
 }
 
-pub async fn cost_list_reply(state: &AppState, selection: &CostListSelection, only_recent: bool) -> EmbedReply {
+pub async fn cost_list_reply(
+    state: &AppState,
+    selection: &CostListSelection,
+    only_recent: bool,
+) -> EmbedReply {
     let (info, values) = build_context(state).await;
     match selection {
-        CostListSelection::Star6Elite | CostListSelection::Star5Elite | CostListSelection::Star4Elite => {
+        CostListSelection::Star6Elite
+        | CostListSelection::Star5Elite
+        | CostListSelection::Star4Elite => {
             let star = match selection {
                 CostListSelection::Star6Elite => 6,
                 CostListSelection::Star5Elite => 5,
@@ -126,6 +150,7 @@ pub async fn cost_list_reply(state: &AppState, selection: &CostListSelection, on
                 title: format!("★{star}昇進素材価値表"),
                 chunks: elite_ranking_chunks(&dto),
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
         CostListSelection::CostOfCnOnly => {
@@ -134,6 +159,7 @@ pub async fn cost_list_reply(state: &AppState, selection: &CostListSelection, on
                 title: "未実装オペレーターの消費素材合計".to_string(),
                 chunks: cost_summary_chunks(&dto, true),
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
         CostListSelection::CostOfGlobal => {
@@ -142,9 +168,12 @@ pub async fn cost_list_reply(state: &AppState, selection: &CostListSelection, on
                 title: "実装済オペレーターの消費素材合計".to_string(),
                 chunks: cost_summary_chunks(&dto, false),
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
-        CostListSelection::MasterStar6 | CostListSelection::MasterStar5 | CostListSelection::MasterStar4 => {
+        CostListSelection::MasterStar6
+        | CostListSelection::MasterStar5
+        | CostListSelection::MasterStar4 => {
             let star = match selection {
                 CostListSelection::MasterStar6 => 6,
                 CostListSelection::MasterStar5 => 5,
@@ -156,16 +185,19 @@ pub async fn cost_list_reply(state: &AppState, selection: &CostListSelection, on
                     title,
                     chunks: vec![msg],
                     msg_type: MsgType::Err,
+                    reply_marker: None,
                 },
                 Ok(MasterStatsDto::Full(dto)) => EmbedReply {
                     title,
                     chunks: master_stats_full_chunks(&dto),
                     msg_type: MsgType::Ok,
+                    reply_marker: None,
                 },
                 Ok(MasterStatsDto::Recent(dto)) => EmbedReply {
                     title,
                     chunks: master_stats_recent_chunks(&dto),
                     msg_type: MsgType::Ok,
+                    reply_marker: None,
                 },
             }
         }
@@ -177,7 +209,9 @@ pub async fn cost_list_reply(state: &AppState, selection: &CostListSelection, on
 pub async fn operatorcostlist(
     ctx: Context<'_>,
     #[description = "表示するリスト選択"] selection: CostListSelection,
-    #[description = "直近実装/将来実装オペレータのみ表示(一部リストに有効)"] only_recent: Option<bool>,
+    #[description = "直近実装/将来実装オペレータのみ表示(一部リストに有効)"] only_recent: Option<
+        bool,
+    >,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let state = ctx.data().state.clone();

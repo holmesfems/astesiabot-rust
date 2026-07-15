@@ -15,6 +15,7 @@ pub async fn elite_cost_reply(state: &AppState, operator_name: &str) -> EmbedRep
             title: BASE_TITLE.to_string(),
             chunks: vec![msg],
             msg_type: MsgType::Err,
+            reply_marker: None,
         },
         Ok(dto) => {
             let mut chunks = Vec::new();
@@ -31,7 +32,10 @@ pub async fn elite_cost_reply(state: &AppState, operator_name: &str) -> EmbedRep
                 dto.total.risei_value,
                 fmt_item_block(&dto.total.items, false)
             ));
-            chunks.push(format!("合計  中級換算{}", fmt_item_block(&dto.total_r2_items, false)));
+            chunks.push(format!(
+                "合計  中級換算{}",
+                fmt_item_block(&dto.total_r2_items, false)
+            ));
             if let Some(text) = &dto.ranking_text {
                 chunks.push(text.clone());
             }
@@ -39,12 +43,16 @@ pub async fn elite_cost_reply(state: &AppState, operator_name: &str) -> EmbedRep
                 title: format!("{BASE_TITLE}: {}", dto.operator_name),
                 chunks,
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
     }
 }
 
-async fn autocomplete_operator_name(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
+async fn autocomplete_operator_name(
+    ctx: Context<'_>,
+    partial: &str,
+) -> Vec<serenity::AutocompleteChoice> {
     let (info, _) = build_context(&ctx.data().state).await;
     info.autocomplete_elite_cost(partial, 25)
         .into_iter()

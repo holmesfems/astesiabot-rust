@@ -17,6 +17,7 @@ pub async fn module_cost_reply(state: &AppState, operator_name: &str) -> EmbedRe
             title: BASE_TITLE.to_string(),
             chunks: vec![msg],
             msg_type: MsgType::Err,
+            reply_marker: None,
         },
         Ok(dto) => {
             let chunks: Vec<String> = dto
@@ -46,12 +47,16 @@ pub async fn module_cost_reply(state: &AppState, operator_name: &str) -> EmbedRe
                 title: format!("{BASE_TITLE}: {}", dto.operator_name),
                 chunks,
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
     }
 }
 
-async fn autocomplete_operator_name(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
+async fn autocomplete_operator_name(
+    ctx: Context<'_>,
+    partial: &str,
+) -> Vec<serenity::AutocompleteChoice> {
     let (info, _) = build_context(&ctx.data().state).await;
     info.autocomplete_module_cost(partial, 25)
         .into_iter()

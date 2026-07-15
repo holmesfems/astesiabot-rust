@@ -14,6 +14,11 @@ pub struct EmbedReply {
     pub title: String,
     pub chunks: Vec<String>,
     pub msg_type: MsgType,
+    /// リプライ追跡用のマーカー（`"<固有名>:<状態>"`形式）。Some の場合、
+    /// 全embedのfooterにそのまま出力する。footerはUIにも表示される
+    /// （非表示ではない）が、bot/services/reply_dispatch.rs が
+    /// リプライ解決時にここを読んで由来コマンドと状態を復元する。
+    pub reply_marker: Option<String>,
 }
 
 impl EmbedReply {
@@ -23,6 +28,7 @@ impl EmbedReply {
             title: "エラー".to_string(),
             chunks: vec![msg.to_string()],
             msg_type: MsgType::Err,
+            reply_marker: None,
         }
     }
 }
@@ -71,12 +77,14 @@ pub fn to_embed_batches(reply: &EmbedReply) -> Vec<Vec<serenity::CreateEmbed>> {
             current_total = 0;
         }
         current_total += embed_len;
-        current_batch.push(
-            serenity::CreateEmbed::new()
-                .title(&title)
-                .description(desc)
-                .colour(colour),
-        );
+        let mut embed = serenity::CreateEmbed::new()
+            .title(&title)
+            .description(desc)
+            .colour(colour);
+        if let Some(marker) = &reply.reply_marker {
+            embed = embed.footer(serenity::CreateEmbedFooter::new(marker));
+        }
+        current_batch.push(embed);
     }
     if !current_batch.is_empty() {
         batches.push(current_batch);
@@ -110,11 +118,17 @@ pub async fn reply_embed_reply(
         let builder = serenity::CreateMessage::new()
             .embeds(first)
             .reference_message(trigger);
-        trigger.channel_id.send_message(&cache_http, builder).await?;
+        trigger
+            .channel_id
+            .send_message(&cache_http, builder)
+            .await?;
     }
     for batch in batches {
         let builder = serenity::CreateMessage::new().embeds(batch);
-        trigger.channel_id.send_message(&cache_http, builder).await?;
+        trigger
+            .channel_id
+            .send_message(&cache_http, builder)
+            .await?;
     }
     Ok(())
 }
@@ -130,6 +144,9 @@ pub async fn reply_plain_text(
     let builder = serenity::CreateMessage::new()
         .content(content)
         .reference_message(trigger);
-    trigger.channel_id.send_message(&cache_http, builder).await?;
+    trigger
+        .channel_id
+        .send_message(&cache_http, builder)
+        .await?;
     Ok(())
 }

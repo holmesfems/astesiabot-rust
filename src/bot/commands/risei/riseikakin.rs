@@ -41,7 +41,8 @@ struct KakinPackDef {
 fn kakin_list() -> &'static IndexMap<String, KakinPackDef> {
     static LIST: OnceLock<IndexMap<String, KakinPackDef>> = OnceLock::new();
     LIST.get_or_init(|| {
-        let s = std::fs::read_to_string(KAKIN_LIST_PATH).expect("price_kakin.yamlの読み込みに失敗しました");
+        let s = std::fs::read_to_string(KAKIN_LIST_PATH)
+            .expect("price_kakin.yamlの読み込みに失敗しました");
         serde_yaml::from_str(&s).expect("price_kakin.yamlのパースに失敗しました")
     })
 }
@@ -49,7 +50,8 @@ fn kakin_list() -> &'static IndexMap<String, KakinPackDef> {
 fn const_gacha() -> &'static HashMap<String, f64> {
     static GACHA: OnceLock<HashMap<String, f64>> = OnceLock::new();
     GACHA.get_or_init(|| {
-        let s = std::fs::read_to_string(CONST_GACHA_PATH).expect("const_gacha.yamlの読み込みに失敗しました");
+        let s = std::fs::read_to_string(CONST_GACHA_PATH)
+            .expect("const_gacha.yamlの読み込みに失敗しました");
         serde_yaml::from_str(&s).expect("const_gacha.yamlのパースに失敗しました")
     })
 }
@@ -68,11 +70,17 @@ struct KakinPack {
 }
 
 fn pack_value(contents: &IndexMap<String, f64>, values: &RiseiValues) -> f64 {
-    contents.iter().map(|(ja, count)| values.get_value_from_ja(ja) * count).sum()
+    contents
+        .iter()
+        .map(|(ja, count)| values.get_value_from_ja(ja) * count)
+        .sum()
 }
 
 fn pack_gacha_count(contents: &IndexMap<String, f64>) -> f64 {
-    contents.iter().map(|(ja, count)| const_gacha().get(ja).copied().unwrap_or(0.0) * count).sum()
+    contents
+        .iter()
+        .map(|(ja, count)| const_gacha().get(ja).copied().unwrap_or(0.0) * count)
+        .sum()
 }
 
 /// Python `KakinPack.__init__`。基準パック(`BASIC_PACK_NAME`)は`price_kakin.yaml`に
@@ -107,18 +115,22 @@ fn build_kakin_pack(name: &str, def: &KakinPackDef, values: &RiseiValues) -> Kak
 
 /// riseikakin の target 引数のオートコンプリート相当（Python `autoCompletion_riseikakin`）。
 /// まず期間限定パック名(+全体比較)を部分一致で探し、何も無ければ恒常パック名にフォールバックする。
-async fn autocomplete_kakin_target(_ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
+async fn autocomplete_kakin_target(
+    _ctx: Context<'_>,
+    partial: &str,
+) -> Vec<serenity::AutocompleteChoice> {
     const TOTAL_OPTION: (&str, &str) = ("全体比較(グローバル)", "Total_Global");
-    let limited: Vec<(String, String)> = std::iter::once((TOTAL_OPTION.0.to_string(), TOTAL_OPTION.1.to_string()))
-        .chain(
-            kakin_list()
-                .iter()
-                .filter(|(_, def)| !def.is_constant)
-                .map(|(name, _)| (name.clone(), name.clone())),
-        )
-        .filter(|(name, _)| name.contains(partial))
-        .take(25)
-        .collect();
+    let limited: Vec<(String, String)> =
+        std::iter::once((TOTAL_OPTION.0.to_string(), TOTAL_OPTION.1.to_string()))
+            .chain(
+                kakin_list()
+                    .iter()
+                    .filter(|(_, def)| !def.is_constant)
+                    .map(|(name, _)| (name.clone(), name.clone())),
+            )
+            .filter(|(name, _)| name.contains(partial))
+            .take(25)
+            .collect();
     let names = if !limited.is_empty() {
         limited
     } else {
@@ -186,7 +198,10 @@ pub async fn riseikakin(
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let state = ctx.data().state.clone();
-    let snapshot = state.risei_calculator.snapshot(Server::Global, &state.outer_source).await;
+    let snapshot = state
+        .risei_calculator
+        .snapshot(Server::Global, &state.outer_source)
+        .await;
     let values = &snapshot.values;
 
     let constants: Vec<KakinPack> = kakin_list()
@@ -203,12 +218,16 @@ pub async fn riseikakin(
             .collect();
         limited.sort_by(|a, b| b.total_efficiency.total_cmp(&a.total_efficiency));
 
-        let mut chunks: Vec<String> = limited.iter().map(|pack| format!("{}:{}", pack.name, value_block(pack))).collect();
+        let mut chunks: Vec<String> = limited
+            .iter()
+            .map(|pack| format!("{}:{}", pack.name, value_block(pack)))
+            .collect();
         chunks.push(constant_block(&constants));
         EmbedReply {
             title: "課金パック比較".to_string(),
             chunks,
             msg_type: MsgType::Ok,
+            reply_marker: None,
         }
     } else {
         match kakin_list().get(&target) {
@@ -224,6 +243,7 @@ pub async fn riseikakin(
                     title: pack.name.clone(),
                     chunks,
                     msg_type: MsgType::Ok,
+                    reply_marker: None,
                 }
             }
         }

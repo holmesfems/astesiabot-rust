@@ -22,6 +22,7 @@ pub fn build_embed_reply(engine: &RecruitEngine, ocr_text: &str) -> OcrEmbedResu
                 title: "エラー".to_string(),
                 chunks: vec!["タグがありません".to_string()],
                 msg_type: MsgType::Err,
+                reply_marker: None,
             },
             tag_count_illegal: false,
         };
@@ -46,6 +47,7 @@ pub fn build_embed_reply(engine: &RecruitEngine, ocr_text: &str) -> OcrEmbedResu
             title,
             chunks,
             msg_type: MsgType::Ok,
+            reply_marker: None,
         },
         tag_count_illegal,
     }

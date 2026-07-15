@@ -10,7 +10,10 @@ const MAX_ITEMS: usize = 15;
 /// (大陸版が最も先行しておりステージ数が多いため)。
 async fn autocomplete_stage(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
     let state = ctx.data().state.clone();
-    let snapshot = state.risei_calculator.snapshot(Server::Mainland, &state.outer_source).await;
+    let snapshot = state
+        .risei_calculator
+        .snapshot(Server::Mainland, &state.outer_source)
+        .await;
     snapshot
         .auto_complete_main_stage(partial, 25)
         .into_iter()
@@ -25,16 +28,22 @@ pub async fn riseistages(
     #[description = "ステージ名を入力(例:1-7 SV-8 など)"]
     #[autocomplete = "autocomplete_stage"]
     stage: String,
-    #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"] is_global: Option<bool>,
+    #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
+    is_global: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let requested_server = server_from_bool(is_global.unwrap_or(true));
     let state = ctx.data().state.clone();
 
-    let reply = match state.risei_calculator.stage_search(&state.outer_source, requested_server, &stage).await {
+    let reply = match state
+        .risei_calculator
+        .stage_search(&state.outer_source, requested_server, &stage)
+        .await
+    {
         Err(msg) => EmbedReply::error(&msg),
         Ok(result) => {
-            let fell_back = result.effective_server == Server::Mainland && requested_server == Server::Global;
+            let fell_back =
+                result.effective_server == Server::Mainland && requested_server == Server::Global;
             let title = if fell_back {
                 "通常ステージ検索(大陸版)".to_string()
             } else {
@@ -55,7 +64,11 @@ pub async fn riseistages(
                     lines.push("主ドロップ情報未登録".to_string());
                 } else {
                     for category in &s.categories {
-                        lines.push(format!("{}効率: {}", category.category_ja, fmt_percent(category.efficiency)));
+                        lines.push(format!(
+                            "{}効率: {}",
+                            category.category_ja,
+                            fmt_percent(category.efficiency)
+                        ));
                         if let Some(drop_per_minute) = category.drop_per_minute {
                             lines.push(format!("分入手数(中級) : {drop_per_minute:.2}"));
                         }
@@ -65,7 +78,10 @@ pub async fn riseistages(
                 if let Some(time_cost) = s.time_cost {
                     lines.push(format!("時間消費(倍速) : {time_cost:.2}"));
                 }
-                lines.push(format!("昇進効率       : {}", fmt_percent(s.promotion_efficiency)));
+                lines.push(format!(
+                    "昇進効率       : {}",
+                    fmt_percent(s.promotion_efficiency)
+                ));
                 lines.push(format!("試行数         : {}", s.max_times));
                 chunks.push(format!("```\n{}\n```", lines.join("\n")));
             }
@@ -73,6 +89,7 @@ pub async fn riseistages(
                 title,
                 chunks,
                 msg_type: MsgType::Ok,
+                reply_marker: None,
             }
         }
     };
