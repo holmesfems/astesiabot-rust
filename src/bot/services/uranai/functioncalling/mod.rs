@@ -94,9 +94,10 @@ pub fn all_tools() -> Vec<Box<dyn ToolFunction>> {
 }
 
 /// `data/uranai/toolList.yaml`の内容を`all_tools()`から組み立てる。
-/// 組み込みツール(`web_search`)は登録関数ではないため固定エントリとして末尾に追記する。
-/// `regen_uranai_tools`（生成bin）とテスト(`tool_list_yaml_matches_registered_functions`)の
-/// 両方がこれを使うことで、生成ロジックを1箇所に保つ。
+/// 組み込みツール(`web_search`/`image_generation`)は登録関数ではないため固定エントリとして
+/// 末尾に追記する。`regen_uranai_tools`（生成bin）とテスト
+/// (`tool_list_yaml_matches_registered_functions`)の両方がこれを使うことで、生成ロジックを
+/// 1箇所に保つ。
 pub fn build_tool_list_entries() -> Vec<Value> {
     let mut entries: Vec<Value> = all_tools()
         .iter()
@@ -111,6 +112,7 @@ pub fn build_tool_list_entries() -> Vec<Value> {
         })
         .collect();
     entries.push(json!({ "type": "web_search" }));
+    entries.push(json!({ "type": "image_generation" }));
     entries
 }
 

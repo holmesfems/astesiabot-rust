@@ -67,6 +67,11 @@ mod tests {
             );
             assert_eq!(tool.get("strict").and_then(Value::as_bool), Some(true));
         }
-        assert_eq!(tools.last().and_then(|t| t.get("type")).and_then(Value::as_str), Some("web_search"));
+        let fixed_types: Vec<&str> = tools
+            .iter()
+            .filter(|t| t.get("type").and_then(Value::as_str) != Some("function"))
+            .filter_map(|t| t.get("type").and_then(Value::as_str))
+            .collect();
+        assert_eq!(fixed_types, vec!["web_search", "image_generation"]);
     }
 }

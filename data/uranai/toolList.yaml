@@ -157,3 +157,4 @@
     additionalProperties: false
   strict: true
 - type: web_search
+- type: image_generation

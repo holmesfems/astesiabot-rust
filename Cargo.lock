@@ -97,6 +97,7 @@ dependencies = [
  "askama",
  "async-trait",
  "axum",
+ "base64",
  "chrono",
  "chrono-tz",
  "dotenvy",

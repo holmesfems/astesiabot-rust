@@ -8,7 +8,10 @@
       "Read(//g//**)",
       "Bash(powershell -Command \"Get-Process -Id 14232 | Select-Object Id,ProcessName,StartTime,Path\")",
       "Bash(find / -path /proc -prune -o -type d -iname \"poise-*\" -print 2>/dev/null | head -20)",
-      "Bash(find 'C:\\\\Users\\\\holmesfems/.cargo/registry/src' -maxdepth 2 -iname poise-*)"
+      "Bash(find 'C:\\\\Users\\\\holmesfems/.cargo/registry/src' -maxdepth 2 -iname poise-*)",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:developers.openai.com)",
+      "Bash(find / -iname \"*.rs\" -path \"*serenity*builder*attachment*\" 2>/dev/null | head -20)"
     ]
   }
 }

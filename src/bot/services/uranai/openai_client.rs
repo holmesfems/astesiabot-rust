@@ -1,5 +1,6 @@
 use crate::api::AppState;
 use crate::bot::data::Error;
+use base64::Engine;
 use serde_json::{json, Value};
 use std::time::Duration;
 
@@ -7,6 +8,46 @@ const RESPONSES_URL: &str = "https://api.openai.com/v1/responses";
 /// tool-callループの最大往復数。仮実装のdispatchが固定文字列しか返さないため
 /// 際限なく呼ばれ続けることは想定しないが、暴走時の安全弁として上限を設ける。
 const MAX_TOOL_ROUNDS: usize = 5;
+
+/// ユーザーがDiscordに添付した画像/PDFを表すDTO。呼び出し元(`uranai::mod`)が
+/// `msg.attachments`から分類して渡す。Discordの添付URLは`file_url`/`image_url`として
+/// そのままResponses APIに渡せる（OpenAI側がサーバーサイドでfetchするため、こちら側での
+/// ダウンロード/base64化/Files APIへの再アップロードは不要）。
+pub struct UranaiAttachment {
+    pub url: String,
+    pub filename: String,
+    pub kind: AttachmentKind,
+}
+
+pub enum AttachmentKind {
+    Image,
+    Pdf,
+}
+
+/// 1ターン分のやり取りの結果。`text`は自然文の応答、`images`はGPTが
+/// `image_generation`ツールで生成した画像のデコード済みバイト列（PNG）。
+pub struct TurnOutput {
+    pub text: String,
+    pub images: Vec<Vec<u8>>,
+}
+
+/// ユーザー発言+添付をResponses APIの`content`形式に組み立てる。
+/// 添付が無ければ従来通りプレーン文字列（会話履歴に積む形式と揃える）。
+fn build_user_content(user_message: &str, attachments: &[UranaiAttachment]) -> Value {
+    if attachments.is_empty() {
+        return json!(user_message);
+    }
+    let mut parts = vec![json!({"type": "input_text", "text": user_message})];
+    for a in attachments {
+        parts.push(match a.kind {
+            AttachmentKind::Image => json!({"type": "input_image", "image_url": a.url}),
+            AttachmentKind::Pdf => {
+                json!({"type": "input_file", "file_url": a.url, "filename": a.filename})
+            }
+        });
+    }
+    json!(parts)
+}
 
 /// OpenAI Responses API への同期的な（background=trueのポーリングをしない）HTTPクライアント。
 pub struct OpenAiClient {
@@ -57,11 +98,12 @@ impl OpenAiClient {
         instructions: &str,
         history: Vec<Value>,
         user_message: &str,
+        attachments: &[UranaiAttachment],
         state: &AppState,
-    ) -> Result<String, Error> {
+    ) -> Result<TurnOutput, Error> {
         let tools = &self.tools;
         let mut input = history;
-        input.push(json!({"role": "user", "content": user_message}));
+        input.push(json!({"role": "user", "content": build_user_content(user_message, attachments)}));
 
         let mut response = self
             .call(&json!({
@@ -73,6 +115,7 @@ impl OpenAiClient {
             .await?;
 
         let mut collected = String::new();
+        let mut images_b64 = Vec::new();
         for round in 0.. {
             let output = response
                 .get("output")
@@ -85,6 +128,11 @@ impl OpenAiClient {
                 match item.get("type").and_then(Value::as_str) {
                     Some("message") => collected.push_str(&extract_message_text(item)),
                     Some("function_call") => tool_outputs.push(run_tool_call(item, state).await),
+                    Some("image_generation_call") => {
+                        if let Some(b64) = item.get("result").and_then(Value::as_str) {
+                            images_b64.push(b64.to_string());
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -108,7 +156,18 @@ impl OpenAiClient {
                 .await?;
         }
 
-        Ok(collected)
+        let images = images_b64
+            .into_iter()
+            .filter_map(|b64| match base64::engine::general_purpose::STANDARD.decode(&b64) {
+                Ok(bytes) => Some(bytes),
+                Err(e) => {
+                    eprintln!("[uranai] image_generation_call の画像デコードに失敗しました: {e}");
+                    None
+                }
+            })
+            .collect();
+
+        Ok(TurnOutput { text: collected, images })
     }
 }
 
