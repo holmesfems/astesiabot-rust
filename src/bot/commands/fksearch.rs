@@ -8,7 +8,7 @@ const BASE_TITLE: &str = "FK情報検索";
 
 /// コマンド呼び出し1回分の検索コンテキストを構築する（Python `FKInfo.getInfoFromName`の
 /// TTLチェック込み）。`operator_data`/`skill_data`はスキル名解決にのみ使う。
-async fn build_view(state: &AppState) -> FkDataView {
+pub async fn build_view(state: &AppState) -> FkDataView {
     FkDataView {
         fk_data: state.fk_data_search.snapshot(&state.outer_source).await,
         operator_data: state.outer_source.operator_data.get().await,

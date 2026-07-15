@@ -1,14 +1,14 @@
-use super::{wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
+use super::{operator_typo_correction, wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
 use crate::api::AppState;
+use crate::bot::commands::fksearch::build_view;
+use crate::engine::fk_data_search::FkSearchResult;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
 #[derive(Deserialize)]
 struct Args {
-    #[allow(dead_code)]
     target: String,
-    #[allow(dead_code)]
     skillnum: String,
 }
 
@@ -48,10 +48,37 @@ impl ToolFunction for OperatorFkInfo {
         wrap_parameters(Args::schema_properties(), Args::required_fields())
     }
 
-    async fn execute(&self, args: &Map<String, Value>, _ctx: &AppState) -> ToolResponse {
-        if let Err(e) = Args::validate_json(args) {
-            return ToolResponse::Error(e);
+    async fn execute(&self, args: &Map<String, Value>, ctx: &AppState) -> ToolResponse {
+        let parsed = match Args::validate_json(args) {
+            Ok(a) => a,
+            Err(e) => return ToolResponse::Error(e),
+        };
+
+        let view = build_view(ctx).await;
+        let resolved = view.autocomplete(&parsed.target, 1).into_iter().next().unwrap_or(parsed.target);
+        let resolved = operator_typo_correction(&resolved);
+
+        match view.search(&resolved, &parsed.skillnum) {
+            FkSearchResult::OperatorNotFound => ToolResponse::Error(format!("オペレーター【{resolved}】のFK情報は見つかりませんでした")),
+            FkSearchResult::NeedsSkillSelection { choices } => ToolResponse::Ok(json!({
+                "status": "needs_skill_selection",
+                "operator_name": resolved,
+                "choices": choices.iter().map(|(num, name)| json!({ "skill_num": num, "skill_name": name })).collect::<Vec<_>>(),
+            })),
+            FkSearchResult::SkillNotFound { candidates } => ToolResponse::Ok(json!({
+                "status": "skill_not_found",
+                "operator_name": resolved,
+                "candidates": candidates.iter().map(|c| json!({ "skill_num": c.skill_num, "skill_name": c.skill_name })).collect::<Vec<_>>(),
+            })),
+            FkSearchResult::Found(skill) => ToolResponse::Ok(json!({
+                "status": "found",
+                "operator_name": resolved,
+                "skill_name": skill.skill_name,
+                "requested_skill_num": skill.requested_skill_num,
+                "fastest_fk_count": skill.fk_num,
+                "fk_margin_of_error": skill.fk_err,
+                "detail": skill.detail,
+            })),
         }
-        ToolResponse::Ok(json!({ "message": format!("この機能はまだ実装されていません: {}", self.name()) }))
     }
 }

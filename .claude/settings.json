@@ -11,7 +11,9 @@
       "Bash(find 'C:\\\\Users\\\\holmesfems/.cargo/registry/src' -maxdepth 2 -iname poise-*)",
       "WebFetch(domain:platform.openai.com)",
       "WebFetch(domain:developers.openai.com)",
-      "Bash(find / -iname \"*.rs\" -path \"*serenity*builder*attachment*\" 2>/dev/null | head -20)"
+      "Bash(find / -iname \"*.rs\" -path \"*serenity*builder*attachment*\" 2>/dev/null | head -20)",
+      "Bash(find / -path \"*/poise-*/src*\" -name \"*.rs\" 2>/dev/null | xargs grep -l \"ChoiceParameter\" 2>/dev/null | head -10)",
+      "Bash(find / -iname \"*.rs\" -path \"*poise*\" 2>/dev/null | head -20; echo \"---\"; find / -type d -iname \"poise-*\" 2>/dev/null | head -5)"
     ]
   }
 }

@@ -79,6 +79,26 @@ pub trait ToolFunction: Send + Sync {
     async fn execute(&self, args: &Map<String, Value>, ctx: &AppState) -> ToolResponse;
 }
 
+/// `engine::operator_cost_calc`のアイテム列(`Vec<(日本語名, 個数)>`)をAI向けJSON配列に変換する。
+/// operatorEliteCost/operatorSkillInfo/operatorModuleCostの3関数が共通で使う。
+pub fn items_to_json(items: &[(String, f64)]) -> Value {
+    json!(items
+        .iter()
+        .map(|(name, count)| json!({ "name": name, "count": count }))
+        .collect::<Vec<_>>())
+}
+
+/// GPTが誤って生成しがちなオペレーター名の誤字補正(Python版`toolCalling`内の
+/// `operator_typo_correction_dict`相当)。オペレーター名を引数に取る4関数
+/// (operatorEliteCost/operatorSkillInfo/operatorModuleCost/operatorFKInfo)の
+/// autocomplete解決の後段で共通して使う。
+pub fn operator_typo_correction(name: &str) -> String {
+    match name {
+        "メラニート" => "メラナイト".to_string(),
+        other => other.to_string(),
+    }
+}
+
 /// 登録済み関数一覧。dispatch側の名前引き・toolList.yaml生成の両方がここを走査する。
 pub fn all_tools() -> Vec<Box<dyn ToolFunction>> {
     vec![
@@ -129,5 +149,123 @@ mod tests {
             file_tools, expected,
             "data/uranai/toolList.yaml is stale — run `cargo run --bin regen_uranai_tools` and commit the diff"
         );
+    }
+
+    // --- 要件4: 疑似入力でfunction callingの出力を検証する統合テスト ---
+    // 実ネットワーク(outer_source起動時fetch/RiseiCalculatorEngine構築)に依存するため
+    // `#[ignore]`。`cargo test -- --ignored`で明示実行する
+    // (`bot/commands/operator_cost_calc/mod.rs`のgolden_testsと同じ方針・同じ構築手順)。
+    use crate::bot::services::moderation::ModerationState;
+    use crate::engine;
+
+    async fn build_state() -> AppState {
+        dotenvy::dotenv().ok();
+        let recruit = engine::recruit::RecruitEngine::load().expect("recruit data should load");
+        let moderation = ModerationState::from_env();
+        let outer_source = engine::outer_source::OuterSourceRegistry::load().await;
+        let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
+            .await
+            .expect("risei engine should build against real network data");
+        let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
+        let uranai = crate::bot::services::uranai::UranaiState::from_env();
+        AppState {
+            recruit,
+            moderation,
+            outer_source,
+            risei_calculator,
+            fk_data_search,
+            uranai,
+        }
+    }
+
+    fn to_args(value: Value) -> Map<String, Value> {
+        value.as_object().expect("test args must be a JSON object").clone()
+    }
+
+    async fn run(name: &str, arguments: Value, state: &AppState) -> ToolResponse {
+        let tools = all_tools();
+        let func = tools
+            .into_iter()
+            .find(|f| f.name() == name)
+            .unwrap_or_else(|| panic!("tool {name} not registered"));
+        func.execute(&to_args(arguments), state).await
+    }
+
+    fn unwrap_ok(resp: ToolResponse) -> Value {
+        match resp {
+            ToolResponse::Ok(v) => v,
+            ToolResponse::Error(e) => panic!("expected Ok, got Error: {e}"),
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn risei_materials_returns_stages() {
+        let state = build_state().await;
+        let value = unwrap_ok(run("riseiMaterials", json!({ "target": "糖" }), &state).await);
+        let stages = value.get("top_stages").and_then(Value::as_array).expect("top_stages array");
+        assert!(!stages.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn risei_stages_returns_stages() {
+        let state = build_state().await;
+        let value = unwrap_ok(run("riseiStages", json!({ "target": "1-7" }), &state).await);
+        let stages = value.get("stages").and_then(Value::as_array).expect("stages array");
+        assert!(!stages.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn risei_lists_returns_contents() {
+        let state = build_state().await;
+        let value = unwrap_ok(run("riseiLists", json!({ "target": "理性価値表" }), &state).await);
+        let contents = value.get("contents").and_then(Value::as_array).expect("contents array");
+        assert!(!contents.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn operator_elite_cost_returns_phases() {
+        let state = build_state().await;
+        let value = unwrap_ok(run("operatorEliteCost", json!({ "target": "ケルシー・エスペランタ" }), &state).await);
+        let phases = value.get("phases").and_then(Value::as_array).expect("phases array");
+        assert!(!phases.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn operator_skill_info_returns_masteries() {
+        let state = build_state().await;
+        let value = unwrap_ok(run("operatorSkillInfo", json!({ "target": "アーミヤ(前衛)", "skillnum": 1 }), &state).await);
+        let masteries = value.get("masteries").and_then(Value::as_array).expect("masteries array");
+        assert!(!masteries.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn operator_module_cost_returns_modules() {
+        let state = build_state().await;
+        let value = unwrap_ok(run("operatorModuleCost", json!({ "target": "アステシア" }), &state).await);
+        let modules = value.get("modules").and_then(Value::as_array).expect("modules array");
+        assert!(!modules.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn operator_fk_info_resolves_single_skill_operator() {
+        let state = build_state().await;
+        let value = unwrap_ok(run("operatorFKInfo", json!({ "target": "アイリス", "skillnum": "" }), &state).await);
+        assert_eq!(value.get("status").and_then(Value::as_str), Some("found"));
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn get_recruitment_list_returns_combos_for_star5() {
+        let state = build_state().await;
+        let value = unwrap_ok(run("getRecruitmentList", json!({ "star": 5, "isGlobal": true }), &state).await);
+        let combos = value.get("combos").and_then(Value::as_array).expect("combos array");
+        assert!(!combos.is_empty());
     }
 }

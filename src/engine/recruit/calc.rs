@@ -267,6 +267,59 @@ impl RecruitData {
         }
         result
     }
+
+    /// 指定した星のオペレーターのみが出現することを保証するタグ組み合わせを列挙する
+    /// (Python `showHighStars` / `calculateTagMatchResult(equals=True)` 相当)。
+    /// エリートタグ(エリート/上級エリート)は探索対象から除外する(Python版`searchList`が
+    /// `positionTags + jobTags + otherTags`のみでeliteTagsを含めないのと同じ)。
+    /// `main_map`/`future_map`は起動時に全タグの全組み合わせで構築済みのため、ここでは
+    /// 既存マップのキーを走査するだけで済む(`calculate()`のように都度組み合わせを
+    /// 生成し直す必要はない)。
+    pub fn guaranteed_star_tags(&self, min_star: u8, is_global: bool) -> Vec<GuaranteedTagCombo> {
+        let now = Utc::now().with_timezone(&Tokyo);
+        let mut keys: HashSet<Vec<String>> = HashSet::new();
+        keys.extend(self.main_map.keys().cloned());
+        keys.extend(self.future_map.keys().cloned());
+
+        let mut result: Vec<GuaranteedTagCombo> = Vec::new();
+        for key in keys {
+            if key.iter().any(|name| self.tag_type(name) == TagType::Elite) {
+                continue;
+            }
+            let mut satisfied: Vec<OperatorRef> = self.main_map.get(&key).cloned().unwrap_or_default();
+            if let Some(future_ops) = self.future_map.get(&key) {
+                for fop in future_ops {
+                    if now >= fop.release || !is_global {
+                        satisfied.push(fop.op.clone());
+                    }
+                }
+            }
+            if satisfied.is_empty() || min_star_of(&satisfied) != min_star {
+                continue;
+            }
+
+            let mut operators: Vec<String> = satisfied
+                .into_iter()
+                .filter(|o| o.stars == min_star)
+                .map(|o| o.name)
+                .collect();
+            operators.sort();
+            operators.dedup();
+
+            result.push(GuaranteedTagCombo { tags: key, operators });
+        }
+        result.sort_by(|a, b| a.tags.len().cmp(&b.tags.len()).then_with(|| a.tags.cmp(&b.tags)));
+        result
+    }
+}
+
+/// 星を保証するタグ組み合わせ1件(Python `showHighStars`のjsonForAI 1エントリ相当)。
+#[derive(Debug, Clone)]
+pub struct GuaranteedTagCombo {
+    /// 定義順に並んだタグ名の組み合わせ(1〜3個)。
+    pub tags: Vec<String>,
+    /// このタグ組み合わせで出現する、指定星のオペレーター名(名前順・重複除去済み)。
+    pub operators: Vec<String>,
 }
 
 /// 1組み合わせ分の計算結果。
@@ -323,4 +376,74 @@ fn min_star_of(ops: &[OperatorRef]) -> u8 {
         return m;
     }
     stars.iter().copied().max().unwrap_or(0)
+}
+
+#[cfg(test)]
+mod guaranteed_star_tags_tests {
+    use super::*;
+
+    fn make_tag_list() -> TagList {
+        TagList {
+            elite_tags: vec!["エリート".to_string(), "上級エリート".to_string()],
+            job_tags: vec!["前衛".to_string(), "狙撃".to_string()],
+            position_tags: vec![],
+            other_tags: vec!["罠師".to_string()],
+        }
+    }
+
+    fn op(name: &str, stars: u8) -> OperatorRef {
+        OperatorRef {
+            name: name.to_string(),
+            stars,
+        }
+    }
+
+    /// ファイルI/Oを避けるため`RecruitData::load()`を経由せず直接組み立てる
+    /// (テスト内なので非publicフィールドへ直接アクセスできる)。
+    fn make_data() -> RecruitData {
+        let mut main_map: HashMap<Vec<String>, Vec<OperatorRef>> = HashMap::new();
+        // 混在星: min_star_of は3以上の最小(=3)を返すため、★4/★5確定タグには該当しない。
+        main_map.insert(vec!["前衛".to_string()], vec![op("A", 3), op("B", 4), op("C", 5)]);
+        // 単一星: ★4確定タグに該当する。
+        main_map.insert(vec!["狙撃".to_string()], vec![op("D", 4)]);
+        // ロボット(★1)のみ: min_star_of は3未満の最大(=1)を返す。
+        main_map.insert(vec!["罠師".to_string()], vec![op("E", 1)]);
+        // エリートタグを含む組み合わせは探索対象から除外されるべき。
+        main_map.insert(vec!["エリート".to_string()], vec![op("F", 5)]);
+
+        RecruitData {
+            tag_list: make_tag_list(),
+            tag_name_order: vec![
+                "前衛".to_string(),
+                "狙撃".to_string(),
+                "エリート".to_string(),
+                "上級エリート".to_string(),
+                "罠師".to_string(),
+            ],
+            main_map,
+            future_map: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn matches_single_star_combo_and_excludes_elite_tags() {
+        let data = make_data();
+        let result = data.guaranteed_star_tags(4, true);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].tags, vec!["狙撃".to_string()]);
+        assert_eq!(result[0].operators, vec!["D".to_string()]);
+    }
+
+    #[test]
+    fn mixed_star_combo_does_not_match_non_minimum_star() {
+        let data = make_data();
+        // 「前衛」はmin_star=3なので★5確定タグとしては出てこない。
+        assert!(data.guaranteed_star_tags(5, true).is_empty());
+    }
+
+    #[test]
+    fn no_match_returns_empty_list() {
+        let data = make_data();
+        assert!(data.guaranteed_star_tags(6, true).is_empty());
+    }
 }

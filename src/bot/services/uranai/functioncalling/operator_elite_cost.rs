@@ -1,12 +1,13 @@
-use super::{wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
+use super::{items_to_json, operator_typo_correction, wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
 use crate::api::AppState;
+use crate::bot::commands::operator_cost_calc::build_context;
+use crate::engine::operator_cost_calc::calc::operator_elite_cost;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
 #[derive(Deserialize)]
 struct Args {
-    #[allow(dead_code)]
     target: String,
 }
 
@@ -41,10 +42,38 @@ impl ToolFunction for OperatorEliteCost {
         wrap_parameters(Args::schema_properties(), Args::required_fields())
     }
 
-    async fn execute(&self, args: &Map<String, Value>, _ctx: &AppState) -> ToolResponse {
-        if let Err(e) = Args::validate_json(args) {
-            return ToolResponse::Error(e);
+    async fn execute(&self, args: &Map<String, Value>, ctx: &AppState) -> ToolResponse {
+        let parsed = match Args::validate_json(args) {
+            Ok(a) => a,
+            Err(e) => return ToolResponse::Error(e),
+        };
+
+        let (info, values) = build_context(ctx).await;
+        let resolved = info
+            .autocomplete_elite_cost(&parsed.target, 1)
+            .into_iter()
+            .next()
+            .unwrap_or(parsed.target);
+        let resolved = operator_typo_correction(&resolved);
+
+        match operator_elite_cost(&info, &values, &resolved) {
+            Err(msg) => ToolResponse::Error(msg),
+            Ok(dto) => {
+                let phases: Vec<Value> = dto
+                    .phases
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| json!({ "phase": i + 1, "risei_value": p.risei_value, "items": items_to_json(&p.items) }))
+                    .collect();
+                ToolResponse::Ok(json!({
+                    "operator_name": dto.operator_name,
+                    "phases": phases,
+                    "total_risei_value": dto.total.risei_value,
+                    "total_items": items_to_json(&dto.total.items),
+                    "total_items_converted_to_medium_grade": items_to_json(&dto.total_r2_items),
+                    "ranking_note": dto.ranking_text,
+                }))
+            }
         }
-        ToolResponse::Ok(json!({ "message": format!("この機能はまだ実装されていません: {}", self.name()) }))
     }
 }

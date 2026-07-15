@@ -7,9 +7,7 @@ use serde_json::{json, Map, Value};
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Args {
-    #[allow(dead_code)]
     star: i64,
-    #[allow(dead_code)]
     is_global: bool,
 }
 
@@ -49,10 +47,31 @@ impl ToolFunction for GetRecruitmentList {
         wrap_parameters(Args::schema_properties(), Args::required_fields())
     }
 
-    async fn execute(&self, args: &Map<String, Value>, _ctx: &AppState) -> ToolResponse {
-        if let Err(e) = Args::validate_json(args) {
-            return ToolResponse::Error(e);
+    async fn execute(&self, args: &Map<String, Value>, ctx: &AppState) -> ToolResponse {
+        let parsed = match Args::validate_json(args) {
+            Ok(a) => a,
+            Err(e) => return ToolResponse::Error(e),
+        };
+        if parsed.star != 4 && parsed.star != 5 {
+            return ToolResponse::Error(format!("starは4か5を指定してください: {}", parsed.star));
         }
-        ToolResponse::Ok(json!({ "message": format!("この機能はまだ実装されていません: {}", self.name()) }))
+
+        let combos = ctx.recruit.data.guaranteed_star_tags(parsed.star as u8, parsed.is_global);
+        if combos.is_empty() {
+            return ToolResponse::Ok(json!({
+                "star": parsed.star,
+                "combos": [],
+                "note": format!("★{}の確定タグはありません", parsed.star),
+            }));
+        }
+
+        let combos_json: Vec<Value> = combos
+            .iter()
+            .map(|c| json!({ "tags": c.tags, "operators": c.operators }))
+            .collect();
+        ToolResponse::Ok(json!({
+            "star": parsed.star,
+            "combos": combos_json,
+        }))
     }
 }

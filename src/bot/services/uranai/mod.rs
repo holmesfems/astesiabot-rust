@@ -52,7 +52,7 @@ pub async fn handle(
     }
 
     if msg.attachments.is_empty() {
-        println!("[uranai] GPT accepted", msg.channel_id);
+        println!("[uranai] GPT accepted");
     } else {
         let names: Vec<&str> = msg.attachments.iter().map(|a| a.filename.as_str()).collect();
         println!("[uranai] GPT accepted with attachments: [{}]", names.join(", "));
