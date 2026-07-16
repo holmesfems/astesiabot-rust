@@ -3,4 +3,4 @@
 *.log
 token.txt
 /ref_python
-.claude/
+/.claude
