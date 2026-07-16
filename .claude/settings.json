@@ -25,7 +25,9 @@
       "Bash(cargo fmt *)",
       "Bash(git checkout *)",
       "Bash(node -e \"const d=require\\('./data/seed/item_names.json'\\); console.log\\(Object.keys\\(d.id_to_zh||{}\\).length\\)\")",
-      "Bash(powershell -c \"\\(Get-Content data/seed/item_names.json | ConvertFrom-Json\\).id_to_zh.PSObject.Properties.Count\")"
+      "Bash(powershell -c \"\\(Get-Content data/seed/item_names.json | ConvertFrom-Json\\).id_to_zh.PSObject.Properties.Count\")",
+      "WebFetch(domain:www.arknights.jp)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0 Safari/537.36\" \"https://www.arknights.jp/news/3895\")"
     ]
   }
 }
