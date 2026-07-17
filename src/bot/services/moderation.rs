@@ -143,6 +143,7 @@ async fn auto_ban_in_auto_deletion(
             state,
             "罠チャンネルでスパム的メッセージを検出しましたが、管理者ロール保持のため自動BANは見送りました。アカウント乗っ取りの可能性を確認してください。",
             Some(msg),
+            &[msg.channel_id],
         )
         .await?;
         return Ok(false);
@@ -163,6 +164,7 @@ async fn auto_ban_in_auto_deletion(
         state,
         "スパムメッセージを検出したので、自動BANを実行しました。",
         Some(msg),
+        &[msg.channel_id],
     )
     .await?;
     Ok(true)
@@ -199,6 +201,7 @@ async fn auto_notice_and_ban(
         state,
         "通常チャットで非管理者による全体通知を検出しました。自動BANを実行しました",
         Some(msg),
+        &[msg.channel_id],
     )
     .await?;
     Ok(true)
@@ -206,6 +209,9 @@ async fn auto_notice_and_ban(
 
 // ===== レート制御：検知層（純粋にロジックのみ。処断はしない） =====
 
+// 注: タイムアウト反映前の遅延メッセージで再発火し、通報が重複することがある。
+//     実害はない（タイムアウトは冪等、purgeは空振り）ため許容している。
+//     うるさくなったら処断済みユーザーのクールダウンHashMapを足す。
 fn detect_rate_spam(state: &ModerationState, msg: &serenity::Message) -> SpamKind {
     let user_id = msg.author.id;
     let channel_id = msg.channel_id;
@@ -268,6 +274,7 @@ async fn handle_rate_spam(
                 "{reason}が、管理者ロール保持のため処断は見送りました。アカウント乗っ取りの可能性を確認してください。"
             ),
             Some(msg),
+            &[msg.channel_id],
         )
         .await?;
         return Ok(false);
@@ -295,7 +302,7 @@ async fn mute_and_report(
     // 遡及削除：トリガーとなった1件だけでなく、直近に撒かれた分をまとめて消す。
     // メッセージ削除はタイムアウト付与より先に行う（タイムアウト失敗で早期returnする前に
     // 削除を済ませておきたい）。
-    let purged = purge_recent(ctx, msg, state, kind).await;
+    let (purged, channels) = purge_recent(ctx, msg, state, kind).await;
 
     let until =
         serenity::Timestamp::from(chrono::Utc::now() + chrono::Duration::minutes(TIMEOUT_MINUTES));
@@ -312,6 +319,7 @@ async fn mute_and_report(
                 "{reason}が、タイムアウト付与に失敗しました（権限を確認してください）。なお遡及削除は{purged}件を処理しました"
             ),
             Some(msg),
+            &channels,
         )
         .await?;
         return Ok(());
@@ -322,6 +330,7 @@ async fn mute_and_report(
         state,
         &format!("{reason}。直近メッセージ{purged}件の削除と{TIMEOUT_MINUTES}分のタイムアウトを実行しました"),
         Some(msg),
+        &channels,
     )
     .await?;
     Ok(())
@@ -341,7 +350,14 @@ async fn ban_and_report(
             .ban_with_reason(&ctx.http, msg.author.id, 7, &format!("Astesia bot: {reason}"))
             .await?;
     }
-    create_report(ctx, state, &format!("{reason}。自動BANを実行しました"), Some(msg)).await?;
+    create_report(
+        ctx,
+        state,
+        &format!("{reason}。自動BANを実行しました"),
+        Some(msg),
+        &[msg.channel_id],
+    )
+    .await?;
     Ok(())
 }
 
@@ -353,12 +369,15 @@ async fn ban_and_report(
 ///
 /// 検知は Instant（単調クロック）だが、purge の範囲指定はDiscord APIの都合上
 /// 実時計でしか行えない。数秒の誤差はスパム判定が出ている以上割り切る。
+///
+/// 戻り値は (削除件数, 実際に対象にしたチャンネル一覧)。後者は通報文で
+/// 「どこに撒かれたか」を表示するために使う。
 async fn purge_recent(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
     kind: SpamKind,
-) -> u64 {
+) -> (u64, Vec<serenity::ChannelId>) {
     let user_id = msg.author.id;
     let cutoff = serenity::Timestamp::from(
         chrono::Utc::now() - chrono::Duration::seconds(PURGE_LOOKBACK_SECS),
@@ -383,7 +402,7 @@ async fn purge_recent(
     };
 
     let mut deleted_total = 0u64;
-    for channel_id in channel_ids {
+    for &channel_id in &channel_ids {
         deleted_total += purge_channel(ctx, channel_id, user_id, cutoff).await;
     }
 
@@ -395,7 +414,7 @@ async fn purge_recent(
         .unwrap()
         .retain(|(uid, _), _| *uid != user_id);
 
-    deleted_total
+    (deleted_total, channel_ids)
 }
 
 async fn purge_channel(
@@ -450,18 +469,28 @@ async fn purge_channel(
 
 // ===== 通報 =====
 
+/// `channels` が空でなければ、末尾に `<#id>` のリストを列挙する。
+/// Discord 側が自動でチャンネル名にリンク展開する。
 async fn create_report(
     ctx: &serenity::Context,
     state: &ModerationState,
     report: &str,
     msg: Option<&serenity::Message>,
+    channels: &[serenity::ChannelId],
 ) -> Result<(), Error> {
     let mut content = format!("{report}\n");
     if let Some(msg) = msg {
         content += &format!("author:{}\n", msg.author.name);
         let sanitized = msg.content.replace('.', "_").replace("http", "ht tp");
         content += &format!("content:```{sanitized}```\n");
-        content += &format!("channel:{}", msg.link());
+    }
+    if !channels.is_empty() {
+        let mentions = channels
+            .iter()
+            .map(|c| format!("<#{c}>"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        content += &format!("channel:{mentions}");
     }
     state.report_channel.say(&ctx.http, content).await?;
     Ok(())
