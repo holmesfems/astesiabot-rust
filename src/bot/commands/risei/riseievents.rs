@@ -1,11 +1,15 @@
-use super::{fmt_percent, send_reply, server_from_bool};
+use super::{build_reference_block, build_stage_export_row, fmt_percent, send_reply_with_attachment, server_from_bool};
 use crate::api::AppState;
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
-use crate::engine::risei_calculator_engine::Server;
+use crate::bot::utils::xlsx::build_stage_export_xlsx;
+use crate::engine::risei_calculator_engine::server::stage_category_dict;
+use crate::engine::risei_calculator_engine::{Server, StageItem};
 use poise::serenity_prelude as serenity;
+use std::sync::Arc;
 
 const MAX_ITEMS: usize = 20;
+const EVENT_XLSX_FILENAME: &str = "EventDrop.xlsx";
 
 /// riseievents の1ステージ分の効率情報（Python `riseievents`のjsonForAI各項目相当）。
 pub struct EventStageInfo {
@@ -18,6 +22,9 @@ pub struct EventStageInfo {
     pub sanity_cost: f64,
     pub time_cost: Option<f64>,
     pub drop_per_minute: Option<f64>,
+    /// xlsx出力(`csv_file`オプション)専用。engine `MaterialStageInfo::raw`と同じ理由で
+    /// 表示用フィールドと同じ要素に畳み込んでいる。
+    pub raw: Arc<StageItem>,
 }
 
 /// riseievents相当の計算のみを行う共通部。整形は呼び出し側の責務。
@@ -54,6 +61,7 @@ pub async fn event_search(
                 sanity_cost: stage.ap_cost,
                 time_cost,
                 drop_per_minute: drop_per_minute_value,
+                raw: stage.clone(),
             })
         })
         .collect())
@@ -84,13 +92,15 @@ pub async fn riseievents(
     stage: String,
     #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
     is_global: Option<bool>,
+    #[description = "true:ドロップ率データをxlsxで添付"]
+    csv_file: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let server = server_from_bool(is_global.unwrap_or(true));
     let state = ctx.data().state.clone();
 
-    let reply = match event_search(&state, server, &stage).await {
-        Err(msg) => EmbedReply::error(&msg),
+    let (reply, attachment) = match event_search(&state, server, &stage).await {
+        Err(msg) => (EmbedReply::error(&msg), None),
         Ok(stages) => {
             let mut chunks = vec![format!("検索内容 = {stage}")];
             for s in stages.iter().take(MAX_ITEMS) {
@@ -111,13 +121,28 @@ pub async fn riseievents(
                 }
                 chunks.push(format!("```\n{}\n```", lines.join("\n")));
             }
-            EmbedReply {
+            let attachment = if csv_file.unwrap_or(false) {
+                let snapshot = state.risei_calculator.snapshot(server, &state.outer_source).await;
+                let category_dict = stage_category_dict(state.risei_calculator.stage_category(), server);
+                let (columns, value_row, base_stage_row) = build_reference_block(&snapshot, &category_dict);
+                let column_refs: Vec<&str> = columns.iter().map(String::as_str).collect();
+                let rows: Vec<_> = stages
+                    .iter()
+                    .map(|s| build_stage_export_row(&s.raw, &snapshot, s.name.clone()))
+                    .collect();
+                let bytes = build_stage_export_xlsx(&column_refs, &value_row, &base_stage_row, &rows)?;
+                Some(serenity::CreateAttachment::bytes(bytes, EVENT_XLSX_FILENAME))
+            } else {
+                None
+            };
+            let reply = EmbedReply {
                 title: "イベントステージ検索".to_string(),
                 chunks,
                 msg_type: MsgType::Ok,
                 reply_marker: None,
-            }
+            };
+            (reply, attachment)
         }
     };
-    send_reply(ctx, reply).await
+    send_reply_with_attachment(ctx, reply, attachment).await
 }

@@ -1,13 +1,19 @@
-use super::send_reply;
+use super::send_reply_with_attachment;
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
+use crate::bot::utils::xlsx::{build_kakin_export_xlsx, KakinExportPack};
 use crate::engine::risei_calculator_engine::values::RiseiValues;
 use crate::engine::risei_calculator_engine::Server;
 use indexmap::IndexMap;
 use poise::serenity_prelude as serenity;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
+
+const KAKIN_XLSX_FILENAME: &str = "kakinList.xlsx";
+/// [`value_block`]と同じ並び順(Python `KakinPack.targetValueList`)。
+const KAKIN_TARGET_COLUMNS: [&str; 7] =
+    ["総合効率", "ガチャ効率", "パック値段", "合計理性価値", "純正源石換算", "マネー換算", "ガチャ数"];
 
 // このファイルは課金パック調査(riseikakin)専用の関心事のため、理性価値計算エンジン
 // (risei_calculator_engine)には置かず、コマンド層に閉じている。riseilistsが使う
@@ -57,6 +63,7 @@ fn const_gacha() -> &'static HashMap<String, f64> {
 }
 
 /// 計算済みの課金パック理性効率（Python `CalculatorManager.KakinPack`）。
+#[derive(Clone)]
 struct KakinPack {
     name: String,
     price: f64,
@@ -188,6 +195,47 @@ fn constant_block(constants: &[KakinPack]) -> String {
     format!("参考用課金効率:```\n{}\n```", lines.join("\n"))
 }
 
+/// xlsx出力(`csv_file`オプション)用にKakinPackを畳み込む（Python `KakinPack.targetValueList`相当）。
+fn to_export_pack(pack: &KakinPack) -> KakinExportPack {
+    KakinExportPack {
+        name: pack.name.clone(),
+        contents: pack.contents.iter().cloned().collect(),
+        target_values: vec![
+            pack.total_efficiency,
+            pack.gacha_efficiency,
+            pack.price,
+            pack.total_value,
+            pack.total_originium,
+            pack.total_real_money,
+            pack.gacha_count,
+        ],
+    }
+}
+
+/// 列に出す素材名の集合（登場順で重複排除。Python `getMaterialSet`は`set`のため
+/// 順序不定だが、内容が合っていればよいのでここでは決定的な順序にしている）。
+fn material_columns(packs: &[KakinPack]) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut columns = Vec::new();
+    for pack in packs {
+        for (name, _) in &pack.contents {
+            if seen.insert(name.clone()) {
+                columns.push(name.clone());
+            }
+        }
+    }
+    columns
+}
+
+/// riseikakinのxlsx添付を組み立てる（Python `listToCSV`相当）。
+fn build_kakin_attachment(packs: &[KakinPack], values: &RiseiValues) -> Result<serenity::CreateAttachment, Error> {
+    let columns = material_columns(packs);
+    let value_row: Vec<f64> = columns.iter().map(|ja| values.get_value_from_ja(ja)).collect();
+    let export_packs: Vec<KakinExportPack> = packs.iter().map(to_export_pack).collect();
+    let bytes = build_kakin_export_xlsx(&columns, &KAKIN_TARGET_COLUMNS, &export_packs, &value_row)?;
+    Ok(serenity::CreateAttachment::bytes(bytes, KAKIN_XLSX_FILENAME))
+}
+
 /// 課金理性効率表を出力します。
 #[poise::command(slash_command)]
 pub async fn riseikakin(
@@ -195,6 +243,8 @@ pub async fn riseikakin(
     #[description = "表示する効率表を選んでください"]
     #[autocomplete = "autocomplete_kakin_target"]
     target: String,
+    #[description = "true:パック内容をxlsxで添付"]
+    csv_file: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let state = ctx.data().state.clone();
@@ -203,6 +253,7 @@ pub async fn riseikakin(
         .snapshot(Server::Global, &state.outer_source)
         .await;
     let values = &snapshot.values;
+    let want_csv = csv_file.unwrap_or(false);
 
     let constants: Vec<KakinPack> = kakin_list()
         .iter()
@@ -210,7 +261,7 @@ pub async fn riseikakin(
         .map(|(name, def)| build_kakin_pack(name, def, values))
         .collect();
 
-    let reply = if TOTAL_TARGETS.contains(&target.as_str()) {
+    let (reply, attachment) = if TOTAL_TARGETS.contains(&target.as_str()) {
         let mut limited: Vec<KakinPack> = kakin_list()
             .iter()
             .filter(|(_, def)| !def.is_constant)
@@ -223,15 +274,22 @@ pub async fn riseikakin(
             .map(|pack| format!("{}:{}", pack.name, value_block(pack)))
             .collect();
         chunks.push(constant_block(&constants));
-        EmbedReply {
+        let attachment = if want_csv {
+            let all_packs: Vec<KakinPack> = limited.iter().chain(constants.iter()).cloned().collect();
+            Some(build_kakin_attachment(&all_packs, values)?)
+        } else {
+            None
+        };
+        let reply = EmbedReply {
             title: "課金パック比較".to_string(),
             chunks,
             msg_type: MsgType::Ok,
             reply_marker: None,
-        }
+        };
+        (reply, attachment)
     } else {
         match kakin_list().get(&target) {
-            None => EmbedReply::error(&format!("存在しない課金パック：{target}")),
+            None => (EmbedReply::error(&format!("存在しない課金パック：{target}")), None),
             Some(def) => {
                 let pack = build_kakin_pack(&target, def, values);
                 let chunks = vec![
@@ -239,14 +297,22 @@ pub async fn riseikakin(
                     format!("理性価値情報:{}", value_block(&pack)),
                     constant_block(&constants),
                 ];
-                EmbedReply {
+                let attachment = if want_csv {
+                    let mut all_packs = vec![pack.clone()];
+                    all_packs.extend(constants.iter().cloned());
+                    Some(build_kakin_attachment(&all_packs, values)?)
+                } else {
+                    None
+                };
+                let reply = EmbedReply {
                     title: pack.name.clone(),
                     chunks,
                     msg_type: MsgType::Ok,
                     reply_marker: None,
-                }
+                };
+                (reply, attachment)
             }
         }
     };
-    send_reply(ctx, reply).await
+    send_reply_with_attachment(ctx, reply, attachment).await
 }

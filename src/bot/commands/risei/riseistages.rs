@@ -1,10 +1,13 @@
-use super::{fmt_percent, send_reply, server_from_bool};
+use super::{build_reference_block, build_stage_export_row, fmt_percent, send_reply_with_attachment, server_from_bool};
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
+use crate::bot::utils::xlsx::build_stage_export_xlsx;
+use crate::engine::risei_calculator_engine::server::stage_category_dict;
 use crate::engine::risei_calculator_engine::Server;
 use poise::serenity_prelude as serenity;
 
 const MAX_ITEMS: usize = 15;
+const STAGE_XLSX_FILENAME: &str = "StageDrop.xlsx";
 
 /// Python版と同じく、常に大陸版のステージ一覧からオートコンプリート候補を出す
 /// (大陸版が最も先行しておりステージ数が多いため)。
@@ -30,17 +33,19 @@ pub async fn riseistages(
     stage: String,
     #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
     is_global: Option<bool>,
+    #[description = "true:ドロップ率データをxlsxで添付"]
+    csv_file: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let requested_server = server_from_bool(is_global.unwrap_or(true));
     let state = ctx.data().state.clone();
 
-    let reply = match state
+    let (reply, attachment) = match state
         .risei_calculator
         .stage_search(&state.outer_source, requested_server, &stage)
         .await
     {
-        Err(msg) => EmbedReply::error(&msg),
+        Err(msg) => (EmbedReply::error(&msg), None),
         Ok(result) => {
             let fell_back =
                 result.effective_server == Server::Mainland && requested_server == Server::Global;
@@ -85,13 +90,33 @@ pub async fn riseistages(
                 lines.push(format!("試行数         : {}", s.max_times));
                 chunks.push(format!("```\n{}\n```", lines.join("\n")));
             }
-            EmbedReply {
+            let attachment = if csv_file.unwrap_or(false) {
+                let snapshot = state
+                    .risei_calculator
+                    .snapshot(result.effective_server, &state.outer_source)
+                    .await;
+                let category_dict =
+                    stage_category_dict(state.risei_calculator.stage_category(), result.effective_server);
+                let (columns, value_row, base_stage_row) = build_reference_block(&snapshot, &category_dict);
+                let column_refs: Vec<&str> = columns.iter().map(String::as_str).collect();
+                let rows: Vec<_> = result
+                    .stages
+                    .iter()
+                    .map(|s| build_stage_export_row(&s.raw, &snapshot, s.name.clone()))
+                    .collect();
+                let bytes = build_stage_export_xlsx(&column_refs, &value_row, &base_stage_row, &rows)?;
+                Some(serenity::CreateAttachment::bytes(bytes, STAGE_XLSX_FILENAME))
+            } else {
+                None
+            };
+            let reply = EmbedReply {
                 title,
                 chunks,
                 msg_type: MsgType::Ok,
                 reply_marker: None,
-            }
+            };
+            (reply, attachment)
         }
     };
-    send_reply(ctx, reply).await
+    send_reply_with_attachment(ctx, reply, attachment).await
 }

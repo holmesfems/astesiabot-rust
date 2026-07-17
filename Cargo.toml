@@ -25,3 +25,7 @@ indexmap = { version = "2", features = ["serde"] }
 base64 = "0.22"
 utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "6", features = ["axum"] }
+rust_xlsxwriter = "0.96.0"
+
+[dev-dependencies]
+calamine = "0.36.0"

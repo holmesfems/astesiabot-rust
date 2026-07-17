@@ -21,6 +21,9 @@ pub struct MaterialStageInfo {
     pub confidence_3sigma: f64,
     pub promotion_efficiency: f64,
     pub max_times: i64,
+    /// xlsx出力(`csv_file`オプション)専用。ソート・truncate後も対応関係が
+    /// 崩れないよう、表示用フィールドと同じ要素にraw StageItemを畳み込んでいる。
+    pub raw: Arc<StageItem>,
 }
 
 /// riseimaterials の計算結果一式(Discord/GPT function calling共通)。
@@ -51,6 +54,9 @@ pub struct StageEfficiencyInfo {
     pub time_cost: Option<f64>,
     pub promotion_efficiency: f64,
     pub max_times: i64,
+    /// xlsx出力(`csv_file`オプション)専用。[`MaterialStageInfo::raw`]と同じ理由で
+    /// 表示用フィールドと同じ要素に畳み込んでいる。
+    pub raw: Arc<StageItem>,
 }
 
 /// riseistages の計算結果一式(Discord/GPT function calling共通)。
@@ -100,6 +106,7 @@ impl RiseiCalculatorEngine {
                     confidence_3sigma: snapshot.stage_dev(stage) * 3.0,
                     promotion_efficiency: stage.get_partial_efficiency(&snapshot.values, &promotion_items),
                     max_times: stage.max_times(),
+                    raw: stage.clone(),
                 }
             })
             .collect();
@@ -165,6 +172,7 @@ impl RiseiCalculatorEngine {
                     time_cost: (stage.min_clear_time > 0.0).then_some(stage.min_clear_time / 2.0),
                     promotion_efficiency: stage.get_partial_efficiency(&snapshot.values, &promotion_items),
                     max_times: stage.max_times(),
+                    raw: stage.clone(),
                 }
             })
             .collect();

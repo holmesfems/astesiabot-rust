@@ -8,7 +8,6 @@
       "Read(//g//**)",
       "Bash(powershell -Command \"Get-Process -Id 14232 | Select-Object Id,ProcessName,StartTime,Path\")",
       "Bash(find / -path /proc -prune -o -type d -iname \"poise-*\" -print 2>/dev/null | head -20)",
-      "Bash(find 'C:\\\\Users\\\\holmesfems/.cargo/registry/src' -maxdepth 2 -iname poise-*)",
       "WebFetch(domain:platform.openai.com)",
       "WebFetch(domain:developers.openai.com)",
       "Bash(find / -iname \"*.rs\" -path \"*serenity*builder*attachment*\" 2>/dev/null | head -20)",
@@ -27,7 +26,16 @@
       "Bash(node -e \"const d=require\\('./data/seed/item_names.json'\\); console.log\\(Object.keys\\(d.id_to_zh||{}\\).length\\)\")",
       "Bash(powershell -c \"\\(Get-Content data/seed/item_names.json | ConvertFrom-Json\\).id_to_zh.PSObject.Properties.Count\")",
       "WebFetch(domain:www.arknights.jp)",
-      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0 Safari/537.36\" \"https://www.arknights.jp/news/3895\")"
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0 Safari/537.36\" \"https://www.arknights.jp/news/3895\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/ArknightsAssets/ArknightsGamedata/refs/heads/master/jp/gamedata/excel/shop_client_table.json\" -o /tmp/shop_client_table.json)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\HOLMES~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\g--Videos-an39-risei2-riseiCalculator-git-astesiaBot-rust\\\\fa5b5ba5-c786-44da-a9f4-0cb6bbaca70d\\\\scratchpad\" 2>/dev/null; cp /tmp/shop_client_table.json \"C:\\\\Users\\\\HOLMES~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\g--Videos-an39-risei2-riseiCalculator-git-astesiaBot-rust\\\\fa5b5ba5-c786-44da-a9f4-0cb6bbaca70d\\\\scratchpad\\\\shop_client_table.json\" *)",
+      "Bash(python3 -c \"print\\(1\\)\")",
+      "Bash(pwd -W)",
+      "Bash(cygpath -w /tmp)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

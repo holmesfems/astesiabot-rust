@@ -1,9 +1,12 @@
-use super::{fmt_percent, fmt_value, send_reply, server_from_bool};
+use super::{build_reference_block, build_stage_export_row, fmt_percent, fmt_value, send_reply_with_attachment, server_from_bool};
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
+use crate::bot::utils::xlsx::build_stage_export_xlsx;
+use crate::engine::risei_calculator_engine::server::stage_category_dict;
 use poise::serenity_prelude as serenity;
 
 const MAX_ITEMS: usize = 15;
+const MATERIALS_XLSX_FILENAME: &str = "MaterialsDrop.xlsx";
 
 /// riseimaterials/riseicalculator の target_item 選択肢(Python版は常に大陸版の
 /// 全カテゴリ(main+new)を選択肢に使う)。
@@ -32,17 +35,19 @@ pub async fn riseimaterials(
     target_item: String,
     #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
     is_global: Option<bool>,
+    #[description = "true:ドロップ率データをxlsxで添付"]
+    csv_file: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let server = server_from_bool(is_global.unwrap_or(true));
     let state = ctx.data().state.clone();
 
-    let reply = match state
+    let (reply, attachment) = match state
         .risei_calculator
         .material_search(&state.outer_source, server, &target_item)
         .await
     {
-        Err(msg) => EmbedReply::error(&msg),
+        Err(msg) => (EmbedReply::error(&msg), None),
         Ok(result) => {
             let mut chunks = vec![format!(
                 "{}: 理性価値(中級)={}±{}\n",
@@ -77,13 +82,33 @@ pub async fn riseimaterials(
                 lines.push(format!("試行数         : {}", stage.max_times));
                 chunks.push(format!("```\n{}\n```", lines.join("\n")));
             }
-            EmbedReply {
+            let attachment = if csv_file.unwrap_or(false) {
+                let snapshot = state
+                    .risei_calculator
+                    .snapshot(result.effective_server, &state.outer_source)
+                    .await;
+                let category_dict =
+                    stage_category_dict(state.risei_calculator.stage_category(), result.effective_server);
+                let (columns, value_row, base_stage_row) = build_reference_block(&snapshot, &category_dict);
+                let column_refs: Vec<&str> = columns.iter().map(String::as_str).collect();
+                let rows: Vec<_> = result
+                    .stages
+                    .iter()
+                    .map(|s| build_stage_export_row(&s.raw, &snapshot, s.name.clone()))
+                    .collect();
+                let bytes = build_stage_export_xlsx(&column_refs, &value_row, &base_stage_row, &rows)?;
+                Some(serenity::CreateAttachment::bytes(bytes, MATERIALS_XLSX_FILENAME))
+            } else {
+                None
+            };
+            let reply = EmbedReply {
                 title: "昇進素材検索".to_string(),
                 chunks,
                 msg_type: MsgType::Ok,
                 reply_marker: None,
-            }
+            };
+            (reply, attachment)
         }
     };
-    send_reply(ctx, reply).await
+    send_reply_with_attachment(ctx, reply, attachment).await
 }
