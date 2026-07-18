@@ -1,6 +1,6 @@
 use super::item_array::ItemArray;
-use crate::engine::outer_source::formulas::RawFormula;
-use crate::engine::outer_source::item_names::ItemNames;
+use crate::engine::external_source::formulas::RawFormula;
+use crate::engine::external_source::item_names::ItemNames;
 use std::collections::HashMap;
 
 /// 素材合成レシピ1件（Python `formulation.FormulaItem`）。

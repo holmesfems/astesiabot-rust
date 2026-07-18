@@ -1,6 +1,6 @@
-use crate::engine::outer_source::formulas::RawFormula;
-use crate::engine::outer_source::item_names::ItemNames;
-use crate::engine::outer_source::operator_data::CostEntry;
+use crate::engine::external_source::formulas::RawFormula;
+use crate::engine::external_source::item_names::ItemNames;
+use crate::engine::external_source::operator_data::CostEntry;
 use crate::engine::risei_calculator_engine::formula::FormulaItem;
 use crate::engine::risei_calculator_engine::server::{self, Server};
 use crate::engine::risei_calculator_engine::values::RiseiValues;

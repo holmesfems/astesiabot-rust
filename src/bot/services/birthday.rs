@@ -1,7 +1,7 @@
 use crate::api::AppState;
 use crate::bot::data::Error;
 use crate::bot::reply::{send_embed_reply, EmbedReply, MsgType};
-use crate::engine::outer_source::operator_data::OperatorData;
+use crate::engine::external_source::operator_data::OperatorData;
 use chrono::{DateTime, Datelike, FixedOffset, TimeZone, Utc};
 use poise::serenity_prelude as serenity;
 use std::collections::HashMap;

@@ -1,7 +1,7 @@
 use super::dto::{FkSearchResult, FkSkillView, SkillCandidate};
-use crate::engine::outer_source::fk_data::FkSheetData;
-use crate::engine::outer_source::operator_data::OperatorData;
-use crate::engine::outer_source::skill_data::SkillData;
+use crate::engine::external_source::fk_data::FkSheetData;
+use crate::engine::external_source::operator_data::OperatorData;
+use crate::engine::external_source::skill_data::SkillData;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
@@ -90,7 +90,7 @@ pub fn autocomplete(fk_data: &FkSheetData, partial: &str, limit: usize) -> Vec<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::outer_source::fk_data::FkSheetRow;
+    use crate::engine::external_source::fk_data::FkSheetRow;
 
     fn row(skill_num: &str, fk_num: &str) -> FkSheetRow {
         FkSheetRow {

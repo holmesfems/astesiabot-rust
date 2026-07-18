@@ -4,7 +4,7 @@
 //! Heroku等では実行時のファイル書き込みが揮発するため、Seedはこのツールで
 //! 生成してリポジトリに含めておく運用にしている。
 
-use astesiabot_rust::engine::outer_source::SEED_JOBS;
+use astesiabot_rust::engine::external_source::SEED_JOBS;
 
 #[tokio::main]
 async fn main() {

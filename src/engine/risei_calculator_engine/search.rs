@@ -6,7 +6,7 @@
 
 use super::stage_info::DEFAULT_SHOW_MIN_TIMES;
 use super::{drop_per_minute, filter_stages_by_show_min_times, RiseiCalculatorEngine, Server, StageItem};
-use crate::engine::outer_source::OuterSourceRegistry;
+use crate::engine::external_source::OuterSourceRegistry;
 use std::sync::Arc;
 
 /// 昇進素材カテゴリの1ステージ分の効率情報(Python `riseimaterials`のjsonForAI各項目相当)。

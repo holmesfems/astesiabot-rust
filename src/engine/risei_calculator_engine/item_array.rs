@@ -1,4 +1,4 @@
-use crate::engine::outer_source::item_names::ItemNames;
+use crate::engine::external_source::item_names::ItemNames;
 use std::collections::{HashMap, HashSet};
 
 /// アイテムID→個数のベクトル。素材合成レシピの換算計算（calculator.rs の

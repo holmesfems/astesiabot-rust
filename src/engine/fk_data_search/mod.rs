@@ -3,10 +3,10 @@ pub mod search;
 
 pub use dto::{FkSearchResult, FkSkillView, SkillCandidate};
 
-use super::outer_source::fk_data::FkSheetData;
-use super::outer_source::operator_data::OperatorData;
-use super::outer_source::skill_data::SkillData;
-use super::outer_source::OuterSourceRegistry;
+use super::external_source::fk_data::FkSheetData;
+use super::external_source::operator_data::OperatorData;
+use super::external_source::skill_data::SkillData;
+use super::external_source::OuterSourceRegistry;
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -66,7 +66,7 @@ impl FkDataView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::outer_source::{fk_data, operator_data, skill_data};
+    use crate::engine::external_source::{fk_data, operator_data, skill_data};
 
     /// 実ネットワークで実際のFKスプレッドシート+ゲームデータを突き合わせ、
     /// スキルを1つしか持たないオペレーターがskill_num省略で解決できることを確認する

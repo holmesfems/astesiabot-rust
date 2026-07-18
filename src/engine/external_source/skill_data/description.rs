@@ -176,7 +176,7 @@ pub fn build_description(level: &RawSkillLevel) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::outer_source::skill_data::raw::RawBlackboardItem;
+    use crate::engine::external_source::skill_data::raw::RawBlackboardItem;
 
     fn level(
         skill_type: &str,

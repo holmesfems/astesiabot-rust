@@ -7,8 +7,8 @@
 use super::server::{item_rarity2, item_rarity3};
 use super::values::RiseiValues;
 use super::{RiseiCalculatorEngine, Server};
-use crate::engine::outer_source::item_names::ItemNames;
-use crate::engine::outer_source::OuterSourceRegistry;
+use crate::engine::external_source::item_names::ItemNames;
+use crate::engine::external_source::OuterSourceRegistry;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;

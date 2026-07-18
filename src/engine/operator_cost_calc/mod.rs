@@ -3,9 +3,9 @@ pub mod calc;
 pub mod dto;
 pub mod model;
 
-use crate::engine::outer_source::item_names::ItemNames;
-use crate::engine::outer_source::operator_data::{OperatorData, RawOperatorCost};
-use crate::engine::outer_source::skill_data::SkillData;
+use crate::engine::external_source::item_names::ItemNames;
+use crate::engine::external_source::operator_data::{OperatorData, RawOperatorCost};
+use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::risei_calculator_engine::server::Server;
 use crate::engine::risei_calculator_engine::values::RiseiValues;
 use model::{FormulaMap, ItemCost};

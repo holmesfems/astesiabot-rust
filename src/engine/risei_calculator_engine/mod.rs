@@ -14,7 +14,7 @@ pub use search::{MaterialSearchResult, MaterialStageInfo, StageCategoryEfficienc
 pub use server::Server;
 pub use stage::StageItem;
 
-use crate::engine::outer_source::OuterSourceRegistry;
+use crate::engine::external_source::OuterSourceRegistry;
 use calculator::Calculator;
 use chrono::Utc;
 use stage_info::{CategoryInstance, DEFAULT_SHOW_MIN_TIMES};
@@ -208,7 +208,7 @@ impl EngineSnapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::outer_source::OuterSourceRegistry;
+    use crate::engine::external_source::OuterSourceRegistry;
 
     /// 実ネットワークに対して起動時ロード〜線形連立方程式の解決〜基準マップ収束・
     /// ステージ検索まで一通り動くかの疎通確認。`cargo test -- --ignored` で明示実行する。

@@ -4,7 +4,7 @@ mod wl_battery_simulator;
 use crate::bot::services::moderation::ModerationState;
 use crate::bot::services::uranai::UranaiState;
 use crate::engine::fk_data_search::FkDataSearchEngine;
-use crate::engine::outer_source::OuterSourceRegistry;
+use crate::engine::external_source::OuterSourceRegistry;
 use crate::engine::recruit::RecruitEngine;
 use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
 use axum::http::StatusCode;

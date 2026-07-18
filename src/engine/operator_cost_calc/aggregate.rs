@@ -1,5 +1,5 @@
 use super::model::ItemCost;
-use crate::engine::outer_source::operator_data::{RawModule, RawOperatorCost};
+use crate::engine::external_source::operator_data::{RawModule, RawOperatorCost};
 
 /// Python `OperatorCosts.totalPhaseCost`。昇進1,2の消費素材合計。
 pub fn total_phase_cost(op: &RawOperatorCost) -> ItemCost {

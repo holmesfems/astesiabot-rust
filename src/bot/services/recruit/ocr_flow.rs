@@ -17,7 +17,7 @@ pub async fn build(msg: &serenity::Message, data: &Data) -> Result<Option<OcrOut
         Some(t) => t,
         None => {
             return Ok(Some(OcrOutcome {
-                reply: EmbedReply::error("画像から文字を検出できませんでした"),
+                reply: EmbedReply::error("ごめんなさい。グーグル先生の調子が悪いみたい。また後で試してね"),
                 needs_guidance: false,
             }))
         }
