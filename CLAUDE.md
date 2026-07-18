@@ -46,7 +46,7 @@ src/
 │   │   │                    無ければpanic。起動後の再fetch失敗→直前のメモリを保持したまま継続。
 │   │   │                    Seedの書き込み（write_seed_file）は実行時には呼ばない
 │   │   │                    （regen_seeds からのみ使う。理由は下記ポイント参照）
-│   │   ├── http.rs       … 全情報源共通のfetch戦略（7sタイムアウト・最大10回リトライ）
+│   │   ├── http.rs       … 全情報源共通のfetch戦略（7sタイムアウト・最大3回リトライ）
 │   │   ├── fk_data.rs    … FK情報スプレッドシート(Google Sheets API v4)の生データ。
 │   │   │                    スキル名解決はせず行データ(オペレーター名→行一覧)のみ保持。
 │   │   │                    FK_SHEETS_API_KEY/FK_SHEETS_SPREADSHEET_ID(.env)を使用。
@@ -179,7 +179,7 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   `git commit`/`push` してリポジトリに含める運用。push前に思い出したタイミングで
   都度実行すればよい（自動化はしていない）。
 - **fetchの共通戦略**: `engine/external_source/http.rs` の `client()` /
-  `fetch_json_with_retry()`（7sタイムアウト・最大10回リトライ）が全情報源共通。
+  `fetch_json_with_retry()`（7sタイムアウト・最大3回リトライ）が全情報源共通。
   新しい情報源を足すときもこれを使い、fetch fn ごとに個別のタイムアウト/リトライ
   ロジックを実装しないこと。
 - **責務分離の意識**: 計算層と表現層を分ける。計算関数はDTOを返し、整形（Discord Embed / AI向け文字列など）は各呼び出し側に置く。pythonの設計（例: RCReplyが両出力を1型に詰める形）は踏襲せず、適切な形を優先して良い。
