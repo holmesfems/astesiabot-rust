@@ -52,7 +52,7 @@ impl ToolFunction for RiseiStages {
 
         // Python版と同じく、常に大陸版のオートコンプリートで表記ゆれ(全角/半角等)を解決してから
         // グローバル版基準で検索する(該当が無ければstage_search内部で大陸版へフォールバックする)。
-        let mainland_snapshot = ctx.risei_calculator.snapshot(Server::Mainland, &ctx.outer_source).await;
+        let mainland_snapshot = ctx.risei_calculator.snapshot(Server::Mainland, &ctx.external_source).await;
         let resolved_code = mainland_snapshot
             .auto_complete_main_stage(&parsed.target, 1)
             .into_iter()
@@ -60,7 +60,7 @@ impl ToolFunction for RiseiStages {
             .map(|(_, code)| code)
             .unwrap_or(parsed.target);
 
-        match ctx.risei_calculator.stage_search(&ctx.outer_source, Server::Global, &resolved_code).await {
+        match ctx.risei_calculator.stage_search(&ctx.external_source, Server::Global, &resolved_code).await {
             Err(msg) => ToolResponse::Error(msg),
             Ok(result) => {
                 let stages: Vec<Value> = result

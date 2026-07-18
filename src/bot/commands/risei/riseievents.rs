@@ -35,7 +35,7 @@ pub async fn event_search(
 ) -> Result<Vec<EventStageInfo>, String> {
     let snapshot = state
         .risei_calculator
-        .snapshot(server, &state.outer_source)
+        .snapshot(server, &state.external_source)
         .await;
     let mut stages = snapshot.search_event_stage(target_code);
     if stages.is_empty() {
@@ -74,7 +74,7 @@ async fn autocomplete_event_stage(
     let state = ctx.data().state.clone();
     let snapshot = state
         .risei_calculator
-        .snapshot(Server::Mainland, &state.outer_source)
+        .snapshot(Server::Mainland, &state.external_source)
         .await;
     snapshot
         .auto_complete_event_stage(partial, 25)
@@ -122,7 +122,7 @@ pub async fn riseievents(
                 chunks.push(format!("```\n{}\n```", lines.join("\n")));
             }
             let attachment = if csv_file.unwrap_or(false) {
-                let snapshot = state.risei_calculator.snapshot(server, &state.outer_source).await;
+                let snapshot = state.risei_calculator.snapshot(server, &state.external_source).await;
                 let category_dict = stage_category_dict(state.risei_calculator.stage_category(), server);
                 let (columns, value_row, base_stage_row) = build_reference_block(&snapshot, &category_dict);
                 let column_refs: Vec<&str> = columns.iter().map(String::as_str).collect();

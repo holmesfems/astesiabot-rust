@@ -250,7 +250,7 @@ pub async fn riseikakin(
     let state = ctx.data().state.clone();
     let snapshot = state
         .risei_calculator
-        .snapshot(Server::Global, &state.outer_source)
+        .snapshot(Server::Global, &state.external_source)
         .await;
     let values = &snapshot.values;
     let want_csv = csv_file.unwrap_or(false);

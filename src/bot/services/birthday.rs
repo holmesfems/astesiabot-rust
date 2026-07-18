@@ -116,7 +116,7 @@ pub async fn run(ctx: serenity::Context, channel_id: serenity::ChannelId, state:
     loop {
         tokio::time::sleep(duration_until_next_midnight_jst()).await;
         let now_jst = Utc::now().with_timezone(&jst());
-        let names = state.outer_source.operator_data.get().await;
+        let names = state.external_source.operator_data.get().await;
         if let Some(reply) = check_birthday(&data, &names, now_jst) {
             if let Err(e) = send_embed_reply(&ctx, channel_id, &reply).await {
                 eprintln!("[birthday] 誕生日メッセージの送信に失敗しました: {e}");

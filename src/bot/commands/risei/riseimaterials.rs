@@ -44,7 +44,7 @@ pub async fn riseimaterials(
 
     let (reply, attachment) = match state
         .risei_calculator
-        .material_search(&state.outer_source, server, &target_item)
+        .material_search(&state.external_source, server, &target_item)
         .await
     {
         Err(msg) => (EmbedReply::error(&msg), None),
@@ -85,7 +85,7 @@ pub async fn riseimaterials(
             let attachment = if csv_file.unwrap_or(false) {
                 let snapshot = state
                     .risei_calculator
-                    .snapshot(result.effective_server, &state.outer_source)
+                    .snapshot(result.effective_server, &state.external_source)
                     .await;
                 let category_dict =
                     stage_category_dict(state.risei_calculator.stage_category(), result.effective_server);

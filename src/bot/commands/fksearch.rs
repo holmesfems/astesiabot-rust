@@ -12,9 +12,9 @@ pub const REPLY_MARKER_KEY: &str = "FKSEARCH";
 /// TTLチェック込み）。`operator_data`/`skill_data`はスキル名解決にのみ使う。
 pub async fn build_view(state: &AppState) -> FkDataView {
     FkDataView {
-        fk_data: state.fk_data_search.snapshot(&state.outer_source).await,
-        operator_data: state.outer_source.operator_data.get().await,
-        skill_data: state.outer_source.skill_data.get().await,
+        fk_data: state.fk_data_search.snapshot(&state.external_source).await,
+        operator_data: state.external_source.operator_data.get().await,
+        skill_data: state.external_source.skill_data.get().await,
     }
 }
 
@@ -108,7 +108,7 @@ async fn autocomplete_operator_name(
     partial: &str,
 ) -> Vec<serenity::AutocompleteChoice> {
     let state = &ctx.data().state;
-    let fk_data = state.outer_source.fk_data.get().await;
+    let fk_data = state.external_source.fk_data.get().await;
     crate::engine::fk_data_search::search::autocomplete(&fk_data, partial, 25)
         .into_iter()
         .map(|name| serenity::AutocompleteChoice::new(name.clone(), name))

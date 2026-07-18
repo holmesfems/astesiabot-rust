@@ -19,10 +19,10 @@ const DISPLAY_EPSILON: f64 = 1e-6;
 /// + `CalculatorManager.getValues`相当）。`FormulaMap`はコマンド呼び出しごとに
 /// `outer_source.formulas`のスナップショットから再構築する。
 pub async fn build_context(state: &AppState) -> (AllOperatorsInfo, ValueSet) {
-    let data = state.outer_source.operator_data.get().await;
-    let item_names = state.outer_source.item_names.get().await;
-    let skill_data = state.outer_source.skill_data.get().await;
-    let formulas_raw = state.outer_source.formulas.get().await;
+    let data = state.external_source.operator_data.get().await;
+    let item_names = state.external_source.item_names.get().await;
+    let skill_data = state.external_source.skill_data.get().await;
+    let formulas_raw = state.external_source.formulas.get().await;
     let formulas = build_formula_map(&formulas_raw.formulas, &item_names);
     let info = AllOperatorsInfo {
         data,
@@ -31,8 +31,8 @@ pub async fn build_context(state: &AppState) -> (AllOperatorsInfo, ValueSet) {
         formulas,
     };
 
-    let global_snapshot = state.risei_calculator.snapshot(Server::Global, &state.outer_source).await;
-    let mainland_snapshot = state.risei_calculator.snapshot(Server::Mainland, &state.outer_source).await;
+    let global_snapshot = state.risei_calculator.snapshot(Server::Global, &state.external_source).await;
+    let mainland_snapshot = state.risei_calculator.snapshot(Server::Mainland, &state.external_source).await;
     let values = ValueSet {
         global: global_snapshot.values.clone(),
         mainland: mainland_snapshot.values.clone(),
@@ -236,7 +236,7 @@ mod golden_tests {
         AppState {
             recruit,
             moderation,
-            outer_source,
+            external_source: outer_source,
             risei_calculator,
             fk_data_search,
             uranai,

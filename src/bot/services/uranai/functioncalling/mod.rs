@@ -171,7 +171,7 @@ mod tests {
         AppState {
             recruit,
             moderation,
-            outer_source,
+            external_source: outer_source,
             risei_calculator,
             fk_data_search,
             uranai,

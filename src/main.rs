@@ -55,7 +55,7 @@ async fn main() {
     let state = Arc::new(AppState {
         recruit: recruit_engine,
         moderation,
-        outer_source,
+        external_source,
         risei_calculator,
         fk_data_search,
         uranai,
@@ -66,7 +66,7 @@ async fn main() {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(duration_until_next_refresh_jst()).await;
-            refresh_state.outer_source.refresh_all().await;
+            refresh_state.external_source.refresh_all().await;
         }
     });
 

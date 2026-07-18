@@ -85,7 +85,7 @@ impl ToolFunction for RiseiMaterials {
 
         // Python版と同じくGPTからの呼び出しは常にグローバル版基準
         // (newカテゴリ指定時は material_search 内部で自動的に大陸版へ切り替わる)。
-        match ctx.risei_calculator.material_search(&ctx.outer_source, Server::Global, &key).await {
+        match ctx.risei_calculator.material_search(&ctx.external_source, Server::Global, &key).await {
             Err(msg) => ToolResponse::Error(msg),
             Ok(result) => {
                 let stages: Vec<Value> = result

@@ -53,7 +53,7 @@ pub async fn riseilists(
 
     let (title, chunks) = match target {
         RiseiListTarget::BaseMaps => {
-            let map = engine.base_maps(&state.outer_source, server).await;
+            let map = engine.base_maps(&state.external_source, server).await;
             let body = map
                 .iter()
                 .map(|(category, stage)| format!("{category}: {stage}"))
@@ -65,7 +65,7 @@ pub async fn riseilists(
             )
         }
         RiseiListTarget::SanValueList => {
-            let values = engine.value_list(&state.outer_source, server).await;
+            let values = engine.value_list(&state.external_source, server).await;
             let lines: Vec<String> = values
                 .iter()
                 .map(|entry| {
@@ -84,19 +84,19 @@ pub async fn riseilists(
         }
         RiseiListTarget::Te2List => (
             "初級資格証効率".to_string(),
-            ticket_list_chunks(engine.te2_list(&state.outer_source, server).await),
+            ticket_list_chunks(engine.te2_list(&state.external_source, server).await),
         ),
         RiseiListTarget::Te3List => (
             "上級資格証効率".to_string(),
-            ticket_list_chunks(engine.te3_list(&state.outer_source, server).await),
+            ticket_list_chunks(engine.te3_list(&state.external_source, server).await),
         ),
         RiseiListTarget::SpecialList => (
             "特別引換証効率".to_string(),
-            ticket_list_chunks(engine.special_list(&state.outer_source, server).await),
+            ticket_list_chunks(engine.special_list(&state.external_source, server).await),
         ),
         RiseiListTarget::CcList => (
             format!("契約賞金引換効率(CC#{CC_NUMBER})"),
-            ticket_list_chunks(engine.cc_list(&state.outer_source, server).await),
+            ticket_list_chunks(engine.cc_list(&state.external_source, server).await),
         ),
     };
 
