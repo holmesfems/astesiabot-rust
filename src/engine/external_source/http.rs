@@ -4,7 +4,7 @@ use std::time::Duration;
 
 /// 各fetchで共通のタイムアウト・リトライ回数。
 const FETCH_TIMEOUT: Duration = Duration::from_secs(7);
-const FETCH_RETRIES: usize = 10;
+const FETCH_RETRIES: usize = 3;
 
 /// 各情報源のfetchで共通利用する `reqwest::Client`（タイムアウト7s固定）。
 pub fn client() -> reqwest::Client {

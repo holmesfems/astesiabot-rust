@@ -71,8 +71,8 @@ impl ExternalSourceRegistry {
             self.skill_data.refresh(),
             self.item_names.refresh(),
             self.zones.refresh(),
-            self.ark_stages.refresh(),
-            self.ark_matrix.refresh(),
+            //self.ark_stages.refresh(), //2hごとに読み取り駆動で再fetchするため、デイリー更新対象から外す
+            //self.ark_matrix.refresh(), //2hごとに読み取り駆動で再fetchするため、デイリー更新対象から外す
             self.formulas.refresh(),
         );
     }
