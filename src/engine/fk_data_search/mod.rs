@@ -6,7 +6,7 @@ pub use dto::{FkSearchResult, FkSkillView, SkillCandidate};
 use super::external_source::fk_data::FkSheetData;
 use super::external_source::operator_data::OperatorData;
 use super::external_source::skill_data::SkillData;
-use super::external_source::OuterSourceRegistry;
+use super::external_source::ExternalSourceRegistry;
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -27,7 +27,7 @@ impl FkDataSearchEngine {
 
     /// 前回チェックから1時間以上経過していれば再fetchしてから、最新のスナップショットを返す。
     /// 再fetchに失敗した場合は`Source::refresh`の方針どおり直前のメモリを保持し続ける。
-    pub async fn snapshot(&self, outer_source: &OuterSourceRegistry) -> Arc<FkSheetData> {
+    pub async fn snapshot(&self, outer_source: &ExternalSourceRegistry) -> Arc<FkSheetData> {
         let stale = Utc::now() - *self.last_checked.read().await > chrono::Duration::hours(1);
         if stale {
             outer_source.fk_data.refresh().await;

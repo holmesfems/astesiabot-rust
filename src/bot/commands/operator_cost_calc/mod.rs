@@ -227,7 +227,7 @@ mod golden_tests {
         dotenvy::dotenv().ok();
         let recruit = engine::recruit::RecruitEngine::load().expect("recruit data should load");
         let moderation = ModerationState::from_env();
-        let outer_source = engine::external_source::OuterSourceRegistry::load().await;
+        let outer_source = engine::external_source::ExternalSourceRegistry::load().await;
         let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
             .await
             .expect("risei engine should build against real network data");

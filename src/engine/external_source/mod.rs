@@ -12,11 +12,11 @@ pub mod zones;
 pub use cache::{BoxFuture, FetchError, Source};
 
 /// 外部サイトから取得する情報をまとめて保持するレジストリ（bot にも api にも
-/// 依存しない）。起動時に [`OuterSourceRegistry::load`] で一括fetchし、以後は
+/// 依存しない）。起動時に [`ExternalSourceRegistry::load`] で一括fetchし、以後は
 /// 各情報源の [`Source`] がメモリに保持する値を機能側が参照する。
 ///
 /// 新しい情報源を足す手順:
-/// 1. `outer_source/` 配下に新規モジュールを作り、対象データ型
+/// 1. `external_source/` 配下に新規モジュールを作り、対象データ型
 ///    （`Serialize + DeserializeOwned`）と
 ///    `pub fn fetch() -> BoxFuture<'static, Result<T, FetchError>>` を定義する
 ///    （中身は `operator_data.rs` を参照）。HTTP fetchは `http::client()` /
@@ -26,10 +26,10 @@ pub use cache::{BoxFuture, FetchError, Source};
 ///    と `pub fn update_seed() -> BoxFuture<'static, Result<(), FetchError>>`
 ///    （中身は `fetch()` を呼んで `cache::write_seed_file` に渡すだけ）を足し、
 ///    下の [`SEED_JOBS`] に1エントリ追加する（`regen_seeds` バイナリが使う）。
-/// 3. このstructにフィールドを足し、[`OuterSourceRegistry::load`] /
-///    [`OuterSourceRegistry::refresh_all`] / [`OuterSourceRegistry::refresh_by_name`]
+/// 3. このstructにフィールドを足し、[`ExternalSourceRegistry::load`] /
+///    [`ExternalSourceRegistry::refresh_all`] / [`ExternalSourceRegistry::refresh_by_name`]
 ///    に1行ずつ追加する。
-pub struct OuterSourceRegistry {
+pub struct ExternalSourceRegistry {
     /// オペレーターの中国語→日本語名変換 + 昇進/スキル特化/モジュール消費素材データ
     /// （character_table.json / uniequip_table.json / char_patch_table.json を1回のfetchで
     /// まとめて構築する。旧`operator_names`はこれに統合済み）。
@@ -47,7 +47,7 @@ pub struct OuterSourceRegistry {
     pub fk_data: Source<fk_data::FkSheetData>,
 }
 
-impl OuterSourceRegistry {
+impl ExternalSourceRegistry {
     /// 起動時に全情報源を一度だけfetchする。個別のfetch失敗時の扱いは
     /// [`Source::load`] を参照（Seedがあればそれで代替、無ければpanic）。
     pub async fn load() -> Self {

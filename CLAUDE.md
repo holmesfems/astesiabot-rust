@@ -31,10 +31,10 @@ src/
 │                    起動時ロード → bot と api に Arc で共有。1日1回
 │                    OuterSourceRegistry::refresh_all() を叩くループも起動
 ├── bin/
-│   └── regen_seeds.rs … outer_source の Seed（data/seed/*.json）を手動再生成する
+│   └── regen_seeds.rs … external_source の Seed（data/seed/*.json）を手動再生成する
 │                          独立ツール。main.rs には依存しない。使い方は後述
 ├── engine/
-│   ├── outer_source/ … 外部サイトから取得する情報のレジストリ（bot にも api にも
+│   ├── external_source/ … 外部サイトから取得する情報のレジストリ（bot にも api にも
 │   │   │                依存しない）。起動時に一括fetchしてメモリ保持し、以後は
 │   │   │                機能側がそこから参照する（例: birthday.rs が operator_data を参照）
 │   │   ├── mod.rs        … OuterSourceRegistry。load / refresh_all（定期実行用の一括fetch）/
@@ -84,7 +84,7 @@ src/
 │   │   └── format.rs  … 出力整形（display_chunks / response_for_ai / make_title / 分割）
 │   └── fk_data_search/ … ★FK情報検索ドメインのDTO+検索ロジック（bot にも api にも依存しない。
 │       │                  Python fkDatabase/fkDataSearch.py 相当）
-│       ├── mod.rs     … FkDataSearchEngine（outer_source::fk_data の1時間TTL読み取り駆動更新。
+│       ├── mod.rs     … FkDataSearchEngine（external_source::fk_data の1時間TTL読み取り駆動更新。
 │       │                daily refresh_allとは別軸）、FkDataView（fk_data+operator_data+skill_data
 │       │                のスナップショットを束ねてsearch/autocompleteを提供）
 │       ├── dto.rs     … FkSearchResult（OperatorNotFound/NeedsSkillSelection/SkillNotFound/Found）
@@ -142,7 +142,7 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 │                                 `ref_python/.../dump_charmaterials_golden.py`で生成し、
 │                                 bot/commands/operator_cost_calc の golden_tests が実ネットワーク
 │                                 テスト(#[ignore])で突き合わせる。詳細は下記ポイント参照
-└── seed/                      … outer_source の Seed（`cargo run --bin regen_seeds` で
+└── seed/                      … external_source の Seed（`cargo run --bin regen_seeds` で
                                    生成し、git commitして含めておく。詳細は下記ポイント参照）
     ├── operator_data.json
     ├── operator_names.json    … 旧operator_names.rsが残したSeed。operator_data統合後は
@@ -152,7 +152,7 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     └── fk_data.json
 ```
 
-依存方向: recruit / outer_source は何にも依存しない純粋ロジック。bot と api が
+依存方向: recruit / external_source は何にも依存しない純粋ロジック。bot と api が
 これらに依存する。これにより求人計算ロジックや外部情報を bot でも web API でも共有できる。
 
 ## 設計上の重要ポイント（壊さないこと）
@@ -168,17 +168,17 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   HashSet に変えない。
 - **fancy-regex を使う理由**: matcher.rs の `(?!上級)`（否定先読み）が標準 regex
   では書けないため。標準 regex に置き換えないこと。
-- **outer_source の fetch 失敗ポリシー**: 起動時fetch失敗 → Seedがあれば使用、
+- **external_source の fetch 失敗ポリシー**: 起動時fetch失敗 → Seedがあれば使用、
   無ければ panic。起動後の再fetch失敗 → 直前のメモリを保持して継続（panicしない）。
   この非対称性（起動時はpanicし得る／再fetchはしない）を崩さないこと。
 - **Seedは実行時に書き込まない**: Heroku 等は実行時のファイル書き込みが dyno
   再起動・再デプロイで揮発するため、`Source` は起動時に Seed を**読む**だけで、
   fetch成功時に書き戻すことはしない。Seedの更新は `cargo run --bin regen_seeds`
-  （main.rs 非依存の独立ツール。`engine/outer_source/mod.rs` の `SEED_JOBS` を
+  （main.rs 非依存の独立ツール。`engine/external_source/mod.rs` の `SEED_JOBS` を
   順に実行して `data/seed/*.json` を書き換える）を手元で実行し、差分を
   `git commit`/`push` してリポジトリに含める運用。push前に思い出したタイミングで
   都度実行すればよい（自動化はしていない）。
-- **fetchの共通戦略**: `engine/outer_source/http.rs` の `client()` /
+- **fetchの共通戦略**: `engine/external_source/http.rs` の `client()` /
   `fetch_json_with_retry()`（7sタイムアウト・最大10回リトライ）が全情報源共通。
   新しい情報源を足すときもこれを使い、fetch fn ごとに個別のタイムアウト/リトライ
   ロジックを実装しないこと。
@@ -190,13 +190,13 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   value_target に無い項目（SoC芯片等）を「その時点の挿入順」で安定ソートするため、これを
   崩すと表示順がPython版と食い違う（実例: モジュール消費のデータ補完チップ/マシンが複数
   種類同時に出るケース）。`HashMap`や`BTreeMap`に戻さないこと。
-- **skill_data の説明文組み立てはPython版と意図的に異なる**: `engine/outer_source/skill_data/description.rs`
+- **skill_data の説明文組み立てはPython版と意図的に異なる**: `engine/external_source/skill_data/description.rs`
   はPython `SkillIdToName.SkillItem`のblackboard置換を再現するが、Python版の`cleanStr`副作用
   （数値フォーマット指定子の小数点を巻き込んで壊す/`chain.max_target`を`max_target`へ誤統合する）
   は踏襲せず実データに即して正しく表示する。理由の詳細は`description.rs`冒頭コメント参照。
 - **skill_table.json の`spData.spType`は数値が混じる**: CNデータの一部スキル(PASSIVE中心に
   600件超、2024年時点で確認済み。例: イネスのスキル3)は`spType`が文字列でなく数値(`8`等)に
-  なっている。`engine/outer_source/skill_data/raw.rs`の`RawSpData::sp_type`は`string_or_number`
+  なっている。`engine/external_source/skill_data/raw.rs`の`RawSpData::sp_type`は`string_or_number`
   という独自deserializerで両方を受け付ける。ここを`String`型のまま厳格にderiveすると、該当スキル
   1件全体（name/descriptionを含む）がdeserialize失敗で丸ごと`SkillData`から欠落し、
   `SkillData::get_str`が"Missing"を返す（Python版はduck typingのため欠落しない）。`String`型に
@@ -204,7 +204,7 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 - **operator_cost_calc は説明文をembedに表示していない**: `SkillData::get_description`は用意済みだが、
   skillMasterCostのembedへの表示はまだ配線していない（スコープ外）。表示したくなったら
   `bot/commands/operator_cost_calc/operatormastercost.rs`から呼べばよい。
-- **fk_data の1時間TTLは日次refresh_allと別軸**: `engine/outer_source/fk_data.rs`は
+- **fk_data の1時間TTLは日次refresh_allと別軸**: `engine/external_source/fk_data.rs`は
   `OuterSourceRegistry::refresh_all`（日次バッチ）の対象に含めていない。代わりに
   `engine/fk_data_search::FkDataSearchEngine`が読み取り駆動（コマンド呼び出し時に前回チェックから
   1時間経過していれば再fetch）でTTL管理する（Python `FKInfo.getInfoFromName`のポーリング方式を踏襲）。

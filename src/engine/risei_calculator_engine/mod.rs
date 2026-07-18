@@ -14,7 +14,7 @@ pub use search::{MaterialSearchResult, MaterialStageInfo, StageCategoryEfficienc
 pub use server::Server;
 pub use stage::StageItem;
 
-use crate::engine::external_source::OuterSourceRegistry;
+use crate::engine::external_source::ExternalSourceRegistry;
 use calculator::Calculator;
 use chrono::Utc;
 use stage_info::{CategoryInstance, DEFAULT_SHOW_MIN_TIMES};
@@ -43,7 +43,7 @@ pub struct RiseiCalculatorEngine {
 
 impl RiseiCalculatorEngine {
     /// 起動時に一度だけ両サーバ分をロード＆計算する。
-    pub async fn load(outer_source: &OuterSourceRegistry) -> Result<Self, Error> {
+    pub async fn load(outer_source: &ExternalSourceRegistry) -> Result<Self, Error> {
         let static_data = StaticData::load()?;
         let global = build_calculator(Server::Global, outer_source, &static_data).await?;
         let mainland = build_calculator(Server::Mainland, outer_source, &static_data).await?;
@@ -64,7 +64,7 @@ impl RiseiCalculatorEngine {
     /// キャッシュが古ければ ark_stages/ark_matrix を再fetchしてから丸ごと再計算する
     /// （Python `Calculator.tryReInit`相当。再計算に失敗した場合は既存の値を
     /// 保持したまま継続する。`outer_source::Source::refresh`と同じ方針）。
-    async fn ensure_fresh(&self, server: Server, outer_source: &OuterSourceRegistry) {
+    async fn ensure_fresh(&self, server: Server, outer_source: &ExternalSourceRegistry) {
         let stale = {
             let calc = self.lock_for(server).read().await;
             Utc::now() - calc.last_updated > chrono::Duration::minutes(CACHE_MINUTES)
@@ -85,7 +85,7 @@ impl RiseiCalculatorEngine {
 
     /// 表示・検索に必要な情報一式のスナップショットを取得する
     /// （必要ならキャッシュ更新してから）。
-    pub async fn snapshot(&self, server: Server, outer_source: &OuterSourceRegistry) -> EngineSnapshot {
+    pub async fn snapshot(&self, server: Server, outer_source: &ExternalSourceRegistry) -> EngineSnapshot {
         self.ensure_fresh(server, outer_source).await;
         let calc = self.lock_for(server).read().await;
         EngineSnapshot {
@@ -110,7 +110,7 @@ impl RiseiCalculatorEngine {
 
 async fn build_calculator(
     server: Server,
-    outer_source: &OuterSourceRegistry,
+    outer_source: &ExternalSourceRegistry,
     static_data: &StaticData,
 ) -> Result<Calculator, Error> {
     let item_names = outer_source.item_names.get().await;
@@ -208,7 +208,7 @@ impl EngineSnapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::external_source::OuterSourceRegistry;
+    use crate::engine::external_source::ExternalSourceRegistry;
 
     /// 実ネットワークに対して起動時ロード〜線形連立方程式の解決〜基準マップ収束・
     /// ステージ検索まで一通り動くかの疎通確認。`cargo test -- --ignored` で明示実行する。
@@ -217,7 +217,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn load_and_solve_against_real_network() {
-        let outer_source = OuterSourceRegistry::load().await;
+        let outer_source = ExternalSourceRegistry::load().await;
         let engine = RiseiCalculatorEngine::load(&outer_source)
             .await
             .expect("engine should build against real network data");
