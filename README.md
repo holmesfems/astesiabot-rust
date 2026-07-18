@@ -3,7 +3,7 @@
 アークナイツF鯖用の便利Discord bot「アステシアちゃん」の Rust 移植版です。
 [poise](https://github.com/serenity-rs/poise)/[serenity](https://github.com/serenity-rs/serenity) による Discord bot と、
 [axum](https://github.com/tokio-rs/axum) による Web API を1プロセスで並行稼働させています。
-元は Python 実装（[RiseiCalculatorBot-main](ref_python/RiseiCalculatorBot-main)）で、機能・出力を1文字レベルで一致させながら移植しています。
+元は Python 実装（[RiseiCalculatorBot-main](https://github.com/holmesfems/RiseiCalculatorBot-main)）
 
 ## Features
 
@@ -31,7 +31,7 @@ src/
 ├── lib.rs     … ライブラリクレート本体（api / bot / engine）
 ├── main.rs    … エントリポイント。起動時に外部情報をロードし、bot と API を並行起動
 ├── engine/    … bot・APIどちらにも依存しない純粋ロジック層
-│   ├── outer_source/       … 外部サイト情報のレジストリ（キャッシュ + Seedフォールバック）
+│   ├── external_source/       … 外部サイト情報のレジストリ（キャッシュ + Seedフォールバック）
 │   ├── operator_cost_calc/ … オペレーター消費素材ドメイン
 │   ├── recruit/            … 求人タグ計算ドメイン
 │   └── fk_data_search/     … FK情報検索ドメイン

@@ -45,9 +45,9 @@ async fn main() {
     let recruit_engine = engine::recruit::RecruitEngine::load().expect("求人データのロードに失敗");
     let moderation = ModerationState::from_env();
     // 外部サイト情報も起動時に一括fetch（失敗時の扱いは Source::load 参照）。
-    let outer_source = engine::external_source::ExternalSourceRegistry::load().await;
+    let external_source = engine::external_source::ExternalSourceRegistry::load().await;
     // 理性価値表もここで一括計算（グローバル版・大陸版とも）。
-    let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
+    let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&external_source)
         .await
         .expect("理性価値表の初期計算に失敗");
     let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
