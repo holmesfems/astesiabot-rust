@@ -10,7 +10,7 @@
             "equipment_name": "精錬炉",
             "cycle_seconds": 2,
             "outputs": [
-              { "item": "銅塊", "qty": 1 },
+              { "item": "赤銅塊", "qty": 1 },
               { "item": "汚水", "qty": 1 }
             ],
             "inputs": [
@@ -24,7 +24,7 @@
         "raw_items": ["銅鉱石", "水"],
         "external_supplies": []
       },
-      "default_target_item": "銅塊",
+      "default_target_item": "赤銅塊",
       "default_target_rate_per_min": 30
     },
     {
@@ -64,7 +64,7 @@
             "equipment_name": "ガス固体変換",
             "cycle_seconds": 2,
             "outputs": [{ "item": "赤銅ガス", "qty": 1 }],
-            "inputs": [{ "item": "銅塊", "qty": 2 }],
+            "inputs": [{ "item": "赤銅塊", "qty": 2 }],
             "operating_costs": [{ "item": "息壌ガス", "rate_per_min": 6 }]
           },
           {
@@ -107,7 +107,7 @@
             "cycle_seconds": 2,
             "outputs": [{ "item": "分離コア", "qty": 2 }],
             "inputs": [
-              { "item": "銅塊", "qty": 2 },
+              { "item": "赤銅塊", "qty": 2 },
               { "item": "息壌", "qty": 1 }
             ],
             "operating_costs": []
@@ -130,13 +130,74 @@
           "r5_bunri_core",
           "r6_sokujou_gas"
         ],
-        "raw_items": ["銅塊", "息壌"],
+        "raw_items": ["赤銅塊", "息壌"],
         "external_supplies": [
           { "item": "息壌ガス", "max_rate_per_min": 24 }
         ]
       },
       "default_target_item": "焔銅塊",
       "default_target_rate_per_min": 30
+    },
+    {
+      "name": "ガス式重息壌",
+      "recipe_set": {
+        "recipes": [
+          {
+            "id": "hg1_sokujou_gas",
+            "name": "息壌ガス化",
+            "equipment_name": "ガス固体変換",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "息壌ガス", "qty": 1 }],
+            "inputs": [{ "item": "息壌", "qty": 1 }],
+            "operating_costs": [{ "item": "息壌ガス", "rate_per_min": 6 }]
+          },
+          {
+            "id": "hg2_bunri_core",
+            "name": "分離コア成形",
+            "equipment_name": "成形機包装機",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "分離コア", "qty": 2 }],
+            "inputs": [
+              { "item": "赤銅塊", "qty": 2 },
+              { "item": "息壌", "qty": 1 }
+            ],
+            "operating_costs": []
+          },
+          {
+            "id": "hg3_juusokujou_gas",
+            "name": "重息壌ガス精製",
+            "equipment_name": "精製機(安定環境)",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "重息壌ガス", "qty": 1 }],
+            "inputs": [
+              { "item": "息壌ガス", "qty": 2 },
+              { "item": "分離コア", "qty": 1 }
+            ],
+            "operating_costs": []
+          },
+          {
+            "id": "hg4_juusokujou",
+            "name": "重息壌固体化",
+            "equipment_name": "ガス固体変換",
+            "cycle_seconds": 10,
+            "outputs": [{ "item": "重息壌", "qty": 2 }],
+            "inputs": [{ "item": "重息壌ガス", "qty": 5 }],
+            "operating_costs": [{ "item": "息壌ガス", "rate_per_min": 6 }]
+          }
+        ],
+        "selected_recipe_ids": [
+          "hg1_sokujou_gas",
+          "hg2_bunri_core",
+          "hg3_juusokujou_gas",
+          "hg4_juusokujou"
+        ],
+        "raw_items": ["赤銅塊", "息壌"],
+        "external_supplies": [
+          { "item": "息壌ガス", "max_rate_per_min": 18 }
+        ]
+      },
+      "default_target_item": "重息壌",
+      "default_target_rate_per_min": 12
     }
   ]
 }

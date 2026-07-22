@@ -24,6 +24,7 @@ pub struct Input {
 }
 
 /// 稼働コスト（材料とは別枠。自己消費もここで表現し、循環扱いしない）。
+/// 材料消費/産出とは異なり稼働率を考慮せず、常に台数×rate_per_minの固定費として計算する。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperatingCost {
     pub item: String,
@@ -269,8 +270,9 @@ fn resolve_machines(
                 count as f64 * per_min(input.qty, recipe.cycle_seconds) * utilization;
         }
         for oc in &recipe.operating_costs {
-            *next_demand.entry(oc.item.clone()).or_insert(0.0) +=
-                count as f64 * oc.rate_per_min * utilization;
+            // 稼働コストは稼働率を考慮せず、配置した台数分だけ常に発生する固定費として扱う
+            // (材料消費/産出とは異なり、稼働率で按分しない)。
+            *next_demand.entry(oc.item.clone()).or_insert(0.0) += count as f64 * oc.rate_per_min;
         }
     }
 
@@ -376,7 +378,7 @@ fn build_steps(
                 .iter()
                 .map(|oc| MaterialNeed {
                     item: oc.item.clone(),
-                    rate_per_min: count as f64 * oc.rate_per_min * utilization,
+                    rate_per_min: count as f64 * oc.rate_per_min,
                 })
                 .collect();
 
@@ -846,22 +848,23 @@ mod tests {
         let result = calculate(&set, &req("焔銅塊", 12.0)).unwrap();
         assert!(result.warnings.is_empty(), "warnings: {:?}", result.warnings);
 
-        // 手計算で追跡した理論値(全レシピ2s、消費は稼働率按分後=台数×フルレート×utilizationで計算。
-        // 仕様: patch-utilization-consumption。台数がceilで確定した後方に稼働率を掛けて次段の
-        // 需要にするため、旧フルレート計算(コメントの旧値は末尾に記載)より下流需要が小さくなる):
+        // 手計算で追跡した理論値(全レシピ2s。材料消費/産出は稼働率按分後=台数×フルレート×
+        // utilizationで計算(仕様: patch-utilization-consumption)だが、稼働コストは稼働率を
+        // 考慮せず台数×フルレートの固定費として計算する(仕様: 稼働コストは稼働率非依存)):
         // r4: 焔銅塊12/min要求 -> 1台(util 12/30=0.4)。入力焔銅ガス需要=1*30*0.4=12/min。
+        //     稼働コスト息壌ガス=1*6=6/min(稼働率非依存)。
         // r3: 焔銅ガス12/min要求 -> 1台(util 12/30=0.4)。入力: 緋銅ガス=1*60*0.4=24/min、
         //     息壌ガス=1*30*0.4=12/min。
         // r2: 緋銅ガス24/min要求 -> 1台(util 24/60=0.4)。入力: 赤銅ガス=1*60*0.4=24/min、
         //     分離コア=1*30*0.4=12/min。
-        // r1: 赤銅ガス24/min要求 -> 1台(util 24/30=0.8。旧フルレート計算では60/min要求で2台
-        //     必要だったが、下流r2の需要自体が按分で24/minに縮むため1台で足りる)。
-        //     入力: 銅塊=1*60*0.8=48/min。稼働コスト息壌ガス=1*6*0.8=4.8/min。
+        // r1: 赤銅ガス24/min要求 -> 1台(util 24/30=0.8)。入力: 銅塊=1*60*0.8=48/min。
+        //     稼働コスト息壌ガス=1*6=6/min(稼働率非依存)。
         // r5: 分離コア12/min要求、1台あたり産出60/min(2個/2s) -> need=12/60=0.2->1台(util 0.2)。
         //     入力: 銅塊=1*60*0.2=12/min、息壌=1*30*0.2=6/min。
-        // r6: 息壌ガス需要(r1:4.8+r3:12+r4:2.4=19.2) + 自己消費(1台*6*util) -> 収束点は
-        //     demand=24, required_float=24/30=0.8 -> 1台(util 0.8)。入力: 息壌=1*30*0.8=24/min。
-        // 銅塊総需要=48(r1)+12(r5)=60/min。息壌総需要=6(r5)+24(r6)=30/min。
+        // r6: 息壌ガス需要(r1:6+r3:12+r4:6=24) + 自己消費(1台*6=6、稼働率非依存) -> 収束点は
+        //     demand=30, required_float=30/30=1.0 -> 1台(util 1.0、ちょうど満稼働)。
+        //     入力: 息壌=1*30*1.0=30/min。稼働コスト息壌ガス=1*6=6/min。
+        // 銅塊総需要=48(r1)+12(r5)=60/min。息壌総需要=6(r5)+30(r6)=36/min。
         assert_eq!(step_for(&result, "r4_enrou_katamari").machine_count, 1);
         assert_eq!(step_for(&result, "r3_enrou_gas").machine_count, 1);
         assert_eq!(step_for(&result, "r2_hidou_gas").machine_count, 1);
@@ -869,14 +872,14 @@ mod tests {
         assert_eq!(step_for(&result, "r5_bunri_core").machine_count, 1);
         assert!((step_for(&result, "r5_bunri_core").utilization - 0.2).abs() < 1e-4);
         assert_eq!(step_for(&result, "r6_sokujou_gas").machine_count, 1);
+        assert!((step_for(&result, "r6_sokujou_gas").utilization - 1.0).abs() < 1e-4);
 
         assert!((need_for(&result.raw_materials, "銅塊").rate_per_min - 60.0).abs() < 1e-4);
-        assert!((need_for(&result.raw_materials, "息壌").rate_per_min - 30.0).abs() < 1e-4);
+        assert!((need_for(&result.raw_materials, "息壌").rate_per_min - 36.0).abs() < 1e-4);
         assert!(result.byproduct_surplus.is_empty());
 
-        // 律速はr1(util≈0.8)。r6もutil≈0.8で肉薄するが、r6は自己消費の反復収束による
-        // ごく僅かな残差でr1よりわずかに低くなるため、r1が採用される。
-        assert_eq!(result.bottleneck.as_deref(), Some("赤銅ガス生成"));
+        // 律速はr6(util=1.0、稼働コストが稼働率非依存の固定費になったことでちょうど満稼働になる)。
+        assert_eq!(result.bottleneck.as_deref(), Some("息壌ガス化"));
 
         // equipment_nameがCalcStepまで伝播していること(表示用フィールドの配線確認)。
         assert_eq!(step_for(&result, "r1_akadou_gas").equipment_name, "ガス固体変換");
