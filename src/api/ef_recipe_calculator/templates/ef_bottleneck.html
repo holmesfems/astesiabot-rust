@@ -1,0 +1,6 @@
+<h3>律速工程</h3>
+{% if let Some(name) = bottleneck %}
+<p><strong>{{ name }}</strong> が律速工程です(稼働率が最も高い)。</p>
+{% else %}
+<p class="muted">まだ計算していません。</p>
+{% endif %}

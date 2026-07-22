@@ -1,0 +1,241 @@
+:root {
+  --bg: #12161f;
+  --card: #1b2030;
+  --card-alt: #232a3d;
+  --text: #eef1ff;
+  --muted: #9aa3c7;
+  --accent: #6fd6a8;
+  --error: #ff6b6b;
+  --border: rgba(255, 255, 255, 0.10);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container { max-width: 1200px; margin: 0 auto; padding: 18px; }
+h1, h2, h3 { margin: 0 0 10px; }
+.muted { color: var(--muted); }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.full { grid-column: 1 / -1; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.form { display: grid; gap: 12px; }
+input, select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* <option>のドロップダウンはOS/ブラウザネイティブ描画(背景white)になることが多く、
+   select側のcolor: var(--text)(ほぼ白)を継承すると白背景に白文字で見えなくなる。
+   optionだけ明示的に濃色文字/明るい背景を指定して読めるようにする。 */
+select option {
+  color: #0b1020;
+  background-color: #ffffff;
+}
+
+button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 0;
+  background: var(--accent);
+  color: #0b1020;
+  font-weight: 700;
+  cursor: pointer;
+}
+button.secondary {
+  background: rgba(255,255,255,0.10);
+  color: var(--text);
+}
+button.danger {
+  background: var(--error);
+  color: #200;
+}
+button.small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.error {
+  margin-top: 12px;
+  color: var(--text);
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th { color: var(--muted); font-weight: 600; }
+
+@media (max-width: 960px) {
+  .grid { grid-template-columns: 1fr; }
+  .full { grid-column: auto; }
+}
+
+/* ==== ツールバー ==== */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.toolbar-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  flex: 1 1 240px;
+}
+.inline select { width: auto; }
+
+/* ==== プリセット検索コンボボックス(Discordのコマンド入力風) ==== */
+.combobox {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
+}
+.combobox-input { width: 100%; }
+.combobox-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+.combobox-suggestion-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.combobox-suggestion-item:hover,
+.combobox-suggestion-item.active {
+  background: rgba(255, 255, 255, 0.10);
+}
+.combobox-suggestion-empty {
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.file-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.10);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+}
+.file-btn:hover { background: rgba(255,255,255,0.16); }
+
+/* ==== レシピエディタ ==== */
+.recipe-list { display: grid; gap: 12px; }
+.recipe-card {
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+.recipe-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.recipe-card-head input[type="text"] { flex: 1 1 220px; }
+.recipe-card-head input[type="number"] { flex: 0 0 100px; }
+.recipe-select-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.cycle-quick { display: inline-flex; gap: 4px; }
+
+.field-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.field-group h4 { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+.item-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.item-row input[type="text"] { flex: 1 1 auto; }
+.item-row input[type="number"] { flex: 0 0 90px; }
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  min-height: 24px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+.chip button {
+  padding: 0 4px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.row-list { display: grid; gap: 6px; margin-bottom: 10px; }

@@ -1,0 +1,41 @@
+<h3>工程</h3>
+{% if steps.is_empty() %}
+<p class="muted">まだ計算していません。</p>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th>レシピ</th>
+      <th>装置</th>
+      <th>台数</th>
+      <th>律速産出</th>
+      <th>稼働率</th>
+      <th>段数</th>
+      <th>産出(実効/min)</th>
+      <th>材料消費(/min)</th>
+      <th>稼働コスト(/min)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for step in steps %}
+    <tr>
+      <td>{{ step.recipe_name }}</td>
+      <td>{{ step.equipment_name }}</td>
+      <td>{{ step.machine_count }}</td>
+      <td>{{ step.limiting_output }}</td>
+      <td>{{ step.utilization_pct }}%</td>
+      <td>{{ step.depth }}</td>
+      <td>
+        {% for o in step.outputs %}{{ o.item }}: {{ o.rate }}/min<br>{% endfor %}
+      </td>
+      <td>
+        {% for i in step.inputs %}{{ i.item }}: {{ i.rate }}/min<br>{% endfor %}
+      </td>
+      <td>
+        {% for oc in step.operating %}{{ oc.item }}: {{ oc.rate }}/min<br>{% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}

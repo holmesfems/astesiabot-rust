@@ -1,3 +1,4 @@
+mod ef_recipe_calculator;
 mod recruitment;
 mod wl_battery_simulator;
 
@@ -49,6 +50,11 @@ pub async fn run_api(state: Arc<AppState>) {
             get(|| async { Redirect::permanent("/WLBatterySimulator") }),
         )
         .nest("/WLBatterySimulator", wl_battery_simulator::router())
+        .route(
+            "/EFRecipeCalculator/",
+            get(|| async { Redirect::permanent("/EFRecipeCalculator") }),
+        )
+        .nest("/EFRecipeCalculator", ef_recipe_calculator::router())
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .fallback(not_found)
         .with_state(state);

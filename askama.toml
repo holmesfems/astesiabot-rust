@@ -1,2 +1,2 @@
 [general]
-dirs = ["src/api/wl_battery_simulator/templates"]
+dirs = ["src/api/wl_battery_simulator/templates", "src/api/ef_recipe_calculator/templates"]

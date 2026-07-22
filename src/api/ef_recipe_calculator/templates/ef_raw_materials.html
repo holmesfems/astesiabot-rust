@@ -1,0 +1,10 @@
+<h3>原料の総所要レート</h3>
+{% if materials.is_empty() %}
+<p class="muted">まだ計算していません。</p>
+{% else %}
+<ul>
+  {% for m in materials %}
+  <li>{{ m.item }}: <strong>{{ m.rate }}</strong>/min</li>
+  {% endfor %}
+</ul>
+{% endif %}

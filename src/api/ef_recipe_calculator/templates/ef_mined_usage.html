@@ -1,0 +1,10 @@
+<h3>採掘供給の使用状況</h3>
+{% if usages.is_empty() %}
+<p class="muted">採掘供給の使用はありません。</p>
+{% else %}
+<ul>
+  {% for u in usages %}
+  <li>{{ u.item }}: 使用 <strong>{{ u.used }}</strong>/min ／ 余剰 {{ u.surplus }}/min ／ 上限 {{ u.cap }}/min</li>
+  {% endfor %}
+</ul>
+{% endif %}

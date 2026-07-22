@@ -1,0 +1,10 @@
+<h3>副産物の余剰</h3>
+{% if surplus.is_empty() %}
+<p class="muted">副産物の余剰はありません。</p>
+{% else %}
+<ul>
+  {% for s in surplus %}
+  <li>{{ s.item }}: <strong>{{ s.rate }}</strong>/min(消費されず余る量)</li>
+  {% endfor %}
+</ul>
+{% endif %}

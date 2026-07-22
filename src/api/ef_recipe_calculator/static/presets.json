@@ -1,0 +1,142 @@
+{
+  "presets": [
+    {
+      "name": "銅ライン",
+      "recipe_set": {
+        "recipes": [
+          {
+            "id": "cu1",
+            "name": "銅塊生産",
+            "equipment_name": "精錬炉",
+            "cycle_seconds": 2,
+            "outputs": [
+              { "item": "銅塊", "qty": 1 },
+              { "item": "汚水", "qty": 1 }
+            ],
+            "inputs": [
+              { "item": "銅鉱石", "qty": 1 },
+              { "item": "水", "qty": 1 }
+            ],
+            "operating_costs": []
+          }
+        ],
+        "selected_recipe_ids": ["cu1"],
+        "raw_items": ["銅鉱石", "水"],
+        "external_supplies": []
+      },
+      "default_target_item": "銅塊",
+      "default_target_rate_per_min": 30
+    },
+    {
+      "name": "息壌ガス化",
+      "recipe_set": {
+        "recipes": [
+          {
+            "id": "gas1",
+            "name": "息壌ガス化",
+            "equipment_name": "ガス固体変換",
+            "cycle_seconds": 2,
+            "outputs": [
+              { "item": "息壌ガス", "qty": 1 }
+            ],
+            "inputs": [
+              { "item": "息壌", "qty": 1 }
+            ],
+            "operating_costs": [
+              { "item": "息壌ガス", "rate_per_min": 6 }
+            ]
+          }
+        ],
+        "selected_recipe_ids": ["gas1"],
+        "raw_items": ["息壌"],
+        "external_supplies": []
+      },
+      "default_target_item": "息壌ガス",
+      "default_target_rate_per_min": 24
+    },
+    {
+      "name": "焔銅塊チェーン",
+      "recipe_set": {
+        "recipes": [
+          {
+            "id": "r1_akadou_gas",
+            "name": "赤銅ガス生成",
+            "equipment_name": "ガス固体変換",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "赤銅ガス", "qty": 1 }],
+            "inputs": [{ "item": "銅塊", "qty": 2 }],
+            "operating_costs": [{ "item": "息壌ガス", "rate_per_min": 6 }]
+          },
+          {
+            "id": "r2_hidou_gas",
+            "name": "緋銅ガス精錬",
+            "equipment_name": "精錬機(安定環境)",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "緋銅ガス", "qty": 2 }],
+            "inputs": [
+              { "item": "赤銅ガス", "qty": 2 },
+              { "item": "分離コア", "qty": 1 }
+            ],
+            "operating_costs": []
+          },
+          {
+            "id": "r3_enrou_gas",
+            "name": "焔銅ガス反応",
+            "equipment_name": "気体反応装置(酸性環境)",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "焔銅ガス", "qty": 1 }],
+            "inputs": [
+              { "item": "緋銅ガス", "qty": 2 },
+              { "item": "息壌ガス", "qty": 1 }
+            ],
+            "operating_costs": []
+          },
+          {
+            "id": "r4_enrou_katamari",
+            "name": "焔銅塊固体化",
+            "equipment_name": "ガス固体変換",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "焔銅塊", "qty": 1 }],
+            "inputs": [{ "item": "焔銅ガス", "qty": 1 }],
+            "operating_costs": [{ "item": "息壌ガス", "rate_per_min": 6 }]
+          },
+          {
+            "id": "r5_bunri_core",
+            "name": "分離コア成形",
+            "equipment_name": "成形機包装機",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "分離コア", "qty": 2 }],
+            "inputs": [
+              { "item": "銅塊", "qty": 2 },
+              { "item": "息壌", "qty": 1 }
+            ],
+            "operating_costs": []
+          },
+          {
+            "id": "r6_sokujou_gas",
+            "name": "息壌ガス化",
+            "equipment_name": "ガス固体変換",
+            "cycle_seconds": 2,
+            "outputs": [{ "item": "息壌ガス", "qty": 1 }],
+            "inputs": [{ "item": "息壌", "qty": 1 }],
+            "operating_costs": [{ "item": "息壌ガス", "rate_per_min": 6 }]
+          }
+        ],
+        "selected_recipe_ids": [
+          "r1_akadou_gas",
+          "r2_hidou_gas",
+          "r3_enrou_gas",
+          "r4_enrou_katamari",
+          "r5_bunri_core",
+          "r6_sokujou_gas"
+        ],
+        "raw_items": ["銅塊", "息壌"],
+        "external_supplies": [
+          { "item": "息壌ガス", "max_rate_per_min": 24 }
+        ]
+      },
+      "default_target_item": "焔銅塊",
+      "default_target_rate_per_min": 30
+    }
+  ]
+}

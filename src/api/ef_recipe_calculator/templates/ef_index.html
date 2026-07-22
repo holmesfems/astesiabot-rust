@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>エンドフィールド レシピ計算機</title>
+  <link rel="stylesheet" href="/EFRecipeCalculator/static/style.css" />
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+  <header class="container">
+    <h1>エンドフィールド レシピ計算機</h1>
+    <p class="muted">
+      多段生産チェーンの目標産出レートから、必要中間素材・設備台数・律速工程・余剰を逆算します。
+      レシピはゲーム更新で変わるため、下のエディタで自由に追加・編集してください。
+    </p>
+  </header>
+
+  <main class="container grid">
+    <section class="card full">
+      <h2>レシピ編集</h2>
+      <div class="toolbar">
+        <button type="button" id="addRecipeBtn">+ レシピ追加</button>
+        <button type="button" id="selectAllBtn">全選択</button>
+        <span class="toolbar-sep"></span>
+        <label class="inline">
+          プリセット:
+          <div class="combobox" id="presetCombobox">
+            <input type="text" id="presetInput" class="combobox-input" placeholder="名前で検索..." autocomplete="off" />
+            <div id="presetSuggestions" class="combobox-suggestions" hidden></div>
+          </div>
+        </label>
+        <button type="button" id="loadPresetBtn">プリセット読込</button>
+        <span class="toolbar-sep"></span>
+        <button type="button" id="exportBtn">JSONエクスポート</button>
+        <label class="file-btn">
+          JSONインポート
+          <input type="file" id="importFile" accept="application/json" hidden />
+        </label>
+      </div>
+      <div id="recipeList" class="recipe-list"></div>
+    </section>
+
+    <section class="card">
+      <h2>原料の底(raw_items)</h2>
+      <p class="muted">ここに入れたアイテムは、産出レシピがあっても展開せず原料扱いにします。</p>
+      <div id="rawItemList" class="chip-list"></div>
+      <button type="button" id="addRawItemBtn">+ 追加</button>
+    </section>
+
+    <section class="card">
+      <h2>採掘供給(external_supplies)</h2>
+      <p class="muted">上限レート付きの外部固定供給です。需要から優先的に充当されます。</p>
+      <div id="externalSupplyList" class="row-list"></div>
+      <button type="button" id="addExternalSupplyBtn">+ 追加</button>
+    </section>
+
+    <section class="card">
+      <h2>目標と計算</h2>
+      <form id="calcForm" class="form"
+        hx-post="/EFRecipeCalculator/calculate"
+        hx-swap="none"
+        hx-encoding="multipart/form-data"
+      >
+        <label>目標製品(選択中レシピの産出から選ぶ)</label>
+        <select id="targetItemSelect"></select>
+
+        <label>目標レート(個/min)</label>
+        <input id="targetRateInput" type="number" min="0" step="0.01" placeholder="例: 30" required />
+
+        <input type="hidden" name="payload" id="payloadInput" />
+        <button type="button" id="calcSubmitBtn">計算する</button>
+      </form>
+
+      <div id="error" class="error" hidden="true">
+        {{ error_html|safe }}
+      </div>
+    </section>
+
+    <div id="steps" class="card full" hidden="true">
+      {{ steps_html|safe }}
+    </div>
+    <div id="raw-materials" class="card" hidden="true">
+      {{ raw_materials_html|safe }}
+    </div>
+    <div id="mined-usage" class="card" hidden="true">
+      {{ mined_usage_html|safe }}
+    </div>
+    <div id="byproduct-surplus" class="card" hidden="true">
+      {{ byproduct_surplus_html|safe }}
+    </div>
+    <div id="bottleneck" class="card" hidden="true">
+      {{ bottleneck_html|safe }}
+    </div>
+    <div id="warnings" class="card full" hidden="true">
+      {{ warnings_html|safe }}
+    </div>
+  </main>
+
+  <footer class="container muted">
+    <small>
+      プロトタイプ版につき、フィードバックと要望はこちらから:
+      <a class="muted" href="https://discord.gg/arknightsflame"
+        target="_blank" rel="noopener noreferrer">
+        https://discord.gg/arknightsflame
+      </a>
+      <br />
+      <a class="muted" href="https://github.com/holmesfems/astesiaBot-rust"
+        target="_blank" rel="noopener noreferrer">
+        GitHub
+      </a>
+      © <span id="year"></span> holmesfems. Licensed under the MIT License:
+      <a class="muted" href="https://opensource.org/license/mit/"
+        target="_blank" rel="noopener noreferrer">
+        https://opensource.org/license/mit/
+      </a>
+    </small>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script src="/EFRecipeCalculator/static/app.js"></script>
+</body>
+</html>

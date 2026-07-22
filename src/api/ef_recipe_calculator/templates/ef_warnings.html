@@ -1,0 +1,10 @@
+<h3>Warning</h3>
+{% if warnings.is_empty() %}
+<p class="muted">warningはありません。</p>
+{% else %}
+<ul>
+  {% for w in warnings %}
+  <li>{{ w }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
