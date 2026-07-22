@@ -251,8 +251,13 @@ fn resolve_machines(
 
     for (rid, &count) in &machines {
         let recipe = recipes_by_id[rid];
+        // オンデマンド生産: 切り上げで余裕のある工程は稼働率(<=1)ぶんだけしか回らない。
+        // 消費・産出はすべて台数×フルレート×稼働率で計算する(仕様: patch-utilization-consumption)。
+        let required = required_float.get(rid).copied().unwrap_or(0.0);
+        let utilization = if count > 0 { required / count as f64 } else { 0.0 };
+
         for output in &recipe.outputs {
-            let effective = count as f64 * per_min(output.qty, recipe.cycle_seconds);
+            let effective = count as f64 * per_min(output.qty, recipe.cycle_seconds) * utilization;
             let charged = output_usage.get(&output.item).copied().unwrap_or(0.0);
             let surplus = (effective - charged).max(0.0);
             if surplus > EPSILON {
@@ -261,10 +266,11 @@ fn resolve_machines(
         }
         for input in &recipe.inputs {
             *next_demand.entry(input.item.clone()).or_insert(0.0) +=
-                count as f64 * per_min(input.qty, recipe.cycle_seconds);
+                count as f64 * per_min(input.qty, recipe.cycle_seconds) * utilization;
         }
         for oc in &recipe.operating_costs {
-            *next_demand.entry(oc.item.clone()).or_insert(0.0) += count as f64 * oc.rate_per_min;
+            *next_demand.entry(oc.item.clone()).or_insert(0.0) +=
+                count as f64 * oc.rate_per_min * utilization;
         }
     }
 
@@ -354,7 +360,7 @@ fn build_steps(
                 .iter()
                 .map(|o| MaterialNeed {
                     item: o.item.clone(),
-                    rate_per_min: count as f64 * per_min(o.qty, recipe.cycle_seconds),
+                    rate_per_min: count as f64 * per_min(o.qty, recipe.cycle_seconds) * utilization,
                 })
                 .collect();
             let inputs_demand = recipe
@@ -362,7 +368,7 @@ fn build_steps(
                 .iter()
                 .map(|i| MaterialNeed {
                     item: i.item.clone(),
-                    rate_per_min: count as f64 * per_min(i.qty, recipe.cycle_seconds),
+                    rate_per_min: count as f64 * per_min(i.qty, recipe.cycle_seconds) * utilization,
                 })
                 .collect();
             let operating_demand = recipe
@@ -370,7 +376,7 @@ fn build_steps(
                 .iter()
                 .map(|oc| MaterialNeed {
                     item: oc.item.clone(),
-                    rate_per_min: count as f64 * oc.rate_per_min,
+                    rate_per_min: count as f64 * oc.rate_per_min * utilization,
                 })
                 .collect();
 
@@ -609,15 +615,16 @@ mod tests {
             recipe("r10s", 10.0, vec![output("原料2s", 2.0)], vec![input("原料10s", 1.0)]),
             recipe("r20s", 20.0, vec![output("原料10s", 1.0)], vec![input("原料20s", 2.0)]),
         ]);
-        // 製品 目標: r2s 1台分=30/min のちょうど。
+        // 製品 目標: r2s 1台分=30/min のちょうど(util=1.0)。
         let result = calculate(&set, &req("製品", 30.0)).unwrap();
         assert_eq!(step_for(&result, "r2s").machine_count, 1);
-        // 原料2s needed = 30/min。r10s per machine = 2/10*60=12/min -> ceil(30/12)=3台。
+        // 原料2s needed = 30/min。r10s per machine = 2/10*60=12/min -> ceil(30/12)=3台(util=30/36=0.8333)。
         assert_eq!(step_for(&result, "r10s").machine_count, 3);
-        // r10s 3台 -> 原料10s消費 = 3*(1/10*60)=18/min。r20s per machine=1/20*60=3/min -> ceil(18/3)=6台。
-        assert_eq!(step_for(&result, "r20s").machine_count, 6);
-        // r20s 6台 -> 原料20s消費 = 6*(2/20*60)=36/min。
-        assert!((need_for(&result.raw_materials, "原料20s").rate_per_min - 36.0).abs() < 1e-6);
+        // r10s消費(稼働率按分後) = 3*(1/10*60)*0.8333=15/min(フルレート18/minではない)。
+        // r20s per machine=1/20*60=3/min -> ceil(15/3)=5台(util=15/15=1.0ちょうど)。
+        assert_eq!(step_for(&result, "r20s").machine_count, 5);
+        // r20s 5台・util=1.0 -> 原料20s消費 = 5*(2/20*60)*1.0=30/min(旧フルレート計算では36/minだった)。
+        assert!((need_for(&result.raw_materials, "原料20s").rate_per_min - 30.0).abs() < 1e-4);
     }
 
     /// 6. 採掘控除: 採掘上限<需要のとき不足分だけレシピ生産、採掘は使い切り。
@@ -633,14 +640,16 @@ mod tests {
         set.external_supplies.push(ExternalSupply { item: "素材".to_string(), max_rate_per_min: 10.0 });
         set.raw_items.push("原料".to_string());
 
-        // 需要30/min、採掘上限10/min -> 採掘10使い切り、レシピは残り20/min分(1台=30/min出力、
-        // うち20が需要充当・10は切り上げによる副産物的surplus)。原料消費は台数(1台)基準の30/min。
+        // 需要30/min、採掘上限10/min -> 採掘10使い切り、レシピは残り20/min分(1台=30/min出力だが
+        // need=20/30=0.6667台分 -> ceil=1台・util=0.6667で稼働)。原料消費は稼働率按分後の20/min
+        // (フルレートの30/minではない。切り上げ由来の過剰原料所要が出ないことの確認)。
         let result = calculate(&set, &req("素材", 30.0)).unwrap();
         let mined = result.mined_usage.iter().find(|m| m.item == "素材").unwrap();
         assert!((mined.used_rate - 10.0).abs() < 1e-6);
         assert!((mined.surplus_rate - 0.0).abs() < 1e-6);
         assert!(result.steps.iter().any(|s| s.recipe_id == "r1"));
-        assert!((need_for(&result.raw_materials, "原料").rate_per_min - 30.0).abs() < 1e-6);
+        assert!((need_for(&result.raw_materials, "原料").rate_per_min - 20.0).abs() < 1e-4);
+        assert!(result.byproduct_surplus.is_empty());
 
         // 需要5/min、採掘上限10/min -> 採掘のみで充足、レシピ台数0(steps未登場)。
         let result2 = calculate(&set, &req("素材", 5.0)).unwrap();
@@ -837,33 +846,91 @@ mod tests {
         let result = calculate(&set, &req("焔銅塊", 12.0)).unwrap();
         assert!(result.warnings.is_empty(), "warnings: {:?}", result.warnings);
 
-        // 手計算で追跡した理論値(全レシピ2s、r5は分離コア2個/銅塊2個・息壌1個に修正済み):
-        // r4: 焔銅塊12/min要求 -> 1台(util 0.4)。r4の入力焔銅ガス需要=30/min。
-        // r3: 焔銅ガス30/min要求 -> 1台(util 1.0)。入力: 緋銅ガス60/min、息壌ガス30/min。
-        // r2: 緋銅ガス60/min要求 -> 1台(util 1.0)。入力: 赤銅ガス60/min、分離コア30/min。
-        // r1: 赤銅ガス60/min要求 -> 2台(util 1.0)。入力: 銅塊120/min。稼働コスト息壌ガス12/min。
-        // r5: 分離コア30/min要求、1台あたり産出60/min(2個/2s) -> need=0.5->1台(util 0.5)。
-        //     入力: 銅塊60/min(2個/2s×1台)、息壌30/min(1個/2s×1台)。
-        // r6: 息壌ガス需要(r1:12+r3:30+r4:6=48) + 自己消費6/台 -> 2台で収束(60/30=2.0 ceil=2)。
-        //     入力: 息壌60/min。
-        // 銅塊総需要=120(r1)+60(r5)=180/min。息壌総需要=30(r5)+60(r6)=90/min(r5の息壌比率は不変)。
+        // 手計算で追跡した理論値(全レシピ2s、消費は稼働率按分後=台数×フルレート×utilizationで計算。
+        // 仕様: patch-utilization-consumption。台数がceilで確定した後方に稼働率を掛けて次段の
+        // 需要にするため、旧フルレート計算(コメントの旧値は末尾に記載)より下流需要が小さくなる):
+        // r4: 焔銅塊12/min要求 -> 1台(util 12/30=0.4)。入力焔銅ガス需要=1*30*0.4=12/min。
+        // r3: 焔銅ガス12/min要求 -> 1台(util 12/30=0.4)。入力: 緋銅ガス=1*60*0.4=24/min、
+        //     息壌ガス=1*30*0.4=12/min。
+        // r2: 緋銅ガス24/min要求 -> 1台(util 24/60=0.4)。入力: 赤銅ガス=1*60*0.4=24/min、
+        //     分離コア=1*30*0.4=12/min。
+        // r1: 赤銅ガス24/min要求 -> 1台(util 24/30=0.8。旧フルレート計算では60/min要求で2台
+        //     必要だったが、下流r2の需要自体が按分で24/minに縮むため1台で足りる)。
+        //     入力: 銅塊=1*60*0.8=48/min。稼働コスト息壌ガス=1*6*0.8=4.8/min。
+        // r5: 分離コア12/min要求、1台あたり産出60/min(2個/2s) -> need=12/60=0.2->1台(util 0.2)。
+        //     入力: 銅塊=1*60*0.2=12/min、息壌=1*30*0.2=6/min。
+        // r6: 息壌ガス需要(r1:4.8+r3:12+r4:2.4=19.2) + 自己消費(1台*6*util) -> 収束点は
+        //     demand=24, required_float=24/30=0.8 -> 1台(util 0.8)。入力: 息壌=1*30*0.8=24/min。
+        // 銅塊総需要=48(r1)+12(r5)=60/min。息壌総需要=6(r5)+24(r6)=30/min。
         assert_eq!(step_for(&result, "r4_enrou_katamari").machine_count, 1);
         assert_eq!(step_for(&result, "r3_enrou_gas").machine_count, 1);
         assert_eq!(step_for(&result, "r2_hidou_gas").machine_count, 1);
-        assert_eq!(step_for(&result, "r1_akadou_gas").machine_count, 2);
+        assert_eq!(step_for(&result, "r1_akadou_gas").machine_count, 1);
         assert_eq!(step_for(&result, "r5_bunri_core").machine_count, 1);
-        assert!((step_for(&result, "r5_bunri_core").utilization - 0.5).abs() < 1e-6);
-        assert_eq!(step_for(&result, "r6_sokujou_gas").machine_count, 2);
+        assert!((step_for(&result, "r5_bunri_core").utilization - 0.2).abs() < 1e-4);
+        assert_eq!(step_for(&result, "r6_sokujou_gas").machine_count, 1);
 
-        assert!((need_for(&result.raw_materials, "銅塊").rate_per_min - 180.0).abs() < 1e-6);
-        assert!((need_for(&result.raw_materials, "息壌").rate_per_min - 90.0).abs() < 1e-6);
+        assert!((need_for(&result.raw_materials, "銅塊").rate_per_min - 60.0).abs() < 1e-4);
+        assert!((need_for(&result.raw_materials, "息壌").rate_per_min - 30.0).abs() < 1e-4);
+        assert!(result.byproduct_surplus.is_empty());
 
-        // 複数レシピがutilization=1.0で並ぶ中、最初にmachinesへ登場したものが律速になる
-        // (同値なら先頭を採用する仕様§4.5)。r4はutil0.4なので律速から外れる。
-        assert_eq!(result.bottleneck.as_deref(), Some("焔銅ガス反応"));
+        // 律速はr1(util≈0.8)。r6もutil≈0.8で肉薄するが、r6は自己消費の反復収束による
+        // ごく僅かな残差でr1よりわずかに低くなるため、r1が採用される。
+        assert_eq!(result.bottleneck.as_deref(), Some("赤銅ガス生成"));
 
         // equipment_nameがCalcStepまで伝播していること(表示用フィールドの配線確認)。
         assert_eq!(step_for(&result, "r1_akadou_gas").equipment_name, "ガス固体変換");
         assert_eq!(step_for(&result, "r2_hidou_gas").equipment_name, "精錬機(安定環境)");
+    }
+
+    /// 13. 稼働率消費: 切り上げで台数に余裕がある多段チェーンで、下流消費が
+    ///     「台数×フルレート」ではなく「×utilization」で計算されること。律速産出の
+    ///     実効産出がrequiredにちょうど一致し、切り上げ由来の過剰原料所要が出ないこと。
+    #[test]
+    fn utilization_scales_downstream_consumption() {
+        let set = recipe_set(vec![
+            recipe("down", 2.0, vec![output("製品", 1.0)], vec![input("中間", 1.0)]),
+            recipe("up", 2.0, vec![output("中間", 1.0)], vec![input("原料", 1.0)]),
+        ]);
+        // per machine出力=30/min。目標31/min -> need=31/30=1.0333 -> ceil=2台、util=(31/30)/2=31/60。
+        let result = calculate(&set, &req("製品", 31.0)).unwrap();
+        let down = step_for(&result, "down");
+        assert_eq!(down.machine_count, 2);
+        assert!((down.utilization - 31.0 / 60.0).abs() < 1e-6);
+        // 律速産出(製品)の実効産出はrequired(31)にちょうど一致する。
+        assert!((need_for(&down.outputs_effective, "製品").rate_per_min - 31.0).abs() < 1e-4);
+        // 下流(down)がupに要求する中間消費は、フルレート(2*30=60)ではなくutilization按分後の31。
+        assert!((need_for(&down.inputs_demand, "中間").rate_per_min - 31.0).abs() < 1e-4);
+
+        // upも同じ需要31/minを受けて同様にceil=2台・util=0.5相当で稼働し、原料所要は
+        // フルレート(60)ではなく31になる(切り上げ由来の過剰原料所要が出ない)。
+        let up = step_for(&result, "up");
+        assert_eq!(up.machine_count, 2);
+        assert!((need_for(&result.raw_materials, "原料").rate_per_min - 31.0).abs() < 1e-4);
+        assert!(result.byproduct_surplus.is_empty());
+    }
+
+    /// 14. 回帰確認: 産出比由来の副産物余剰は、律速側がutilization<1で稼働していても
+    ///     消えずに残ること(ゼロ除算や誤った消去をしていないことの確認)。
+    #[test]
+    fn byproduct_surplus_persists_with_partial_utilization() {
+        let cu = recipe(
+            "cu",
+            2.0,
+            vec![output("銅塊", 1.0), output("汚水", 3.0)],
+            vec![input("銅鉱石", 1.0), input("水", 1.0)],
+        );
+        let set = recipe_set(vec![cu]);
+        // 銅塊のみ31/min要求。per machine=30/min -> ceil(31/30)=2台、util=31/60=0.51666...
+        let result = calculate(&set, &req("銅塊", 31.0)).unwrap();
+        let step = step_for(&result, "cu");
+        assert_eq!(step.machine_count, 2);
+        assert!((step.utilization - 31.0 / 60.0).abs() < 1e-6);
+        // 銅塊(律速産出)はちょうどrequiredに一致し余剰0。
+        assert!((need_for(&step.outputs_effective, "銅塊").rate_per_min - 31.0).abs() < 1e-4);
+        // 汚水は誰も要求していないので全量surplusだが、値はutilization按分後
+        // (2台*90/min*31/60 = 93.0)であり、フルレート(180.0)でもゼロでもない。
+        let surplus = need_for(&result.byproduct_surplus, "汚水");
+        assert!((surplus.rate_per_min - 93.0).abs() < 1e-4);
     }
 }
