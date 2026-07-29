@@ -15,6 +15,10 @@ pub struct OcrEmbedResult {
 /// Python bot の embed 表示に対応。recruit は計算だけを担い、
 /// Discord embed への詰め替えは bot 側（koukai_kyujin）の責務とする。
 pub fn build_embed_reply(engine: &RecruitEngine, ocr_text: &str) -> OcrEmbedResult {
+    println!("[recruit OCR]: {} lines", ocr_text.lines().count());
+    for (i, line) in ocr_text.lines().enumerate() {
+        println!("  [{i:>2}] {line:?}");
+    }
     let matched = engine.matcher.match_tag(ocr_text);
     if matched.matches.is_empty() {
         return OcrEmbedResult {

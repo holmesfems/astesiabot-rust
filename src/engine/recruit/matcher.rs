@@ -29,6 +29,7 @@ impl Matcher {
             serde_yaml::from_str(&std::fs::read_to_string("data/recruitment/tagZhToJa.yaml")?)?;
 
         // ja_extra（Python の __jaExtraDict）。順序が意味を持つので Vec で保持。
+        // 怪しいやつは後ろに置く。
         let ja_extra = compile_pairs(&[
             (r"範[围圍囲困匯田]攻[擊撃]", "範囲攻撃"),
             (r"(?!上級)(..?)?ー下", "エリート"),
@@ -43,11 +44,11 @@ impl Matcher {
             (r"上級エリード", "上級エリート"),
             (r"エリード", "エリート"),
             (r"特殊..?.?", "特殊"),
-            (r"[35]{2}1t", "弱化"),
             (r"、弁】", "爆発力"),
             (r"[匠近]距[离離]", "近距離"),
             (r"[攴支][扶援]", "支援"),
             (r"[術市]師...?", "術師"),
+            (r"[35]{2}1[6t]", "弱化"),
         ])?;
 
         let zh_extra = compile_pairs(&[(r"費用回复", "COST回復"), (r"治疔", "治療")])?;
@@ -160,8 +161,8 @@ impl Matcher {
                 continue;
             }
             let hit = result.iter().any(|text| {
-                matches_at_start(re, text)
-                    || text.split(' ').any(|part| matches_at_start(re, part))
+                matches_fully(re, text)
+                    || text.split(' ').any(|part| matches_fully(re, part))
             });
             if hit {
                 ret.insert(value.clone());
@@ -171,10 +172,10 @@ impl Matcher {
     }
 }
 
-/// Python の re.match（先頭一致）相当。fancy-regex では find の結果が
-/// 位置0から始まるかで判定する。エラー時は false 扱い。
-fn matches_at_start(re: &Regex, text: &str) -> bool {
-    matches!(re.find(text), Ok(Some(m)) if m.start() == 0)
+/// 完全一致判定。fancy-regex では find の結果が文字列全体を覆っているかで
+/// 判定する。エラー時は false 扱い。
+fn matches_fully(re: &Regex, text: &str) -> bool {
+    matches!(re.find(text), Ok(Some(m)) if m.start() == 0 && m.end() == text.len())
 }
 
 /// (パターン文字列, 置換先) の配列をコンパイル済みペアに変換。
