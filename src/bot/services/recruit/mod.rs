@@ -14,12 +14,15 @@ use poise::serenity_prelude as serenity;
 const TAG_COUNT_GUIDANCE: &str =
     "タグが欠けているようね。上の計算結果に足りないタグを日本語でリプすれば、再計算させていただきますわ。";
 
-/// 実画像（width/height を持つ添付）があるか。Python の `not file.width or not file.height`
+/// 実画像（width/height を持つ添付）か。Python の `not file.width or not file.height`
 /// によるスキップと同じ判定。
+fn is_image_attachment(a: &serenity::Attachment) -> bool {
+    a.width.is_some() && a.height.is_some()
+}
+
+/// 実画像の添付が1枚以上あるか。
 fn has_image(msg: &serenity::Message) -> bool {
-    msg.attachments
-        .iter()
-        .any(|a| a.width.is_some() && a.height.is_some())
+    msg.attachments.iter().any(is_image_attachment)
 }
 
 fn has_text(msg: &serenity::Message) -> bool {
@@ -27,7 +30,8 @@ fn has_text(msg: &serenity::Message) -> bool {
 }
 
 /// 公開求人チャンネルのメッセージ振り分け。
-/// - 画像のみ → OCRフロー（trigger への正式リプライとして送信）
+/// - 画像のみ → OCRフロー（画像添付ごとに独立処理し、それぞれ trigger への
+///   正式リプライとして送信）
 /// - テキストあり（画像の有無を問わない） → 編集フロー（画像は無視、trigger への正式リプライとして送信）
 /// - どちらも無し → 何もしない
 ///
@@ -44,7 +48,7 @@ pub async fn handle(ctx: &serenity::Context, msg: &serenity::Message, data: &Dat
         return Ok(());
     }
     if has_image(msg) {
-        if let Some(outcome) = ocr_flow::build(msg, data).await? {
+        for outcome in ocr_flow::build(msg, data).await? {
             reply_embed_reply(ctx, msg, &outcome.reply).await?;
             if outcome.needs_guidance {
                 reply_plain_text(ctx, msg, TAG_COUNT_GUIDANCE).await?;
