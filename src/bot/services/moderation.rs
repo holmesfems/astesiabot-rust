@@ -31,12 +31,55 @@ fn contains_link(re: &Regex, text: &str) -> bool {
     matches!(re.is_match(text), Ok(true))
 }
 
-/// 検知した連投/爆撃の種別。3層構造（検知/ディスパッチ/実行）の検知層が返す。
+/// 検知した処断の種別。3層構造（検知/ディスパッチ/実行）の検知層が返す。
+/// 優先度: TrapChannel > MassMention > MultiChannel > SameChannel > None
+/// （複数該当し得るのは稀だが、その場合も1つの理由に絞って処断する）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SpamKind {
     None,
+    TrapChannel,
+    MassMention,
     MultiChannel,
     SameChannel,
+}
+
+/// 管理者が処断対象になった場合の扱い。
+enum AdminPolicy {
+    /// 正常系として完全に無視する（通報もしない）。
+    Ignore,
+    /// 処断は見送るが、乗っ取りの可能性があるため通報だけする。
+    ReportOnly,
+}
+
+impl SpamKind {
+    fn reason(self) -> Option<&'static str> {
+        match self {
+            SpamKind::None => None,
+            SpamKind::TrapChannel => Some("罠チャンネルでスパム的メッセージを検出しました"),
+            SpamKind::MassMention => Some("通常チャットで非管理者による全体通知を検出しました"),
+            SpamKind::MultiChannel => Some("短時間に複数チャンネルへの投稿を検出しました"),
+            SpamKind::SameChannel => Some("短時間に同一チャンネルへの連投を検出しました"),
+        }
+    }
+
+    /// MassMention（配信宣伝など管理者による正常系）だけ完全無視。それ以外は
+    /// 本来管理者が起こり得ない事象なので、乗っ取りの早期警報として通報だけ行う。
+    fn admin_policy(self) -> AdminPolicy {
+        match self {
+            SpamKind::MassMention | SpamKind::None => AdminPolicy::Ignore,
+            SpamKind::TrapChannel | SpamKind::MultiChannel | SpamKind::SameChannel => {
+                AdminPolicy::ReportOnly
+            }
+        }
+    }
+}
+
+/// 検知層の結果。delete は kind と独立している（罠チャンネル在籍なら内容に
+/// 関わらず常に削除するが、BAN対象コンテンツが無ければ kind は別の理由
+/// （またはNone）になり得るため）。
+struct Detection {
+    delete: bool,
+    kind: SpamKind,
 }
 
 /// bot 起動中ずっと保持するモデレーション用の可変状態。AppState から共有される。
@@ -88,126 +131,48 @@ pub fn user_is_admin(ctx: &serenity::Context, msg: &serenity::Message) -> bool {
         .administrator()
 }
 
-/// モデレーションの入口。罠チャンネル削除・全体通知BAN・連投/爆撃検知を順に走らせる。
-/// true を返したら、このメッセージは処断済み（呼び出し側は以降の処理を打ち切ってよい）。
+/// モデレーションの入口。罠チャンネル削除・全体通知BAN・連投/爆撃検知を検知層(detect)で
+/// 一括判定し、ディスパッチ層(dispatch)へ渡す。true を返したら、このメッセージは
+/// 処断済み（呼び出し側は以降の処理を打ち切ってよい）。
 pub async fn handle(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
     user_is_admin: bool,
 ) -> Result<bool, Error> {
-    if auto_deletion(ctx, msg, state, user_is_admin).await? {
-        return Ok(true);
-    }
-
-    let kind = detect_rate_spam(state, msg);
-    handle_rate_spam(ctx, msg, state, kind, user_is_admin).await
+    let detection = detect(state, msg);
+    dispatch(ctx, msg, state, detection, user_is_admin).await
 }
 
-// ===== 罠チャンネルの自動削除・BAN =====
+// ===== 検知層（純粋なロジック。detect_rate_spamの履歴更新以外は副作用なし） =====
 
-async fn auto_deletion(
-    ctx: &serenity::Context,
-    msg: &serenity::Message,
-    state: &ModerationState,
-    user_is_admin: bool,
-) -> Result<bool, Error> {
-    if state.autodel_channels.contains(&msg.channel_id) {
-        // 罠チャンネルは管理者の発言も削除する（人間がしゃべる想定の場所ではない）
-        msg.delete(ctx).await?;
-        auto_ban_in_auto_deletion(ctx, msg, state, user_is_admin).await?;
-        Ok(true)
-    } else {
-        auto_notice_and_ban(ctx, msg, state, user_is_admin).await
-    }
-}
-
-async fn auto_ban_in_auto_deletion(
-    ctx: &serenity::Context,
-    msg: &serenity::Message,
-    state: &ModerationState,
-    user_is_admin: bool,
-) -> Result<bool, Error> {
+fn has_banned_content(state: &ModerationState, msg: &serenity::Message) -> bool {
     let content_lower = msg.content.to_lowercase();
-    let has_link = contains_link(&state.url_re, &msg.content);
-    let has_banword = BANWORDS.iter().any(|word| content_lower.contains(word));
-    if !has_link && !has_banword {
-        return Ok(false);
-    }
-
-    // 管理者は処断せず通報のみ。罠チャンネルに管理者の発言が来ること自体が異常で、
-    // 乗っ取りの早期警報として意味がある。
-    if user_is_admin {
-        create_report(
-            ctx,
-            state,
-            "罠チャンネルでスパム的メッセージを検出しましたが、管理者ロール保持のため自動BANは見送りました。アカウント乗っ取りの可能性を確認してください。",
-            Some(msg),
-            &[msg.channel_id],
-        )
-        .await?;
-        return Ok(false);
-    }
-
-    if let Some(guild_id) = msg.guild_id {
-        guild_id
-            .ban_with_reason(
-                &ctx.http,
-                msg.author.id,
-                7,
-                "Auto-banned by the Astesia bot for sending spam messages",
-            )
-            .await?;
-    }
-    create_report(
-        ctx,
-        state,
-        "スパムメッセージを検出したので、自動BANを実行しました。",
-        Some(msg),
-        &[msg.channel_id],
-    )
-    .await?;
-    Ok(true)
+    contains_link(&state.url_re, &msg.content)
+        || BANWORDS.iter().any(|word| content_lower.contains(word))
 }
 
-// ===== 全体監視：非管理者の全体通知を検知 =====
+fn detect(state: &ModerationState, msg: &serenity::Message) -> Detection {
+    let is_trap_channel = state.autodel_channels.contains(&msg.channel_id);
+    let trap_banned = is_trap_channel && has_banned_content(state, msg);
 
-async fn auto_notice_and_ban(
-    ctx: &serenity::Context,
-    msg: &serenity::Message,
-    state: &ModerationState,
-    user_is_admin: bool,
-) -> Result<bool, Error> {
-    // 管理者の全体通知は配信宣伝などの正常系なので、検知対象から外す
-    if user_is_admin {
-        return Ok(false);
+    // detect_rate_spam は履歴更新の副作用を持つため、他の判定結果に関わらず必ず呼ぶ
+    // （罠チャンネル投稿や全体通知も連投/爆撃検知のカウントに含める）。
+    let rate_kind = detect_rate_spam(state, msg);
+
+    let kind = if trap_banned {
+        SpamKind::TrapChannel
+    } else if msg.mention_everyone {
+        SpamKind::MassMention
+    } else {
+        rate_kind
+    };
+
+    Detection {
+        delete: is_trap_channel,
+        kind,
     }
-    // 非管理者が mention_everyone=true にできる時点で異常（@everyone/@here どちらでもtrue）
-    if !msg.mention_everyone {
-        return Ok(false);
-    }
-    if let Some(guild_id) = msg.guild_id {
-        guild_id
-            .ban_with_reason(
-                &ctx.http,
-                msg.author.id,
-                7,
-                "Auto-banned by the Astesia bot for sending spam messages",
-            )
-            .await?;
-    }
-    create_report(
-        ctx,
-        state,
-        "通常チャットで非管理者による全体通知を検出しました。自動BANを実行しました",
-        Some(msg),
-        &[msg.channel_id],
-    )
-    .await?;
-    Ok(true)
 }
-
-// ===== レート制御：検知層（純粋にロジックのみ。処断はしない） =====
 
 // 注: タイムアウト反映前の遅延メッセージで再発火し、通報が重複することがある。
 //     実害はない（タイムアウトは冪等、purgeは空振り）ため許容している。
@@ -250,43 +215,64 @@ fn detect_rate_spam(state: &ModerationState, msg: &serenity::Message) -> SpamKin
     }
 }
 
-// ===== レート制御：ディスパッチ層（管理者分岐・種類分岐） =====
+// ===== ディスパッチ層（管理者分岐。処断アクションの選択はexecuteへ委譲） =====
 
-async fn handle_rate_spam(
+async fn dispatch(
+    ctx: &serenity::Context,
+    msg: &serenity::Message,
+    state: &ModerationState,
+    detection: Detection,
+    user_is_admin: bool,
+) -> Result<bool, Error> {
+    if detection.delete {
+        // 罠チャンネルは管理者の発言も削除する（人間がしゃべる想定の場所ではない）
+        msg.delete(ctx).await?;
+    }
+
+    let Some(reason) = detection.kind.reason() else {
+        return Ok(detection.delete);
+    };
+
+    if user_is_admin {
+        if let AdminPolicy::ReportOnly = detection.kind.admin_policy() {
+            create_report(
+                ctx,
+                state,
+                &format!(
+                    "{reason}が、管理者ロール保持のため自動処断は見送りました。アカウント乗っ取りの可能性を確認してください。"
+                ),
+                Some(msg),
+                &[msg.channel_id],
+            )
+            .await?;
+        }
+        return Ok(detection.delete);
+    }
+
+    execute(ctx, msg, state, detection.kind, reason).await?;
+    Ok(true)
+}
+
+// ===== 実行層（種類ごとの差し替え可能なアクション） =====
+
+// TODO: 誤検知が無いと確認できたら、MultiChannel/SameChannel も ban_and_report へ
+//       差し替え可能。検知層・ディスパッチ層には触れず、ここのmatch armを
+//       変えるだけでよい。
+async fn execute(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
     kind: SpamKind,
-    user_is_admin: bool,
-) -> Result<bool, Error> {
-    let reason = match kind {
-        SpamKind::None => return Ok(false),
-        SpamKind::MultiChannel => "短時間に複数チャンネルへの投稿を検出しました",
-        SpamKind::SameChannel => "短時間に同一チャンネルへの連投を検出しました",
-    };
-
-    // 管理者は処断せず通報のみ（正規管理者が引っかかる想定はなく、乗っ取りの早期警報）。
-    if user_is_admin {
-        create_report(
-            ctx,
-            state,
-            &format!(
-                "{reason}が、管理者ロール保持のため処断は見送りました。アカウント乗っ取りの可能性を確認してください。"
-            ),
-            Some(msg),
-            &[msg.channel_id],
-        )
-        .await?;
-        return Ok(false);
+    reason: &str,
+) -> Result<(), Error> {
+    match kind {
+        SpamKind::TrapChannel | SpamKind::MassMention => ban_and_report(ctx, msg, state, reason).await,
+        SpamKind::MultiChannel | SpamKind::SameChannel => {
+            mute_and_report(ctx, msg, state, kind, reason).await
+        }
+        SpamKind::None => Ok(()),
     }
-
-    // TODO: 誤検知が無いと確認できたら、種類ごとに ban_and_report へ差し替え可能。
-    //       検知層（detect_rate_spam）には触れず、この分岐の呼び先を変えるだけでよい。
-    mute_and_report(ctx, msg, state, kind, reason).await?;
-    Ok(true)
 }
-
-// ===== レート制御：実行層（差し替え可能なアクション） =====
 
 async fn mute_and_report(
     ctx: &serenity::Context,
@@ -336,9 +322,8 @@ async fn mute_and_report(
     Ok(())
 }
 
-/// 将来、誤検知ゼロを確認できた系統をBANに切り替えるための受け皿。
-/// 検知層・ディスパッチ層は変えず、handle_rate_spam の呼び先をここに差し替えるだけでよい。
-#[allow(dead_code)]
+/// TrapChannel/MassMention の実処断。MultiChannel/SameChannel を将来BANに
+/// 切り替える場合も、この関数をそのまま execute の呼び先に使う。
 async fn ban_and_report(
     ctx: &serenity::Context,
     msg: &serenity::Message,
