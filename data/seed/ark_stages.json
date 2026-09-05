@@ -50529,48 +50529,7 @@
     {
       "apCost": 9,
       "code": "AD-1",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30011"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30061"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30031"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30021"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30041"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30051"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 154500.0,
       "stageId": "act43side_01_rep",
       "stageType": "ACTIVITY",
@@ -50579,6 +50538,222 @@
     {
       "apCost": 9,
       "code": "AD-2",
+      "dropInfos": [],
+      "minClearTime": 148000.0,
+      "stageId": "act43side_02_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act43sre_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "AD-3",
+      "dropInfos": [],
+      "minClearTime": 125000.0,
+      "stageId": "act43side_03_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act43sre_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "AD-4",
+      "dropInfos": [],
+      "minClearTime": 163000.0,
+      "stageId": "act43side_04_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act43sre_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "AD-5",
+      "dropInfos": [],
+      "minClearTime": 142000.0,
+      "stageId": "act43side_05_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act43sre_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "AD-6",
+      "dropInfos": [],
+      "minClearTime": 180000.0,
+      "stageId": "act43side_06_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act43sre_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "AD-7",
+      "dropInfos": [],
+      "minClearTime": 214000.0,
+      "stageId": "act43side_07_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act43sre_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "AD-8",
+      "dropInfos": [],
+      "minClearTime": 127000.0,
+      "stageId": "act43side_08_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act43sre_zone1"
+    },
+    {
+      "apCost": 9,
+      "code": "TO-1",
+      "dropInfos": [],
+      "minClearTime": 201000.0,
+      "stageId": "act53side_01",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 9,
+      "code": "TO-2",
+      "dropInfos": [],
+      "minClearTime": 150000.0,
+      "stageId": "act53side_02",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 9,
+      "code": "TO-3",
+      "dropInfos": [],
+      "minClearTime": 185000.0,
+      "stageId": "act53side_03",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "TO-4",
+      "dropInfos": [],
+      "minClearTime": 168000.0,
+      "stageId": "act53side_04",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "TO-5",
+      "dropInfos": [],
+      "minClearTime": 171000.0,
+      "stageId": "act53side_05",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "TO-6",
+      "dropInfos": [],
+      "minClearTime": 192000.0,
+      "stageId": "act53side_06",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "TO-7",
+      "dropInfos": [],
+      "minClearTime": 182000.0,
+      "stageId": "act53side_07",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "TO-8",
+      "dropInfos": [],
+      "minClearTime": 239000.0,
+      "stageId": "act53side_08",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "TO-9",
+      "dropInfos": [],
+      "minClearTime": 236000.0,
+      "stageId": "act53side_09",
+      "stageType": "ACTIVITY",
+      "zoneId": "act53side_zone1"
+    },
+    {
+      "apCost": 9,
+      "code": "AT-1",
+      "dropInfos": [],
+      "minClearTime": 117000.0,
+      "stageId": "act44side_01_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act44sre_zone1"
+    },
+    {
+      "apCost": 9,
+      "code": "AT-2",
+      "dropInfos": [],
+      "minClearTime": 173000.0,
+      "stageId": "act44side_02_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act44sre_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "AT-3",
+      "dropInfos": [],
+      "minClearTime": 177000.0,
+      "stageId": "act44side_03_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act44sre_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "AT-4",
+      "dropInfos": [],
+      "minClearTime": 185000.0,
+      "stageId": "act44side_04_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act44sre_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "AT-5",
+      "dropInfos": [],
+      "minClearTime": 153000.0,
+      "stageId": "act44side_05_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act44sre_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "AT-6",
+      "dropInfos": [],
+      "minClearTime": 192000.0,
+      "stageId": "act44side_06_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act44sre_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "AT-7",
+      "dropInfos": [],
+      "minClearTime": 186000.0,
+      "stageId": "act44side_07_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act44sre_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "AT-8",
+      "dropInfos": [],
+      "minClearTime": 254000.0,
+      "stageId": "act44side_08_rep",
+      "stageType": "ACTIVITY",
+      "zoneId": "act44sre_zone1"
+    },
+    {
+      "apCost": 9,
+      "code": "SR-1",
       "dropInfos": [
         {
           "dropType": "NORMAL_DROP",
@@ -50621,22 +50796,38 @@
           "itemId": null
         }
       ],
-      "minClearTime": 148000.0,
-      "stageId": "act43side_02_rep",
+      "minClearTime": 44000.0,
+      "stageId": "act54side_01",
       "stageType": "ACTIVITY",
-      "zoneId": "act43sre_zone1"
+      "zoneId": "act54side_zone1"
     },
     {
-      "apCost": 12,
-      "code": "AD-3",
+      "apCost": 9,
+      "code": "SR-2",
       "dropInfos": [
         {
           "dropType": "NORMAL_DROP",
-          "itemId": "30012"
+          "itemId": "30011"
         },
         {
           "dropType": "NORMAL_DROP",
-          "itemId": "30062"
+          "itemId": "30061"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30031"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30021"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30041"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30051"
         },
         {
           "dropType": "FURNITURE",
@@ -50655,14 +50846,14 @@
           "itemId": null
         }
       ],
-      "minClearTime": 125000.0,
-      "stageId": "act43side_03_rep",
+      "minClearTime": 101000.0,
+      "stageId": "act54side_02",
       "stageType": "ACTIVITY",
-      "zoneId": "act43sre_zone1"
+      "zoneId": "act54side_zone1"
     },
     {
       "apCost": 12,
-      "code": "AD-4",
+      "code": "SR-3",
       "dropInfos": [
         {
           "dropType": "NORMAL_DROP",
@@ -50670,7 +50861,7 @@
         },
         {
           "dropType": "NORMAL_DROP",
-          "itemId": "30052"
+          "itemId": "30022"
         },
         {
           "dropType": "FURNITURE",
@@ -50689,14 +50880,48 @@
           "itemId": null
         }
       ],
-      "minClearTime": 163000.0,
-      "stageId": "act43side_04_rep",
+      "minClearTime": 74000.0,
+      "stageId": "act54side_03",
       "stageType": "ACTIVITY",
-      "zoneId": "act43sre_zone1"
+      "zoneId": "act54side_zone1"
     },
     {
       "apCost": 12,
-      "code": "AD-5",
+      "code": "SR-4",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30032"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30042"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 67000.0,
+      "stageId": "act54side_04",
+      "stageType": "ACTIVITY",
+      "zoneId": "act54side_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "SR-5",
       "dropInfos": [
         {
           "dropType": "NORMAL_DROP",
@@ -50704,7 +50929,7 @@
         },
         {
           "dropType": "NORMAL_DROP",
-          "itemId": "30032"
+          "itemId": "30022"
         },
         {
           "dropType": "FURNITURE",
@@ -50723,18 +50948,18 @@
           "itemId": null
         }
       ],
-      "minClearTime": 142000.0,
-      "stageId": "act43side_05_rep",
+      "minClearTime": 47000.0,
+      "stageId": "act54side_05",
       "stageType": "ACTIVITY",
-      "zoneId": "act43sre_zone1"
+      "zoneId": "act54side_zone1"
     },
     {
       "apCost": 21,
-      "code": "AD-6",
+      "code": "SR-6",
       "dropInfos": [
         {
           "dropType": "NORMAL_DROP",
-          "itemId": "30063"
+          "itemId": "31073"
         },
         {
           "dropType": "FURNITURE",
@@ -50753,18 +50978,18 @@
           "itemId": null
         }
       ],
-      "minClearTime": 180000.0,
-      "stageId": "act43side_06_rep",
+      "minClearTime": 164000.0,
+      "stageId": "act54side_06",
       "stageType": "ACTIVITY",
-      "zoneId": "act43sre_zone1"
+      "zoneId": "act54side_zone1"
     },
     {
       "apCost": 21,
-      "code": "AD-7",
+      "code": "SR-7",
       "dropInfos": [
         {
           "dropType": "NORMAL_DROP",
-          "itemId": "30033"
+          "itemId": "31053"
         },
         {
           "dropType": "FURNITURE",
@@ -50783,18 +51008,18 @@
           "itemId": null
         }
       ],
-      "minClearTime": 214000.0,
-      "stageId": "act43side_07_rep",
+      "minClearTime": 61000.0,
+      "stageId": "act54side_07",
       "stageType": "ACTIVITY",
-      "zoneId": "act43sre_zone1"
+      "zoneId": "act54side_zone1"
     },
     {
       "apCost": 21,
-      "code": "AD-8",
+      "code": "SR-8",
       "dropInfos": [
         {
           "dropType": "NORMAL_DROP",
-          "itemId": "31023"
+          "itemId": "30043"
         },
         {
           "dropType": "FURNITURE",
@@ -50813,10 +51038,10 @@
           "itemId": null
         }
       ],
-      "minClearTime": 127000.0,
-      "stageId": "act43side_08_rep",
+      "minClearTime": 17000.0,
+      "stageId": "act54side_08",
       "stageType": "ACTIVITY",
-      "zoneId": "act43sre_zone1"
+      "zoneId": "act54side_zone1"
     }
   ]
 }
