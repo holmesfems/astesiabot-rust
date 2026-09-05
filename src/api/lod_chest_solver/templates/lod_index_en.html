@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phantom Ship Chest Solver | The Legend of Dragoon</title>
+<meta name="description" content="Solver for the treasure chest puzzle on the Phantom Ship in The Legend of Dragoon. Works out the next 3-digit code from the four digits the ghosts tell you, or from all of 000–999.">
+<link rel="canonical" href="{{ base }}/LodChestSolver/en">
+<link rel="alternate" hreflang="ja" href="{{ base }}/LodChestSolver">
+<link rel="alternate" hreflang="en" href="{{ base }}/LodChestSolver/en">
+<link rel="alternate" hreflang="x-default" href="{{ base }}/LodChestSolver">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Phantom Ship Chest Solver">
+<meta property="og:description" content="The Legend of Dragoon. Works out the next 3-digit code to enter.">
+<meta property="og:url" content="{{ base }}/LodChestSolver/en">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ja_JP">
+<link rel="stylesheet" href="/LodChestSolver/static/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Phantom Ship Chest Solver",
+  "url": "{{ base }}/LodChestSolver/en",
+  "inLanguage": "en",
+  "applicationCategory": "GameApplication",
+  "operatingSystem": "Web",
+  "isAccessibleForFree": true,
+  "description": "Solver for the treasure chest puzzle on the Phantom Ship in The Legend of Dragoon."
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="pageHead">
+    <div>
+      <h1>LoD Phantom Ship Chest Solver</h1>
+      <p class="sub">The Legend of Dragoon — Phantom Ship treasure chest opener</p>
+    </div>
+    <a class="langToggle" href="/LodChestSolver" hreflang="ja" lang="ja">日本語</a>
+  </div>
+
+  <!-- ============ setup ============ -->
+  <section class="window" id="setup">
+    <fieldset>
+      <legend>Did you talk to the ghosts?</legend>
+      <div class="choice">
+        <button type="button" id="modeHint" aria-pressed="true">
+          Yes<small>Enter their four digits</small>
+        </button>
+        <button type="button" id="modeBlind" aria-pressed="false">
+          No<small>Search all of 000–999</small>
+        </button>
+      </div>
+      <div class="hintrow" id="hintRow">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="Ghost digit 1">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="Ghost digit 2">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="Ghost digit 3">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="Ghost digit 4">
+      </div>
+    </fieldset>
+    <button class="primary" id="startBtn">Start</button>
+  </section>
+
+  <!-- ============ main ============ -->
+  <section class="window" id="play" hidden>
+    <p class="caption" id="caption">Enter this code</p>
+    <input id="codeInput" type="text" inputmode="numeric" maxlength="3"
+           aria-label="Code to enter" autocomplete="off">
+    <p class="editnote">Entered something else? Edit this before recording the result</p>
+
+    <div class="readout" id="readout"></div>
+
+    <div class="verdict">
+      <button type="button" class="v-hit"  id="btnHit">...<span>At least one digit in place</span></button>
+      <button type="button" class="v-miss" id="btnMiss"># more times<span>No digit in place</span></button>
+    </div>
+    <button type="button" class="v-open" id="btnOpen">It opened</button>
+
+    <p class="alts" id="alts" hidden></p>
+    <p class="busy" id="busy" hidden>Finding the best guess…</p>
+  </section>
+
+  <!-- ============ result ============ -->
+  <section class="window" id="result" hidden></section>
+
+  <!-- ============ history ============ -->
+  <section class="window" id="logBox" hidden>
+    <p class="caption">History (tap a result to flip it, × to delete)</p>
+    <ol class="log" id="log"></ol>
+    <details id="poolBox">
+      <summary>Show remaining codes</summary>
+      <div class="pool" id="pool"></div>
+    </details>
+  </section>
+
+  <div class="foot" id="foot" hidden>
+    <button type="button" class="reset" id="resetBtn">Start over</button>
+    <button type="button" class="reset ghost" id="setupBtn">Change setup</button>
+  </div>
+
+  <footer>
+    <a href="https://github.com/holmesfems/astesiaBot-rust"
+      target="_blank" rel="noopener noreferrer">GitHub</a>
+    ｜ © <span id="year"></span> holmesfems. Licensed under the
+    <a href="https://opensource.org/license/mit/"
+      target="_blank" rel="noopener noreferrer">MIT License</a>
+  </footer>
+</div>
+
+<script type="module">
+  import { initUi } from "/LodChestSolver/static/ui.js";
+
+  // Only the strings built at runtime. Static labels live in the markup above.
+  initUi({
+    hit: "...",
+    miss: "# more times",
+    open: "It opened",
+    captionTry: n => `Enter this code (try ${n})`,
+    readoutLeft: n => `<b>${n}</b> codes left`,
+    readoutSplit: (nh, nm) => `\`...\` → <b>${nh}</b> / \`more times\` → <b>${nm}</b>`,
+    worstN: n => `<b>${n}</b> more tries at worst`,
+    worstAtLeastN: n => `at least <b>${n}</b> more tries`,
+    altsPrefix: "Just as good: ",
+    nothingYet: "Nothing entered yet",
+    flipResult: "Flip this result",
+    deleteTry: n => `Delete try ${n}`,
+    poolSummary: n => `Show remaining codes (${n})`,
+    noCandidates: "No codes left",
+    noCandidatesBody: "You may have flipped a result, or the trap fired and the code was re-rolled.",
+    answerIs: code => `The code is ${code}`,
+    answerBody: "Enter it and the chest opens.",
+    opened: "Opened",
+    openedBody: n => `Solved in ${n} tries.`,
+  });
+</script>
+</body>
+</html>

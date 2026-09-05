@@ -90,14 +90,28 @@ src/
 │       ├── dto.rs     … FkSearchResult（OperatorNotFound/NeedsSkillSelection/SkillNotFound/Found）
 │       └── search.rs  … resolve（オペレーター名+スキル指定→FkSearchResult）、autocomplete
 ├── api/
-│   ├── mod.rs             … axum。AppState、run_api
+│   ├── mod.rs             … axum。AppState、run_api、base_url()（canonical/hreflang/sitemap用の
+│   │                        絶対URL起点）、/robots.txt・/sitemap.xml
 │   ├── recruitment.rs     … POST /recruitment/ （Python の doRecruitment と完全一致）
-│   └── wl_battery_simulator/ … 武陵発電制御シミュレーター（askama + htmx の Web UI）
-│       ├── mod.rs        … ルーター（index/calculate/static配信）
-│       ├── battery_sim.rs… シミュレーションエンジン（Python版 batterySim.py 移植）
-│       ├── optimizer.rs  … 図面ごとの最適化（Python版 optimizer.py 移植。最大発電量超は按分計算）
-│       ├── templates/    … index/result/chart/error.html
-│       └── static/       … css/画像/tutorial html
+│   ├── wl_battery_simulator/ … 武陵発電制御シミュレーター（askama + htmx の Web UI）
+│   │   ├── mod.rs        … ルーター（index/calculate/static配信）
+│   │   ├── battery_sim.rs… シミュレーションエンジン（Python版 batterySim.py 移植）
+│   │   ├── optimizer.rs  … 図面ごとの最適化（Python版 optimizer.py 移植。最大発電量超は按分計算）
+│   │   ├── templates/    … index/result/chart/error.html
+│   │   └── static/       … css/画像/tutorial html
+│   ├── ef_recipe_calculator/ … エンドフィールド レシピ計算機（askama + htmx の Web UI）
+│   │   ├── mod.rs        … ルーター。フォームは RecipeSet + CalcRequest を単一 payload(JSON文字列)で受ける
+│   │   ├── solver.rs     … 計算エンジン（純粋関数。RecipeSet + CalcRequest -> CalcResult。
+│   │   │                   アルゴリズム詳細は EFRecipeCalculator.md §4 参照）
+│   │   ├── templates/    … ef_index.html ほかフラグメント（ef_* 前置。理由は下記ポイント参照）
+│   │   └── static/       … app.js / style.css / presets.json
+│   └── lod_chest_solver/  … 幽霊船 宝箱ソルバー（レジェンド オブ ドラグーン。アークナイツ外の単発ツール）
+│       ├── mod.rs        … ルーター。"/"=ja / "/en"=en / "/static"=ServeDir。
+│       │                   言語ごとに別URL・別HTML（1URL=1言語。理由は下記ポイント参照）
+│       ├── templates/    … lod_index.html（ja）/ lod_index_en.html（en）。
+│       │                   静的ラベルはmarkupに直書き＋SEOタグ（canonical/hreflang/OG/JSON-LD）
+│       └── static/       … engine.js（純粋ソルバー。DOM非依存）/ ui.js（DOM描画。文言は
+│                           initUi(strings)で各ページから受け取る）/ style.css（言語共通）
 └── bot/
     ├── mod.rs     … run_bot(token, state)。setup() で ChannelRouting::from_env()・
     │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn
@@ -218,6 +232,20 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   （`lines_match_with_adjacent_swap_tolerance`）。ゲームデータ更新でランキング内容自体が
   変わった場合は`ref_python/RiseiCalculatorBot-main/dump_charmaterials_golden.py`を再実行して
   `data/golden/operator_cost_calc/*.json`を更新すること（`regen_seeds`もセットで実行）。
+- **askama.toml の dirs はフラットに解決される**: テンプレートは登録済みディレクトリ横断で
+  ファイル名だけで引かれるため、名前が衝突すると解決が曖昧になる。モジュールごとに
+  前置する（`ef_*` / `lod_*`）。`index.html` のような素の名前は wl_battery_simulator の
+  ものと衝突するので新規モジュールでは使わない。
+- **lod_chest_solver は言語ごとに別URL・別HTML**: 実行時にJSで文言を差し替える方式
+  （localStorage / navigator.language での判定）は採らない。クローラに両言語の中身を
+  見せるのが目的なので、静的ラベルは各言語テンプレートのmarkupに直書きし、動的に
+  組み立てる文言だけを `initUi(strings)` で ui.js に渡す。計算層（`static/engine.js`。
+  DOM非依存）と表現層（`static/ui.js`）は言語間で共有する。Accept-Language による
+  自動振り分けもしない（1URL=1言語を崩すとクローラ側で重複扱いされ得る）。
+- **canonical/hreflang/sitemap の絶対URLは `api/mod.rs` の `base_url()` に集約**:
+  `PUBLIC_BASE_URL`（任意。独自ドメインへ寄せたい場合に設定）があればそれを優先し、
+  無ければ `X-Forwarded-Proto` + `Host` から組み立てる（Heroku等は手前でTLSを終端するため、
+  schemeをヘッダから見ないとhttpになる）。SEO用のURLを足すときも個別にホスト名を書かない。
 
 ## 動作確認手順
 
@@ -239,6 +267,15 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
    ```
    → title と reply（responseForAI 形式）が返れば OK
 5. Discord の求人チャンネルに求人画面のスクショを貼る → embed で結果表示
+6. Web UI:
+   - `http://localhost:3000/WLBatterySimulator`
+   - `http://localhost:3000/EFRecipeCalculator`
+   - `http://localhost:3000/LodChestSolver`（日本語）/ `/LodChestSolver/en`（英語）
+   - `http://localhost:3000/robots.txt` / `/sitemap.xml`
+
+askama はテンプレートをバイナリに埋め込むので、`templates/*.html` を直しても
+**再ビルド＋再起動しないと反映されない**（`static/*` の css/js はリロードで反映）。
+サーバーを起動したまま `cargo build` すると exe のロックで失敗する（os error 5）。
 
 Seedの更新（push前に思い出したら）: `cargo run --bin regen_seeds`。
 `data/seed/*.json` が更新されるので `git status` で差分を確認して commit/push する。

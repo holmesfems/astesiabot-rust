@@ -1,0 +1,185 @@
+:root{
+  --abyss:#070d24;
+  --hull:#101c46;
+  --hull-lit:#1b2c66;
+  --rule:#4a5f9e;
+  --edge:#93aade;
+  --paper:#e8edfb;
+  --faint:#8093c4;
+  --wisp:#79e2d0;      /* 「・・・」＝当たりあり */
+  --ember:#d4794a;     /* 「アト○カイ」＝全外れ */
+  --gold:#f0c674;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(120% 80% at 50% -10%, #16255c 0%, transparent 60%),
+    var(--abyss);
+  color:var(--paper);
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,
+    system-ui,-apple-system,sans-serif;
+  font-size:15px;
+  line-height:1.7;
+  min-height:100vh;
+  padding:28px 16px 64px;
+}
+.wrap{max-width:560px;margin:0 auto}
+
+h1{
+  font-size:17px;font-weight:600;letter-spacing:.14em;
+  margin:0;color:var(--edge);
+}
+/* 補足説明の有無で本体までの間隔が変わらないよう、下の余白は .pageHead 側に持たせる
+   （日本語版はタイトルだけ、英語版はタイトル＋補足説明） */
+.sub{margin:4px 0 0;color:var(--faint);font-size:13px}
+
+/* ---- 言語切替（アドレスで切り替えるので単なるリンク） ---- */
+.pageHead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+/* タイトル側は縮んで内部で折り返させる。素のflex項目だとmax-content幅が基準になり、
+   日本語のサブタイトル（英語版より長い）で行があふれてボタンが下に落ちる。
+   基準幅を260pxにしておくと、狭い画面では従来どおりボタンが下へ回る。 */
+.pageHead > div{flex:1 1 260px;min-width:0}
+.langToggle{
+  flex:0 0 auto;display:inline-block;padding:6px 12px;
+  border:1px solid var(--rule);border-radius:3px;
+  color:var(--edge);font:600 12px/1 inherit;letter-spacing:.05em;
+  text-decoration:none;white-space:nowrap;
+}
+.langToggle:hover{background:rgba(147,170,222,.1)}
+
+/* JRPGのメッセージウィンドウ風 */
+.window{
+  border:2px solid var(--edge);
+  border-radius:4px;
+  background:linear-gradient(180deg,rgba(27,44,102,.92),rgba(10,18,48,.94));
+  box-shadow:inset 0 0 0 1px rgba(147,170,222,.22), 0 10px 34px rgba(0,0,0,.55);
+  padding:20px;
+}
+.window + .window{margin-top:14px}
+
+/* ---- 設定 ---- */
+fieldset{border:0;margin:0;padding:0}
+legend{padding:0;font-size:13px;color:var(--faint);margin-bottom:10px}
+.choice{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.choice button{
+  flex:1 1 200px;text-align:left;padding:11px 14px;
+  border:1px solid var(--rule);border-radius:3px;background:transparent;
+  color:var(--paper);font:inherit;cursor:pointer;
+}
+.choice button small{display:block;color:var(--faint);font-size:12px}
+.choice button[aria-pressed="true"]{
+  border-color:var(--gold);background:rgba(240,198,116,.1);
+}
+.hintrow{display:flex;gap:10px;align-items:center;margin-bottom:18px}
+.hintrow input{
+  width:52px;height:56px;text-align:center;
+  font:500 26px/1 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color:var(--paper);background:rgba(7,13,36,.7);
+  border:1px solid var(--rule);border-radius:3px;
+}
+.hintrow[hidden]{display:none}
+
+button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{
+  outline:2px solid var(--gold);outline-offset:2px;
+}
+
+.primary{
+  width:100%;padding:13px;border:1px solid var(--gold);border-radius:3px;
+  background:rgba(240,198,116,.14);color:var(--gold);
+  font:600 15px/1 inherit;letter-spacing:.1em;cursor:pointer;
+}
+.primary:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---- 本体 ---- */
+.caption{font-size:12px;color:var(--faint);margin:0 0 10px}
+#codeInput{
+  display:block;width:100%;
+  font:500 62px/1 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  letter-spacing:.24em;text-indent:.24em;text-align:center;
+  color:var(--gold);background:transparent;border:0;
+  border-bottom:1px solid var(--rule);padding:2px 0 12px;
+}
+#codeInput:focus{outline:none;border-bottom-color:var(--gold)}
+.editnote{font-size:11.5px;color:var(--faint);text-align:center;margin:8px 0 0}
+
+.readout{
+  display:flex;gap:18px;justify-content:center;flex-wrap:wrap;
+  margin:16px 0 4px;font-size:13px;color:var(--faint);
+}
+.readout b{color:var(--paper);font-weight:600;font-variant-numeric:tabular-nums}
+
+.verdict{display:flex;gap:10px;margin-top:18px}
+.verdict button{
+  flex:1;padding:14px 8px;border-radius:3px;cursor:pointer;
+  font:600 15px/1.35 inherit;background:transparent;
+}
+.verdict button span{display:block;font-size:11.5px;font-weight:400;opacity:.72;margin-top:5px}
+.v-hit{border:1px solid var(--wisp);color:var(--wisp)}
+.v-miss{border:1px solid var(--ember);color:var(--ember)}
+.v-open{
+  width:100%;margin-top:10px;padding:11px;border-radius:3px;cursor:pointer;
+  border:1px solid var(--rule);background:transparent;color:var(--paper);font:inherit;
+}
+.verdict button:hover,.v-open:hover{background:rgba(147,170,222,.1)}
+
+.alts{margin-top:14px;font-size:12.5px;color:var(--faint);text-align:center}
+.alts button{
+  background:none;border:0;border-bottom:1px dotted var(--rule);
+  color:var(--edge);font:inherit;cursor:pointer;padding:0 1px;margin:0 4px;
+}
+
+/* ---- 履歴 ---- */
+ol.log{list-style:none;margin:0;padding:0;font-size:13.5px}
+ol.log li{
+  display:grid;grid-template-columns:22px 1fr auto 26px;gap:10px;align-items:baseline;
+  padding:5px 0;border-top:1px solid rgba(74,95,158,.4);
+}
+ol.log li:first-child{border-top:0}
+ol.log .n{color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums}
+ol.log .code{font:500 16px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.12em}
+ol.log .res{
+  font:inherit;font-size:12.5px;background:none;border:1px solid transparent;
+  border-radius:3px;padding:4px 8px;text-align:right;
+}
+button.res{cursor:pointer;border-color:rgba(74,95,158,.5)}
+button.res:hover{background:rgba(147,170,222,.12)}
+ol.log .hit{color:var(--wisp)}
+ol.log .miss{color:var(--ember)}
+ol.log .del{
+  background:none;border:0;color:var(--faint);font:16px/1 inherit;
+  cursor:pointer;padding:4px;border-radius:3px;
+}
+ol.log .del:hover{color:var(--ember);background:rgba(212,121,74,.12)}
+
+details{margin-top:14px;font-size:13px}
+summary{cursor:pointer;color:var(--edge)}
+.pool{
+  margin-top:10px;font:13px/2 ui-monospace,Menlo,Consolas,monospace;
+  color:var(--faint);word-spacing:.5em;max-height:190px;overflow:auto;
+}
+
+.banner{padding:16px 18px;border-radius:3px;font-size:14px}
+.banner h2{margin:0 0 6px;font-size:16px}
+.ok{border:1px solid var(--gold);background:rgba(240,198,116,.1)}
+.ok h2{color:var(--gold)}
+.bad{border:1px solid var(--ember);background:rgba(212,121,74,.1)}
+.bad h2{color:var(--ember)}
+
+.foot{margin-top:14px;display:flex;gap:10px}
+.reset{
+  flex:1;padding:11px;border:1px solid var(--rule);border-radius:3px;
+  background:transparent;color:var(--faint);font:inherit;cursor:pointer;
+}
+.reset:hover{background:rgba(147,170,222,.1);color:var(--paper)}
+.reset.ghost{flex:0 1 auto;padding:11px 16px;font-size:13px;border-color:transparent}
+.busy{text-align:center;color:var(--faint);font-size:13px;padding:6px 0}
+[hidden]{display:none !important}
+@media (prefers-reduced-motion:no-preference){
+  #codeInput{transition:color .18s ease}
+}
+
+footer{
+  margin-top:28px;text-align:center;font-size:11.5px;color:var(--faint);
+}
+footer a{color:var(--edge)}

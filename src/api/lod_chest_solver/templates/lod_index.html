@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>幽霊船宝箱ソルバー | レジェンド オブ ドラグーン</title>
+<meta name="description" content="レジェンド オブ ドラグーンの幽霊船にある数字合わせの宝箱を、最短手数で開けるためのソルバー。幽霊から聞いた4つの数字、または000〜999の総当たりから、次に入れる3桁を計算します。">
+<link rel="canonical" href="{{ base }}/LodChestSolver">
+<link rel="alternate" hreflang="ja" href="{{ base }}/LodChestSolver">
+<link rel="alternate" hreflang="en" href="{{ base }}/LodChestSolver/en">
+<link rel="alternate" hreflang="x-default" href="{{ base }}/LodChestSolver">
+<meta property="og:type" content="website">
+<meta property="og:title" content="レジェンドオブドラグーン 幽霊船宝箱ソルバー">
+<meta property="og:description" content="レジェンド オブ ドラグーン／幽霊船の数字合わせの宝箱。次に入れる3桁を計算します。">
+<meta property="og:url" content="{{ base }}/LodChestSolver">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:locale:alternate" content="en_US">
+<link rel="stylesheet" href="/LodChestSolver/static/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "レジェンドオブドラグーン 幽霊船宝箱ソルバー",
+  "url": "{{ base }}/LodChestSolver",
+  "inLanguage": "ja",
+  "applicationCategory": "GameApplication",
+  "operatingSystem": "Web",
+  "isAccessibleForFree": true,
+  "description": "レジェンド オブ ドラグーンの幽霊船にある数字合わせの宝箱を、最短手数で開けるためのソルバー。"
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="pageHead">
+    <div>
+      <h1>レジェンドオブドラグーン 幽霊船宝箱ソルバー</h1>
+    </div>
+    <a class="langToggle" href="/LodChestSolver/en" hreflang="en" lang="en">English</a>
+  </div>
+
+  <!-- ============ 設定 ============ -->
+  <section class="window" id="setup">
+    <fieldset>
+      <legend>幽霊から数字を聞きましたか</legend>
+      <div class="choice">
+        <button type="button" id="modeHint" aria-pressed="true">
+          聞いた<small>4つの数字を入れる</small>
+        </button>
+        <button type="button" id="modeBlind" aria-pressed="false">
+          聞いていない<small>000〜999から総当たり</small>
+        </button>
+      </div>
+      <div class="hintrow" id="hintRow">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="幽霊の数字1">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="幽霊の数字2">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="幽霊の数字3">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="幽霊の数字4">
+      </div>
+    </fieldset>
+    <button class="primary" id="startBtn">はじめる</button>
+  </section>
+
+  <!-- ============ 本体 ============ -->
+  <section class="window" id="play" hidden>
+    <p class="caption" id="caption">宝箱に入力する数字</p>
+    <input id="codeInput" type="text" inputmode="numeric" maxlength="3"
+           aria-label="宝箱に入力する数字" autocomplete="off">
+    <p class="editnote">別の数字を入れてしまったら、ここを書き換えてから結果を押す</p>
+
+    <div class="readout" id="readout"></div>
+
+    <div class="verdict">
+      <button type="button" class="v-hit"  id="btnHit">・・・<span>1桁以上あたり</span></button>
+      <button type="button" class="v-miss" id="btnMiss">アト○カイ<span>3桁とも外れ</span></button>
+    </div>
+    <button type="button" class="v-open" id="btnOpen">開いた</button>
+
+    <p class="alts" id="alts" hidden></p>
+    <p class="busy" id="busy" hidden>最適手を計算中…</p>
+  </section>
+
+  <!-- ============ 終了表示 ============ -->
+  <section class="window" id="result" hidden></section>
+
+  <!-- ============ 履歴 ============ -->
+  <section class="window" id="logBox" hidden>
+    <p class="caption">入力の履歴（結果を押すと入れ替え、×で削除）</p>
+    <ol class="log" id="log"></ol>
+    <details id="poolBox">
+      <summary>残っている候補を見る</summary>
+      <div class="pool" id="pool"></div>
+    </details>
+  </section>
+
+  <div class="foot" id="foot" hidden>
+    <button type="button" class="reset" id="resetBtn">最初からやり直す</button>
+    <button type="button" class="reset ghost" id="setupBtn">設定を変える</button>
+  </div>
+
+  <footer>
+    <a href="https://github.com/holmesfems/astesiaBot-rust"
+      target="_blank" rel="noopener noreferrer">GitHub</a>
+    ｜ © <span id="year"></span> holmesfems. Licensed under the
+    <a href="https://opensource.org/license/mit/"
+      target="_blank" rel="noopener noreferrer">MIT License</a>
+  </footer>
+</div>
+
+<script type="module">
+  import { initUi } from "/LodChestSolver/static/ui.js";
+
+  // 動的に組み立てるテキストだけ。静的ラベルは上のmarkupに直書き。
+  initUi({
+    hit: "・・・",
+    miss: "アト○カイ",
+    open: "開いた",
+    captionTry: n => `宝箱に入力する数字（${n}手目）`,
+    readoutLeft: n => `残り候補 <b>${n}</b> 通り`,
+    readoutSplit: (nh, nm) => `「・・・」なら <b>${nh}</b> / 「アト」なら <b>${nm}</b>`,
+    worstN: n => `最悪あと <b>${n}</b> 手`,
+    worstAtLeastN: n => `最悪あと <b>${n}</b> 手以上`,
+    altsPrefix: "ほぼ同等: ",
+    nothingYet: "まだ入力していません",
+    flipResult: "結果を入れ替える",
+    deleteTry: n => `${n}手目を削除`,
+    poolSummary: n => `残っている候補を見る（${n}通り）`,
+    noCandidates: "候補が尽きました",
+    noCandidatesBody: "「・・・」と「アト○カイ」を取り違えたか、罠が発動して暗証番号が振り直された可能性があります。やり直してください。",
+    answerIs: code => `答えは ${code}`,
+    answerBody: "これを入力すれば開きます。",
+    opened: "開錠",
+    openedBody: n => `${n}手で開きました。`,
+  });
+</script>
+</body>
+</html>
