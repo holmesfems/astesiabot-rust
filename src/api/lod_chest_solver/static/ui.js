@@ -78,6 +78,7 @@ export function initUi(s) {
     $("logBox").hidden = true;
     $("foot").hidden = true;
     $("log").innerHTML = "";
+    $("codeInput").value = "";       // 新しい宝箱では現在のダイヤル状態は無関係
   };
 
   /* --- 履歴を頭から適用し直す（履歴を編集したとき用） --- */
@@ -116,7 +117,7 @@ export function initUi(s) {
     $("caption").textContent = s.captionTry(step + 1);
 
     const compute = () => {
-      const { list, depth } = bestGuesses(cands, universeSize, 3);
+      const { list, depth } = bestGuesses(cands, universeSize, 3, currentGuess());
       $("busy").hidden = true;
       const best = list[0];
       $("codeInput").value = ALL[best.guess];

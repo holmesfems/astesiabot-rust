@@ -27,6 +27,19 @@ export function ceilLog2(n) {         // n候補を潰すのに最低限必要�
   return k;
 }
 
+// 情報量で並んだ最良手が複数（同点）あるとき、桁ごとの差分合計が最小＝
+// 物理ダイヤルの回転量が一番少ない候補を優先する最後のタイブレーク。
+// pivot（現在ダイヤルに入っている数字）が無い1手目はタイブレークなし＝0扱い。
+// ダイヤルは0〜9が輪になっているので、桁ごとの差は循環距離（0と9は1）で数える。
+function ringDigitDiff(x, y) {
+  const d = Math.abs(x - y);
+  return Math.min(d, 10 - d);
+}
+function digitDist(a, b) {
+  const da = DIG[a], db = DIG[b];
+  return ringDigitDiff(da[0], db[0]) + ringDigitDiff(da[1], db[1]) + ringDigitDiff(da[2], db[2]);
+}
+
 export function hintCandidates(hints) { // 4数字のうち3つの順列（重複数字も正しく扱う）
   const set = new Set();
   for (let a = 0; a < 4; a++)
@@ -38,7 +51,7 @@ export function hintCandidates(hints) { // 4数字のうち3つの順列（重�
 }
 
 /* --- 貪欲: 最悪ケースで残り候補が最小になる入力 --- */
-function greedyBest(cands, top) {
+function greedyBest(cands, top, pivot) {
   const n = cands.length, out = [];
   for (let g = 0; g < 1000; g++) {
     const [ga, gb, gc] = DIG[g];
@@ -52,15 +65,16 @@ function greedyBest(cands, top) {
     if (nh === n || nm === n) continue;          // 情報ゼロの入力は捨てる
     out.push({
       guess: g, nh, nm,
-      key: [Math.max(ceilLog2(nh), ceilLog2(nm)), Math.max(nh, nm), self ? 0 : 1]
+      key: [Math.max(ceilLog2(nh), ceilLog2(nm)), Math.max(nh, nm), self ? 0 : 1,
+            pivot === null ? 0 : digitDist(g, pivot)]
     });
   }
-  out.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1] || x.key[2] - y.key[2]);
+  out.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1] || x.key[2] - y.key[2] || x.key[3] - y.key[3]);
   return out.slice(0, top);
 }
 
 /* --- 厳密探索: 候補が少ないときのミニマックス --- */
-function exactBest(cands, top) {
+function exactBest(cands, top, pivot) {
   const n = cands.length;
   let budget = EXACT_BUDGET;                        // n <= 24 なのでビットは32bitに収まる
   const hitMask = new Int32Array(1000);
@@ -143,10 +157,11 @@ function exactBest(cands, top) {
       if (Math.max(ceilLog2(o.nh), ceilLog2(o.nm)) + 1 > target) continue;
       if (feasible(o.miss, target - 1) && feasible(o.hit, target - 1)) {
         good.push({ guess: o.guess, nh: o.nh, nm: o.nm,
-                    key: [Math.max(o.nh, o.nm), (FULL & selfBit[o.guess]) ? 0 : 1] });
+                    key: [Math.max(o.nh, o.nm), (FULL & selfBit[o.guess]) ? 0 : 1,
+                          pivot === null ? 0 : digitDist(o.guess, pivot)] });
       }
     }
-    good.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1]);
+    good.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1] || x.key[2] - y.key[2]);
     return { list: good.slice(0, top), depth: target };
   } catch (e) {
     if (!(e instanceof RangeError)) throw e;
@@ -154,12 +169,12 @@ function exactBest(cands, top) {
   }
 }
 
-export function bestGuesses(cands, universeSize, top) {
+export function bestGuesses(cands, universeSize, top, pivot = null) {
   if (cands.length <= EXACT_SMALL || universeSize <= EXACT_UNIVERSE) {
-    const r = exactBest(cands, top);
+    const r = exactBest(cands, top, pivot);
     if (r && r.list.length) return r;
   }
-  return { list: greedyBest(cands, top), depth: null };
+  return { list: greedyBest(cands, top, pivot), depth: null };
 }
 
 export function narrow(cands, guess, isHit) {
