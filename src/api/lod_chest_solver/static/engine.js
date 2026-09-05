@@ -95,15 +95,18 @@ function exactBest(cands, top, pivot) {
   const lo = new Map(), hi = new Map(), splitCache = new Map();
   const pc = x => { let c = 0; while (x) { x &= x - 1; c++; } return c; };
 
-  // 候補集合への効き方が同じ入力は完全に等価なので、先に1つへまとめておく
-  const uniq = [];
-  const seenG = new Set();
+  // 候補集合への効き方が同じ入力は完全に等価なので、先に1つへまとめておく。
+  // 代表は各同値クラスの中でpivotに一番近いものを選ぶ（同値クラス内の他の値は
+  // splits()に一切出てこなくなるので、ここで選ばないとタイブレークが効かない）。
+  const seenG = new Map();                          // key -> 代表g
   for (let g = 0; g < 1000; g++) {
     const key = hitMask[g] * 33554432 + selfBit[g];
-    if (seenG.has(key)) continue;
-    seenG.add(key);
-    uniq.push(g);
+    const cur = seenG.get(key);
+    if (cur === undefined || (pivot !== null && digitDist(g, pivot) < digitDist(cur, pivot))) {
+      seenG.set(key, g);
+    }
   }
+  const uniq = [...seenG.values()];
 
   function splits(S) {
     const cached = splitCache.get(S);
