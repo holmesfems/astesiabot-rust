@@ -39,13 +39,20 @@ fn duration_until_next_refresh_jst() -> std::time::Duration {
 async fn main() {
     dotenvy::dotenv().ok();
 
+    // `cargo run -- --debug`: 外部サイトへのfetchを一切行わず、常にSeed
+    // （data/seed/*.json）だけを使って起動する（デバッグ版の立ち上げ高速化用）。
+    let debug = std::env::args().any(|arg| arg == "--debug");
+    if debug {
+        println!("[debug] --debug: 外部情報はfetchせずSeedのみ使用します");
+    }
+
     let token = std::env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set");
 
     // 起動時に一度だけ求人データをロード。bot と api で共有する。
     let recruit_engine = engine::recruit::RecruitEngine::load().expect("求人データのロードに失敗");
     let moderation = ModerationState::from_env();
     // 外部サイト情報も起動時に一括fetch（失敗時の扱いは Source::load 参照）。
-    let external_source = engine::external_source::ExternalSourceRegistry::load().await;
+    let external_source = engine::external_source::ExternalSourceRegistry::load(debug).await;
     // 理性価値表もここで一括計算（グローバル版・大陸版とも）。
     let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&external_source)
         .await
@@ -62,13 +69,15 @@ async fn main() {
     });
     let bot_state = state.clone();
 
-    let refresh_state = state.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(duration_until_next_refresh_jst()).await;
-            refresh_state.external_source.refresh_all().await;
-        }
-    });
+    if !debug {
+        let refresh_state = state.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(duration_until_next_refresh_jst()).await;
+                refresh_state.external_source.refresh_all().await;
+            }
+        });
+    }
 
     println!("astesia-bot rust ready!");
 

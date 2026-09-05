@@ -50,16 +50,20 @@ pub struct ExternalSourceRegistry {
 impl ExternalSourceRegistry {
     /// 起動時に全情報源を一度だけfetchする。個別のfetch失敗時の扱いは
     /// [`Source::load`] を参照（Seedがあればそれで代替、無ければpanic）。
-    pub async fn load() -> Self {
+    ///
+    /// `debug`がtrueなら（`--debug`起動時）fetchを一切行わず、常にSeedを使う。
+    /// 以後の再fetch（[`refresh_all`](Self::refresh_all) / [`refresh_by_name`](Self::refresh_by_name)や
+    /// 各機能側のTTL駆動更新）も同様にno-opになる（[`Source::refresh`]参照）。
+    pub async fn load(debug: bool) -> Self {
         Self {
-            operator_data: Source::load("operator_data", Some(operator_data::SEED_PATH), operator_data::fetch).await,
-            skill_data: Source::load("skill_data", Some(skill_data::SEED_PATH), skill_data::fetch).await,
-            item_names: Source::load("item_names", Some(item_names::SEED_PATH), item_names::fetch).await,
-            zones: Source::load("zones", Some(zones::SEED_PATH), zones::fetch).await,
-            ark_stages: Source::load("ark_stages", Some(ark_stages::SEED_PATH), ark_stages::fetch).await,
-            ark_matrix: Source::load("ark_matrix", Some(ark_matrix::SEED_PATH), ark_matrix::fetch).await,
-            formulas: Source::load("formulas", Some(formulas::SEED_PATH), formulas::fetch).await,
-            fk_data: Source::load("fk_data", Some(fk_data::SEED_PATH), fk_data::fetch).await,
+            operator_data: Source::load("operator_data", Some(operator_data::SEED_PATH), operator_data::fetch, debug).await,
+            skill_data: Source::load("skill_data", Some(skill_data::SEED_PATH), skill_data::fetch, debug).await,
+            item_names: Source::load("item_names", Some(item_names::SEED_PATH), item_names::fetch, debug).await,
+            zones: Source::load("zones", Some(zones::SEED_PATH), zones::fetch, debug).await,
+            ark_stages: Source::load("ark_stages", Some(ark_stages::SEED_PATH), ark_stages::fetch, debug).await,
+            ark_matrix: Source::load("ark_matrix", Some(ark_matrix::SEED_PATH), ark_matrix::fetch, debug).await,
+            formulas: Source::load("formulas", Some(formulas::SEED_PATH), formulas::fetch, debug).await,
+            fk_data: Source::load("fk_data", Some(fk_data::SEED_PATH), fk_data::fetch, debug).await,
         }
     }
 

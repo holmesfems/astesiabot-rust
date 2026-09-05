@@ -30,24 +30,44 @@ pub struct Source<T> {
     name: &'static str,
     fetch_fn: FetchFn<T>,
     cache: RwLock<Arc<T>>,
+    /// trueなら`refresh`はfetchを行わず即座に何もしない
+    /// （`--debug`起動時、常にSeedのままにするため）。
+    force_seed_only: bool,
 }
 
 impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> Source<T> {
-    /// 起動時の初回ロード。fetch失敗時はSeed参照、Seedも無ければpanicする。
-    pub async fn load(name: &'static str, seed_path: Option<&'static str>, fetch_fn: FetchFn<T>) -> Self {
-        let data = match fetch_fn().await {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("[outer_source:{name}] 起動時fetchに失敗しました: {e}");
-                match seed_path.and_then(Self::read_seed) {
-                    Some(seed) => {
-                        let path = seed_path.expect("seed_path is Some here");
-                        eprintln!("[outer_source:{name}] Seed({path})で代替します");
-                        seed
+    /// 起動時の初回ロード。`force_seed_only`がtrueならfetchを試みずSeedを直接読む
+    /// （`--debug`起動用。Seedが無ければpanicする）。falseなら従来どおり
+    /// fetch失敗時にSeed参照、Seedも無ければpanicする。
+    pub async fn load(
+        name: &'static str,
+        seed_path: Option<&'static str>,
+        fetch_fn: FetchFn<T>,
+        force_seed_only: bool,
+    ) -> Self {
+        let data = if force_seed_only {
+            let path = seed_path.unwrap_or_else(|| {
+                panic!("[outer_source:{name}] --debugはSeedが必須ですが、このソースにはSeedがありません")
+            });
+            eprintln!("[outer_source:{name}] --debug: Seed({path})を使用します（fetchはしません）");
+            Self::read_seed(path).unwrap_or_else(|| {
+                panic!("[outer_source:{name}] --debug: Seed({path})の読み込みに失敗しました")
+            })
+        } else {
+            match fetch_fn().await {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("[outer_source:{name}] 起動時fetchに失敗しました: {e}");
+                    match seed_path.and_then(Self::read_seed) {
+                        Some(seed) => {
+                            let path = seed_path.expect("seed_path is Some here");
+                            eprintln!("[outer_source:{name}] Seed({path})で代替します");
+                            seed
+                        }
+                        None => panic!(
+                            "[outer_source:{name}] fetchに失敗し、Seedも無いため起動できません: {e}"
+                        ),
                     }
-                    None => panic!(
-                        "[outer_source:{name}] fetchに失敗し、Seedも無いため起動できません: {e}"
-                    ),
                 }
             }
         };
@@ -55,6 +75,7 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> Source<T> {
             name,
             fetch_fn,
             cache: RwLock::new(Arc::new(data)),
+            force_seed_only,
         }
     }
 
@@ -64,8 +85,12 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> Source<T> {
     }
 
     /// 再fetchしてメモリを更新する。失敗した場合は直前のメモリを保持し続ける。
+    /// `force_seed_only`（`--debug`）なら何もせず`false`を返す。
     /// 戻り値は成否（呼び出し元がログ表示等に使えるように）。
     pub async fn refresh(&self) -> bool {
+        if self.force_seed_only {
+            return false;
+        }
         match (self.fetch_fn)().await {
             Ok(v) => {
                 *self.cache.write().await = Arc::new(v);
@@ -144,7 +169,7 @@ mod tests {
     #[tokio::test]
     async fn refresh_keeps_previous_value_on_failure() {
         REFRESH_SHOULD_FAIL.store(false, Ordering::SeqCst);
-        let source = Source::load("test_refresh_keep", None, fetch_for_refresh_test).await;
+        let source = Source::load("test_refresh_keep", None, fetch_for_refresh_test, false).await;
         assert_eq!(*source.get().await, 42);
 
         REFRESH_SHOULD_FAIL.store(true, Ordering::SeqCst);
@@ -163,7 +188,7 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "Seedも無いため起動できません")]
     async fn load_panics_when_fetch_fails_and_no_seed() {
-        let _: Source<u32> = Source::load("test_panic", None, fetch_always_fails).await;
+        let _: Source<u32> = Source::load("test_panic", None, fetch_always_fails, false).await;
     }
 
     #[tokio::test]
@@ -177,7 +202,7 @@ mod tests {
         );
         std::fs::write(path, "99").unwrap();
 
-        let source: Source<u32> = Source::load("test_seed", Some(path), fetch_always_fails).await;
+        let source: Source<u32> = Source::load("test_seed", Some(path), fetch_always_fails, false).await;
         assert_eq!(*source.get().await, 99);
 
         std::fs::remove_file(path).ok();

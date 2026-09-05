@@ -217,7 +217,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn load_and_solve_against_real_network() {
-        let outer_source = ExternalSourceRegistry::load().await;
+        let outer_source = ExternalSourceRegistry::load(false).await;
         let engine = RiseiCalculatorEngine::load(&outer_source)
             .await
             .expect("engine should build against real network data");
