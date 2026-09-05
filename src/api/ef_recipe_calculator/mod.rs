@@ -77,6 +77,9 @@ struct IndexTemplate {
     byproduct_surplus_html: String,
     bottleneck_html: String,
     warnings_html: String,
+    /// ツール切り替えヘッダー(templates_shared/toolnav.html)用。
+    active_tool: &'static str,
+    lang: &'static str,
 }
 
 #[derive(Template)]
@@ -130,6 +133,8 @@ async fn index() -> Html<String> {
         byproduct_surplus_html: (ByproductSurplusTemplate { surplus: vec![] }).render().unwrap(),
         bottleneck_html: (BottleneckTemplate { bottleneck: None }).render().unwrap(),
         warnings_html: (WarningsTemplate { warnings: vec![] }).render().unwrap(),
+        active_tool: "ef",
+        lang: "ja",
     }
     .render()
     .unwrap();
@@ -312,6 +317,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let html = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(html.contains("toolnav-bar"));
+        assert!(html.contains(r#"href="/EFRecipeCalculator" aria-current="page""#));
     }
 
     #[tokio::test]

@@ -1,0 +1,55 @@
+<!-- ツール切り替えヘッダーチップ。各ツールのstyle.cssには依存させず、
+     ここだけで完結するCSSを持つ(toolnav- prefixで衝突回避)。
+     include先のTemplate structが active_tool("wl"/"ef"/"lod") と
+     lang("ja"/"en") を持っていることが前提。 -->
+<nav class="toolnav-bar" aria-label="{% if lang == "en" %}Switch tool{% else %}ツール切り替え{% endif %}">
+  <span class="toolnav-label">{% if lang == "en" %}Tools{% else %}ツール{% endif %}</span>
+  <a class="toolnav-chip{% if active_tool == "wl" %} toolnav-chip-active{% endif %}"
+     href="/WLBatterySimulator"{% if active_tool == "wl" %} aria-current="page"{% endif %}>{% if lang == "en" %}Battery Sim{% else %}武陵発電計算機{% endif %}</a>
+  <a class="toolnav-chip{% if active_tool == "ef" %} toolnav-chip-active{% endif %}"
+     href="/EFRecipeCalculator"{% if active_tool == "ef" %} aria-current="page"{% endif %}>{% if lang == "en" %}Recipe Calc{% else %}ENDFIELDレシピ計算機{% endif %}</a>
+  <a class="toolnav-chip{% if active_tool == "lod" %} toolnav-chip-active{% endif %}"
+     href="/LodChestSolver"{% if active_tool == "lod" %} aria-current="page"{% endif %}>{% if lang == "en" %}Chest Solver{% else %}幽霊船宝箱ソルバー{% endif %}</a>
+</nav>
+<style>
+  .toolnav-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #1f2430;
+    border-bottom: 1px solid #333a4a;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+  .toolnav-label {
+    color: #8891a5;
+    margin-right: 4px;
+    letter-spacing: .02em;
+  }
+  .toolnav-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: #2c3244;
+    color: #cfd4e2;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .15s ease, color .15s ease;
+  }
+  .toolnav-chip:hover {
+    background: #3a4258;
+    color: #fff;
+  }
+  .toolnav-chip-active {
+    background: #4f7cff;
+    color: #fff;
+    cursor: default;
+    pointer-events: none;
+  }
+</style>

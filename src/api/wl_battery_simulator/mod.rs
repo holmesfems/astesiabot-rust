@@ -21,6 +21,9 @@ struct IndexTemplate {
     error_html: String,
     result_html: String,
     chart_html: String,
+    /// ツール切り替えヘッダー(templates_shared/toolnav.html)用。
+    active_tool: &'static str,
+    lang: &'static str,
 }
 
 #[derive(Template)]
@@ -51,6 +54,8 @@ async fn index() -> Html<String> {
         error_html,
         result_html: String::new(),
         chart_html,
+        active_tool: "wl",
+        lang: "ja",
     }
     .render()
     .unwrap();
@@ -126,4 +131,28 @@ where
         .route("/", get(index))
         .route("/calculate", get(calculate_redirect).post(calculate))
         .nest_service("/static", ServeDir::new(STATIC_DIR))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn index_page_renders_active_toolnav_chip() {
+        let app = router::<()>();
+        let response = app
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let html = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(html.contains("toolnav-bar"));
+        assert!(html.contains(r#"href="/WLBatterySimulator" aria-current="page""#));
+    }
 }

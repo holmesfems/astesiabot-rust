@@ -26,6 +26,14 @@ body{
 }
 .wrap{max-width:560px;margin:0 auto}
 
+/* ツール切替チップ(templates_shared/toolnav.html)はbodyの上下左右paddingの外まで
+   広げて画面の端に届かせる(sticky top:0はbody自身のpadding-topの内側に留まるため、
+   打ち消さないと隙間ができて上まで張り付かない)。共通パーツのinline<style>より後方の
+   セレクタ(同じ詳細度なら後勝ち)で上書きされないよう、詳細度を1段階上げておく。 */
+body .toolnav-bar{
+  margin:-28px -16px 16px;
+}
+
 h1{
   font-size:17px;font-weight:600;letter-spacing:.14em;
   margin:0;color:var(--edge);
