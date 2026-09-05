@@ -35,6 +35,11 @@ pub async fn build(
     };
 
     let results = engine_data.calculate(&tags, parsed.is_global, 4, None);
+    // embedの色分け用: 各組み合わせの確定レアリティ（"-> ★n"の表示に対応するmin_star）
+    // のうち最高のもの（該当結果が無ければ0）。star_setには確定レア以外の高レア
+    // オペレーターも含まれてしまう（例: ★4確定タグでも★5が混在）ため、それを
+    // 使うと実際の表示内容より高いレアリティ色になってしまう。
+    let max_star = results.iter().map(|m| m.min_star).max().unwrap_or(0);
     let sorted_input = engine_data.normalize_names(&tags);
     let title = format::make_title(&sorted_input, parsed.is_global, true);
     let chunks = if results.is_empty() {
@@ -45,7 +50,7 @@ pub async fn build(
     Ok(Some(EmbedReply {
         title,
         chunks,
-        msg_type: MsgType::Ok,
+        msg_type: MsgType::Rarity(max_star),
         reply_marker: None,
     }))
 }

@@ -38,13 +38,23 @@ impl EmbedReply {
 pub enum MsgType {
     Ok,
     Err,
+    /// 求人検索結果の最高レアリティに応じた色分け（アークナイツの配色準拠）。
+    /// 該当結果が無い場合は0を渡す。
+    Rarity(u8),
 }
 
 /// Python の colour() に対応。0x8be02b(緑) / マゼンタ。
+/// Rarity はアークナイツのレアリティ配色に合わせる
+/// （★6オレンジ/★5黄/★4薄紫/★1白、それ以外（★2,3・該当無し）は虚無っぽい薄い青）。
 fn colour_for(msg_type: MsgType) -> u32 {
     match msg_type {
         MsgType::Ok => 0x8be02b,
         MsgType::Err => 0xff00ff, // magenta
+        MsgType::Rarity(6) => 0xff8c1a, // オレンジ
+        MsgType::Rarity(5) => 0xffd700, // 黄色
+        MsgType::Rarity(4) => 0xc9a0ff, // 薄紫
+        MsgType::Rarity(1) => 0xffffff, // 白
+        MsgType::Rarity(_) => 0xadd8e6, // 虚無っぽい薄い青
     }
 }
 
