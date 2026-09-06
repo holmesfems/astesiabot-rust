@@ -61,6 +61,14 @@
         <input type="text" inputmode="numeric" maxlength="1" aria-label="Ghost digit 4">
       </div>
     </fieldset>
+    <fieldset id="limitFieldset">
+      <legend>How many tries does this chest allow?</legend>
+      <div class="choice limits" id="limitRow">
+        <button type="button" data-limit="5" aria-pressed="true">5+ tries</button>
+        <button type="button" data-limit="4">4 tries</button>
+        <button type="button" data-limit="2">2 tries</button>
+      </div>
+    </fieldset>
     <button class="primary" id="startBtn">Start</button>
   </section>
 
@@ -71,6 +79,7 @@
            aria-label="Code to enter" autocomplete="off">
     <p class="editnote">Entered something else? Edit this before recording the result</p>
 
+    <div class="tries" id="tries" hidden></div>
     <div class="readout" id="readout"></div>
 
     <div class="verdict">
@@ -123,6 +132,10 @@
     readoutSplit: (nh, nm) => `\`...\` → <b>${nh}</b> / \`more times\` → <b>${nm}</b>`,
     worstN: n => `<b>${n}</b> more tries at worst`,
     worstAtLeastN: n => `at least <b>${n}</b> more tries`,
+    triesLeft: n => `<b>${n}</b> tries left`,
+    chanceIn: (pct, ok, all) => `chance to open in time: <b>${pct}%</b> (${ok}/${all})`,
+    trapSprung: "The code was re-rolled",
+    trapSprungBody: "You ran out of tries and the trap fired. Start over.",
     altsPrefix: "Just as good: ",
     nothingYet: "Nothing entered yet",
     flipResult: "Flip this result",

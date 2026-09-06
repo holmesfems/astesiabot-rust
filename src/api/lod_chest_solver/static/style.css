@@ -88,6 +88,8 @@ legend{padding:0;font-size:13px;color:var(--faint);margin-bottom:10px}
 }
 .hintrow[hidden]{display:none}
 
+.choice.limits button{flex:1 1 84px;text-align:center}
+
 button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{
   outline:2px solid var(--gold);outline-offset:2px;
 }
@@ -116,6 +118,14 @@ button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{
   margin:16px 0 4px;font-size:13px;color:var(--faint);
 }
 .readout b{color:var(--paper);font-weight:600;font-variant-numeric:tabular-nums}
+
+.tries{
+  display:flex;gap:14px;justify-content:center;flex-wrap:wrap;
+  margin:14px 0 0;font-size:13px;color:var(--faint);
+}
+.tries b{color:var(--paper);font-weight:600;font-variant-numeric:tabular-nums}
+.tries.warn{color:var(--ember)}
+.tries.warn b{color:var(--ember)}
 
 .verdict{display:flex;gap:10px;margin-top:18px}
 .verdict button{

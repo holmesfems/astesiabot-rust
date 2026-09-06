@@ -99,6 +99,8 @@ mod tests {
         assert!(html.contains("toolnav-bar"));
         assert!(html.contains(r#"href="/LodChestSolver" aria-current="page""#));
         assert!(html.contains("幽霊船宝箱ソルバー"));
+        assert!(html.contains(r#"id="limitRow""#));
+        assert!(html.contains("この宝箱に入力できる回数"));
     }
 
     #[tokio::test]
@@ -107,5 +109,7 @@ mod tests {
         assert!(html.contains("toolnav-bar"));
         assert!(html.contains(r#"href="/LodChestSolver" aria-current="page""#));
         assert!(html.contains("Chest Solver"));
+        assert!(html.contains(r#"id="limitRow""#));
+        assert!(html.contains("How many tries does this chest allow?"));
     }
 }

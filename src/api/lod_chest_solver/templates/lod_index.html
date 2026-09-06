@@ -60,6 +60,14 @@
         <input type="text" inputmode="numeric" maxlength="1" aria-label="幽霊の数字4">
       </div>
     </fieldset>
+    <fieldset id="limitFieldset">
+      <legend>この宝箱に入力できる回数</legend>
+      <div class="choice limits" id="limitRow">
+        <button type="button" data-limit="5" aria-pressed="true">5回以上</button>
+        <button type="button" data-limit="4">4回</button>
+        <button type="button" data-limit="2">2回</button>
+      </div>
+    </fieldset>
     <button class="primary" id="startBtn">はじめる</button>
   </section>
 
@@ -70,6 +78,7 @@
            aria-label="宝箱に入力する数字" autocomplete="off">
     <p class="editnote">別の数字を入れてしまったら、ここを書き換えてから結果を押す</p>
 
+    <div class="tries" id="tries" hidden></div>
     <div class="readout" id="readout"></div>
 
     <div class="verdict">
@@ -122,6 +131,10 @@
     readoutSplit: (nh, nm) => `「・・・」なら <b>${nh}</b> / 「アト」なら <b>${nm}</b>`,
     worstN: n => `最悪あと <b>${n}</b> 手`,
     worstAtLeastN: n => `最悪あと <b>${n}</b> 手以上`,
+    triesLeft: n => `残り <b>${n}</b> 回`,
+    chanceIn: (pct, ok, all) => `この回数以内に開く確率 <b>${pct}%</b>（${ok}/${all}）`,
+    trapSprung: "番号が振り直されました",
+    trapSprungBody: "回数切れで罠が発動しました。最初からやり直してください。",
     altsPrefix: "ほぼ同等: ",
     nothingYet: "まだ入力していません",
     flipResult: "結果を入れ替える",

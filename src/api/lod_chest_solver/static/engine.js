@@ -12,10 +12,9 @@ for (let i = 0; i < 1000; i++) {
   ALL.push(s);
   DIG.push([s.charCodeAt(0) - 48, s.charCodeAt(1) - 48, s.charCodeAt(2) - 48]);
 }
-// 候補が少ないときは厳密探索（ミニマックス）で最適手を出す。
-// 総候補1000通りの状態から降りてきた集合は形が複雑で探索が重いので、
-// ヒント既知（最大24通り）か、終盤の12通り以下に限って使う。
-// EXACT_SMALL と EXACT_UNIVERSE は用途が違うので統合しないこと
+// 候補が少ないときは厳密探索で最適手を出す。総候補1000通りの状態から降りてきた
+// 集合は形が複雑で探索が重いので、ヒント既知（最大24通り）か、終盤の12通り以下に
+// 限って使う。EXACT_SMALL と EXACT_UNIVERSE は用途が違うので統合しないこと
 // （ヒント未見モードの終盤で厳密探索を回すと20秒級で固まる）。
 export const EXACT_SMALL = 12;
 export const EXACT_UNIVERSE = 24;
@@ -71,9 +70,24 @@ export function hintCandidates(hints) { // 4数字のうち3つの順列（重�
   return [...set].sort().map(s => parseInt(s, 10));
 }
 
-/* --- 貪欲: 最悪ケースで残り候補が最小になる入力 --- */
-function greedyBest(cands, top, pivot) {
+// 昇順ソート用: .key配列を持つ要素同士を先頭から辞書式に比較する。
+function cmpKeys(a, b) {
+  const ka = a.key, kb = b.key;
+  for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] - kb[i];
+  return 0;
+}
+
+/* --- 貪欲: 候補が多いときのヒューリスティック ---
+   tries === null（無制限モード）: 最悪ケースで残り候補が最小になる入力を選ぶ
+   （最悪手数の最小化。従来どおり）。
+   tries が数値（制限モード）: 残りtries回で開けられる候補数の上界
+     score(g) = [gが候補自身か] + min(hit側候補数, 2^(tries-1)-1) + min(miss側候補数, 同上)
+   を最優先で使う近似（真の V(S,tries) は1000通りの集合では計算できないため上界で代用）。
+   tries が大きいうちは上界が効かず従来と同じ手が出て、tries が小さくなるにつれ
+   候補そのものを撃つ手へ自然に寄る。 */
+function greedyBest(cands, top, pivot, tries) {
   const n = cands.length, out = [];
+  const half = tries === null ? Infinity : Math.max(0, (1 << Math.max(tries - 1, 0)) - 1);
   for (let g = 0; g < 1000; g++) {
     const [ga, gb, gc] = DIG[g];
     let nh = 0, nm = 0, self = false;
@@ -84,20 +98,20 @@ function greedyBest(cands, top, pivot) {
       if (d[0] === ga || d[1] === gb || d[2] === gc) nh++; else nm++;
     }
     if (nh === n || nm === n) continue;          // 情報ゼロの入力は捨てる
-    out.push({
-      guess: g, nh, nm,
-      key: [Math.max(ceilLog2(nh), ceilLog2(nm)), Math.max(nh, nm), self ? 0 : 1,
-            pivot === null ? 0 : digitDist(g, pivot),
-            pivot === null ? 0 : digitDownCount(g, pivot)]
-    });
+    const tieKey = [Math.max(ceilLog2(nh), ceilLog2(nm)), Math.max(nh, nm), self ? 0 : 1,
+                    pivot === null ? 0 : digitDist(g, pivot),
+                    pivot === null ? 0 : digitDownCount(g, pivot)];
+    const key = tries === null
+      ? tieKey
+      : [-((self ? 1 : 0) + Math.min(nh, half) + Math.min(nm, half)), ...tieKey];
+    out.push({ guess: g, nh, nm, key });
   }
-  out.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1] || x.key[2] - y.key[2]
-                     || x.key[3] - y.key[3] || x.key[4] - y.key[4]);
+  out.sort(cmpKeys);
   return out.slice(0, top);
 }
 
-/* --- 厳密探索: 候補が少ないときのミニマックス --- */
-function exactBest(cands, top, pivot) {
+/* --- 厳密探索: 候補が少ないときの最適手（ミニマックス or 回数制限内成功率） --- */
+function exactBest(cands, top, pivot, tries) {
   const n = cands.length;
   let budget = EXACT_BUDGET;                        // n <= 24 なのでビットは32bitに収まる
   const hitMask = new Int32Array(1000);
@@ -115,7 +129,7 @@ function exactBest(cands, top, pivot) {
     selfBit[g] = pos.has(g) ? (1 << pos.get(g)) : 0;
   }
   const FULL = n === 32 ? -1 : (1 << n) - 1;
-  const lo = new Map(), hi = new Map(), splitCache = new Map();
+  const splitCache = new Map();
   const pc = x => { let c = 0; while (x) { x &= x - 1; c++; } return c; };
 
   // 候補集合への効き方が同じ入力は完全に等価なので、先に1つへまとめておく。
@@ -152,6 +166,8 @@ function exactBest(cands, top, pivot) {
     return out;
   }
 
+  /* --- 最悪手数（ミニマックス）。無制限モードの本体、制限モードではタイブレーク3で使う --- */
+  const lo = new Map(), hi = new Map();
   function feasible(S, b) {
     if (--budget < 0) throw new RangeError("budget");
     const size = pc(S);
@@ -173,36 +189,100 @@ function exactBest(cands, top, pivot) {
     lo.set(S, Math.max(lo.get(S) ?? 0, b + 1));
     return false;
   }
+  function worstDepth(S) {
+    let d = ceilLog2(pc(S));
+    while (d < 30 && !feasible(S, d)) d++;
+    return d;
+  }
+
+  if (tries === null) {
+    try {
+      const target = worstDepth(FULL);
+      const good = [];
+      for (const o of splits(FULL)) {
+        if (Math.max(ceilLog2(o.nh), ceilLog2(o.nm)) + 1 > target) continue;
+        if (feasible(o.miss, target - 1) && feasible(o.hit, target - 1)) {
+          good.push({ guess: o.guess, nh: o.nh, nm: o.nm,
+                      key: [Math.max(o.nh, o.nm), (FULL & selfBit[o.guess]) ? 0 : 1,
+                            pivot === null ? 0 : digitDist(o.guess, pivot),
+                            pivot === null ? 0 : digitDownCount(o.guess, pivot)] });
+        }
+      }
+      good.sort(cmpKeys);
+      return { list: good.slice(0, top), depth: target, cover: null };
+    } catch (e) {
+      if (!(e instanceof RangeError)) throw e;
+      return null;                       // 打ち切り。貪欲手にフォールバック
+    }
+  }
+
+  /* --- 制限モード: V(S,b) = 残りb回で開けられる候補の最大数 ---
+     V(S,0) = 0
+     V(S,b) = max over splits(S) of [g∈S] + V(hit,b-1) + V(miss,b-1)
+     splits() の hit は「hitしたが開かなかった」集合なのでg自身を含まない
+     （g∈S の成功はhit/miss分岐と独立に、その場でこの入力が正解だった場合の1件として加算）。 */
+  const cov = new Map();               // key: S*32+b -> V(S,b)
+  function coverage(S, b) {
+    if (b <= 0) return 0;
+    const size = pc(S);
+    if (size === 0) return 0;
+    if (size === 1) return 1;          // 残り1つは次の1回で必ず当たる
+    const key = S * 32 + b;
+    const cached = cov.get(key);
+    if (cached !== undefined) return cached;
+    if (--budget < 0) throw new RangeError("budget");
+    const cap = Math.min(size, (1 << b) - 1);       // 情報理論的な上限（20の扉問題と同じ形）
+    const half = (1 << (b - 1)) - 1;
+    const ranked = splits(S).map(o => {
+      const self = (S & selfBit[o.guess]) ? 1 : 0;
+      return { o, self, upper: self + Math.min(o.nh, half) + Math.min(o.nm, half) };
+    }).sort((a, c) => c.upper - a.upper);            // 上界の大きい順に評価してcap到達を早める
+    let best = 0;
+    for (const { o, self, upper } of ranked) {
+      if (upper <= best) break;        // 降順なのでこれ以降も現在の最善を超えられない
+      const v = self + coverage(o.hit, b - 1) + coverage(o.miss, b - 1);
+      if (v > best) best = v;
+      if (best >= cap) break;
+    }
+    cov.set(key, best);
+    return best;
+  }
 
   try {
-    let target = ceilLog2(n);
-    while (target < 30 && !feasible(FULL, target)) target++;
-
+    const opts = splits(FULL);
+    if (!opts.length) return null;
+    const bestCover = coverage(FULL, tries);
     const good = [];
-    for (const o of splits(FULL)) {
-      if (Math.max(ceilLog2(o.nh), ceilLog2(o.nm)) + 1 > target) continue;
-      if (feasible(o.miss, target - 1) && feasible(o.hit, target - 1)) {
-        good.push({ guess: o.guess, nh: o.nh, nm: o.nm,
-                    key: [Math.max(o.nh, o.nm), (FULL & selfBit[o.guess]) ? 0 : 1,
-                          pivot === null ? 0 : digitDist(o.guess, pivot),
-                          pivot === null ? 0 : digitDownCount(o.guess, pivot)] });
-      }
+    for (const o of opts) {
+      const self = (FULL & selfBit[o.guess]) ? 1 : 0;
+      const c0 = self + coverage(o.hit, tries - 1) + coverage(o.miss, tries - 1);
+      if (c0 !== bestCover) continue;                // タイブレーク1: 制限内成功率が最大の手だけ残す
+      const vec = [];                                 // タイブレーク2: 残りj回時点の成功率を辞書式に最大化
+      for (let j = tries - 1; j >= 1; j--) vec.push(self + coverage(o.hit, j - 1) + coverage(o.miss, j - 1));
+      const worst = 1 + Math.max(worstDepth(o.hit), worstDepth(o.miss)); // タイブレーク3: 最悪手数
+      good.push({
+        guess: o.guess, nh: o.nh, nm: o.nm,
+        key: [...vec.map(v => -v), worst,
+              pivot === null ? 0 : digitDist(o.guess, pivot),
+              pivot === null ? 0 : digitDownCount(o.guess, pivot)]
+      });
     }
-    good.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1]
-                        || x.key[2] - y.key[2] || x.key[3] - y.key[3]);
-    return { list: good.slice(0, top), depth: target };
+    good.sort(cmpKeys);
+    return { list: good.slice(0, top), depth: null, cover: bestCover };
   } catch (e) {
     if (!(e instanceof RangeError)) throw e;
     return null;                       // 打ち切り。貪欲手にフォールバック
   }
 }
 
-export function bestGuesses(cands, universeSize, top, pivot = null) {
+// tries: 残り入力回数。null なら無制限（S/L前提。最悪手数を最小化する従来の挙動）。
+// 数値を渡すと、その回数以内に開錠できる確率を最大化する（早く当たりを引きにいく）。
+export function bestGuesses(cands, universeSize, top, pivot = null, tries = null) {
   if (cands.length <= EXACT_SMALL || universeSize <= EXACT_UNIVERSE) {
-    const r = exactBest(cands, top, pivot);
+    const r = exactBest(cands, top, pivot, tries);
     if (r && r.list.length) return r;
   }
-  return { list: greedyBest(cands, top, pivot), depth: null };
+  return { list: greedyBest(cands, top, pivot, tries), depth: null, cover: null };
 }
 
 export function narrow(cands, guess, isHit) {
