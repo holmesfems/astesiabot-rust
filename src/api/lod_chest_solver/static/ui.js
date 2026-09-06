@@ -108,6 +108,7 @@ export function initUi(s) {
       return;
     }
     if (n === 1) {
+      $("codeInput").value = ALL[cands[0]];   // 前手が残っているとリセット後のpivotが答えの一歩手前になる
       finish("ok", s.answerIs(ALL[cands[0]]), s.answerBody);
       return;
     }

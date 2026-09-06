@@ -40,6 +40,27 @@ function digitDist(a, b) {
   return ringDigitDiff(da[0], db[0]) + ringDigitDiff(da[1], db[1]) + ringDigitDiff(da[2], db[2]);
 }
 
+// 回転量が同じ候補同士（pivotの上下に等距離で存在する数字）の並べ替え用。
+// 「桁の数値が小さい方」で決めると0付近だけ上向き・他は下向きになって
+// 回す向きがバラつくので、上向き（増加方向。9の次は0）で到達する桁数が
+// 多い方を優先する。下向きでしか届かない桁数を数えて少ない方を勝たせる。
+function digitDownCount(a, b) {
+  const da = DIG[a], db = DIG[b];
+  let down = 0;
+  for (let i = 0; i < 3; i++) {
+    const up = (da[i] - db[i] + 10) % 10;
+    if (up > (db[i] - da[i] + 10) % 10) down++;   // ちょうど半周(5)は上向き扱い
+  }
+  return down;
+}
+
+// pivotへの寄り具合の比較。距離が同点なら上向き優先。
+function closerToPivot(g, cur, pivot) {
+  const dg = digitDist(g, pivot), dc = digitDist(cur, pivot);
+  if (dg !== dc) return dg < dc;
+  return digitDownCount(g, pivot) < digitDownCount(cur, pivot);
+}
+
 export function hintCandidates(hints) { // 4数字のうち3つの順列（重複数字も正しく扱う）
   const set = new Set();
   for (let a = 0; a < 4; a++)
@@ -66,10 +87,12 @@ function greedyBest(cands, top, pivot) {
     out.push({
       guess: g, nh, nm,
       key: [Math.max(ceilLog2(nh), ceilLog2(nm)), Math.max(nh, nm), self ? 0 : 1,
-            pivot === null ? 0 : digitDist(g, pivot)]
+            pivot === null ? 0 : digitDist(g, pivot),
+            pivot === null ? 0 : digitDownCount(g, pivot)]
     });
   }
-  out.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1] || x.key[2] - y.key[2] || x.key[3] - y.key[3]);
+  out.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1] || x.key[2] - y.key[2]
+                     || x.key[3] - y.key[3] || x.key[4] - y.key[4]);
   return out.slice(0, top);
 }
 
@@ -102,7 +125,7 @@ function exactBest(cands, top, pivot) {
   for (let g = 0; g < 1000; g++) {
     const key = hitMask[g] * 33554432 + selfBit[g];
     const cur = seenG.get(key);
-    if (cur === undefined || (pivot !== null && digitDist(g, pivot) < digitDist(cur, pivot))) {
+    if (cur === undefined || (pivot !== null && closerToPivot(g, cur, pivot))) {
       seenG.set(key, g);
     }
   }
@@ -161,10 +184,12 @@ function exactBest(cands, top, pivot) {
       if (feasible(o.miss, target - 1) && feasible(o.hit, target - 1)) {
         good.push({ guess: o.guess, nh: o.nh, nm: o.nm,
                     key: [Math.max(o.nh, o.nm), (FULL & selfBit[o.guess]) ? 0 : 1,
-                          pivot === null ? 0 : digitDist(o.guess, pivot)] });
+                          pivot === null ? 0 : digitDist(o.guess, pivot),
+                          pivot === null ? 0 : digitDownCount(o.guess, pivot)] });
       }
     }
-    good.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1] || x.key[2] - y.key[2]);
+    good.sort((x, y) => x.key[0] - y.key[0] || x.key[1] - y.key[1]
+                        || x.key[2] - y.key[2] || x.key[3] - y.key[3]);
     return { list: good.slice(0, top), depth: target };
   } catch (e) {
     if (!(e instanceof RangeError)) throw e;
