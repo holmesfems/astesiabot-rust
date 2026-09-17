@@ -3,8 +3,9 @@ dirs = [
     "src/api/wl_battery_simulator/templates",
     "src/api/ef_recipe_calculator/templates",
     # dirs はフラットに解決されるため、テンプレート名は他ディレクトリと衝突しない
-    # プレフィックス付き（ef_* / lod_*）にすること。
+    # プレフィックス付き（ef_* / lod_* / tr_*）にすること。
     "src/api/lod_chest_solver/templates",
+    "src/api/test_runner/templates",
     # 各ツール共通で {% include %} するパーツ（ツール切り替えヘッダー等）。
     "src/api/templates_shared",
 ]

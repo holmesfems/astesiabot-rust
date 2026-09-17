@@ -1,0 +1,2938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Test Runner</title>
+<meta name="description" content="A test-procedure runner: load your test steps as Markdown and step through them by pressing OK/NG. Progress is auto-saved in your browser, and results export as Markdown/TSV/CSV. Works offline.">
+<link rel="canonical" href="{{ base }}/TestRunner/en">
+<link rel="alternate" hreflang="ja" href="{{ base }}/TestRunner">
+<link rel="alternate" hreflang="en" href="{{ base }}/TestRunner/en">
+<link rel="alternate" hreflang="x-default" href="{{ base }}/TestRunner">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Test Runner">
+<meta property="og:description" content="A test-procedure runner: load your test steps as Markdown and step through them by pressing OK/NG.">
+<meta property="og:url" content="{{ base }}/TestRunner/en">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ja_JP">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Test Runner",
+  "url": "{{ base }}/TestRunner/en",
+  "inLanguage": "en",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web",
+  "isAccessibleForFree": true,
+  "description": "A test-procedure runner: load your test steps as Markdown and step through them by pressing OK/NG. Progress is auto-saved in your browser, and results export as Markdown/TSV/CSV."
+}
+</script>
+<style>
+:root{
+  --bg-navy:#0b0a1f;
+  --bg-navy2:#160f2e;
+  --bg-purple:#2a1653;
+  --gold:#f2c14e;
+  --gold-bright:#ffe08a;
+  --gold-dim:#a9822f;
+  --purple:#8a5cf6;
+  --purple-bright:#b48cff;
+  --glass-bg:rgba(255,255,255,0.06);
+  --glass-border:rgba(255,255,255,0.16);
+  --text-light:#f4f1ff;
+  --text-dim:#c7c0e6;
+  --danger:#ff5470;
+  --danger-dim:#7a2233;
+  --warn:#ffd166;
+  --warn-dim:#7a611f;
+  --ok:#5be08a;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+body{
+  font-family: system-ui, -apple-system, "Segoe UI", "Yu Gothic UI", "Hiragino Sans", Meiryo, sans-serif;
+  background: radial-gradient(1200px 800px at 20% -10%, var(--bg-purple), transparent 60%),
+              radial-gradient(1000px 700px at 100% 10%, #1c2a5e, transparent 55%),
+              linear-gradient(180deg, var(--bg-navy), var(--bg-navy2) 60%, var(--bg-navy));
+  color: var(--text-light);
+  min-height:100vh;
+  overflow-x:hidden;
+  position:relative;
+}
+img{max-width:100%;}
+[hidden]{display:none !important;}
+button{font-family:inherit;}
+a{color:var(--gold-bright);}
+
+/* ---------- background ambience ---------- */
+#bg-orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.orb{position:absolute;border-radius:50%;filter:blur(40px);opacity:0.45;animation:orbFloat 22s ease-in-out infinite;}
+.orb.o1{width:380px;height:380px;background:radial-gradient(circle,var(--purple),transparent 70%);top:-100px;left:-80px;animation-duration:26s;}
+.orb.o2{width:320px;height:320px;background:radial-gradient(circle,var(--gold),transparent 70%);bottom:-100px;right:-60px;animation-duration:20s;animation-delay:-6s;}
+.orb.o3{width:260px;height:260px;background:radial-gradient(circle,#3fa9f5,transparent 70%);top:40%;right:10%;animation-duration:30s;animation-delay:-12s;}
+@keyframes orbFloat{
+  0%,100%{transform:translate(0,0) scale(1);}
+  50%{transform:translate(30px,-40px) scale(1.12);}
+}
+#bg-sparkle{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.sparkle{position:absolute;width:3px;height:3px;background:var(--gold-bright);border-radius:50%;opacity:0;animation:sparkleTwinkle 3.6s ease-in-out infinite;box-shadow:0 0 6px 1px var(--gold-bright);}
+@keyframes sparkleTwinkle{
+  0%,100%{opacity:0;transform:scale(0.6);}
+  50%{opacity:0.9;transform:scale(1.3);}
+}
+@media (prefers-reduced-motion: reduce){
+  .orb,.sparkle{animation:none !important;opacity:0.25;}
+}
+
+/* ---------- layout shells ---------- */
+.app-screen{position:relative;z-index:1;min-height:100vh;padding:20px 16px 48px;}
+.wrap{max-width:900px;margin:0 auto;}
+.wrap-narrow{max-width:640px;margin:0 auto;}
+
+.app-topbar{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;background:rgba(10,8,28,0.55);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--glass-border);
+}
+.app-topbar .brand{font-weight:700;letter-spacing:0.02em;color:var(--gold-bright);font-size:15px;display:flex;align-items:center;gap:8px;}
+.app-topbar .lang-toggle{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid var(--glass-border);color:var(--gold-bright);font-size:12px;font-weight:700;text-decoration:none;letter-spacing:.03em;white-space:nowrap;}
+.app-topbar .lang-toggle:hover{background:rgba(255,255,255,0.08);}
+
+/* ---------- glass card ---------- */
+.glass-card{
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  border-radius:20px;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 10px 40px rgba(0,0,0,0.35);
+  padding:24px;
+}
+@media (max-width:480px){ .glass-card{padding:16px;border-radius:16px;} }
+
+/* ---------- start screen ---------- */
+.hero{text-align:center;padding:40px 10px 24px;}
+.hero h1{
+  font-size:clamp(28px,7vw,48px);
+  margin:0 0 10px;
+  background:linear-gradient(95deg,var(--gold-bright),var(--gold),var(--purple-bright));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 18px rgba(242,193,78,0.35));
+  letter-spacing:0.02em;
+}
+.hero p.sub{color:var(--text-dim);font-size:clamp(14px,3vw,18px);margin:0;}
+.hero .badge-row{margin-top:14px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;}
+
+.section-title{
+  font-size:14px;letter-spacing:0.08em;color:var(--gold);text-transform:uppercase;
+  margin:0 0 12px;display:flex;align-items:center;gap:8px;
+}
+.section-title::before{content:"✦";}
+
+.input-grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:20px;}
+@media (min-width:760px){ .input-grid{grid-template-columns:1fr 1fr;} }
+
+.dropzone{
+  border:2px dashed var(--glass-border);
+  border-radius:16px;padding:28px 16px;text-align:center;color:var(--text-dim);
+  transition:border-color .2s, background .2s;
+  cursor:pointer;
+}
+.dropzone.dragover{border-color:var(--gold);background:rgba(242,193,78,0.08);color:var(--text-light);}
+.dropzone .dz-icon{font-size:34px;display:block;margin-bottom:8px;}
+
+textarea{
+  width:100%;min-height:140px;resize:vertical;
+  background:rgba(0,0,0,0.28);color:var(--text-light);
+  border:1px solid var(--glass-border);border-radius:12px;padding:10px 12px;font-size:14px;
+  font-family:inherit;
+}
+input[type=text]{
+  width:100%;background:rgba(0,0,0,0.28);color:var(--text-light);
+  border:1px solid var(--glass-border);border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;
+}
+label.field-label{font-size:12px;color:var(--text-dim);display:block;margin:14px 0 6px;}
+
+.sample-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+
+/* ---------- buttons ---------- */
+.btn{
+  border:none;border-radius:12px;padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;
+  transition:transform .12s ease, box-shadow .2s ease, filter .2s ease;
+  color:var(--text-light);
+}
+.btn:active{transform:scale(0.97);}
+.btn-gold{background:linear-gradient(135deg,var(--gold-bright),var(--gold));color:#241a05;box-shadow:0 6px 22px rgba(242,193,78,0.35);}
+.btn-gold:hover{filter:brightness(1.08);box-shadow:0 8px 30px rgba(242,193,78,0.55);}
+.btn-purple{background:linear-gradient(135deg,var(--purple-bright),var(--purple));box-shadow:0 6px 20px rgba(138,92,246,0.35);}
+.btn-ghost{background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);}
+.btn-ghost:hover{background:rgba(255,255,255,0.14);}
+.btn-danger{background:linear-gradient(135deg,#ff7a90,var(--danger));box-shadow:0 6px 20px rgba(255,84,112,0.35);}
+.btn-small{padding:8px 14px;font-size:13px;font-weight:600;}
+.btn:disabled{opacity:0.35;cursor:not-allowed;filter:none;box-shadow:none;transform:none;}
+.btn-block{width:100%;}
+
+.badge{
+  display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;
+  font-size:11px;font-weight:700;letter-spacing:0.03em;border:1px solid var(--glass-border);
+  background:rgba(255,255,255,0.06);color:var(--text-dim);
+}
+.badge-gold{color:#2a2005;background:linear-gradient(135deg,var(--gold-bright),var(--gold));border-color:transparent;}
+.badge-os{color:#0c2740;background:linear-gradient(135deg,#9fd9ff,#3fa9f5);border-color:transparent;}
+
+.preview-box{margin-top:20px;}
+.section-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;}
+.section-list li{
+  display:flex;justify-content:space-between;gap:8px;align-items:center;
+  background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;padding:8px 12px;font-size:13px;
+}
+details.glossary-details{margin-top:14px;background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);border-radius:12px;padding:10px 14px;}
+details.glossary-details summary{cursor:pointer;color:var(--gold-bright);font-weight:700;font-size:13px;}
+.glossary-block h4{margin:14px 0 6px;font-size:13px;color:var(--gold);}
+.glossary-block p{margin:6px 0;font-size:13px;line-height:1.7;color:var(--text-dim);}
+.glossary-block ul{margin:6px 0;padding-left:20px;font-size:13px;line-height:1.7;color:var(--text-dim);}
+.glossary-block code{background:rgba(255,255,255,0.12);padding:1px 5px;border-radius:4px;}
+.glossary-block strong{color:var(--text-light);}
+
+.error-box{
+  margin-top:16px;padding:16px;border-radius:14px;background:rgba(255,84,112,0.12);
+  border:1px solid rgba(255,84,112,0.5);color:#ffd7dd;font-size:14px;line-height:1.7;
+}
+.error-box .err-title{font-weight:800;font-size:16px;margin-bottom:6px;display:flex;gap:8px;align-items:center;}
+
+/* ---------- step screen ---------- */
+.step-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.step-header .doc-title{font-size:13px;color:var(--text-dim);}
+.step-header h2{font-size:clamp(18px,4vw,24px);margin:4px 0 0;color:var(--text-light);}
+.badge-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+
+.progress-wrap{margin:14px 0 6px;}
+.progress-bar-outer{height:12px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;border:1px solid var(--glass-border);}
+.progress-bar-inner{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-bright));box-shadow:0 0 12px rgba(242,193,78,0.6);transition:width .35s ease;}
+.progress-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-top:6px;flex-wrap:wrap;gap:4px;}
+
+.dots-row{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 18px;}
+.dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,0.18);border:1px solid var(--glass-border);}
+.dot.done{background:var(--gold);box-shadow:0 0 8px var(--gold);}
+.dot.current{background:var(--purple-bright);box-shadow:0 0 10px var(--purple-bright);transform:scale(1.25);}
+
+.step-card{
+  position:relative;
+  border-radius:22px;padding:28px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03));
+  border:1px solid rgba(242,193,78,0.4);
+  box-shadow:0 0 0 1px rgba(242,193,78,0.08), 0 0 40px rgba(242,193,78,0.18), 0 20px 50px rgba(0,0,0,0.4);
+  overflow:hidden;
+}
+@media (max-width:480px){ .step-card{padding:18px;border-radius:16px;} }
+.step-card.slide-in{animation:cardSlideIn .45s ease;}
+@keyframes cardSlideIn{ from{opacity:0;transform:translateX(24px);} to{opacity:1;transform:translateX(0);} }
+@media (prefers-reduced-motion: reduce){ .step-card.slide-in{animation:none;} }
+
+.item-number{font-size:13px;color:var(--gold-bright);font-weight:800;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.badge-os-lg{display:inline-flex;align-items:center;gap:5px;font-size:15px;font-weight:800;color:#fff;background:linear-gradient(135deg,#3fa9f5,#2563eb);padding:4px 14px;border-radius:999px;letter-spacing:0.02em;box-shadow:0 2px 12px rgba(37,99,235,0.45);}
+.status-pill{display:inline-block;margin-left:0;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:800;}
+.status-pill.ok{background:rgba(91,224,138,0.18);color:var(--ok);border:1px solid var(--ok);}
+.status-pill.ng{background:rgba(255,84,112,0.18);color:var(--danger);border:1px solid var(--danger);}
+
+.step-block{margin-top:16px;}
+.step-block h3{
+  font-size:12px;letter-spacing:0.1em;color:var(--gold);text-transform:uppercase;margin:0 0 6px;
+  display:flex;align-items:center;gap:6px;
+}
+.step-block.do h3::before{content:"▶";}
+.step-block.expect h3::before{content:"★";}
+.step-block .body{font-size:clamp(16px,3.6vw,20px);line-height:1.75;color:var(--text-light);}
+.step-block .body code{background:rgba(255,255,255,0.14);padding:1px 6px;border-radius:5px;font-size:0.9em;}
+.step-block .body strong{color:var(--gold-bright);}
+
+.note-line{margin-top:14px;font-size:12px;color:var(--text-dim);background:rgba(255,255,255,0.04);border-left:3px solid var(--gold-dim);padding:8px 10px;border-radius:6px;line-height:1.6;}
+
+.action-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;align-items:center;}
+#ok-btn{font-size:20px;padding:16px 34px;position:relative;}
+#ok-btn.pulse{animation:okPulse 1.6s ease-in-out infinite;}
+@keyframes okPulse{ 0%,100%{box-shadow:0 6px 22px rgba(242,193,78,0.35);} 50%{box-shadow:0 6px 34px rgba(242,193,78,0.85);} }
+@media (prefers-reduced-motion: reduce){ #ok-btn.pulse{animation:none;} }
+#ng-btn{font-size:16px;padding:14px 26px;position:relative;overflow:visible;}
+@keyframes ngHop{
+  0%{transform:scale(0.9) rotate(-6deg);}
+  50%{transform:scale(1.08) rotate(6deg);}
+  100%{transform:scale(1) rotate(0deg);}
+}
+#ng-btn.ng-hop{animation:ngHop .32s ease;}
+.ng-bubble{
+  position:absolute;left:50%;bottom:100%;margin-bottom:6px;
+  transform:translateX(-50%) translateY(10px) scale(0.8);
+  background:rgba(10,8,30,0.94);border:1px solid var(--danger);color:var(--text-light);
+  font-size:12px;font-weight:700;padding:6px 10px;border-radius:10px;white-space:nowrap;
+  opacity:0;pointer-events:none;z-index:20;
+  box-shadow:0 4px 14px rgba(0,0,0,0.4);
+}
+.ng-bubble.show{animation:ngBubblePop .9s ease forwards;}
+@keyframes ngBubblePop{
+  0%{opacity:0;transform:translateX(-50%) translateY(10px) scale(0.8);}
+  15%{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}
+  75%{opacity:1;}
+  100%{opacity:0;transform:translateX(-50%) translateY(-6px) scale(0.95);}
+}
+@media (prefers-reduced-motion: reduce){
+  #ng-btn.ng-hop{animation:none;}
+  .ng-bubble.show{animation-duration:.01s;}
+}
+
+.action-panel{
+  margin-top:16px;padding:14px;border-radius:14px;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);
+}
+.action-panel.ng-panel{border-color:rgba(255,84,112,0.5);}
+.action-panel p.hint{margin:0 0 8px;font-size:12px;color:var(--text-dim);}
+.action-panel p.hint strong{color:var(--danger);}
+.action-panel .panel-buttons{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+
+.ng-inline-warn{margin-top:8px;font-size:12px;font-weight:700;color:var(--danger);}
+@keyframes ngCommentShake{
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-6px);}
+  40%{transform:translateX(6px);}
+  60%{transform:translateX(-4px);}
+  80%{transform:translateX(4px);}
+}
+#ng-comment.shake-warn{
+  animation:ngCommentShake .4s ease;
+  border-color:var(--danger);
+  box-shadow:0 0 0 2px rgba(255,84,112,0.5);
+}
+@media (prefers-reduced-motion: reduce){ #ng-comment.shake-warn{animation:none;border-color:var(--danger);box-shadow:0 0 0 2px rgba(255,84,112,0.5);} }
+
+.glossary-fab-row{display:flex;justify-content:flex-end;margin-top:12px;}
+
+.step-timer-row{margin-top:12px;font-size:12px;color:var(--text-dim);display:flex;gap:14px;flex-wrap:wrap;}
+.step-timer-row .timer-current{color:var(--gold-bright);font-weight:700;}
+
+/* ---------- AI整形プロンプトカード ---------- */
+.ai-prompt-card details summary{cursor:pointer;color:var(--gold-bright);font-weight:700;font-size:14px;list-style:none;}
+.ai-prompt-card details summary::-webkit-details-marker{display:none;}
+.ai-prompt-card details summary::before{content:"▶ ";display:inline-block;transition:transform .15s ease;}
+.ai-prompt-card details[open] summary::before{transform:rotate(90deg);}
+#ai-prompt-text{height:160px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;margin-top:10px;}
+
+/* ---------- glossary term highlighting ---------- */
+.term{
+  color:var(--gold-bright);
+  text-decoration:underline dotted var(--gold);
+  text-underline-offset:3px;
+  cursor:help;
+  text-shadow:0 0 6px rgba(242,193,78,0.55);
+  transition:filter .15s ease, text-shadow .15s ease;
+}
+.term:hover,.term:active{
+  filter:brightness(1.3);
+  text-shadow:0 0 14px rgba(242,193,78,0.95);
+}
+.term-hint{margin-top:10px;font-size:11px;color:var(--gold-dim);text-align:center;}
+
+/* ---------- generic toast ---------- */
+.toast{
+  position:fixed;left:50%;bottom:24px;z-index:70;
+  transform:translateX(-50%) translateY(20px);
+  background:rgba(10,8,30,0.92);border:1px solid var(--glass-border);color:var(--text-light);
+  padding:12px 20px;border-radius:12px;font-size:13px;max-width:90vw;text-align:center;
+  box-shadow:0 8px 30px rgba(0,0,0,0.4);
+  opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ---------- glossary term popup ---------- */
+.term-popup-overlay{
+  position:fixed;inset:0;z-index:65;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(4,3,14,0.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+.term-popup-card{
+  position:relative;max-width:480px;width:100%;text-align:left;overflow:visible;
+  border:2px solid var(--gold);
+  background:linear-gradient(180deg,rgba(48,30,84,0.92),rgba(18,13,36,0.94));
+  box-shadow:0 0 0 1px rgba(242,193,78,0.3),0 0 60px rgba(242,193,78,0.45),0 20px 60px rgba(0,0,0,0.5);
+}
+.term-popup-ring{
+  position:absolute;left:50%;top:50%;width:120px;height:120px;margin:-60px 0 0 -60px;
+  border:2px solid var(--gold-bright);border-radius:50%;
+  transform:scale(0.5);opacity:0;pointer-events:none;
+  animation:termRingPulse 1.8s ease-out infinite;
+}
+@keyframes termRingPulse{
+  0%{transform:scale(0.5);opacity:0.8;}
+  80%{opacity:0;}
+  100%{transform:scale(2.6);opacity:0;}
+}
+.term-popup-header{font-size:13px;letter-spacing:0.08em;color:var(--gold);text-transform:uppercase;text-align:center;}
+#term-popup-title{font-size:clamp(22px,6vw,30px);color:var(--gold-bright);margin:6px 0 14px;text-align:center;text-shadow:0 0 18px rgba(242,193,78,0.6);}
+.term-popup-desc{font-size:15px;line-height:1.85;color:var(--text-light);background:rgba(0,0,0,0.22);border-radius:12px;padding:14px 16px;}
+.term-popup-desc strong{color:var(--gold-bright);}
+.term-popup-desc code{background:rgba(255,255,255,0.14);padding:1px 6px;border-radius:5px;font-size:0.9em;}
+.term-popup-card .btn{display:block;margin:16px auto 0;}
+@media (prefers-reduced-motion: reduce){ .term-popup-ring{animation:none;opacity:0;} }
+
+/* ---------- overlays ---------- */
+.overlay-full{
+  position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:radial-gradient(circle at 50% 20%, rgba(60,30,110,0.92), rgba(6,4,20,0.96));
+  overflow-y:auto;
+}
+.overlay-full .overlay-card{max-width:560px;width:100%;text-align:center;position:relative;z-index:2;}
+.trophy{font-size:72px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 0 24px rgba(242,193,78,0.8));animation:trophyBob 2.2s ease-in-out infinite;}
+@keyframes trophyBob{ 0%,100%{transform:translateY(0) rotate(-3deg);} 50%{transform:translateY(-10px) rotate(3deg);} }
+@media (prefers-reduced-motion: reduce){ .trophy{animation:none;} }
+.overlay-card h2{font-size:clamp(22px,6vw,34px);margin:8px 0;color:var(--gold-bright);text-shadow:0 0 18px rgba(242,193,78,0.6);}
+.overlay-card .rank-title{font-size:18px;color:var(--purple-bright);font-weight:800;margin:6px 0 14px;}
+.stat-row{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:14px 0;}
+.stat-chip{background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:12px;padding:8px 14px;font-size:13px;min-width:70px;}
+.stat-chip b{display:block;font-size:20px;}
+.overlay-card p.praise-line{font-size:14px;color:var(--text-dim);margin:4px 0;line-height:1.7;}
+.modal{
+  position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:rgba(4,3,14,0.75);backdrop-filter:blur(3px);
+}
+
+/* ---------- NG確認オーバーレイ ---------- */
+.overlay-full.ng-confirm-overlay{
+  z-index:66;
+  background:radial-gradient(circle at 50% 20%, rgba(122,34,60,0.92), rgba(30,8,26,0.96));
+}
+.ng-confirm-card{border:2px solid var(--danger);}
+.ng-confirm-icon{font-size:46px;line-height:1;margin-bottom:4px;display:inline-block;filter:drop-shadow(0 0 16px rgba(255,84,112,0.7));animation:ngIconSway 1.8s ease-in-out infinite;}
+@keyframes ngIconSway{ 0%,100%{transform:rotate(-6deg);} 50%{transform:rotate(6deg);} }
+@media (prefers-reduced-motion: reduce){ .ng-confirm-icon{animation:none;} }
+.ng-confirm-card h2{color:var(--danger);text-shadow:0 0 16px rgba(255,84,112,0.55);}
+.ng-confirm-deterrent{font-size:15px;color:var(--text-light);line-height:1.8;margin:8px 0 16px;}
+.ng-confirm-recap{text-align:left;background:rgba(0,0,0,0.28);border:1px solid var(--glass-border);border-radius:12px;padding:12px 14px;margin-bottom:18px;}
+.ng-confirm-recap-label{font-size:11px;letter-spacing:0.08em;color:var(--gold);text-transform:uppercase;margin-bottom:6px;}
+.ng-confirm-recap-body{font-size:15px;line-height:1.7;color:var(--text-light);}
+.ng-confirm-buttons{display:flex;flex-direction:column;align-items:center;gap:10px;}
+.ng-confirm-buttons #ng-confirm-back-btn{font-size:17px;padding:16px 22px;width:100%;max-width:360px;}
+.ng-confirm-buttons #ng-confirm-proceed-btn{opacity:0.7;font-size:12px;padding:7px 12px;}
+.ng-confirm-buttons #ng-confirm-proceed-btn:hover{opacity:1;}
+.modal .glass-card{max-width:600px;width:100%;max-height:80vh;overflow-y:auto;}
+.modal-close-row{display:flex;justify-content:flex-end;margin-top:14px;}
+
+/* praise pop / score float / flash */
+#praise-backdrop{
+  position:fixed;inset:0;z-index:57;pointer-events:none;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  background:rgba(5,3,20,0.35);
+  opacity:0;
+}
+#praise-backdrop.show{animation:praiseBackdrop 2.4s ease forwards;}
+@keyframes praiseBackdrop{
+  0%{opacity:0;}
+  10%{opacity:1;}
+  55%{opacity:1;}
+  100%{opacity:0;}
+}
+#praise-pop{
+  position:fixed;left:50%;top:36%;transform:translate(-50%,-50%) scale(0.5);z-index:60;
+  font-size:clamp(22px,5.5vw,36px);font-weight:900;color:#fff4d6;
+  text-shadow:0 0 18px rgba(242,193,78,0.9),0 2px 8px rgba(0,0,0,0.95);
+  opacity:0;pointer-events:none;text-align:center;
+  padding:14px 28px;border-radius:18px;
+  background:rgba(10,8,30,0.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1.5px solid var(--gold);
+  box-shadow:0 0 34px rgba(242,193,78,0.55),0 10px 30px rgba(0,0,0,0.45);
+}
+#praise-pop.show{animation:praisePop 2.4s ease forwards;}
+@keyframes praisePop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(0.5);}
+  12%{opacity:1;transform:translate(-50%,-50%) scale(1.12);}
+  22%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  78%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  100%{opacity:0;transform:translate(-50%,-58%) scale(0.96);}
+}
+#score-float{
+  position:fixed;left:50%;top:56%;transform:translate(-50%,0);z-index:60;
+  font-size:26px;font-weight:800;color:var(--ok);opacity:0;pointer-events:none;text-align:center;
+  padding:10px 22px;border-radius:14px;
+  background:rgba(10,8,30,0.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1.5px solid var(--ok);
+  box-shadow:0 0 24px rgba(91,224,138,0.45),0 8px 24px rgba(0,0,0,0.4);
+  text-shadow:0 2px 6px rgba(0,0,0,0.85);
+}
+#score-float.show{animation:scoreFloat 2.0s ease forwards;}
+@keyframes scoreFloat{
+  0%{opacity:0;transform:translate(-50%,10px);}
+  15%{opacity:1;transform:translate(-50%,0);}
+  80%{opacity:1;}
+  100%{opacity:0;transform:translate(-50%,-40px);}
+}
+#flash-effect{position:fixed;inset:0;z-index:55;background:#fff;opacity:0;pointer-events:none;}
+#flash-effect.flash{animation:flashAnim .4s ease;}
+@keyframes flashAnim{ 0%{opacity:0;} 12%{opacity:0.55;} 100%{opacity:0;} }
+@media (prefers-reduced-motion: reduce){
+  #praise-pop.show,#score-float.show,#flash-effect.flash,#praise-backdrop.show{animation-duration:.01s;}
+}
+#confetti-canvas{position:fixed;inset:0;z-index:58;pointer-events:none;}
+
+/* ---------- result screen ---------- */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:16px;}
+.summary-cell{background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:12px;padding:10px 12px;}
+.summary-cell .label{font-size:11px;color:var(--text-dim);}
+.summary-cell .value{font-size:20px;font-weight:800;color:var(--gold-bright);}
+.summary-cell .value.value-rainbow{
+  font-size:24px;font-weight:900;
+  background:linear-gradient(90deg,#ff2d2d,#ff8c00,#ffe600,#2ecc71,#3fa9f5,#4b3fd6,#b348ff,#ff2d2d);
+  background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:rainbowShift 4s linear infinite, rainbowGlow 2.2s ease-in-out infinite;
+}
+@keyframes rainbowShift{
+  0%{background-position:0% 50%;}
+  100%{background-position:300% 50%;}
+}
+@keyframes rainbowGlow{
+  0%,100%{text-shadow:0 0 6px rgba(255,255,255,0.25);}
+  50%{text-shadow:0 0 18px rgba(255,255,255,0.95);}
+}
+@media (prefers-reduced-motion: reduce){
+  .summary-cell .value.value-rainbow{animation:none;}
+}
+
+.table-scroll{overflow-x:auto;margin-top:18px;border-radius:12px;border:1px solid var(--glass-border);}
+table.result-table{border-collapse:collapse;width:100%;min-width:760px;font-size:13px;background:rgba(0,0,0,0.15);}
+table.result-table th,table.result-table td{padding:8px 10px;border-bottom:1px solid var(--glass-border);text-align:left;vertical-align:top;}
+table.result-table th{background:rgba(255,255,255,0.06);color:var(--gold);font-size:12px;position:sticky;top:0;}
+table.result-table tr.row-ng{background:rgba(255,84,112,0.12);}
+table.result-table select{background:rgba(0,0,0,0.3);color:var(--text-light);border:1px solid var(--glass-border);border-radius:8px;padding:4px 6px;font-size:12px;}
+table.result-table input.comment-input{width:100%;min-width:140px;background:rgba(0,0,0,0.3);color:var(--text-light);border:1px solid var(--glass-border);border-radius:8px;padding:4px 6px;font-size:12px;}
+table.result-table input.comment-input.input-error{border-color:var(--danger);box-shadow:0 0 0 2px rgba(255,84,112,0.35);}
+.ng-warning-banner{margin-top:12px;padding:10px 14px;border-radius:10px;background:rgba(255,84,112,0.15);border:1px solid rgba(255,84,112,0.6);color:#ffd7dd;font-size:13px;font-weight:700;}
+.export-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+.footer-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px;}
+
+@media print{
+  .app-topbar,.export-row,.footer-row,.no-print{display:none !important;}
+  body{background:#fff;color:#000;}
+  .glass-card{background:#fff;border-color:#ccc;box-shadow:none;color:#000;}
+  table.result-table th{background:#eee;color:#000;}
+}
+
+/* light theme fallback (kept dark-first per design; only if explicitly chosen light) */
+:root[data-theme="light"]{ color-scheme: light; }
+:root[data-theme="light"] body{ background:#f4f1ff; color:#1c1533; }
+</style>
+</head>
+<body>
+{% include "toolnav.html" %}
+
+<div id="bg-orbs"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div></div>
+<div id="bg-sparkle"></div>
+<canvas id="confetti-canvas"></canvas>
+<div id="flash-effect"></div>
+<div id="praise-backdrop"></div>
+<div id="praise-pop"></div>
+<div id="score-float"></div>
+<div id="toast" class="toast"></div>
+
+<div class="app-topbar">
+  <div class="brand">🏆 Test Runner</div>
+  <a class="lang-toggle" href="/TestRunner" hreflang="ja" lang="ja">日本語</a>
+</div>
+
+<!-- ============ START SCREEN ============ -->
+<section id="screen-start" class="app-screen">
+  <div class="wrap">
+    <div class="hero">
+      <h1>Test Runner</h1>
+      <p class="sub">No more reading. Just press the button.</p>
+      <div class="badge-row">
+        <span class="badge badge-gold">Loaded with fanfare</span>
+        <span class="badge">Works offline</span>
+        <span class="badge">Click to proceed</span>
+      </div>
+    </div>
+
+    <div id="resume-box" class="glass-card" style="margin-bottom:16px;" hidden>
+      <div class="section-title">Continue where you left off</div>
+      <p style="font-size:13px;color:var(--text-dim);">A previously interrupted test session was found.</p>
+      <div id="resume-info" style="font-size:13px;color:var(--text-dim);margin-bottom:10px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-purple" id="resume-btn">▶ Resume from last time</button>
+        <button class="btn btn-ghost btn-small" id="export-progress-btn">📤 Export progress file</button>
+      </div>
+    </div>
+
+    <div class="glass-card" style="margin-bottom:16px;">
+      <div class="section-title">Resume from a progress file</div>
+      <p style="font-size:13px;color:var(--text-dim);">In case your data is lost on another PC or browser, you can load a progress file (.json) you exported earlier and resume right where you saved.</p>
+      <div class="dropzone" id="progress-dropzone" tabindex="0" style="margin-top:10px;">
+        <span class="dz-icon">📥</span>
+        Drag and drop a progress file (.json) here<br>
+        <button class="btn btn-ghost btn-small" id="progress-file-select-btn" style="margin-top:10px;">📥 Resume from a progress file</button>
+        <input type="file" id="progress-file-input" accept=".json,application/json" hidden>
+      </div>
+    </div>
+
+    <div class="glass-card ai-prompt-card" style="margin-bottom:16px;">
+      <details id="ai-prompt-details">
+        <summary>🤖 Hand this to an AI to format your procedure!</summary>
+        <p style="font-size:13px;color:var(--text-dim);margin-top:10px;">Give an AI this prompt along with your own test items (an Excel table, a bullet list, Markdown in another format, etc.) and it will reformat them into a shape this app can load. Paste the formatted result into "Load a procedure" below to get started right away.</p>
+        <textarea id="ai-prompt-text" readonly></textarea>
+        <button class="btn btn-ghost btn-small" id="ai-prompt-copy-btn" style="margin-top:10px;">📋 Copy prompt</button>
+      </details>
+    </div>
+
+    <div class="glass-card">
+      <div class="section-title">Load a procedure</div>
+      <label class="field-label">Tester name (optional, shown in the results table)</label>
+      <input type="text" id="tester-name-input" placeholder="e.g. Jane Doe">
+
+      <div class="input-grid" style="margin-top:18px;">
+        <div>
+          <label class="field-label">① Load a file (.txt / .md)</label>
+          <div class="dropzone" id="dropzone" tabindex="0">
+            <span class="dz-icon">📂</span>
+            Drag and drop a file here<br>
+            <button class="btn btn-ghost btn-small" id="file-select-btn" style="margin-top:10px;">Choose a file</button>
+            <input type="file" id="file-input" accept=".txt,.md,text/plain" hidden>
+          </div>
+        </div>
+        <div>
+          <label class="field-label">② Paste text</label>
+          <textarea id="paste-textarea" placeholder="Paste your procedure Markdown text here…"></textarea>
+          <button class="btn btn-gold btn-block" id="paste-start-btn" style="margin-top:10px;">Start with this procedure</button>
+        </div>
+      </div>
+
+      <label class="field-label">③ Try a sample procedure</label>
+      <div class="sample-row">
+        <button class="btn btn-ghost" id="sample-a-btn">Sample A: Pomodorin (timer behavior check)</button>
+        <button class="btn btn-ghost" id="sample-b-btn">Sample B: Calcy (basic arithmetic)</button>
+      </div>
+
+      <div id="preview-box" class="preview-box" hidden>
+        <div class="section-title">Loaded preview</div>
+        <div id="preview-content"></div>
+        <button class="btn btn-gold btn-block" id="begin-btn" style="margin-top:16px;">🚀 Start</button>
+      </div>
+
+      <div id="error-box" class="error-box" hidden></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STEP SCREEN ============ -->
+<section id="screen-step" class="app-screen" hidden>
+  <div class="wrap-narrow">
+    <div class="step-header">
+      <div>
+        <div class="doc-title" id="step-doc-title"></div>
+        <h2 id="step-section-title"></h2>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="badge-row" id="step-badges"></div>
+        <button class="btn btn-ghost btn-small" id="save-pause-btn">💾 Save and pause</button>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar-outer"><div class="progress-bar-inner" id="progress-bar-inner" style="width:0%"></div></div>
+      <div class="progress-meta">
+        <span id="progress-percent">0%</span>
+        <span id="progress-remain-section"></span>
+        <span id="progress-remain-total"></span>
+      </div>
+    </div>
+    <div class="dots-row" id="dots-row"></div>
+
+    <div class="step-card" id="step-card">
+      <div class="item-number" id="item-number"></div>
+      <div class="step-block do">
+        <h3>What to do</h3>
+        <div class="body" id="item-step-body"></div>
+      </div>
+      <div class="step-block expect">
+        <h3>Expected result</h3>
+        <div class="body" id="item-expected-body"></div>
+      </div>
+      <div class="note-line" id="section-note-line" hidden></div>
+      <div class="term-hint" id="term-hint" hidden>✨ Click a gold term to see its explanation</div>
+
+      <div class="action-row" id="action-row">
+        <button class="btn btn-gold pulse" id="ok-btn">OK ✔</button>
+        <button class="btn btn-danger" id="ng-btn">NG ✘</button>
+        <button class="btn btn-ghost btn-small" id="back-btn">← Back</button>
+      </div>
+
+      <div class="action-panel ng-panel" id="ng-panel" hidden>
+        <p class="hint"><strong>What was different, and how</strong> — please describe concretely (required). Just write the difference between the expected result and what actually happened.</p>
+        <textarea id="ng-comment" placeholder="e.g. The save dialog appeared in the top-left of the screen"></textarea>
+        <div class="ng-inline-warn" id="ng-inline-warn" hidden>⚠ A comment is required for NG</div>
+        <div class="panel-buttons">
+          <button class="btn btn-danger btn-small" id="ng-confirm-btn" disabled>Record as NG</button>
+          <button class="btn btn-ghost btn-small" id="ng-cancel-btn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="step-timer-row" id="step-timer-row">
+        <span class="timer-current" id="step-timer-current">⏱ This step 0:00</span>
+        <span id="step-timer-prev" hidden></span>
+      </div>
+
+      <div class="glossary-fab-row no-print">
+        <button class="btn btn-purple btn-small" id="glossary-fab-btn" hidden>📖 View glossary / overview</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION COMPLETE OVERLAY ============ -->
+<div class="overlay-full" id="overlay-section-complete" hidden>
+  <div class="overlay-card glass-card">
+    <div class="trophy">🏆</div>
+    <h2 id="sc-heading">Section N complete!</h2>
+    <div class="rank-title" id="sc-title"></div>
+    <div class="stat-row">
+      <div class="stat-chip">OK<b id="sc-ok">0</b></div>
+      <div class="stat-chip">NG<b id="sc-ng">0</b></div>
+      <div class="stat-chip">⏱ Section time<b id="sc-duration">0:00</b></div>
+      <div class="stat-chip">Time bonus<b id="sc-time-bonus">+0 pt</b></div>
+    </div>
+    <p class="praise-line" id="sc-praise1"></p>
+    <p class="praise-line" id="sc-praise2"></p>
+    <p class="praise-line" id="sc-praise3"></p>
+    <p class="praise-line" id="sc-time-praise"></p>
+    <button class="btn btn-gold" id="sc-next-btn" style="margin-top:16px;">Next section ▶</button>
+  </div>
+</div>
+
+<!-- ============ GRAND FINALE OVERLAY ============ -->
+<div class="overlay-full" id="overlay-finale" hidden>
+  <div class="overlay-card glass-card">
+    <div class="trophy">👑</div>
+    <h2>All sections complete!! Grand finale</h2>
+    <div class="rank-title" id="finale-rank"></div>
+    <div class="stat-row">
+      <div class="stat-chip">Total<b id="finale-total">0</b></div>
+      <div class="stat-chip">OK<b id="finale-ok">0</b></div>
+      <div class="stat-chip">NG<b id="finale-ng">0</b></div>
+      <div class="stat-chip">OK rate<b id="finale-rate">0%</b></div>
+      <div class="stat-chip">⏱ Total time<b id="finale-duration">0:00</b></div>
+    </div>
+    <p class="praise-line" id="finale-praise1"></p>
+    <p class="praise-line" id="finale-praise2"></p>
+    <p class="praise-line" id="finale-praise3"></p>
+    <p class="praise-line" id="finale-time-praise"></p>
+    <button class="btn btn-gold" id="finale-result-btn" style="margin-top:16px;">View results ▶</button>
+  </div>
+</div>
+
+<!-- ============ NG CONFIRM OVERLAY ============ -->
+<div class="overlay-full ng-confirm-overlay" id="overlay-ng-confirm" hidden>
+  <div class="overlay-card glass-card ng-confirm-card">
+    <div class="ng-confirm-icon" id="ng-confirm-icon">⚠️</div>
+    <h2>Are you sure this is NG?</h2>
+    <p class="ng-confirm-deterrent" id="ng-confirm-deterrent"></p>
+    <div class="ng-confirm-recap">
+      <div class="ng-confirm-recap-label">Expected result for this item</div>
+      <div class="ng-confirm-recap-body" id="ng-confirm-expected"></div>
+    </div>
+    <div class="ng-confirm-buttons">
+      <button class="btn btn-purple" id="ng-confirm-back-btn">Check once more (go back)</button>
+      <button class="btn btn-danger btn-small" id="ng-confirm-proceed-btn" tabindex="-1">Yes, this is definitely NG</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ GLOSSARY MODAL ============ -->
+<div class="modal" id="modal-glossary" hidden>
+  <div class="glass-card">
+    <div class="section-title">Glossary / overview</div>
+    <div id="glossary-modal-content"></div>
+    <div class="modal-close-row"><button class="btn btn-ghost btn-small" id="glossary-close-btn">Close</button></div>
+  </div>
+</div>
+
+<!-- ============ TERM POPUP ============ -->
+<div class="term-popup-overlay" id="overlay-term" hidden>
+  <div class="overlay-card term-popup-card glass-card">
+    <div class="term-popup-ring"></div>
+    <div class="term-popup-header">📖 Term explanation</div>
+    <h2 id="term-popup-title"></h2>
+    <div id="term-popup-desc" class="term-popup-desc"></div>
+    <button class="btn btn-gold" id="term-popup-ok-btn">Got it!</button>
+  </div>
+</div>
+
+<!-- ============ RESULT SCREEN ============ -->
+<section id="screen-result" class="app-screen" hidden>
+  <div class="wrap">
+    <div class="glass-card">
+      <div class="section-title">Test result summary</div>
+      <div class="summary-grid" id="summary-grid"></div>
+      <div class="ng-warning-banner" id="ng-comment-warning" hidden>⚠ Some NG entries are missing a comment. Please check those rows.</div>
+    </div>
+
+    <div class="glass-card" style="margin-top:16px;">
+      <div class="section-title">Result list (results and comments can be edited right here)</div>
+      <div class="table-scroll">
+        <table class="result-table" id="result-table">
+          <thead>
+            <tr><th>No.</th><th>Section</th><th>Step</th><th>Expected result</th><th>Result</th><th>Comment</th><th>Recorded at</th><th>Duration</th></tr>
+          </thead>
+          <tbody id="result-table-body"></tbody>
+        </table>
+      </div>
+      <div class="export-row">
+        <button class="btn btn-ghost" id="copy-md-btn">Copy as Markdown table</button>
+        <button class="btn btn-ghost" id="copy-tsv-btn">Copy as TSV (paste into Excel)</button>
+        <button class="btn btn-ghost" id="download-csv-btn">Download CSV</button>
+        <button class="btn btn-ghost" id="print-btn">Print</button>
+        <button class="btn btn-gold" id="copy-report-btn">📨 Copy report</button>
+        <button class="btn btn-ghost" id="export-progress-result-btn">📤 Export progress file</button>
+      </div>
+      <textarea id="clipboard-fallback" style="position:fixed;left:-9999px;top:-9999px;" aria-hidden="true"></textarea>
+      <div class="footer-row">
+        <button class="btn btn-danger" id="restart-btn">Start over</button>
+        <button class="btn btn-purple" id="load-another-btn">Load another procedure</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+'use strict';
+
+/* =========================================================================
+   PARSER (pure functions — decode + parseProcedure)
+   ========================================================================= */
+/* ===== PARSER START ===== */
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function applyInline(raw) {
+  var s = escapeHtml(raw);
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/`(.+?)`/g, '<code>$1</code>');
+  return s;
+}
+
+function stripMd(raw) {
+  return String(raw).replace(/\*\*(.+?)\*\*/g, '$1').replace(/`(.+?)`/g, '$1');
+}
+
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/* ---- glossary (用語定義) parsing ---- */
+var GLOSSARY_PLACEHOLDER_RE = /◯◯|〇〇|○○|××|XX|ＸＸ/g;
+var GLOSSARY_SEP_RE = /\.\.\.|…|：|:|—|－|\s-\s/;
+
+function parseGlossaryItem(itemText) {
+  var text = String(itemText).trim();
+  if (!text) return null;
+  var term, desc;
+  var boldMatch = text.match(/^\*\*(.+?)\*\*\s*(.*)$/);
+  if (boldMatch) {
+    term = boldMatch[1].trim();
+    var rest = boldMatch[2];
+    var sepMatch = rest.match(GLOSSARY_SEP_RE);
+    desc = sepMatch ? rest.slice(sepMatch.index + sepMatch[0].length).trim() : rest.trim();
+  } else {
+    var m = text.match(GLOSSARY_SEP_RE);
+    if (!m) return null;
+    term = text.slice(0, m.index).replace(/\*\*/g, '').trim();
+    desc = text.slice(m.index + m[0].length).trim();
+  }
+  if (!term || !desc) return null;
+  var key = term.replace(GLOSSARY_PLACEHOLDER_RE, '').trim();
+  if (key.length < 2) return null;
+  return { term: term, key: key, descHtml: applyInline(desc) };
+}
+
+function extractGlossary(preamble) {
+  var glossary = [];
+  var seenKeys = {};
+  (preamble || []).forEach(function (block) {
+    var lines = block.bodyLines || [];
+    var i = 0;
+    while (i < lines.length) {
+      if (/用語定義/.test(lines[i])) {
+        i++;
+        while (i < lines.length && lines[i].trim() === '') i++;
+        while (i < lines.length && /^[*\-]\s+/.test(lines[i].trim())) {
+          var itemText = lines[i].trim().replace(/^[*\-]\s+/, '');
+          var entry = parseGlossaryItem(itemText);
+          if (entry && !seenKeys[entry.key]) {
+            seenKeys[entry.key] = true;
+            glossary.push(entry);
+          }
+          i++;
+        }
+        continue;
+      }
+      i++;
+    }
+  });
+  return glossary;
+}
+
+function highlightGlossaryHtml(html, glossary) {
+  if (!glossary || glossary.length === 0) return { html: html, matched: false };
+  var keyToIdx = {};
+  glossary.forEach(function (g, idx) {
+    if (g.key && g.key.length >= 2 && !(g.key in keyToIdx)) keyToIdx[g.key] = idx;
+  });
+  var keys = Object.keys(keyToIdx).sort(function (a, b) { return b.length - a.length; });
+  if (keys.length === 0) return { html: html, matched: false };
+  var re = new RegExp(keys.map(escapeRegExp).join('|'), 'g');
+  var matched = false;
+  var parts = html.split(/(<[^>]+>)/);
+  for (var p = 0; p < parts.length; p++) {
+    if (p % 2 === 1) continue; // HTML tag, skip
+    if (!parts[p]) continue;
+    parts[p] = parts[p].replace(re, function (m) {
+      matched = true;
+      return '<span class="term" data-term-idx="' + keyToIdx[m] + '">' + m + '</span>';
+    });
+  }
+  return { html: parts.join(''), matched: matched };
+}
+
+function isTableLine(line) {
+  return /^\s*\|/.test(line);
+}
+
+function isSeparatorRow(cells) {
+  if (cells.length === 0) return false;
+  return cells.every(function (c) { return /^:?-+:?$/.test(c.trim()); });
+}
+
+function splitTableRow(line) {
+  var trimmed = line.trim();
+  if (trimmed.charAt(0) === '|') trimmed = trimmed.slice(1);
+  if (trimmed.charAt(trimmed.length - 1) === '|') trimmed = trimmed.slice(0, -1);
+  return trimmed.split('|').map(function (c) { return c.trim(); });
+}
+
+function parseHeadingMeta(headingText) {
+  var text = headingText.trim();
+  var number = null;
+  var mNum = text.match(/^(\d+)\.\s*/);
+  if (mNum) {
+    number = mNum[1];
+    text = text.slice(mNum[0].length);
+  }
+  var tag = null;
+  var mTag = text.match(/【([^】]*)】\s*$/);
+  if (mTag) {
+    tag = mTag[1];
+    text = text.slice(0, mTag.index).trim();
+  }
+  return { number: number, tag: tag, title: text.trim() };
+}
+
+function parseProcedure(rawText) {
+  var text = String(rawText).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  var lines = text.split('\n');
+
+  var docTitle = '';
+  var blocks = [];
+  var current = null;
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (/^##\s+/.test(line) && !/^###/.test(line)) {
+      docTitle = line.replace(/^##\s+/, '').trim();
+      continue;
+    }
+    if (/^###\s+/.test(line)) {
+      current = { heading: line.replace(/^###\s+/, '').trim(), lines: [] };
+      blocks.push(current);
+      continue;
+    }
+    if (current) current.lines.push(line);
+  }
+
+  var preamble = [];
+  var sections = [];
+  var totalItems = 0;
+
+  blocks.forEach(function (block) {
+    var hasTable = block.lines.some(function (l) { return isTableLine(l); });
+
+    if (!hasTable) {
+      var bodyLines = block.lines.slice();
+      while (bodyLines.length && bodyLines[0].trim() === '') bodyLines.shift();
+      while (bodyLines.length && bodyLines[bodyLines.length - 1].trim() === '') bodyLines.pop();
+      preamble.push({ heading: block.heading, bodyLines: bodyLines });
+      return;
+    }
+
+    var meta = parseHeadingMeta(block.heading);
+    var tableRowsRaw = [];
+    var nonTableLines = [];
+    var skippedHeader = false;
+    var skippedSep = false;
+
+    for (var j = 0; j < block.lines.length; j++) {
+      var l2 = block.lines[j];
+      if (isTableLine(l2)) {
+        var cells = splitTableRow(l2);
+        if (!skippedHeader) { skippedHeader = true; continue; }
+        if (!skippedSep && isSeparatorRow(cells)) { skippedSep = true; continue; }
+        tableRowsRaw.push(cells);
+      } else if (l2.trim() !== '') {
+        nonTableLines.push(l2.trim());
+      }
+    }
+
+    var items = [];
+    tableRowsRaw.forEach(function (cells) {
+      if (cells.length === 0) return;
+      var num = cells[0] || '';
+      var step = cells.length > 1 ? cells[1] : '';
+      var expected;
+      if (cells.length <= 2) {
+        expected = '(not specified)';
+      } else {
+        expected = cells.slice(2).join(' ').trim();
+        if (expected === '') expected = '(not specified)';
+      }
+      items.push({
+        number: num,
+        stepRaw: step,
+        expectedRaw: expected,
+        stepHtml: applyInline(step),
+        expectedHtml: applyInline(expected)
+      });
+      totalItems++;
+    });
+
+    sections.push({
+      number: meta.number,
+      tag: meta.tag,
+      title: meta.title,
+      note: nonTableLines.join('\n'),
+      items: items
+    });
+  });
+
+  if (sections.length === 0) {
+    var fallbackItems = [];
+    lines.forEach(function (l) {
+      if (l.trim() === '') return;
+      if (/^#/.test(l.trim())) return;
+      var parts = l.split(/\t|→/);
+      var step = parts[0] !== undefined ? parts[0].trim() : l.trim();
+      var expected = parts.length > 1 ? parts.slice(1).join('→').trim() : '';
+      if (expected === '') expected = '(not specified)';
+      fallbackItems.push({
+        number: String(fallbackItems.length + 1),
+        stepRaw: step,
+        expectedRaw: expected,
+        stepHtml: applyInline(step),
+        expectedHtml: applyInline(expected)
+      });
+      totalItems++;
+    });
+    if (fallbackItems.length > 0) {
+      sections.push({ number: '1', tag: null, title: 'Steps', note: '', items: fallbackItems });
+    }
+  }
+
+  return {
+    title: docTitle,
+    preamble: preamble,
+    sections: sections,
+    glossary: extractGlossary(preamble),
+    totalItems: totalItems,
+    ok: totalItems > 0
+  };
+}
+
+function decodeAuto(bytes) {
+  var buf = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+    return new TextDecoder('utf-16le').decode(buf.slice(2));
+  }
+  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
+    return new TextDecoder('utf-16be').decode(buf.slice(2));
+  }
+  if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+    return new TextDecoder('utf-8').decode(buf.slice(3));
+  }
+  var sampleLen = Math.min(buf.length, 4000);
+  var zerosOdd = 0, zerosEven = 0;
+  for (var i = 0; i < sampleLen; i++) {
+    if (buf[i] === 0) { if (i % 2 === 1) zerosOdd++; else zerosEven++; }
+  }
+  if (zerosOdd > sampleLen * 0.15 && zerosOdd > zerosEven) {
+    return new TextDecoder('utf-16le').decode(buf);
+  }
+  return new TextDecoder('utf-8').decode(buf);
+}
+
+/* ===== PARSER END ===== */
+
+/* =========================================================================
+   SAMPLE DATA（架空アプリ。実在の固有名詞は含みません）
+   ========================================================================= */
+var SAMPLE_A = [
+'## "Pomodorin" timer behavior check',
+'',
+'### Test overview',
+'',
+'Areas covered:',
+'',
+'1. Starting, pausing and resetting the work timer',
+'2. Completion notification and saving settings',
+'',
+'Test language: English',
+'',
+'What to prepare: a device with Pomodorin installed in its initial state (work time 25 min, break time 5 min)',
+'',
+'用語定義:',
+'',
+'* **Start button** … The round green button in the center of the screen. Its label changes to "Pause" when pressed',
+'* **Reset** … Press the "↺" button to the right of the Start button, then choose [Yes] in the confirmation dialog',
+'* **Set work time** … Open the settings screen from the gear icon at the top right, type the number of minutes into the "Work time" field, then press [Save]',
+'',
+'### 1. Starting and pausing the timer【Windows】',
+'',
+'| 番号 | 手順 | 期待結果 |',
+'|---|---|---|',
+'| 1 | Launch the app | `25:00` is shown in the center of the screen and the **Start button** is green |',
+'| 2 | Press the **Start button** and wait 10 seconds | The display decreases once per second and reads `24:50` after 10 seconds (±1 second) |',
+'| 3 | Press the **Start button**, wait 5 seconds, then press [Pause] | The display stops at `24:55` and does not change during a further 5-second wait (±1 second) |',
+'| 4 | Press the **Start button**, wait 5 seconds, press [Pause], wait another 5 seconds, then press the **Start button** again | The display resumes decreasing once per second from `24:55` |',
+'',
+'### 2. Reset【Windows】',
+'',
+'| 番号 | 手順 | 期待結果 |',
+'|---|---|---|',
+'| 5 | Press the **Start button**, wait 5 seconds, then **Reset** | The display returns to `25:00` and the **Start button** shows the green "Start" label again |',
+'| 6 | Press the **Start button**, wait 5 seconds, press the "↺" button, then choose [No] in the confirmation dialog | The dialog closes and the display keeps decreasing once per second without stopping |',
+'',
+'### 3. Completion notification【Windows】',
+'',
+'| 番号 | 手順 | 期待結果 |',
+'|---|---|---|',
+'| 7 | **Set work time** to 1 minute, press the **Start button**, and wait 1 minute | The moment the display reaches `00:00`, a notification sound plays once and a dialog reading "Time for a break" appears |',
+'| 8 | **Set work time** to 1 minute, press the **Start button**, wait 1 minute, then choose [Start break] in the dialog | The display changes to `05:00`, the background turns blue, and the display starts decreasing once per second without any further press |',
+'| 9 | **Set work time** to 1 minute, press the **Start button**, wait 1 minute, then choose [Close] in the dialog | The dialog closes, the display returns to `01:00`, and the **Start button** shows the green "Start" label |',
+'',
+'### 4. Saving settings【Windows】',
+'',
+'| 番号 | 手順 | 期待結果 |',
+'|---|---|---|',
+'| 10 | **Set work time** to 40 minutes | The settings screen closes and the main screen shows `40:00` |',
+'| 11 | **Set work time** to 40 minutes, quit the app, then launch it again | The display immediately after launch is `40:00` (it has not gone back to `25:00`) |',
+'| 12 | Open the settings screen from the gear icon at the top right, type `0` into the "Work time" field, then press [Save] | An error reading "Enter a number from 1 to 120" is shown in red and the settings screen stays open |',
+'| 13 | Open the settings screen from the gear icon at the top right, type `121` into the "Work time" field, then press [Save] | An error reading "Enter a number from 1 to 120" is shown in red and the settings screen stays open |',
+'',
+'### 5. Smartphone version【Android】',
+'',
+'| 番号 | 手順 | 期待結果 |',
+'|---|---|---|',
+'| 14 | Launch the app, press the **Start button**, and wait 10 seconds | The display reads `24:50` (±1 second) and the screen does not dim during those 10 seconds |',
+'| 15 | Press the **Start button**, send the app to the background with the Home button, wait 30 seconds, then return to the app | The display reads `24:30` (±2 seconds), showing that timing continued while in the background |',
+'',
+'※ On Android the device vibrates once instead of playing the notification sound. If you see any difference, describe it concretely in the result (do not just mark it NG — write what was different and how).'
+].join('\n');
+
+var SAMPLE_B = [
+'## "Calcy" basic arithmetic test procedure',
+'',
+'### Test overview',
+'',
+'Areas covered: the four arithmetic operations, decimal handling, memory function',
+'',
+'Test language: English',
+'',
+'用語定義:',
+'',
+'* **Calcy** … A fictional calculator app used only for this sample procedure',
+'* **Clear** … Press the C button to reset the display to 0',
+'* **M+** … The button that adds the current display value to memory and stores it',
+'',
+'### 1. Four arithmetic operations 【Common】',
+'',
+'| No. | Step | Expected result |',
+'|---|---|---|',
+'| 1 | Enter `1 + 1 =` | The display shows `2` (the laws of the universe remain intact) |',
+'| 2 | Enter `2 - 1 =` | The display shows `1` |',
+'| 3 | Enter `3 * 3 =` | The display shows `9` |',
+'| 4 | Enter `6 / 2 =` | The display shows `3` |',
+'',
+'### 2. Decimals / error handling 【Common】',
+'',
+'| No. | Step | Expected result |',
+'|---|---|---|',
+'| 5 | Enter `1 / 3 =` | The display shows `0.3333333333` (exactly 10 digits after the decimal point, ending in `3`). A different digit count, such as `0.33333333333333` (more than 10 digits) or `0.3` (fewer than 10 digits), is NG |',
+'| 6 | Enter `5 / 0 =` | An error is displayed. The app **does not crash** |',
+'| 7 | Enter `-3 + 5 =` | The display shows `2` |',
+'',
+'### 3. Memory function 【Common】',
+'',
+'| No. | Step | Expected result |',
+'|---|---|---|',
+'| 8 | Enter `5`, press M+, then after Clear press MR | The display shows `5` |',
+'| 9 | With `5` already in memory, enter `3`, press M-, then press MR | The display shows `2` |'
+].join('\n');
+
+/* =========================================================================
+   AI整形プロンプト（手元の試験項目をこのアプリの形式に整えてもらうための文面）
+   ========================================================================= */
+var AI_FORMAT_PROMPT = [
+'You are formatting a test procedure document. Reformat the test items pasted below into the exact Markdown format specified. Do not add, remove, or reinterpret any content — only adjust the formatting. Do not fill in unclear points by guessing; leave them as-is.',
+'',
+'## Output format',
+'',
+'IMPORTANT: the structural markers below (`## `, `### `, the `用語定義:` line, the table column headers `| 番号 | 手順 | 期待結果 |`, and the `※ ` note prefix) must be reproduced EXACTLY as shown, in Japanese, even though the rest of your output is in English — the parser in this app only recognizes these exact Japanese keywords.',
+'',
+'Make line 1 `## <test title>`.',
+'',
+'Next, add a `### 試験の概要` section with free text describing what is being tested and what needs to be prepared. If there are any terms to define, put a line reading exactly `用語定義:` below that, followed by a bulleted list in the form `* **term** … description` (the separator is the full-width ellipsis character "…"). If there are no terms, you may omit the `用語定義:` line entirely.',
+'',
+'Write each section (a group of test items) as `### 1. Section title【Windows】`, i.e. "number. title【target OS or environment】". The tag inside 【】 is optional and may be omitted.',
+'',
+'Immediately below each section, place a table in this exact format:',
+'',
+'| 番号 | 手順 | 期待結果 |',
+'|---|---|---|',
+'| (sequence number) | (step) | (expected result) |',
+'',
+'Numbers must run continuously across the whole document (do not reset when a new section starts).',
+'',
+'If there is a note after a table, write it as a line starting with `※ `.',
+'',
+'## Example',
+'',
+'```markdown',
+'## "Calcy" basic arithmetic test procedure (example)',
+'',
+'### 試験の概要',
+'',
+'Areas covered: the four arithmetic operations',
+'',
+'用語定義:',
+'',
+'* **Calcy** … a fictional calculator app (for illustration only)',
+'',
+'### 1. Four arithmetic operations【Common】',
+'',
+'| 番号 | 手順 | 期待結果 |',
+'|---|---|---|',
+'| 1 | Enter `1 + 1 =` | The display shows `2` |',
+'| 2 | Enter `2 - 1 =` | The display shows `1` |',
+'',
+'※ This is just a formatting example.',
+'```',
+'',
+'## Writing rules (important)',
+'',
+'- Write each row so it can be carried out from that row alone. References to other rows, such as "redo N", "same as above", "same as the previous item", or "as above", are forbidden. Rewrite every required action in full each time, without abbreviating.',
+'- Write expected results as definite statements, specifying exactly what should be visible — values, positions, counts, and so on. Do not use words that require subjective judgment, such as "appropriately", "correctly", "reasonably", "roughly", "as before", or "without issue". If the original text uses such a word and it cannot be made concrete without changing its meaning, keep the word as-is and append `(Needs review: judgment criteria unclear)` at the end of the line.',
+'- Wrap words you want bolded in `**word**`. Wrap key names or commands in backticks, like `word`.',
+'- Do not use `|` inside table cells — replace it with the full-width character `｜`. Do not put line breaks inside a cell.',
+'',
+'## How to respond',
+'',
+'Return only the formatted Markdown, in a single code block. No preamble or commentary needed.',
+'',
+'Here are the original test items:'
+].join('\n');
+
+/* =========================================================================
+   演出用データ（褒め言葉・称号）
+   ========================================================================= */
+var PRAISE_POOL = [
+  'Well done', 'Nice touch', 'Smooth sailing, keep it up', 'Pretty slick',
+  'Now that is good instinct', 'A superb judgment call', 'Beautifully done', 'Nearly flawless execution',
+  'That precision deserves applause', 'A glimpse of real talent', 'The work of a true professional', 'Astonishing consistency',
+  'This is what mastery looks like', 'Now this is pure artistry', 'A radiant, shining verdict', 'You can feel a legend beginning',
+  'Something has awakened', 'The world is buzzing', 'This OK will go down in history', 'Shockwaves through the industry',
+  'Truly divine', 'This is beyond human ability', 'Even the cosmos is blessing you', 'Precision that bends spacetime itself',
+  'A guaranteed hall-of-famer', 'This will be passed down in legend', 'This is the pinnacle, this is truth', 'You are already a living legend',
+  'The entire universe is applauding', 'The goddess of quality has smiled upon you', 'History was rewritten in this very moment', 'Words fail to describe this any longer',
+  'The ultimate, beyond ultimate', 'This alone proves omniscience'
+];
+
+var SECTION_TITLE_POOL = [
+  'Galactic Test Commander', 'Ruler of the Taskbar', 'Guardian Deity of Quality', 'Sage of Verification', 'Master of the Click',
+  'Rising Star of Verification', 'Chosen One of the OK Button', 'Apostle of the Procedure Document', 'Watcher Over a Bug-Free World', 'Hero of the Test Chamber',
+  'Unbeatable Verification Master', 'Legendary Tester', 'Embodiment of Quality Assurance', 'Master of Window Management', 'Conqueror of Dialogs',
+  'Living Embodiment of Perfectionism', 'King of the Verification Kingdom', 'Marvel Who Needs No Debugging', 'Pinnacle of QA', 'Vanquisher of Regressions',
+  'The Procedure-Execution Machine', 'Creator of the Quality Cosmos', 'Champion of Test Cases'
+];
+
+var SECTION_PRAISE_POOL = [
+  'This section was, frankly, perfect.',
+  'Your fingertips are weaving quality itself.',
+  'Everyone involved is applauding (by our own internal metrics).',
+  'At this rate, bugs will retreat on their own.',
+  'Let us dash through the next section without blinking.',
+  'This record has been quietly, but surely, etched into history.',
+  'Another legend has just been born in the world of testing.',
+  'Save the celebration for after the victory — no toasting quite yet.',
+  'Completing this section is, in fact, a cosmic-scale event.',
+  'The procedure document is grateful to you (probably).'
+];
+
+var FINALE_PRAISE_POOL = [
+  'A grand round of applause for racing through every section.',
+  'This test runner may well have existed just for you.',
+  'The results table is waiting for you. Go look at it with pride.',
+  'Today has been etched into the history of quality.',
+  'Great work. See you again for the next test.'
+];
+
+/* ---------- Time-based praise (never scolds you, whether fast or slow) ---------- */
+var TIME_PRAISE_FAST = [
+  'A lightning-fast verdict.',
+  'A verdict at the speed of light — there was no time to blink.',
+  'Your fingers moved too fast to see.',
+  'A tempo that looked like pure reflex.',
+  'A judgment sharp enough to shave off tenths of a second.',
+  'It was all over in the blink of an eye.',
+  'A pace as smooth as the wind.'
+];
+
+var TIME_PRAISE_STEADY = [
+  'Proceeding at an ideal tempo.',
+  'A rhythm you could feel, like a true craftsperson.',
+  'A stable, comfortable pace throughout.',
+  'An unforced, genuinely easy-to-follow tempo.',
+  'That steady, unwavering rhythm is impressive.',
+  'A pace that radiates steadiness.'
+];
+
+var TIME_PRAISE_CAREFUL = [
+  'Care is quality itself — respect for that attitude.',
+  'A gaze that let nothing slip past unnoticed.',
+  'The courage to take your time is a skill in itself.',
+  'That unhurried, thorough attitude inspires real confidence.',
+  'That carefulness is quietly upholding the quality here.',
+  'You have the strength to check things through without rushing.'
+];
+
+function classifyPace(avgSec) {
+  if (avgSec < 20) return 'fast';
+  if (avgSec < 90) return 'steady';
+  return 'careful';
+}
+
+function timePraisePoolFor(pace) {
+  if (pace === 'fast') return TIME_PRAISE_FAST;
+  if (pace === 'steady') return TIME_PRAISE_STEADY;
+  return TIME_PRAISE_CAREFUL;
+}
+
+function timeBonusFor(pace) {
+  if (pace === 'fast') return 300;
+  if (pace === 'steady') return 200;
+  return 250;
+}
+
+function formatDuration(ms) {
+  var totalSec = Math.max(0, Math.round((ms || 0) / 1000));
+  var h = Math.floor(totalSec / 3600);
+  var m = Math.floor((totalSec % 3600) / 60);
+  var s = totalSec % 60;
+  var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  if (h > 0) return h + ':' + pad2(m) + ':' + pad2(s);
+  return m + ':' + pad2(s);
+}
+
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function shuffleArray(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+/* 重複なしで最大 n 個を選ぶ（arr.length < n の場合は足りる分だけ返す） */
+function pickDistinct(arr, n) {
+  return shuffleArray(arr).slice(0, Math.min(n, arr.length));
+}
+
+function getPraiseForCombo(combo) {
+  var idx = Math.min(combo - 1, PRAISE_POOL.length - 1);
+  var jitter = Math.floor(Math.random() * 3);
+  idx = Math.max(0, idx - jitter);
+  return PRAISE_POOL[idx];
+}
+
+/* =========================================================================
+   状態管理
+   ========================================================================= */
+var STORAGE_KEY = 'testProcedureRunner.session.v1';
+
+var state = {
+  docTitle: '',
+  preamble: [],
+  sections: [],
+  glossary: [],
+  flatItems: [],       // { sectionIndex, itemIndexInSection, number, stepHtml, expectedHtml, stepRaw, expectedRaw }
+  results: [],         // { status: 'ok'|'ng'|null, comment: '', timestamp: null }
+  pointer: 0,
+  testerName: '',
+  startedAt: null,
+  score: 0,
+  combo: 0,
+  transitioning: false, // runtime-only guard against double OK/NG during the advance animation; not persisted (see saveSession)
+  stepEnteredAt: null // runtime-only: Date.now() when the current step was rendered; not persisted (see saveSession)
+};
+
+function buildFlatItems() {
+  var flat = [];
+  state.sections.forEach(function (sec, sIdx) {
+    sec.items.forEach(function (it, iIdx) {
+      flat.push({
+        sectionIndex: sIdx,
+        itemIndexInSection: iIdx,
+        number: it.number,
+        stepHtml: it.stepHtml,
+        expectedHtml: it.expectedHtml,
+        stepRaw: it.stepRaw,
+        expectedRaw: it.expectedRaw
+      });
+    });
+  });
+  state.flatItems = flat;
+}
+
+function sectionRange(sIdx) {
+  var start = 0;
+  for (var i = 0; i < sIdx; i++) start += state.sections[i].items.length;
+  var end = start + state.sections[sIdx].items.length;
+  return { start: start, end: end };
+}
+
+function saveSession() {
+  try {
+    var data = {
+      rawText: state.rawText,
+      testerName: state.testerName,
+      results: state.results,
+      pointer: state.pointer,
+      startedAt: state.startedAt,
+      score: state.score,
+      combo: state.combo
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) { /* ignore quota errors etc. */ }
+}
+
+function clearSession() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+}
+
+function loadSessionRaw() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) { return null; }
+}
+
+/* =========================================================================
+   画面遷移
+   ========================================================================= */
+var SCREENS = ['screen-start', 'screen-step', 'screen-result'];
+function showScreen(id) {
+  SCREENS.forEach(function (s) {
+    document.getElementById(s).hidden = (s !== id);
+  });
+}
+
+/* =========================================================================
+   スタート画面
+   ========================================================================= */
+var lastParseResult = null;
+var lastLoadedRawText = '';
+
+function el(id) { return document.getElementById(id); }
+
+function renderGlossaryHtml(preamble) {
+  if (!preamble || preamble.length === 0) return '<p style="font-size:13px;color:var(--text-dim);">(No preamble or glossary)</p>';
+  var html = '';
+  preamble.forEach(function (block) {
+    html += '<div class="glossary-block"><h4>' + escapeHtml(block.heading) + '</h4>';
+    html += renderBodyLinesHtml(block.bodyLines);
+    html += '</div>';
+  });
+  return html;
+}
+
+function renderBodyLinesHtml(bodyLines) {
+  if (!bodyLines || bodyLines.length === 0) return '';
+  var html = '';
+  var i = 0;
+  while (i < bodyLines.length) {
+    var line = bodyLines[i];
+    if (line.trim() === '') { i++; continue; }
+    if (/^[*\-]\s+/.test(line.trim())) {
+      var items = [];
+      while (i < bodyLines.length && /^[*\-]\s+/.test(bodyLines[i].trim())) {
+        items.push(applyInline(bodyLines[i].trim().replace(/^[*\-]\s+/, '')));
+        i++;
+      }
+      html += '<ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>';
+      continue;
+    }
+    var paraLines = [];
+    while (i < bodyLines.length && bodyLines[i].trim() !== '' && !/^[*\-]\s+/.test(bodyLines[i].trim())) {
+      paraLines.push(applyInline(bodyLines[i].trim()));
+      i++;
+    }
+    html += '<p>' + paraLines.join('<br>') + '</p>';
+  }
+  return html;
+}
+
+function renderPreview(result) {
+  var box = el('preview-content');
+  var testSections = result.sections;
+  var html = '';
+  html += '<div class="summary-grid">';
+  html += '<div class="summary-cell"><div class="label">Document title</div><div class="value" style="font-size:14px;">' + escapeHtml(result.title || '(Untitled)') + '</div></div>';
+  html += '<div class="summary-cell"><div class="label">Sections</div><div class="value">' + testSections.length + '</div></div>';
+  html += '<div class="summary-cell"><div class="label">Items</div><div class="value">' + result.totalItems + '</div></div>';
+  html += '</div>';
+
+  html += '<ul class="section-list">';
+  testSections.forEach(function (sec, idx) {
+    var tagBadge = sec.tag ? '<span class="badge badge-os">' + escapeHtml(sec.tag) + '</span>' : '';
+    html += '<li><span>Section ' + (idx + 1) + ': ' + escapeHtml(sec.title || '(Untitled)') + ' ' + tagBadge + '</span><span class="badge">' + sec.items.length + ' items</span></li>';
+  });
+  html += '</ul>';
+
+  if (result.preamble && result.preamble.length > 0) {
+    html += '<details class="glossary-details"><summary>Read the preamble (overview &amp; glossary)</summary>' + renderGlossaryHtml(result.preamble) + '</details>';
+  }
+
+  box.innerHTML = html;
+  el('preview-box').hidden = false;
+  el('error-box').hidden = true;
+}
+
+function renderParseError(reason) {
+  var box = el('error-box');
+  box.innerHTML =
+    '<div class="err-title">⚠️ Could not read the procedure</div>' +
+    '<div>' + escapeHtml(reason) + '</div>' +
+    '<div style="margin-top:8px;font-size:12px;">Please use a Markdown heading (<code style="background:rgba(255,255,255,0.15);padding:1px 5px;border-radius:4px;">### Section title</code>) with a table (<code style="background:rgba(255,255,255,0.15);padding:1px 5px;border-radius:4px;">| No. | Step | Expected result |</code>), or the simple tab/"→"-separated format.</div>';
+  box.hidden = false;
+  el('preview-box').hidden = true;
+}
+
+function handleLoadedText(text) {
+  var result = parseProcedure(text);
+  lastParseResult = result;
+  lastLoadedRawText = text;
+  if (!result.ok || result.totalItems === 0) {
+    renderParseError('No items could be detected. Please check the file contents and format.');
+    return;
+  }
+  renderPreview(result);
+}
+
+function decodeArrayBufferAuto(buf) {
+  return decodeAuto(new Uint8Array(buf));
+}
+
+function wireStartScreen() {
+  el('ai-prompt-text').value = AI_FORMAT_PROMPT;
+  el('ai-prompt-text').addEventListener('click', function () { this.select(); });
+  el('ai-prompt-copy-btn').addEventListener('click', function () {
+    copyToClipboard(AI_FORMAT_PROMPT, 'Copied. Paste it into the AI, then paste your original procedure after it');
+  });
+
+  el('file-select-btn').addEventListener('click', function () { el('file-input').click(); });
+  el('file-input').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var text = decodeArrayBufferAuto(reader.result);
+        handleLoadedText(text);
+      } catch (err) {
+        renderParseError('An error occurred while reading the file: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(f);
+  });
+
+  var dz = el('dropzone');
+  dz.addEventListener('dragover', function (e) { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', function () { dz.classList.remove('dragover'); });
+  dz.addEventListener('drop', function (e) {
+    e.preventDefault();
+    dz.classList.remove('dragover');
+    var f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var text = decodeArrayBufferAuto(reader.result);
+        handleLoadedText(text);
+      } catch (err) {
+        renderParseError('An error occurred while reading the file: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(f);
+  });
+  dz.addEventListener('click', function () { el('file-input').click(); });
+  dz.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el('file-input').click(); } });
+
+  el('paste-start-btn').addEventListener('click', function () {
+    var text = el('paste-textarea').value;
+    if (!text || text.trim() === '') {
+      renderParseError('No text has been entered.');
+      return;
+    }
+    handleLoadedText(text);
+  });
+
+  el('sample-a-btn').addEventListener('click', function () { handleLoadedText(SAMPLE_A); });
+  el('sample-b-btn').addEventListener('click', function () { handleLoadedText(SAMPLE_B); });
+
+  el('begin-btn').addEventListener('click', function () {
+    if (!lastParseResult || !lastParseResult.ok) return;
+    startNewSession(lastParseResult, lastLoadedRawText);
+  });
+
+  el('resume-btn').addEventListener('click', function () {
+    var saved = loadSessionRaw();
+    if (!saved) return;
+    resumeSession(saved);
+  });
+
+  el('export-progress-btn').addEventListener('click', function () {
+    var saved = loadSessionRaw();
+    if (!saved || !saved.rawText) { showToast('There is no progress to export'); return; }
+    var fname = downloadProgressJson(buildProgressExportObject(saved));
+    showToast('Progress file exported: ' + fname);
+  });
+
+  el('progress-file-select-btn').addEventListener('click', function () { el('progress-file-input').click(); });
+  el('progress-file-input').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (f) handleProgressFile(f);
+  });
+
+  var pdz = el('progress-dropzone');
+  pdz.addEventListener('dragover', function (e) { e.preventDefault(); pdz.classList.add('dragover'); });
+  pdz.addEventListener('dragleave', function () { pdz.classList.remove('dragover'); });
+  pdz.addEventListener('drop', function (e) {
+    e.preventDefault();
+    pdz.classList.remove('dragover');
+    var f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleProgressFile(f);
+  });
+  pdz.addEventListener('click', function () { el('progress-file-input').click(); });
+  pdz.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el('progress-file-input').click(); } });
+}
+
+/* ---------- 進捗ファイルの書き出し / 読み込み ---------- */
+function buildProgressExportObject(source) {
+  return {
+    rawText: source.rawText,
+    testerName: source.testerName,
+    results: source.results,
+    pointer: source.pointer,
+    startedAt: source.startedAt,
+    score: source.score,
+    combo: source.combo
+  };
+}
+
+function downloadProgressJson(dataObj) {
+  var json = JSON.stringify(dataObj, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var ts = new Date();
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  var fname = 'progress_' + ts.getFullYear() + pad(ts.getMonth() + 1) + pad(ts.getDate()) +
+    '_' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds()) + '.json';
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  return fname;
+}
+
+function exportProgressFromState() {
+  if (!state.rawText) { showToast('There is no progress to export'); return; }
+  var fname = downloadProgressJson(buildProgressExportObject(state));
+  showToast('Progress file exported: ' + fname);
+}
+
+function handleProgressFile(file) {
+  var reader = new FileReader();
+  reader.onload = function () {
+    var obj;
+    try {
+      obj = JSON.parse(reader.result);
+    } catch (e) {
+      showToast('Failed to read the progress file');
+      return;
+    }
+    if (!obj || typeof obj.rawText !== 'string' || obj.rawText.trim() === '' || !Array.isArray(obj.results)) {
+      showToast('The progress file format is invalid');
+      return;
+    }
+    var check = parseProcedure(obj.rawText);
+    if (!check.ok) {
+      showToast('Could not parse the procedure inside the progress file');
+      return;
+    }
+    // 互換: 旧バージョンで書き出された「保留」ステータスは未実施(null)として扱う
+    obj.results = obj.results.map(function (r) {
+      return r ? { status: normalizeStatusCompat(r.status), comment: r.comment, timestamp: r.timestamp, durationMs: (r.durationMs != null ? r.durationMs : null) } : r;
+    });
+    resumeSession(obj);
+  };
+  reader.readAsText(file);
+}
+
+// 互換: 旧バージョンの「保留」ステータスは未実施(null)として正規化する
+function normalizeStatusCompat(status) {
+  return status === 'hold' ? null : status;
+}
+
+function checkResumeAvailable() {
+  var saved = loadSessionRaw();
+  if (!saved || !saved.rawText) return;
+  var result = parseProcedure(saved.rawText);
+  if (!result.ok) return;
+  el('resume-box').hidden = false;
+  var answered = (saved.results || []).filter(function (r) { return r && r.status; }).length;
+  var total = result.totalItems;
+  var when = '';
+  try { when = new Date(saved.startedAt).toLocaleString('en-US'); } catch (e) { when = ''; }
+  el('resume-info').textContent =
+    '"' + (result.title || 'Untitled') + '" ' + answered + ' / ' + total + ' items complete' +
+    (saved.testerName ? '  Tester: ' + saved.testerName : '') +
+    (when ? '  Started: ' + when : '');
+}
+
+function startNewSession(result, rawText) {
+  state.docTitle = result.title;
+  state.preamble = result.preamble;
+  state.sections = result.sections;
+  state.glossary = result.glossary || [];
+  state.rawText = rawText;
+  buildFlatItems();
+  state.results = state.flatItems.map(function () { return { status: null, comment: '', timestamp: null, durationMs: null }; });
+  state.pointer = 0;
+  state.transitioning = false; // reset runtime guard: a new/resumed session must never inherit a stale flag
+  state.testerName = el('tester-name-input').value.trim();
+  state.startedAt = new Date().toISOString();
+  state.score = 0;
+  state.combo = 0;
+  saveSession();
+  showScreen('screen-step');
+  setupGlossaryFab();
+  renderStep(false);
+}
+
+function resumeSession(saved) {
+  var result = parseProcedure(saved.rawText);
+  state.docTitle = result.title;
+  state.preamble = result.preamble;
+  state.sections = result.sections;
+  state.glossary = result.glossary || [];
+  state.rawText = saved.rawText;
+  buildFlatItems();
+  var results = saved.results || [];
+  state.results = state.flatItems.map(function (_, idx) {
+    var r = results[idx] || { status: null, comment: '', timestamp: null, durationMs: null };
+    // 互換: 旧バージョンの「保留」ステータスは未実施(null)として扱う
+    // 互換: durationMs が無い旧データは null（計測なし）として扱う
+    return { status: normalizeStatusCompat(r.status), comment: r.comment || '', timestamp: r.timestamp || null, durationMs: (r.durationMs != null ? r.durationMs : null) };
+  });
+  state.pointer = Math.min(saved.pointer || 0, state.flatItems.length - 1);
+  state.transitioning = false; // reset runtime guard: a new/resumed session must never inherit a stale flag
+  state.testerName = saved.testerName || '';
+  state.startedAt = saved.startedAt || new Date().toISOString();
+  state.score = saved.score || 0;
+  state.combo = saved.combo || 0;
+  showScreen('screen-step');
+  setupGlossaryFab();
+  renderStep(false);
+}
+
+/* =========================================================================
+   ステップ画面
+   ========================================================================= */
+function setupGlossaryFab() {
+  var fab = el('glossary-fab-btn');
+  fab.hidden = !(state.preamble && state.preamble.length > 0);
+}
+
+function currentItem() { return state.flatItems[state.pointer]; }
+function currentSection() { return state.sections[currentItem().sectionIndex]; }
+
+function countStatusesInSection(sIdx) {
+  var range = sectionRange(sIdx);
+  var counts = { ok: 0, ng: 0, total: range.end - range.start, unanswered: 0 };
+  for (var i = range.start; i < range.end; i++) {
+    var r = state.results[i];
+    if (r && r.status === 'ok') counts.ok++;
+    else if (r && r.status === 'ng') counts.ng++;
+    else counts.unanswered++;
+  }
+  return counts;
+}
+
+function computeSectionDurationMs(sIdx) {
+  var range = sectionRange(sIdx);
+  var total = 0;
+  for (var i = range.start; i < range.end; i++) {
+    var r = state.results[i];
+    if (r && r.durationMs) total += r.durationMs;
+  }
+  return total;
+}
+
+function computeTotalDurationMs() {
+  var total = 0;
+  state.results.forEach(function (r) { if (r && r.durationMs) total += r.durationMs; });
+  return total;
+}
+
+/* ---------- ステップ経過時間のライブタイマー（ステップ画面にいる間だけ動かす） ---------- */
+var stepTimerInterval = null;
+function stopStepTimer() {
+  if (stepTimerInterval) { clearInterval(stepTimerInterval); stepTimerInterval = null; }
+}
+function updateStepTimerDisplay() {
+  var node = el('step-timer-current');
+  if (!node) return;
+  var elapsed = state.stepEnteredAt ? (Date.now() - state.stepEnteredAt) : 0;
+  node.textContent = '⏱ This step ' + formatDuration(elapsed);
+}
+function startStepTimer() {
+  stopStepTimer();
+  updateStepTimerDisplay();
+  stepTimerInterval = setInterval(updateStepTimerDisplay, 1000);
+}
+
+function renderStep(animate) {
+  hideActionPanels();
+  resetNgDodgeState();
+  var item = currentItem();
+  var sIdx = item.sectionIndex;
+  var sec = state.sections[sIdx];
+
+  el('step-doc-title').textContent = state.docTitle || '(Untitled procedure)';
+  el('step-section-title').textContent = (sec.number ? sec.number + '. ' : '') + (sec.title || '(Untitled section)');
+
+  var badgesHtml = '<span class="badge">Section ' + (sIdx + 1) + ' / ' + state.sections.length + '</span>';
+  el('step-badges').innerHTML = badgesHtml;
+
+  var answeredCount = state.results.filter(function (r) { return r && r.status; }).length;
+  var totalCount = state.flatItems.length;
+  var pct = totalCount > 0 ? Math.round((answeredCount / totalCount) * 100) : 0;
+  el('progress-bar-inner').style.width = pct + '%';
+  el('progress-percent').textContent = pct + '% complete';
+
+  var secCounts = countStatusesInSection(sIdx);
+  el('progress-remain-section').textContent = secCounts.unanswered + ' items left in this section';
+  var remainSections = state.sections.length - (sIdx + 1);
+  var remainTotalItems = totalCount - answeredCount;
+  el('progress-remain-total').textContent = remainTotalItems + ' items / ' + remainSections + ' sections left overall';
+
+  var dotsHtml = '';
+  state.sections.forEach(function (s, idx) {
+    var c = countStatusesInSection(idx);
+    var cls = 'dot';
+    if (idx === sIdx) cls += ' current';
+    else if (c.unanswered === 0) cls += ' done';
+    dotsHtml += '<span class="' + cls + '" title="Section ' + (idx + 1) + ': ' + escapeHtml(s.title || '') + '"></span>';
+  });
+  el('dots-row').innerHTML = dotsHtml;
+
+  var existing = state.results[state.pointer];
+  var statusPill = '';
+  if (existing && existing.status) {
+    var label = existing.status === 'ok' ? 'OK' : 'NG';
+    statusPill = '<span class="status-pill ' + existing.status + '">Recorded: ' + label + '</span>';
+  }
+  var osBadgeHtml = sec.tag ? '<span class="badge-os-lg">🖥 ' + escapeHtml(sec.tag) + '</span>' : '';
+  el('item-number').innerHTML =
+    '<span class="item-number-text">No. ' + escapeHtml(item.number || String(item.itemIndexInSection + 1)) + '</span>' +
+    osBadgeHtml + statusPill;
+  var stepHl = highlightGlossaryHtml(item.stepHtml, state.glossary);
+  var expHl = highlightGlossaryHtml(item.expectedHtml, state.glossary);
+  el('item-step-body').innerHTML = stepHl.html;
+  el('item-expected-body').innerHTML = expHl.html;
+  el('term-hint').hidden = !(stepHl.matched || expHl.matched);
+
+  if (sec.note && sec.note.trim() !== '') {
+    var noteHtml = sec.note.split('\n').map(function (l) { return applyInline(l); }).join('<br>');
+    el('section-note-line').innerHTML = '📝 Section note: ' + noteHtml;
+    el('section-note-line').hidden = false;
+  } else {
+    el('section-note-line').hidden = true;
+  }
+
+  el('back-btn').disabled = (state.pointer === 0);
+  el('ok-btn').disabled = false;
+  el('ng-btn').disabled = false;
+
+  if (existing && existing.durationMs != null) {
+    el('step-timer-prev').textContent = '(Previous duration ' + formatDuration(existing.durationMs) + ')';
+    el('step-timer-prev').hidden = false;
+  } else {
+    el('step-timer-prev').hidden = true;
+  }
+  state.stepEnteredAt = Date.now();
+  startStepTimer();
+
+  var card = el('step-card');
+  card.classList.remove('slide-in');
+  if (animate) {
+    void card.offsetWidth;
+    card.classList.add('slide-in');
+  }
+}
+
+function hideActionPanels() {
+  el('ng-panel').hidden = true;
+  el('action-row').hidden = false;
+  el('ng-comment').value = '';
+  el('ng-inline-warn').hidden = true;
+  el('ng-comment').classList.remove('shake-warn');
+  updateNgConfirmBtnState();
+}
+
+function openCommentPanel() {
+  el('action-row').hidden = true;
+  el('ng-panel').hidden = false;
+  updateNgConfirmBtnState();
+  el('ng-comment').focus();
+}
+
+/* ---------- NG confirm overlay (a gentle deterrent) ---------- */
+var NG_DETERRENT_POOL = [
+  'Have you really read the expected result again, carefully?',
+  'Are you confident you did not skip a single step?',
+  'Could that be a simple misreading? Please take one more careful look.',
+  'Could it just be hidden behind a dialog or another window?',
+  'Recording an NG requires a concrete comment. Are you ready to write one?',
+  'You can still turn back right now.',
+  'We trust your eye for detail — but just in case, take one more look.',
+  'A streak of OKs grows your combo. But a false OK is never acceptable.',
+  'Take a breath and compare the expected result against the actual screen once more, will you?',
+  'Are you confident you would stand by this call even later?',
+  'Did you click in a hurry? Take a moment, and try again.',
+  'If it really is different, mark it NG without hesitation — that is what protects quality.',
+  'The step numbers, conditions, and order — did you follow the procedure exactly?',
+  'There is still time to redo this. No need to rush, check once more.',
+  'If you are certain it is different, catching it here is exactly the job — proceed to NG without hesitation.',
+  'Can you reproduce that behavior by trying the operation again?',
+  'An NG is a heavy record. That is exactly why you should be certain before proceeding.',
+  'What you are seeing and what is expected — are they really not matching?'
+];
+
+function openNgConfirmOverlay() {
+  var item = currentItem();
+  el('ng-confirm-deterrent').textContent = pickRandom(NG_DETERRENT_POOL);
+  el('ng-confirm-expected').innerHTML = item.expectedHtml;
+  el('overlay-ng-confirm').hidden = false;
+}
+
+function closeNgConfirmOverlay() {
+  el('overlay-ng-confirm').hidden = true;
+}
+
+function wireNgConfirmOverlay() {
+  el('ng-confirm-back-btn').addEventListener('click', closeNgConfirmOverlay);
+  el('ng-confirm-proceed-btn').addEventListener('click', function () {
+    closeNgConfirmOverlay();
+    openCommentPanel();
+  });
+}
+
+/* ---------- NGコメント必須化 ---------- */
+function updateNgConfirmBtnState() {
+  var val = el('ng-comment').value.trim();
+  el('ng-confirm-btn').disabled = (val === '');
+}
+
+function triggerNgCommentRequiredWarning() {
+  var ta = el('ng-comment');
+  ta.classList.remove('shake-warn');
+  void ta.offsetWidth;
+  ta.classList.add('shake-warn');
+  el('ng-inline-warn').hidden = false;
+}
+
+function closeCommentPanels() {
+  el('ng-panel').hidden = true;
+  el('action-row').hidden = false;
+  el('ng-inline-warn').hidden = true;
+  el('ng-comment').classList.remove('shake-warn');
+}
+
+function recordResult(status, comment) {
+  if (state.transitioning) return; // guard: ignore double OK/NG while the previous result is still animating to the next item
+  var idx = state.pointer;
+  var durationMs = state.stepEnteredAt ? (Date.now() - state.stepEnteredAt) : null;
+  state.results[idx] = { status: status, comment: comment || '', timestamp: new Date().toISOString(), durationMs: durationMs };
+  state.transitioning = true;
+  el('ok-btn').disabled = true;
+  el('ng-btn').disabled = true;
+  el('back-btn').disabled = true;
+  if (status === 'ok') {
+    state.combo++;
+    var gained = 100 * state.combo;
+    state.score += gained;
+    fireOkCelebration(gained, state.combo);
+  } else {
+    state.combo = 0;
+  }
+  saveSession();
+  advanceAfterResult(status);
+}
+
+function isLastItemOfSection() {
+  var item = currentItem();
+  var range = sectionRange(item.sectionIndex);
+  return state.pointer === range.end - 1;
+}
+function isLastSection() {
+  return currentItem().sectionIndex === state.sections.length - 1;
+}
+
+function advanceAfterResult(status) {
+  if (isLastItemOfSection()) {
+    showSectionCompleteOverlay();
+    return;
+  }
+  var delay = (status === 'ok') ? 480 : 60;
+  setTimeout(function () {
+    state.pointer++;
+    renderStep(true); // re-enables ok/ng/back buttons
+    state.transitioning = false;
+  }, delay);
+}
+
+function goBack() {
+  if (state.transitioning) return; // guard: ignore back navigation while advancing to the next item
+  if (state.pointer === 0) return;
+  hideActionPanels();
+  state.pointer--;
+  saveSession();
+  renderStep(false);
+}
+
+/* ---------- NGボタン回避（マウスが止まったら逃げる。最大2回/項目） ---------- */
+var NG_DODGE_PHRASES = ['Whoa there', 'Really?', 'Careful now', 'Check the expected result once more…', 'Not yet?', 'Look closely?'];
+var NG_DODGE_LIMIT = 2;
+var ngDodgeCount = 0;
+var ngDodgeHoverTimer = null;
+var ngDodgeLock = false;
+var ngDodgeCooldownUntil = 0;
+
+function resetNgDodgeState() {
+  ngDodgeCount = 0;
+  ngDodgeLock = false;
+  ngDodgeCooldownUntil = 0;
+  clearTimeout(ngDodgeHoverTimer);
+  ngDodgeHoverTimer = null;
+  var row = el('action-row');
+  var okBtn = el('ok-btn');
+  var ngBtnEl = el('ng-btn');
+  if (row && okBtn && ngBtnEl) {
+    // always restore original order: OK left, NG right
+    if (okBtn.nextElementSibling !== ngBtnEl) {
+      row.insertBefore(okBtn, ngBtnEl);
+    }
+    okBtn.style.transition = '';
+    okBtn.style.transform = '';
+    ngBtnEl.style.transition = '';
+    ngBtnEl.style.transform = '';
+    ngBtnEl.classList.remove('ng-hop');
+    var oldBubble = ngBtnEl.querySelector('.ng-bubble');
+    if (oldBubble && oldBubble.parentNode) oldBubble.parentNode.removeChild(oldBubble);
+  }
+}
+
+function ngHoverCapable() {
+  return !(window.matchMedia && window.matchMedia('(hover: none)').matches);
+}
+
+function showNgDodgeBubble(ngBtnEl) {
+  var old = ngBtnEl.querySelector('.ng-bubble');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+  var bubble = document.createElement('span');
+  bubble.className = 'ng-bubble';
+  bubble.textContent = pickRandom(NG_DODGE_PHRASES);
+  ngBtnEl.appendChild(bubble);
+  void bubble.offsetWidth;
+  bubble.classList.add('show');
+  setTimeout(function () {
+    if (bubble.parentNode) bubble.parentNode.removeChild(bubble);
+  }, 900);
+}
+
+function dodgeNgButton() {
+  if (state.transitioning) return;
+  if (ngDodgeLock) return;
+  if (ngDodgeCount >= NG_DODGE_LIMIT) return;
+  if (Date.now() < ngDodgeCooldownUntil) return;
+
+  var row = el('action-row');
+  var okBtn = el('ok-btn');
+  var ngBtnEl = el('ng-btn');
+  if (!row || !okBtn || !ngBtnEl) return;
+
+  ngDodgeLock = true;
+  ngDodgeCount++;
+
+  if (reducedMotionOS) {
+    // functional swap only, no motion
+    if (okBtn.nextElementSibling === ngBtnEl) {
+      row.insertBefore(ngBtnEl, okBtn);
+    } else {
+      row.insertBefore(okBtn, ngBtnEl);
+    }
+    showNgDodgeBubble(ngBtnEl);
+    ngDodgeCooldownUntil = Date.now() + 500;
+    ngDodgeLock = false;
+    return;
+  }
+
+  var firstOk = okBtn.getBoundingClientRect();
+  var firstNg = ngBtnEl.getBoundingClientRect();
+
+  if (okBtn.nextElementSibling === ngBtnEl) {
+    row.insertBefore(ngBtnEl, okBtn);
+  } else {
+    row.insertBefore(okBtn, ngBtnEl);
+  }
+
+  var lastOk = okBtn.getBoundingClientRect();
+  var lastNg = ngBtnEl.getBoundingClientRect();
+  var dxOk = firstOk.left - lastOk.left;
+  var dxNg = firstNg.left - lastNg.left;
+
+  okBtn.style.transition = 'none';
+  ngBtnEl.style.transition = 'none';
+  okBtn.style.transform = 'translateX(' + dxOk + 'px)';
+  ngBtnEl.style.transform = 'translateX(' + dxNg + 'px)';
+  void row.offsetWidth;
+  okBtn.style.transition = 'transform 320ms cubic-bezier(.2,.9,.3,1.2)';
+  ngBtnEl.style.transition = 'transform 320ms cubic-bezier(.2,.9,.3,1.2)';
+  okBtn.style.transform = '';
+  ngBtnEl.style.transform = '';
+
+  ngBtnEl.classList.remove('ng-hop');
+  void ngBtnEl.offsetWidth;
+  ngBtnEl.classList.add('ng-hop');
+  showNgDodgeBubble(ngBtnEl);
+
+  ngDodgeCooldownUntil = Date.now() + 500;
+  setTimeout(function () {
+    okBtn.style.transition = '';
+    ngBtnEl.style.transition = '';
+    ngBtnEl.classList.remove('ng-hop');
+    ngDodgeLock = false;
+  }, 340);
+}
+
+var ngLastPointerType = 'mouse';
+
+function wireNgDodge() {
+  var ngBtnEl = el('ng-btn');
+  if (!ngBtnEl) return;
+  // pointerenter (not the trigger itself) just records whether this hover came from touch,
+  // since plain MouseEvents from mouseenter carry no pointerType.
+  ngBtnEl.addEventListener('pointerenter', function (e) {
+    ngLastPointerType = e.pointerType || 'mouse';
+  });
+  ngBtnEl.addEventListener('mouseenter', function () {
+    if (ngLastPointerType === 'touch') return;
+    if (!ngHoverCapable()) return;
+    if (state.transitioning) return;
+    if (Date.now() < ngDodgeCooldownUntil) return;
+    clearTimeout(ngDodgeHoverTimer);
+    ngDodgeHoverTimer = setTimeout(function () {
+      dodgeNgButton();
+    }, 380);
+  });
+  ngBtnEl.addEventListener('mouseleave', function () {
+    clearTimeout(ngDodgeHoverTimer);
+  });
+}
+
+function wireStepScreen() {
+  el('ok-btn').addEventListener('click', function () { recordResult('ok', ''); });
+  el('ng-btn').addEventListener('click', function () { if (ngDodgeLock) return; openNgConfirmOverlay(); });
+  el('back-btn').addEventListener('click', goBack);
+  wireNgDodge();
+
+  el('ng-confirm-btn').addEventListener('click', function () {
+    var comment = el('ng-comment').value.trim();
+    if (!comment) { triggerNgCommentRequiredWarning(); return; }
+    recordResult('ng', comment);
+  });
+  el('ng-cancel-btn').addEventListener('click', closeCommentPanels);
+
+  el('ng-comment').addEventListener('input', function () {
+    updateNgConfirmBtnState();
+    if (el('ng-comment').value.trim() !== '') el('ng-inline-warn').hidden = true;
+  });
+  el('ng-comment').addEventListener('animationend', function () {
+    el('ng-comment').classList.remove('shake-warn');
+  });
+  el('ng-comment').addEventListener('keydown', function (e) {
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      if (!el('ng-confirm-btn').disabled) el('ng-confirm-btn').click();
+      else triggerNgCommentRequiredWarning();
+    }
+  });
+  el('glossary-fab-btn').addEventListener('click', openGlossaryModal);
+  el('glossary-close-btn').addEventListener('click', closeGlossaryModal);
+
+  el('save-pause-btn').addEventListener('click', function () {
+    saveSession();
+    showToast('Progress saved. You can resume from this screen next time');
+    resetToStart();
+  });
+
+  el('item-step-body').addEventListener('click', handleTermClick);
+  el('item-expected-body').addEventListener('click', handleTermClick);
+}
+
+function handleTermClick(e) {
+  var target = e.target.closest ? e.target.closest('.term') : null;
+  if (!target) return;
+  var idx = parseInt(target.getAttribute('data-term-idx'), 10);
+  var entry = state.glossary[idx];
+  if (entry) openTermPopup(entry);
+}
+
+function openGlossaryModal() {
+  el('glossary-modal-content').innerHTML = renderGlossaryHtml(state.preamble);
+  el('modal-glossary').hidden = false;
+}
+function closeGlossaryModal() { el('modal-glossary').hidden = true; }
+
+/* ---------- 用語ポップアップ ---------- */
+function openTermPopup(entry) {
+  el('term-popup-title').textContent = entry.term;
+  el('term-popup-desc').innerHTML = entry.descHtml;
+  el('overlay-term').hidden = false;
+  spawnConfetti(24, 0.3);
+}
+function closeTermPopup() { el('overlay-term').hidden = true; }
+
+function wireTermPopup() {
+  el('term-popup-ok-btn').addEventListener('click', closeTermPopup);
+  el('overlay-term').addEventListener('click', function (e) {
+    if (e.target === el('overlay-term')) closeTermPopup();
+  });
+}
+
+/* =========================================================================
+   演出: OK セレブレーション（紙吹雪 / フラッシュ / 褒め言葉 / スコア）
+   ========================================================================= */
+var confettiCanvas = el('confetti-canvas');
+var confettiCtx = confettiCanvas.getContext('2d');
+var particles = [];
+var confettiRunning = false;
+var reducedMotionOS = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function resizeConfettiCanvas() {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeConfettiCanvas);
+resizeConfettiCanvas();
+
+var CONFETTI_COLORS = ['#f2c14e', '#ffe08a', '#8a5cf6', '#b48cff', '#ffffff', '#5be08a'];
+
+function spawnConfetti(count, originYRatio) {
+  if (reducedMotionOS) count = Math.min(count, 12);
+  var w = confettiCanvas.width, h = confettiCanvas.height;
+  for (var i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * w,
+      y: h * (originYRatio || 0.15) * Math.random(),
+      vx: (Math.random() - 0.5) * 4,
+      vy: 2 + Math.random() * 4,
+      size: 5 + Math.random() * 7,
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.3,
+      color: pickRandom(CONFETTI_COLORS),
+      shape: Math.random() < 0.5 ? 'rect' : 'circle',
+      life: 0,
+      maxLife: 90 + Math.random() * 60
+    });
+  }
+  if (!confettiRunning) { confettiRunning = true; requestAnimationFrame(confettiLoop); }
+}
+
+function confettiLoop() {
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  var alive = [];
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.03;
+    p.rot += p.rotSpeed;
+    p.life++;
+    if (p.y < confettiCanvas.height + 20 && p.life < p.maxLife) {
+      alive.push(p);
+      confettiCtx.save();
+      confettiCtx.translate(p.x, p.y);
+      confettiCtx.rotate(p.rot);
+      confettiCtx.fillStyle = p.color;
+      confettiCtx.globalAlpha = Math.max(0, 1 - p.life / p.maxLife);
+      if (p.shape === 'rect') {
+        confettiCtx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      } else {
+        confettiCtx.beginPath();
+        confettiCtx.arc(0, 0, p.size / 2.4, 0, Math.PI * 2);
+        confettiCtx.fill();
+      }
+      confettiCtx.restore();
+    }
+  }
+  particles = alive;
+  if (particles.length > 0) {
+    requestAnimationFrame(confettiLoop);
+  } else {
+    confettiRunning = false;
+    confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  }
+}
+
+function triggerFlash() {
+  if (reducedMotionOS) return;
+  var fx = el('flash-effect');
+  fx.classList.remove('flash');
+  void fx.offsetWidth;
+  fx.classList.add('flash');
+}
+
+function showPraisePop(text) {
+  var node = el('praise-pop');
+  node.textContent = text;
+  node.classList.remove('show');
+  void node.offsetWidth;
+  node.classList.add('show');
+
+  var backdrop = el('praise-backdrop');
+  if (backdrop) {
+    backdrop.classList.remove('show');
+    void backdrop.offsetWidth;
+    backdrop.classList.add('show');
+  }
+}
+
+function showScoreFloat(text) {
+  var node = el('score-float');
+  node.textContent = text;
+  node.classList.remove('show');
+  void node.offsetWidth;
+  node.classList.add('show');
+}
+
+var toastTimer = null;
+function showToast(msg) {
+  var node = el('toast');
+  node.textContent = msg;
+  node.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { node.classList.remove('show'); }, 2600);
+}
+
+function fireOkCelebration(gained, combo) {
+  var count = 80 + Math.floor(Math.random() * 70);
+  spawnConfetti(count, 0.1);
+  triggerFlash();
+  showPraisePop(getPraiseForCombo(combo));
+  var scoreText = '+' + gained + ' pt' + (combo >= 2 ? '　COMBO x' + combo + '!' : '');
+  showScoreFloat(scoreText);
+}
+
+/* =========================================================================
+   節完了 / グランドフィナーレ 演出
+   ========================================================================= */
+function showSectionCompleteOverlay() {
+  stopStepTimer();
+  var item = currentItem();
+  var sIdx = item.sectionIndex;
+  var counts = countStatusesInSection(sIdx);
+
+  spawnConfetti(150, 0.05);
+  el('sc-heading').textContent = 'Section ' + (sIdx + 1) + ' complete!';
+  el('sc-title').textContent = 'Title: "' + pickRandom(SECTION_TITLE_POOL) + '"';
+  el('sc-ok').textContent = counts.ok;
+  el('sc-ng').textContent = counts.ng;
+  var scPraises = pickDistinct(SECTION_PRAISE_POOL, 3);
+  el('sc-praise1').textContent = scPraises[0] || '';
+  el('sc-praise2').textContent = scPraises[1] || '';
+  el('sc-praise3').textContent = scPraises[2] || '';
+
+  var sectionDurationMs = computeSectionDurationMs(sIdx);
+  var itemCountForPace = counts.total || 1;
+  var avgSec = (sectionDurationMs / itemCountForPace) / 1000;
+  var pace = classifyPace(avgSec);
+  var bonus = timeBonusFor(pace);
+  state.score += bonus;
+  el('sc-duration').textContent = formatDuration(sectionDurationMs);
+  el('sc-time-bonus').textContent = '+' + bonus + ' pt';
+  el('sc-time-praise').textContent = pickRandom(timePraisePoolFor(pace));
+  saveSession();
+
+  var lastSection = isLastSection();
+  el('sc-next-btn').textContent = lastSection ? 'To the finale ▶' : 'Next section ▶';
+  el('overlay-section-complete').hidden = false;
+  currentOverlayPrimaryAction = function () {
+    el('overlay-section-complete').hidden = true;
+    if (lastSection) {
+      showFinaleOverlay();
+    } else {
+      state.pointer++;
+      saveSession();
+      renderStep(true); // re-enables ok/ng/back buttons
+    }
+    state.transitioning = false; // release the guard set in recordResult() now that we've fully moved past this item
+  };
+}
+
+// Business report (plain-text summary for pasting into chat/email)
+function buildBusinessReport() {
+  var stats = computeOverallStats();
+  var title = state.docTitle || '(Untitled)';
+  var lines = [];
+  lines.push('Hi, testing for "' + title + '" is complete — please review the results below.');
+  lines.push('Items tested: ' + stats.total + '   OK: ' + stats.ok + '   NG: ' + stats.ng);
+  if (stats.ng > 0) {
+    lines.push('The NG items are as follows:');
+    state.flatItems.forEach(function (item, idx) {
+      var r = state.results[idx];
+      if (!r || r.status !== 'ng') return;
+      var num = item.number || String(idx + 1);
+      var comment = (r.comment && String(r.comment).trim()) ? String(r.comment).trim() : '(No comment entered)';
+      lines.push('- ' + num + ' -> ' + comment);
+    });
+    lines.push('');
+    lines.push('Sorry for the extra work, and thanks in advance.');
+  } else {
+    lines.push('There are no NG items.');
+  }
+  return lines.join('\n');
+}
+
+function computeOverallStats() {
+  var total = state.results.length;
+  var ok = 0, ng = 0, unanswered = 0;
+  state.results.forEach(function (r) {
+    if (r && r.status === 'ok') ok++;
+    else if (r && r.status === 'ng') ng++;
+    else unanswered++;
+  });
+  return { total: total, ok: ok, ng: ng, unanswered: unanswered };
+}
+
+function computeRank(stats) {
+  if (stats.total > 0 && stats.ok === stats.total) return 'Flawless';
+  var rate = stats.total > 0 ? (stats.ok / stats.total) * 100 : 0;
+  if (rate >= 90) return 'Rank S';
+  if (rate >= 75) return 'Rank A';
+  if (rate >= 50) return 'Rank B';
+  return 'Rank C';
+}
+
+function showFinaleOverlay() {
+  stopStepTimer();
+  spawnConfetti(150, 0.02);
+  setTimeout(function () { spawnConfetti(120, 0.02); }, 300);
+  setTimeout(function () { spawnConfetti(120, 0.02); }, 650);
+  var stats = computeOverallStats();
+  var rate = stats.total > 0 ? Math.round((stats.ok / stats.total) * 100) : 0;
+  el('finale-rank').textContent = computeRank(stats);
+  el('finale-total').textContent = stats.total;
+  el('finale-ok').textContent = stats.ok;
+  el('finale-ng').textContent = stats.ng;
+  el('finale-rate').textContent = rate + '%';
+  var finalePraises = pickDistinct(FINALE_PRAISE_POOL, 3);
+  el('finale-praise1').textContent = finalePraises[0] || '';
+  el('finale-praise2').textContent = finalePraises[1] || '';
+  el('finale-praise3').textContent = finalePraises[2] || '';
+  var totalDurationMs = computeTotalDurationMs();
+  var finaleAvgSec = stats.total > 0 ? (totalDurationMs / stats.total) / 1000 : 0;
+  var finalePace = classifyPace(finaleAvgSec);
+  el('finale-duration').textContent = formatDuration(totalDurationMs);
+  el('finale-time-praise').textContent = pickRandom(timePraisePoolFor(finalePace));
+  el('overlay-finale').hidden = false;
+  currentOverlayPrimaryAction = function () {
+    el('overlay-finale').hidden = true;
+    goToResultScreen();
+  };
+}
+
+var currentOverlayPrimaryAction = null;
+
+function wireOverlays() {
+  el('sc-next-btn').addEventListener('click', function () { if (currentOverlayPrimaryAction) currentOverlayPrimaryAction(); });
+  el('finale-result-btn').addEventListener('click', function () { if (currentOverlayPrimaryAction) currentOverlayPrimaryAction(); });
+  wireNgConfirmOverlay();
+}
+
+/* =========================================================================
+   結果画面
+   ========================================================================= */
+function goToResultScreen() {
+  stopStepTimer();
+  state.transitioning = false; // the finale path never passes through advanceAfterResult, so release the guard here
+  clearSession();
+  showScreen('screen-result');
+  renderResultScreen();
+  maybeFireAllOkConfetti();
+}
+
+/* 全項目 OK（NG 0 かつ未実施 0）のときだけ、結果画面遷移時に一度だけ紙吹雪を降らせる */
+function maybeFireAllOkConfetti() {
+  var stats = computeOverallStats();
+  var allOk = stats.total > 0 && stats.ng === 0 && stats.unanswered === 0 && stats.ok === stats.total;
+  if (!allOk) return;
+  [0, 400, 900, 1500].forEach(function (delay) {
+    setTimeout(function () { spawnConfetti(100, 0.05); }, delay);
+  });
+  var sparkleDuration = 6000;
+  var sparkleInterval = setInterval(function () { spawnConfetti(40, 0.1); }, 1200);
+  setTimeout(function () { clearInterval(sparkleInterval); }, sparkleDuration + 200);
+}
+
+function statusLabel(status) {
+  if (status === 'ok') return 'OK';
+  if (status === 'ng') return 'NG';
+  return 'Not done';
+}
+
+function buildSummaryHtml() {
+  var stats = computeOverallStats();
+  var rate = stats.total > 0 ? Math.round((stats.ok / stats.total) * 100) : 0;
+  var rank = computeRank(stats);
+  var maxCombo = Math.max(state.combo, computeMaxCombo());
+
+  var testerHasName = !!state.testerName;
+  var testerVal = state.testerName || '(Not entered)';
+
+  var html = '';
+  html += summaryCell('Tester', testerVal, testerHasName ? 'value-rainbow' : '');
+  html += summaryCell('Date/time', new Date().toLocaleString('en-US'));
+  html += summaryCell('Document title', state.docTitle || '(Untitled)');
+  html += summaryCell('Total', stats.total);
+  html += summaryCell('OK', stats.ok);
+  html += summaryCell('NG', stats.ng);
+  html += summaryCell('Not done', stats.unanswered);
+  html += summaryCell('OK rate', rate + '%');
+  html += summaryCell('Overall rank', rank);
+  html += summaryCell('Score', state.score + ' pt');
+  html += summaryCell('Max combo', 'x' + maxCombo);
+  html += summaryCell('Total time', formatDuration(computeTotalDurationMs()));
+  return html;
+}
+
+/* サマリー部分（summary-grid・NG警告バナー）のみ再描画する。表は再描画しない */
+function refreshResultSummary() {
+  el('summary-grid').innerHTML = buildSummaryHtml();
+  updateNgCommentWarningBanner();
+}
+
+function renderResultScreen() {
+  refreshResultSummary();
+  renderResultTable();
+}
+
+function hasEmptyNgComment() {
+  return state.results.some(function (r) {
+    return !!(r && r.status === 'ng' && (!r.comment || !String(r.comment).trim()));
+  });
+}
+
+function updateNgCommentWarningBanner() {
+  var banner = el('ng-comment-warning');
+  if (!banner) return;
+  banner.hidden = !hasEmptyNgComment();
+}
+
+function summaryCell(label, value, extraClass) {
+  var valueClass = 'value' + (extraClass ? ' ' + extraClass : '');
+  return '<div class="summary-cell"><div class="label">' + escapeHtml(label) + '</div><div class="' + valueClass + '">' + escapeHtml(String(value)) + '</div></div>';
+}
+
+function computeMaxCombo() {
+  var max = 0, cur = 0;
+  state.results.forEach(function (r) {
+    if (r && r.status === 'ok') { cur++; max = Math.max(max, cur); }
+    else { cur = 0; }
+  });
+  return max;
+}
+
+function sectionLabelFor(sIdx) {
+  var sec = state.sections[sIdx];
+  var label = 'Section ' + (sIdx + 1) + ': ' + (sec.title || '(Untitled)');
+  if (sec.tag) label += '【' + sec.tag + '】';
+  return label;
+}
+
+function renderResultTable() {
+  var tbody = el('result-table-body');
+  var rows = '';
+  state.flatItems.forEach(function (item, idx) {
+    var r = state.results[idx] || { status: null, comment: '', durationMs: null };
+    var rowClass = r.status === 'ng' ? 'row-ng' : '';
+    var timeStr = r.timestamp ? new Date(r.timestamp).toLocaleString('en-US') : '';
+    var durationStr = (r.durationMs != null) ? formatDuration(r.durationMs) : '';
+    var commentEmpty = !r.comment || !String(r.comment).trim();
+    var commentErrClass = (r.status === 'ng' && commentEmpty) ? ' input-error' : '';
+    rows +=
+      '<tr class="' + rowClass + '" data-idx="' + idx + '">' +
+      '<td>' + escapeHtml(item.number || String(idx + 1)) + '</td>' +
+      '<td>' + escapeHtml(sectionLabelFor(item.sectionIndex)) + '</td>' +
+      '<td>' + item.stepHtml + '</td>' +
+      '<td>' + item.expectedHtml + '</td>' +
+      '<td>' + resultSelectHtml(idx, r.status) + '</td>' +
+      '<td><input type="text" class="comment-input' + commentErrClass + '" data-idx="' + idx + '" value="' + escapeHtml(r.comment || '') + '"></td>' +
+      '<td>' + escapeHtml(timeStr) + '</td>' +
+      '<td>' + escapeHtml(durationStr) + '</td>' +
+      '</tr>';
+  });
+  tbody.innerHTML = rows;
+
+  tbody.querySelectorAll('select.result-select').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      var idx = parseInt(sel.getAttribute('data-idx'), 10);
+      var tr = sel.closest('tr');
+      var commentInput = tr.querySelector('input.comment-input');
+      var newStatus = sel.value || null;
+
+      var r = state.results[idx] || { status: null, comment: '', timestamp: null };
+      r.status = newStatus;
+      r.timestamp = new Date().toISOString();
+      state.results[idx] = r;
+
+      tr.classList.remove('row-ng');
+      if (newStatus === 'ng') tr.classList.add('row-ng');
+
+      var commentEmpty = !commentInput || !commentInput.value.trim();
+      if (newStatus === 'ng' && commentEmpty) {
+        if (commentInput) {
+          commentInput.classList.add('input-error');
+          commentInput.focus();
+        }
+        showToast('Please enter a comment explaining the NG');
+      } else if (commentInput) {
+        commentInput.classList.remove('input-error');
+      }
+
+      // 表は再描画しない（select 変更でフォーカスが失われるのを防ぐ）。サマリー数値のみ更新する
+      refreshResultSummary();
+    });
+  });
+  tbody.querySelectorAll('input.comment-input').forEach(function (inp) {
+    inp.addEventListener('input', function () {
+      var idx = parseInt(inp.getAttribute('data-idx'), 10);
+      var r = state.results[idx] || { status: null, comment: '', timestamp: null };
+      r.comment = inp.value;
+      state.results[idx] = r;
+      if (inp.value.trim() !== '') {
+        inp.classList.remove('input-error');
+      } else if (r.status === 'ng') {
+        inp.classList.add('input-error');
+      }
+      updateNgCommentWarningBanner();
+    });
+  });
+}
+
+function resultSelectHtml(idx, status) {
+  var options = [
+    { v: '', l: '(Not done)' },
+    { v: 'ok', l: 'OK' },
+    { v: 'ng', l: 'NG' }
+  ];
+  var current = status || '';
+  var html = '<select class="result-select" data-idx="' + idx + '">';
+  options.forEach(function (o) {
+    html += '<option value="' + o.v + '"' + (current === o.v ? ' selected' : '') + '>' + o.l + '</option>';
+  });
+  html += '</select>';
+  return html;
+}
+
+/* ---------- エクスポート ---------- */
+function buildExportRows() {
+  return state.flatItems.map(function (item, idx) {
+    var r = state.results[idx] || { status: null, comment: '', timestamp: null, durationMs: null };
+    var timeStr = r.timestamp ? new Date(r.timestamp).toLocaleString('en-US') : '';
+    var durationStr = (r.durationMs != null) ? formatDuration(r.durationMs) : '';
+    return {
+      number: item.number || String(idx + 1),
+      section: sectionLabelFor(item.sectionIndex),
+      step: stripMd(item.stepRaw).replace(/\n/g, ' / '),
+      expected: stripMd(item.expectedRaw).replace(/\n/g, ' / '),
+      status: statusLabel(r.status),
+      comment: (r.comment || '').replace(/\n/g, ' / '),
+      time: timeStr,
+      duration: durationStr
+    };
+  });
+}
+
+function toMarkdownTable(rows) {
+  var esc = function (s) { return String(s).replace(/\|/g, '\\|'); };
+  var header = '| No. | Section | Step | Expected result | Result | Comment | Recorded at | Duration |';
+  var sep = '|---|---|---|---|---|---|---|---|';
+  var body = rows.map(function (r) {
+    return '| ' + [r.number, r.section, r.step, r.expected, r.status, r.comment, r.time, r.duration].map(esc).join(' | ') + ' |';
+  }).join('\n');
+  return header + '\n' + sep + '\n' + body;
+}
+
+function toTsv(rows) {
+  var esc = function (s) { return String(s).replace(/\t/g, ' '); };
+  var header = ['No.', 'Section', 'Step', 'Expected result', 'Result', 'Comment', 'Recorded at', 'Duration'].join('\t');
+  var body = rows.map(function (r) {
+    return [r.number, r.section, r.step, r.expected, r.status, r.comment, r.time, r.duration].map(esc).join('\t');
+  }).join('\n');
+  return header + '\n' + body;
+}
+
+function toCsv(rows) {
+  var esc = function (s) {
+    var v = String(s);
+    if (/[",\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+    return v;
+  };
+  var header = ['No.', 'Section', 'Step', 'Expected result', 'Result', 'Comment', 'Recorded at', 'Duration'].map(esc).join(',');
+  var body = rows.map(function (r) {
+    return [r.number, r.section, r.step, r.expected, r.status, r.comment, r.time, r.duration].map(esc).join(',');
+  }).join('\n');
+  return header + '\n' + body;
+}
+
+function copyToClipboard(text, successMsg) {
+  var msg = successMsg || 'Copied';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () {
+      flashToast(msg);
+    }).catch(function () { fallbackCopy(text, msg); });
+  } else {
+    fallbackCopy(text, msg);
+  }
+}
+
+function fallbackCopy(text, successMsg) {
+  var ta = el('clipboard-fallback');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '0';
+  ta.style.top = '0';
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    flashToast(successMsg || 'Copied (fallback)');
+  } catch (e) {
+    flashToast('Copy failed. Please select the text and copy it manually.');
+  }
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '-9999px';
+}
+
+function flashToast(msg) {
+  showScoreFloat(msg);
+}
+
+function downloadCsvBom(text, filename) {
+  var bom = '﻿';
+  var blob = new Blob([bom + text], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function wireResultScreen() {
+  el('copy-md-btn').addEventListener('click', function () { copyToClipboard(toMarkdownTable(buildExportRows())); });
+  el('copy-tsv-btn').addEventListener('click', function () { copyToClipboard(toTsv(buildExportRows())); });
+  el('download-csv-btn').addEventListener('click', function () {
+    downloadCsvBom(toCsv(buildExportRows()), 'test_result.csv');
+  });
+  el('print-btn').addEventListener('click', function () { window.print(); });
+  el('copy-report-btn').addEventListener('click', function () {
+    copyToClipboard(buildBusinessReport(), 'Report copied. Paste it into chat or email');
+  });
+  el('export-progress-result-btn').addEventListener('click', exportProgressFromState);
+
+  el('restart-btn').addEventListener('click', function () {
+    if (!confirm('Are you sure you want to start over? All recorded results will be cleared.')) return;
+    var rawText = state.rawText;
+    var testerName = state.testerName;
+    var result = parseProcedure(rawText);
+    startNewSessionDirect(result, rawText, testerName);
+  });
+
+  el('load-another-btn').addEventListener('click', function () {
+    clearSession();
+    resetToStart();
+  });
+}
+
+function startNewSessionDirect(result, rawText, testerName) {
+  state.docTitle = result.title;
+  state.preamble = result.preamble;
+  state.sections = result.sections;
+  state.glossary = result.glossary || [];
+  state.rawText = rawText;
+  buildFlatItems();
+  state.results = state.flatItems.map(function () { return { status: null, comment: '', timestamp: null, durationMs: null }; });
+  state.pointer = 0;
+  state.transitioning = false; // reset runtime guard: a new/resumed session must never inherit a stale flag
+  state.testerName = testerName;
+  state.startedAt = new Date().toISOString();
+  state.score = 0;
+  state.combo = 0;
+  saveSession();
+  showScreen('screen-step');
+  setupGlossaryFab();
+  renderStep(false);
+}
+
+function resetToStart() {
+  stopStepTimer();
+  lastParseResult = null;
+  lastLoadedRawText = '';
+  el('preview-box').hidden = true;
+  el('error-box').hidden = true;
+  el('paste-textarea').value = '';
+  el('tester-name-input').value = '';
+  checkResumeAvailable();
+  showScreen('screen-start');
+}
+
+/* =========================================================================
+   キーボード操作
+   ========================================================================= */
+function isTypingTarget(elm) {
+  return elm && (elm.tagName === 'TEXTAREA' || elm.tagName === 'INPUT');
+}
+
+document.addEventListener('keydown', function (e) {
+  if (!el('overlay-ng-confirm').hidden) {
+    if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); closeNgConfirmOverlay(); }
+    return;
+  }
+  if (!el('overlay-term').hidden) {
+    if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); closeTermPopup(); }
+    return;
+  }
+  if (!el('overlay-section-complete').hidden || !el('overlay-finale').hidden) {
+    if (e.key === 'Enter' && currentOverlayPrimaryAction) {
+      e.preventDefault();
+      currentOverlayPrimaryAction();
+    }
+    return;
+  }
+  if (!el('modal-glossary').hidden) {
+    if (e.key === 'Escape') closeGlossaryModal();
+    return;
+  }
+  if (el('screen-step').hidden) return;
+  if (isTypingTarget(document.activeElement)) return;
+
+  var ngOpen = !el('ng-panel').hidden;
+  if (ngOpen) return;
+  if (state.transitioning) return; // ignore Enter/O/N/Backspace while advancing to the next item
+
+  switch (e.key) {
+    case 'Enter':
+    case 'o':
+    case 'O':
+      e.preventDefault();
+      recordResult('ok', '');
+      break;
+    case 'n':
+    case 'N':
+      e.preventDefault();
+      openNgConfirmOverlay();
+      break;
+    case 'Backspace':
+    case 'ArrowLeft':
+      e.preventDefault();
+      goBack();
+      break;
+  }
+});
+
+/* =========================================================================
+   初期化
+   ========================================================================= */
+function init() {
+  wireStartScreen();
+  wireStepScreen();
+  wireOverlays();
+  wireTermPopup();
+  wireResultScreen();
+  checkResumeAvailable();
+  showScreen('screen-start');
+
+  // 背景の軽量きらめき粒子を自作
+  var sparkleContainer = el('bg-sparkle');
+  if (!reducedMotionOS) {
+    var n = 24;
+    for (var i = 0; i < n; i++) {
+      var s = document.createElement('div');
+      s.className = 'sparkle';
+      s.style.left = (Math.random() * 100) + '%';
+      s.style.top = (Math.random() * 100) + '%';
+      s.style.animationDelay = (Math.random() * 3.6) + 's';
+      sparkleContainer.appendChild(s);
+    }
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>

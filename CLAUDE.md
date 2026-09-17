@@ -105,13 +105,23 @@ src/
 │   │   │                   アルゴリズム詳細は EFRecipeCalculator.md §4 参照）
 │   │   ├── templates/    … ef_index.html ほかフラグメント（ef_* 前置。理由は下記ポイント参照）
 │   │   └── static/       … app.js / style.css / presets.json
-│   └── lod_chest_solver/  … 幽霊船 宝箱ソルバー（レジェンド オブ ドラグーン。アークナイツ外の単発ツール）
-│       ├── mod.rs        … ルーター。"/"=ja / "/en"=en / "/static"=ServeDir。
-│       │                   言語ごとに別URL・別HTML（1URL=1言語。理由は下記ポイント参照）
-│       ├── templates/    … lod_index.html（ja）/ lod_index_en.html（en）。
-│       │                   静的ラベルはmarkupに直書き＋SEOタグ（canonical/hreflang/OG/JSON-LD）
-│       └── static/       … engine.js（純粋ソルバー。DOM非依存）/ ui.js（DOM描画。文言は
-│                           initUi(strings)で各ページから受け取る）/ style.css（言語共通）
+│   ├── lod_chest_solver/  … 幽霊船 宝箱ソルバー（レジェンド オブ ドラグーン。アークナイツ外の単発ツール）
+│   │   ├── mod.rs        … ルーター。"/"=ja / "/en"=en / "/static"=ServeDir。
+│   │   │                   言語ごとに別URL・別HTML（1URL=1言語。理由は下記ポイント参照）
+│   │   ├── templates/    … lod_index.html（ja）/ lod_index_en.html（en）。
+│   │   │                   静的ラベルはmarkupに直書き＋SEOタグ（canonical/hreflang/OG/JSON-LD）
+│   │   └── static/       … engine.js（純粋ソルバー。DOM非依存）/ ui.js（DOM描画。文言は
+│   │                       initUi(strings)で各ページから受け取る）/ style.css（言語共通）
+│   └── test_runner/       … 試験手順ランナー（元は test-procedure/test_runner.html。
+│       │                    手順書のMarkdownを読み込みOK/NGを押すだけで進められる、
+│       │                    オフライン動作の単一HTMLアプリ。アークナイツ外の単発ツール）
+│       ├── mod.rs        … ルーター。"/"=ja / "/en"=en（lod_chest_solverと同じ1URL=1言語。
+│       │                   外部CSS/JSを参照しない完全自己完結ページなのでstatic配信は無し）
+│       └── templates/    … tr_index.html（ja）/ tr_index_en.html（en）。lod_chest_solverと
+│                           異なり計算層(パーサー)/表現層(DOM描画)の分離はせずHTML+JSを
+│                           全文複製している。英語版は主要UI文言のみ翻訳し、パーサーが
+│                           認識する見出しキーワード（`用語定義:` 等）は意図的に日本語のまま
+│                           （理由は下記ポイント参照）
 └── bot/
     ├── mod.rs     … run_bot(token, state)。setup() で ChannelRouting::from_env()・
     │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn
@@ -234,14 +244,19 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   `data/golden/operator_cost_calc/*.json`を更新すること（`regen_seeds`もセットで実行）。
 - **askama.toml の dirs はフラットに解決される**: テンプレートは登録済みディレクトリ横断で
   ファイル名だけで引かれるため、名前が衝突すると解決が曖昧になる。モジュールごとに
-  前置する（`ef_*` / `lod_*`）。`index.html` のような素の名前は wl_battery_simulator の
+  前置する（`ef_*` / `lod_*` / `tr_*`）。`index.html` のような素の名前は wl_battery_simulator の
   ものと衝突するので新規モジュールでは使わない。
-- **lod_chest_solver は言語ごとに別URL・別HTML**: 実行時にJSで文言を差し替える方式
-  （localStorage / navigator.language での判定）は採らない。クローラに両言語の中身を
+- **lod_chest_solver / test_runner は言語ごとに別URL・別HTML**: 実行時にJSで文言を差し替える
+  方式（localStorage / navigator.language での判定）は採らない。クローラに両言語の中身を
   見せるのが目的なので、静的ラベルは各言語テンプレートのmarkupに直書きし、動的に
-  組み立てる文言だけを `initUi(strings)` で ui.js に渡す。計算層（`static/engine.js`。
-  DOM非依存）と表現層（`static/ui.js`）は言語間で共有する。Accept-Language による
-  自動振り分けもしない（1URL=1言語を崩すとクローラ側で重複扱いされ得る）。
+  組み立てる文言だけを渡す。Accept-Language による自動振り分けもしない（1URL=1言語を
+  崩すとクローラ側で重複扱いされ得る）。
+  lod_chest_solver は計算層（`static/engine.js`。DOM非依存）と表現層（`static/ui.js`。
+  文言は `initUi(strings)` で受け取る）を言語間で共有するが、test_runner は元がDOM操作と
+  パーサーロジックが密結合した単一HTMLだったため、事前リファクタで分離するコストを
+  かけず ja/en 各テンプレートに全文複製する設計にした。英語版の翻訳スコープも「主要UI
+  文言のみ」に絞り、手順書パーサーが認識する見出しキーワード（`用語定義:` など）は
+  意図的に日本語のまま残している（英語手順書のネイティブ解釈はスコープ外）。
 - **canonical/hreflang/sitemap の絶対URLは `api/mod.rs` の `base_url()` に集約**:
   `PUBLIC_BASE_URL`（任意。独自ドメインへ寄せたい場合に設定）があればそれを優先し、
   無ければ `X-Forwarded-Proto` + `Host` から組み立てる（Heroku等は手前でTLSを終端するため、
@@ -271,6 +286,7 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
    - `http://localhost:3000/WLBatterySimulator`
    - `http://localhost:3000/EFRecipeCalculator`
    - `http://localhost:3000/LodChestSolver`（日本語）/ `/LodChestSolver/en`（英語）
+   - `http://localhost:3000/TestRunner`（日本語）/ `/TestRunner/en`（英語）
    - `http://localhost:3000/robots.txt` / `/sitemap.xml`
 
 askama はテンプレートをバイナリに埋め込むので、`templates/*.html` を直しても

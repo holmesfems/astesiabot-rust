@@ -1,6 +1,6 @@
 <!-- ツール切り替えヘッダーチップ。各ツールのstyle.cssには依存させず、
      ここだけで完結するCSSを持つ(toolnav- prefixで衝突回避)。
-     include先のTemplate structが active_tool("wl"/"ef"/"lod") と
+     include先のTemplate structが active_tool("wl"/"ef"/"lod"/"tr") と
      lang("ja"/"en") を持っていることが前提。 -->
 <nav class="toolnav-bar" aria-label="{% if lang == "en" %}Switch tool{% else %}ツール切り替え{% endif %}">
   <span class="toolnav-label">{% if lang == "en" %}Tools{% else %}ツール{% endif %}</span>
@@ -10,6 +10,8 @@
      href="/EFRecipeCalculator"{% if active_tool == "ef" %} aria-current="page"{% endif %}>{% if lang == "en" %}Recipe Calc{% else %}ENDFIELDレシピ計算機{% endif %}</a>
   <a class="toolnav-chip{% if active_tool == "lod" %} toolnav-chip-active{% endif %}"
      href="/LodChestSolver"{% if active_tool == "lod" %} aria-current="page"{% endif %}>{% if lang == "en" %}Chest Solver{% else %}幽霊船宝箱ソルバー{% endif %}</a>
+  <a class="toolnav-chip{% if active_tool == "tr" %} toolnav-chip-active{% endif %}"
+     href="/TestRunner"{% if active_tool == "tr" %} aria-current="page"{% endif %}>{% if lang == "en" %}Test Runner{% else %}試験手順ランナー{% endif %}</a>
 </nav>
 <style>
   .toolnav-bar {
