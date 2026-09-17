@@ -2995,7 +2995,7 @@
           ]
         },
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "Y",
           "phase_costs": [
             [
@@ -15270,13 +15270,13 @@
         ]
       ],
       "cn_name": "怒潮凛冬",
-      "cn_only": true,
+      "cn_only": false,
       "id": "char_1051_headb2",
       "is_patch": false,
       "is_recent": true,
       "modules": [
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "X",
           "phase_costs": [
             [
@@ -56621,7 +56621,7 @@
           ]
         },
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "Y",
           "phase_costs": [
             [
@@ -87829,7 +87829,7 @@
           ]
         },
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "Y",
           "phase_costs": [
             [
@@ -100098,13 +100098,13 @@
         ]
       ],
       "cn_name": "伯塔尼",
-      "cn_only": true,
+      "cn_only": false,
       "id": "char_4223_botany",
       "is_patch": false,
       "is_recent": true,
       "modules": [
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "X",
           "phase_costs": [
             [
@@ -100353,13 +100353,13 @@
         ]
       ],
       "cn_name": "乌啾",
-      "cn_only": true,
+      "cn_only": false,
       "id": "char_4224_turdus",
       "is_patch": false,
       "is_recent": true,
       "modules": [
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "X",
           "phase_costs": [
             [
