@@ -115,8 +115,10 @@ src/
 │   └── test_runner/       … 試験手順ランナー（元は test-procedure/test_runner.html。
 │       │                    手順書のMarkdownを読み込みOK/NGを押すだけで進められる、
 │       │                    オフライン動作の単一HTMLアプリ。アークナイツ外の単発ツール）
-│       ├── mod.rs        … ルーター。"/"=ja / "/en"=en（lod_chest_solverと同じ1URL=1言語。
-│       │                   外部CSS/JSを参照しない完全自己完結ページなのでstatic配信は無し）
+│       ├── mod.rs        … ルーター。"/"=ja / "/en"=en（lod_chest_solverと同じ1URL=1言語）。
+│       │                   "/static"=ServeDir（lz-string 同梱配信のみ。app本体のJSは各HTMLに内包）
+│       ├── static/       … lz-string.min.js（1.5.0, MIT。進捗URL共有 `#state=<圧縮JSON>` の
+│       │                   圧縮/解凍用。CDN参照せず同一オリジン配信でオフライン動作を維持）
 │       └── templates/    … tr_index.html（ja）/ tr_index_en.html（en）。lod_chest_solverと
 │                           異なり計算層(パーサー)/表現層(DOM描画)の分離はせずHTML+JSを
 │                           全文複製している。英語版は主要UI文言のみ翻訳し、パーサーが

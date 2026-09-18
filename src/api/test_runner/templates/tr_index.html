@@ -133,8 +133,6 @@ a{color:var(--gold-bright);}
 }
 .section-title::before{content:"✦";}
 
-.input-grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:20px;}
-@media (min-width:760px){ .input-grid{grid-template-columns:1fr 1fr;} }
 
 .dropzone{
   border:2px dashed var(--glass-border);
@@ -313,11 +311,6 @@ details.glossary-details summary{cursor:pointer;color:var(--gold-bright);font-we
 .step-timer-row .timer-current{color:var(--gold-bright);font-weight:700;}
 
 /* ---------- AI整形プロンプトカード ---------- */
-.ai-prompt-card details summary{cursor:pointer;color:var(--gold-bright);font-weight:700;font-size:14px;list-style:none;}
-.ai-prompt-card details summary::-webkit-details-marker{display:none;}
-.ai-prompt-card details summary::before{content:"▶ ";display:inline-block;transition:transform .15s ease;}
-.ai-prompt-card details[open] summary::before{transform:rotate(90deg);}
-#ai-prompt-text{height:160px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;margin-top:10px;}
 
 /* ---------- glossary term highlighting ---------- */
 .term{
@@ -507,6 +500,7 @@ table.result-table input.comment-input{width:100%;min-width:140px;background:rgb
 table.result-table input.comment-input.input-error{border-color:var(--danger);box-shadow:0 0 0 2px rgba(255,84,112,0.35);}
 .ng-warning-banner{margin-top:12px;padding:10px 14px;border-radius:10px;background:rgba(255,84,112,0.15);border:1px solid rgba(255,84,112,0.6);color:#ffd7dd;font-size:13px;font-weight:700;}
 .export-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+.export-note{font-size:12px;color:var(--text-dim);margin:8px 0 0;line-height:1.6;}
 .footer-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px;}
 
 @media print{
@@ -565,51 +559,30 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
     </div>
 
     <div class="glass-card" style="margin-bottom:16px;">
-      <div class="section-title">進捗ファイルから再開</div>
-      <p style="font-size:13px;color:var(--text-dim);">別のPCやブラウザでデータが消えた場合に備えて書き出した進捗ファイル（.json）を読み込んで、保存時点の続きから再開できます。</p>
-      <div class="dropzone" id="progress-dropzone" tabindex="0" style="margin-top:10px;">
-        <span class="dz-icon">📥</span>
-        ここに進捗ファイル(.json)をドラッグ＆ドロップ<br>
-        <button class="btn btn-ghost btn-small" id="progress-file-select-btn" style="margin-top:10px;">📥 進捗ファイルから再開</button>
-        <input type="file" id="progress-file-input" accept=".json,application/json" hidden>
-      </div>
-    </div>
-
-    <div class="glass-card ai-prompt-card" style="margin-bottom:16px;">
-      <details id="ai-prompt-details">
-        <summary>🤖 これをAIに渡して手順を整形！</summary>
-        <p style="font-size:13px;color:var(--text-dim);margin-top:10px;">手元の試験項目（Excel の表、箇条書き、別形式の Markdown など）を AI に渡すと、このアプリで読み込める形式に整形してくれるプロンプトです。整形結果を下の「手順を読み込む」に貼り付ければすぐ開始できます。</p>
-        <textarea id="ai-prompt-text" readonly></textarea>
-        <button class="btn btn-ghost btn-small" id="ai-prompt-copy-btn" style="margin-top:10px;">📋 プロンプトをコピー</button>
-      </details>
-    </div>
-
-    <div class="glass-card">
       <div class="section-title">手順を読み込む</div>
       <label class="field-label">テスター名（任意・結果表に記載されます）</label>
       <input type="text" id="tester-name-input" placeholder="例: 山田 太郎">
 
-      <div class="input-grid" style="margin-top:18px;">
-        <div>
-          <label class="field-label">① ファイルを読み込む（.txt / .md）</label>
-          <div class="dropzone" id="dropzone" tabindex="0">
-            <span class="dz-icon">📂</span>
-            ここにファイルをドラッグ＆ドロップ<br>
-            <button class="btn btn-ghost btn-small" id="file-select-btn" style="margin-top:10px;">ファイルを選択</button>
-            <input type="file" id="file-input" accept=".txt,.md,text/plain" hidden>
-          </div>
-        </div>
-        <div>
-          <label class="field-label">② テキストを貼り付ける</label>
-          <textarea id="paste-textarea" placeholder="ここに手順のMarkdownテキストを貼り付け…"></textarea>
-          <button class="btn btn-gold btn-block" id="paste-start-btn" style="margin-top:10px;">この手順で開始</button>
-        </div>
-      </div>
-
-      <label class="field-label">③ サンプル手順で試す</label>
+      <label class="field-label" style="margin-top:18px;">① サンプル手順で試す</label>
       <div class="sample-row">
         <button class="btn btn-ghost" id="sample-a-btn">サンプルA: ぽもどーろ君（タイマー動作確認）</button>
         <button class="btn btn-ghost" id="sample-b-btn">サンプルB: でんたくん（基本演算）</button>
+      </div>
+
+      <label class="field-label" style="margin-top:18px;">② テキストを貼り付ける</label>
+      <textarea id="paste-textarea" placeholder="ここに手順のMarkdownテキストを貼り付け…"></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-gold" id="paste-start-btn" style="flex:1;min-width:160px;">🚀 開始する</button>
+        <button class="btn btn-ghost" id="share-procedure-start-btn">📋 試験手順を共有</button>
+        <button class="btn btn-ghost" id="ai-prompt-copy-btn" title="手元の試験項目（Excelの表・箇条書き・別形式のMarkdownなど）をこのアプリで読める形式に整形させるAI用プロンプトをコピーします。AIに貼り付けたあと、続けて元の手順を貼ってください。">🤖 AI整形プロンプトをコピー</button>
+      </div>
+
+      <label class="field-label" style="margin-top:18px;">③ ファイルを読み込む（.txt / .md）</label>
+      <div class="dropzone" id="dropzone" tabindex="0">
+        <span class="dz-icon">📂</span>
+        ここにファイルをドラッグ＆ドロップ<br>
+        <button class="btn btn-ghost btn-small" id="file-select-btn" style="margin-top:10px;">ファイルを選択</button>
+        <input type="file" id="file-input" accept=".txt,.md,text/plain" hidden>
       </div>
 
       <div id="preview-box" class="preview-box" hidden>
@@ -620,6 +593,18 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
 
       <div id="error-box" class="error-box" hidden></div>
     </div>
+
+    <div class="glass-card">
+      <div class="section-title">進捗ファイルから再開</div>
+      <p style="font-size:13px;color:var(--text-dim);">別のPCやブラウザでデータが消えた場合に備えて書き出した進捗ファイル（.json）を読み込んで、保存時点の続きから再開できます。</p>
+      <div class="dropzone" id="progress-dropzone" tabindex="0" style="margin-top:10px;">
+        <span class="dz-icon">📥</span>
+        ここに進捗ファイル(.json)をドラッグ＆ドロップ<br>
+        <button class="btn btn-ghost btn-small" id="progress-file-select-btn" style="margin-top:10px;">📥 進捗ファイルから再開</button>
+        <input type="file" id="progress-file-input" accept=".json,application/json" hidden>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -631,9 +616,12 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
         <div class="doc-title" id="step-doc-title"></div>
         <h2 id="step-section-title"></h2>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+      <!-- margin-left:auto: ボタンが増えて右カラムが2行目に折り返しても右寄せを保つ（space-betweenは1要素だと左端に置く） -->
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:auto;">
         <div class="badge-row" id="step-badges"></div>
-        <button class="btn btn-ghost btn-small" id="save-pause-btn">💾 保存して中断</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="btn btn-ghost btn-small" id="share-procedure-step-btn">📋 試験手順を共有</button>
+        </div>
       </div>
     </div>
 
@@ -755,6 +743,21 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
   </div>
 </div>
 
+<!-- ============ TESTER NAME MODAL (URL復元時にテスター名が空のとき) ============ -->
+<div class="modal" id="modal-tester-name" hidden>
+  <div class="glass-card">
+    <div class="section-title">テスター名を入力</div>
+    <p style="font-size:13px;color:var(--text-dim);">共有された進捗URLにテスター名が入っていません。結果表に記載する名前を入力してから再開してください。</p>
+    <div id="tester-modal-info" style="font-size:13px;color:var(--text-dim);margin-bottom:10px;"></div>
+    <label class="field-label">テスター名</label>
+    <input type="text" id="tester-modal-input" placeholder="例: 山田 太郎" autocomplete="off">
+    <div class="modal-close-row" style="gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-small" id="tester-modal-skip-btn">名前なしで続ける</button>
+      <button class="btn btn-gold" id="tester-modal-ok-btn">この名前で再開</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ TERM POPUP ============ -->
 <div class="term-popup-overlay" id="overlay-term" hidden>
   <div class="overlay-card term-popup-card glass-card">
@@ -791,8 +794,11 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
         <button class="btn btn-ghost" id="download-csv-btn">CSVをダウンロード</button>
         <button class="btn btn-ghost" id="print-btn">印刷</button>
         <button class="btn btn-gold" id="copy-report-btn">📨 業務連絡をコピー</button>
+        <button class="btn btn-ghost" id="share-url-result-btn">🔗 結果URLをコピー</button>
+        <button class="btn btn-ghost" id="share-procedure-result-btn">📋 試験手順を共有</button>
         <button class="btn btn-ghost" id="export-progress-result-btn">📤 進捗ファイルを書き出す</button>
       </div>
+      <p class="export-note">Shift を押しながら「結果URLをコピー」「試験手順を共有」を押すと、Markdown リンクではなく URL だけをコピーします（ブラウザのアドレスバーにそのまま貼れます）。</p>
       <textarea id="clipboard-fallback" style="position:fixed;left:-9999px;top:-9999px;" aria-hidden="true"></textarea>
       <div class="footer-row">
         <button class="btn btn-danger" id="restart-btn">最初からやり直す</button>
@@ -808,6 +814,7 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
   <a href="https://opensource.org/license/mit/" target="_blank" rel="noopener noreferrer">MIT License</a>
 </footer>
 
+<script src="/TestRunner/static/lz-string.min.js"></script>
 <script>
 'use strict';
 
@@ -1562,8 +1569,6 @@ function decodeArrayBufferAuto(buf) {
 }
 
 function wireStartScreen() {
-  el('ai-prompt-text').value = AI_FORMAT_PROMPT;
-  el('ai-prompt-text').addEventListener('click', function () { this.select(); });
   el('ai-prompt-copy-btn').addEventListener('click', function () {
     copyToClipboard(AI_FORMAT_PROMPT, 'コピーしました。AI に貼り付けて、続けて元の手順を貼ってください');
   });
@@ -1612,11 +1617,32 @@ function wireStartScreen() {
       renderParseError('テキストが入力されていません。');
       return;
     }
-    handleLoadedText(text);
+    var result = parseProcedure(text);
+    if (!result.ok || result.totalItems === 0) {
+      renderParseError('項目を1つも検出できませんでした。ファイルの中身や形式をご確認ください。');
+      return;
+    }
+    el('error-box').hidden = true;
+    el('preview-box').hidden = true;
+    startNewSession(result, text);
   });
 
-  el('sample-a-btn').addEventListener('click', function () { handleLoadedText(SAMPLE_A); });
-  el('sample-b-btn').addEventListener('click', function () { handleLoadedText(SAMPLE_B); });
+  el('share-procedure-start-btn').addEventListener('click', function (e) {
+    copyProcedureShareUrl(el('paste-textarea').value, !!(e && e.shiftKey));
+  });
+
+  el('sample-a-btn').addEventListener('click', function () {
+    el('paste-textarea').value = SAMPLE_A;
+    el('error-box').hidden = true;
+    el('preview-box').hidden = true;
+    showToast('サンプルAを貼り付け欄にセットしました。「🚀 開始する」で始められます');
+  });
+  el('sample-b-btn').addEventListener('click', function () {
+    el('paste-textarea').value = SAMPLE_B;
+    el('error-box').hidden = true;
+    el('preview-box').hidden = true;
+    showToast('サンプルBを貼り付け欄にセットしました。「🚀 開始する」で始められます');
+  });
 
   el('begin-btn').addEventListener('click', function () {
     if (!lastParseResult || !lastParseResult.ok) return;
@@ -1702,22 +1728,178 @@ function handleProgressFile(file) {
       showToast('進捗ファイルの読み込みに失敗しました');
       return;
     }
-    if (!obj || typeof obj.rawText !== 'string' || obj.rawText.trim() === '' || !Array.isArray(obj.results)) {
-      showToast('進捗ファイルの形式が正しくありません');
-      return;
-    }
-    var check = parseProcedure(obj.rawText);
-    if (!check.ok) {
-      showToast('進捗ファイル内の手順を解析できませんでした');
-      return;
-    }
-    // 互換: 旧バージョンで書き出された「保留」ステータスは未実施(null)として扱う
-    obj.results = obj.results.map(function (r) {
-      return r ? { status: normalizeStatusCompat(r.status), comment: r.comment, timestamp: r.timestamp, durationMs: (r.durationMs != null ? r.durationMs : null) } : r;
-    });
-    resumeSession(obj);
+    var progress = normalizeProgressObject(obj);
+    if (!progress) return;
+    resumeSession(progress);
   };
   reader.readAsText(file);
+}
+
+// 進捗ファイル / 進捗URL 共通: 進捗オブジェクトの形式検証と旧形式の正規化。
+// 不正なら toast を出して null を返す。
+function normalizeProgressObject(obj) {
+  if (!obj || typeof obj.rawText !== 'string' || obj.rawText.trim() === '' || !Array.isArray(obj.results)) {
+    showToast('進捗データの形式が正しくありません');
+    return null;
+  }
+  var check = parseProcedure(obj.rawText);
+  if (!check.ok) {
+    showToast('進捗データ内の手順を解析できませんでした');
+    return null;
+  }
+  // 互換: 旧バージョンで書き出された「保留」ステータスは未実施(null)として扱う
+  obj.results = obj.results.map(function (r) {
+    return r ? { status: normalizeStatusCompat(r.status), comment: r.comment, timestamp: r.timestamp, durationMs: (r.durationMs != null ? r.durationMs : null) } : r;
+  });
+  return obj;
+}
+
+/* ---------- 進捗URL（#state=<lz-string圧縮JSON>）での共有 / 復元 ----------
+   サーバーには一切送らず、window.location.hash だけで完結するステートレス共有。
+   ペイロードは進捗ファイル(.json)と同じ buildProgressExportObject の形。 */
+var STATE_HASH_PREFIX = '#state=';
+
+function hasLzString() {
+  return typeof LZString !== 'undefined' && LZString && typeof LZString.compressToEncodedURIComponent === 'function';
+}
+
+function buildShareUrl(dataObj) {
+  var packed = LZString.compressToEncodedURIComponent(JSON.stringify(dataObj));
+  return window.location.origin + window.location.pathname + STATE_HASH_PREFIX + packed;
+}
+
+// 共有URLは長いので、YouTrack等のMarkdown対応先に貼れるよう [タイトル](URL) 形式でコピーする。
+// lz-string の出力は英数字と +-$ のみで括弧を含まないので、URL側のエスケープは不要。
+function escapeMdLinkText(s) {
+  return String(s).replace(/([\\\[\]])/g, '\\$1');
+}
+function toMarkdownLink(title, url) {
+  return '[' + escapeMdLinkText(title) + '](' + url + ')';
+}
+function docTitleOf(rawText) {
+  var r = parseProcedure(rawText);
+  return (r && r.title) ? r.title : '無題';
+}
+// 結果共有のリンク文言。source.results は旧localStorage形式だと空/短いことがあるため、
+// その場合は同じ1回のparseProcedureからtotalItemsを補完する（2回parseしない）。
+function resultLinkTitle(source) {
+  var parsed = parseProcedure(source.rawText);
+  var title = (parsed && parsed.title) ? parsed.title : '無題';
+  var total = (source.results || []).length;
+  if (total === 0) total = parsed.totalItems;
+  var answered = (source.results || []).filter(function (r) { return r && r.status; }).length;
+  var t = title + ' 結果 ' + answered + '/' + total;
+  if (source.testerName) t += '（テスター: ' + source.testerName + '）';
+  return t;
+}
+// rawOnly=true（Shift+クリック）なら Markdown リンクではなく URL だけをコピーする（ブラウザに直接貼る用）
+function copyShareUrl(source, rawOnly) {
+  if (!source || !source.rawText) { showToast('共有できる進捗がありません'); return; }
+  if (!hasLzString()) { showToast('圧縮ライブラリ(lz-string)が読み込めていないため、進捗URLを扱えません'); return; }
+  var url = buildShareUrl(buildProgressExportObject(source));
+  if (rawOnly) { copyToClipboard(url, '結果URLをコピーしました（URLのみ）'); return; }
+  copyToClipboard(toMarkdownLink(resultLinkTitle(source), url), '結果URLをMarkdownリンクとしてコピーしました');
+}
+
+// 試験手順だけを共有する（記録なし・テスター名なし）。開いた人は名前入力モーダルを経て最初から始める。
+function buildProcedureShareObject(rawText) {
+  return { rawText: rawText, testerName: '', results: [], pointer: 0, startedAt: null, score: 0, combo: 0 };
+}
+// rawOnly=true（Shift+クリック）なら Markdown リンクではなく URL だけをコピーする
+function copyProcedureShareUrl(rawText, rawOnly) {
+  if (!rawText || String(rawText).trim() === '') { showToast('共有できる試験手順がありません'); return; }
+  var check = parseProcedure(rawText);
+  if (!check.ok || check.totalItems === 0) { showToast('試験手順を解析できませんでした'); return; }
+  if (!hasLzString()) { showToast('圧縮ライブラリ(lz-string)が読み込めていないため、進捗URLを扱えません'); return; }
+  // check は上ですでにparseProcedure済みなので、そこからタイトルを組む（二重parseしない）
+  var title = (check.title ? check.title : '無題') + ' 試験手順';
+  var url = buildShareUrl(buildProcedureShareObject(rawText));
+  if (rawOnly) { copyToClipboard(url, '試験手順のURLをコピーしました（URLのみ）'); return; }
+  copyToClipboard(toMarkdownLink(title, url), '試験手順のURLをMarkdownリンクとしてコピーしました');
+}
+
+// URLハッシュから進捗オブジェクトを取り出す。無ければ null。復元に失敗したら toast して null。
+function readProgressFromHash() {
+  var h = window.location.hash || '';
+  if (h.indexOf(STATE_HASH_PREFIX) !== 0) return null;
+  var packed = h.slice(STATE_HASH_PREFIX.length);
+  if (!packed) return null;
+  if (!hasLzString()) { showToast('圧縮ライブラリ(lz-string)が読み込めていないため、進捗URLを扱えません'); return null; }
+  var json = null;
+  try { json = LZString.decompressFromEncodedURIComponent(packed); } catch (e) { json = null; }
+  if (!json) { showToast('URLの進捗データを復元できませんでした（壊れているか、形式が古い可能性があります）'); return null; }
+  try { return JSON.parse(json); } catch (e) { showToast('URLの進捗データを復元できませんでした（壊れているか、形式が古い可能性があります）'); return null; }
+}
+
+// 復元し終えたらハッシュをURLから外す（リロードで同じ状態に巻き戻らないように。履歴は増やさない）。
+function clearStateHash() {
+  try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* ignore */ }
+}
+
+function resumeProgressFromUrl(progress) {
+  resumeSession(progress);
+  saveSession(); // 復元した内容をこのブラウザの「前回のつづき」にも載せる
+  var allDone = state.results.length > 0 && state.results.every(function (r) { return r && r.status; });
+  var untouched = state.results.every(function (r) { return !r || !r.status; });
+  if (allDone) {
+    // 全項目に結果が入っている進捗（結果画面から共有されたもの）はステップ画面ではなく結果画面へ
+    stopStepTimer();
+    showScreen('screen-result');
+    renderResultScreen();
+    showToast('共有URLから完了済みの結果を復元しました');
+  } else if (untouched) {
+    // 記録が一切無い進捗（試験手順だけの共有）は「復元」ではなく「読み込んだ」と案内する
+    showToast('共有された試験手順を読み込みました');
+  } else {
+    showToast('共有URLから進捗を復元しました');
+  }
+}
+
+// ページ読み込み時 / hash 変更時: #state= があれば復元。復元処理に入ったら true。
+function restoreFromHash() {
+  var obj = readProgressFromHash();
+  if (!obj) return false;
+  clearStateHash();
+  var progress = normalizeProgressObject(obj);
+  if (!progress) return false;
+  if (!progress.testerName || String(progress.testerName).trim() === '') {
+    openTesterNameModal(progress);
+  } else {
+    resumeProgressFromUrl(progress);
+  }
+  return true;
+}
+
+/* ---------- テスター名入力モーダル（URL復元時に名前が空のとき） ---------- */
+var pendingUrlProgress = null;
+
+function openTesterNameModal(progress) {
+  pendingUrlProgress = progress;
+  var result = parseProcedure(progress.rawText);
+  var answered = progress.results.filter(function (r) { return r && r.status; }).length;
+  el('tester-modal-info').textContent = '「' + (result.title || '無題') + '」 ' + answered + ' / ' + result.totalItems + ' 項目 完了';
+  el('tester-modal-input').value = '';
+  el('modal-tester-name').hidden = false;
+  setTimeout(function () { el('tester-modal-input').focus(); }, 0);
+}
+
+function finishTesterNameModal(name) {
+  var progress = pendingUrlProgress;
+  pendingUrlProgress = null;
+  el('modal-tester-name').hidden = true;
+  if (!progress) return;
+  progress.testerName = name;
+  resumeProgressFromUrl(progress);
+}
+
+function wireTesterNameModal() {
+  el('tester-modal-ok-btn').addEventListener('click', function () {
+    finishTesterNameModal(el('tester-modal-input').value.trim());
+  });
+  el('tester-modal-skip-btn').addEventListener('click', function () { finishTesterNameModal(''); });
+  el('tester-modal-input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); finishTesterNameModal(el('tester-modal-input').value.trim()); }
+  });
 }
 
 // 互換: 旧バージョンの「保留」ステータスは未実施(null)として正規化する
@@ -2223,11 +2405,7 @@ function wireStepScreen() {
   el('glossary-fab-btn').addEventListener('click', openGlossaryModal);
   el('glossary-close-btn').addEventListener('click', closeGlossaryModal);
 
-  el('save-pause-btn').addEventListener('click', function () {
-    saveSession();
-    showToast('進捗を保存しました。次回この画面から再開できます');
-    resetToStart();
-  });
+  el('share-procedure-step-btn').addEventListener('click', function (e) { copyProcedureShareUrl(state.rawText, !!(e && e.shiftKey)); });
 
   el('item-step-body').addEventListener('click', handleTermClick);
   el('item-expected-body').addEventListener('click', handleTermClick);
@@ -2807,6 +2985,8 @@ function wireResultScreen() {
     copyToClipboard(buildBusinessReport(), '業務連絡をコピーしました。チャットやメールに貼り付けてください');
   });
   el('export-progress-result-btn').addEventListener('click', exportProgressFromState);
+  el('share-url-result-btn').addEventListener('click', function (e) { copyShareUrl(state, !!(e && e.shiftKey)); });
+  el('share-procedure-result-btn').addEventListener('click', function (e) { copyProcedureShareUrl(state.rawText, !!(e && e.shiftKey)); });
 
   el('restart-btn').addEventListener('click', function () {
     if (!confirm('本当に最初からやり直しますか？記録した結果はすべて消去されます。')) return;
@@ -2848,7 +3028,7 @@ function resetToStart() {
   lastLoadedRawText = '';
   el('preview-box').hidden = true;
   el('error-box').hidden = true;
-  el('paste-textarea').value = '';
+  el('paste-textarea').value = SAMPLE_A; // 初見でも「この手順で開始」だけで体験できるようサンプルを既定値に
   el('tester-name-input').value = '';
   checkResumeAvailable();
   showScreen('screen-start');
@@ -2877,6 +3057,7 @@ document.addEventListener('keydown', function (e) {
     }
     return;
   }
+  if (!el('modal-tester-name').hidden) return; // 名前入力中はEnter/O/N等を拾わない（Enterは入力欄側で処理）
   if (!el('modal-glossary').hidden) {
     if (e.key === 'Escape') closeGlossaryModal();
     return;
@@ -2917,9 +3098,15 @@ function init() {
   wireOverlays();
   wireTermPopup();
   wireResultScreen();
+  wireTesterNameModal();
   checkResumeAvailable();
   showScreen('screen-start');
   el('year').textContent = new Date().getFullYear();
+  el('paste-textarea').value = SAMPLE_A; // 初見でも「この手順で開始」だけで体験できるようサンプルを既定値に
+
+  // 進捗URL（#state=...）で開かれた場合はここで復元してステップ画面へ直行する
+  restoreFromHash();
+  window.addEventListener('hashchange', function () { restoreFromHash(); });
 
   // 背景の軽量きらめき粒子を自作
   var sparkleContainer = el('bg-sparkle');

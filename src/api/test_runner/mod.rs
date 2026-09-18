@@ -12,14 +12,19 @@
 //! （見出し・ボタン・トースト・演出文言・エクスポート見出し等）のみを翻訳しており、
 //! パーサーが認識する見出しキーワード（`用語定義:` 等）は意図的に日本語のまま
 //! 変更していない（英語で書かれた手順書のネイティブ解釈はスコープ外）。
-//! test_runner.html は外部CSS/JSを一切参照しない完全自己完結ファイルなので、
-//! LodChestSolver のような static 配信（ServeDir）は不要。
+//! HTML+JS 本体は完全自己完結だが、進捗URL共有（`#state=<lz-string圧縮JSON>`）の
+//! ために lz-string 1.5.0（MIT）を `static/lz-string.min.js` として同梱し、
+//! `/TestRunner/static` から同一オリジンで配信する（CDN参照はせず、オフライン動作を維持）。
+//! 進捗はサーバーへ送らず、フロントエンドが window.location.hash だけで復元する。
 
 use askama::Template;
 use axum::http::HeaderMap;
 use axum::response::{Html, Redirect};
 use axum::routing::get;
 use axum::Router;
+use tower_http::services::ServeDir;
+
+const STATIC_DIR: &str = "src/api/test_runner/static";
 
 #[derive(Template)]
 #[template(path = "tr_index.html")]
@@ -73,6 +78,7 @@ where
             "/en/",
             get(|| async { Redirect::permanent("/TestRunner/en") }),
         )
+        .nest_service("/static", ServeDir::new(STATIC_DIR))
 }
 
 #[cfg(test)]
@@ -104,6 +110,42 @@ mod tests {
         assert!(html.contains(r#"id="ok-btn""#));
         assert!(html.contains("手順を読み込む"));
         assert!(html.contains("用語定義"));
+        assert!(html.contains("🚀 開始する"));
+        assert!(!html.contains("paste-hint"));
+    }
+
+    /// 試験手順だけを共有するボタン（記録なし・テスター名なし）が両言語・3画面に揃っていること。
+    #[tokio::test]
+    async fn both_pages_have_share_procedure_ui() {
+        for uri in ["/", "/en"] {
+            let html = get_body(uri).await;
+            assert!(html.contains(r#"id="share-procedure-start-btn""#), "{uri}");
+            assert!(html.contains(r#"id="share-procedure-step-btn""#), "{uri}");
+            assert!(html.contains(r#"id="share-procedure-result-btn""#), "{uri}");
+        }
+    }
+
+    /// 結果URL共有UI（結果画面の共有ボタン・テスター名モーダル・lz-string読み込み）が両言語に揃っていること。
+    /// 進捗URLコピーはこの結果画面ボタン1箇所のみ（開始画面/ステップ画面の重複ボタン・保存して中断は撤去済み）。
+    #[tokio::test]
+    async fn both_pages_have_progress_url_sharing_ui() {
+        for uri in ["/", "/en"] {
+            let html = get_body(uri).await;
+            assert!(html.contains(r#"src="/TestRunner/static/lz-string.min.js""#), "{uri}");
+            assert!(html.contains(r#"id="share-url-result-btn""#), "{uri}");
+            assert!(html.contains(r#"id="modal-tester-name""#), "{uri}");
+            assert!(html.contains("var STATE_HASH_PREFIX = '#state=';"), "{uri}");
+            assert!(!html.contains(r#"id="save-pause-btn""#), "{uri}");
+            // 貼り付け欄はサンプル手順を既定値にする
+            assert!(html.contains("el('paste-textarea').value = SAMPLE_A;"), "{uri}");
+        }
+    }
+
+    #[tokio::test]
+    async fn static_serves_vendored_lz_string() {
+        let js = get_body("/static/lz-string.min.js").await;
+        assert!(js.contains("lz-string 1.5.0"));
+        assert!(js.contains("compressToEncodedURIComponent"));
     }
 
     #[tokio::test]
