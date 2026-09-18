@@ -2090,6 +2090,12 @@ function renderStep(animate) {
   el('ok-btn').disabled = false;
   el('ng-btn').disabled = false;
 
+  // 「戻る」で記録済みNGの項目に来たときは、前回のコメントを捨てずにNGパネルへ事前投入しておく
+  if (existing && existing.status === 'ng') {
+    el('ng-comment').value = existing.comment || '';
+    updateNgConfirmBtnState();
+  }
+
   if (existing && existing.durationMs != null) {
     el('step-timer-prev').textContent = '(Previous duration ' + formatDuration(existing.durationMs) + ')';
     el('step-timer-prev').hidden = false;
@@ -2144,6 +2150,18 @@ var NG_DETERRENT_POOL = [
   'An NG is a heavy record. That is exactly why you should be certain before proceeding.',
   'What you are seeing and what is expected — are they really not matching?'
 ];
+
+// 現在の項目が既にNGとして記録済みか（戻ってきた場合など）
+function currentItemIsNg() {
+  var r = state.results[state.pointer];
+  return !!(r && r.status === 'ng');
+}
+
+// NGボタン/Nキーの入口。記録済みNGの再編集なら引き止め（オーバーレイ・逃げ演出）を挟まずコメント編集へ直行する
+function startNgFlow() {
+  if (currentItemIsNg()) { openCommentPanel(); return; }
+  openNgConfirmOverlay();
+}
 
 function openNgConfirmOverlay() {
   var item = currentItem();
@@ -2289,6 +2307,7 @@ function showNgDodgeBubble(ngBtnEl) {
 
 function dodgeNgButton() {
   if (state.transitioning) return;
+  if (currentItemIsNg()) return; // 既にNG記録済みの項目では逃げない
   if (ngDodgeLock) return;
   if (ngDodgeCount >= NG_DODGE_LIMIT) return;
   if (Date.now() < ngDodgeCooldownUntil) return;
@@ -2366,6 +2385,7 @@ function wireNgDodge() {
     if (ngLastPointerType === 'touch') return;
     if (!ngHoverCapable()) return;
     if (state.transitioning) return;
+    if (currentItemIsNg()) return; // 既にNG記録済みの項目では逃げない
     if (Date.now() < ngDodgeCooldownUntil) return;
     clearTimeout(ngDodgeHoverTimer);
     ngDodgeHoverTimer = setTimeout(function () {
@@ -2379,7 +2399,7 @@ function wireNgDodge() {
 
 function wireStepScreen() {
   el('ok-btn').addEventListener('click', function () { recordResult('ok', ''); });
-  el('ng-btn').addEventListener('click', function () { if (ngDodgeLock) return; openNgConfirmOverlay(); });
+  el('ng-btn').addEventListener('click', function () { if (ngDodgeLock) return; startNgFlow(); });
   el('back-btn').addEventListener('click', goBack);
   wireNgDodge();
 
@@ -3081,7 +3101,7 @@ document.addEventListener('keydown', function (e) {
     case 'n':
     case 'N':
       e.preventDefault();
-      openNgConfirmOverlay();
+      startNgFlow();
       break;
     case 'Backspace':
     case 'ArrowLeft':
