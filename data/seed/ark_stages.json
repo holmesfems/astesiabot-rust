@@ -50754,48 +50754,7 @@
     {
       "apCost": 9,
       "code": "SR-1",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30011"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30061"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30031"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30021"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30041"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30051"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 44000.0,
       "stageId": "act54side_01",
       "stageType": "ACTIVITY",
@@ -50804,48 +50763,7 @@
     {
       "apCost": 9,
       "code": "SR-2",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30011"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30061"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30031"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30021"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30041"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30051"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 101000.0,
       "stageId": "act54side_02",
       "stageType": "ACTIVITY",
@@ -50854,32 +50772,7 @@
     {
       "apCost": 12,
       "code": "SR-3",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30032"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30022"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 74000.0,
       "stageId": "act54side_03",
       "stageType": "ACTIVITY",
@@ -50888,32 +50781,7 @@
     {
       "apCost": 12,
       "code": "SR-4",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30032"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30042"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 67000.0,
       "stageId": "act54side_04",
       "stageType": "ACTIVITY",
@@ -50922,32 +50790,7 @@
     {
       "apCost": 12,
       "code": "SR-5",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30062"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30022"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 47000.0,
       "stageId": "act54side_05",
       "stageType": "ACTIVITY",
@@ -50956,28 +50799,7 @@
     {
       "apCost": 21,
       "code": "SR-6",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "31073"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 164000.0,
       "stageId": "act54side_06",
       "stageType": "ACTIVITY",
@@ -50986,28 +50808,7 @@
     {
       "apCost": 21,
       "code": "SR-7",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "31053"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 61000.0,
       "stageId": "act54side_07",
       "stageType": "ACTIVITY",
@@ -51016,28 +50817,7 @@
     {
       "apCost": 21,
       "code": "SR-8",
-      "dropInfos": [
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": "30043"
-        },
-        {
-          "dropType": "FURNITURE",
-          "itemId": "furni"
-        },
-        {
-          "dropType": "NORMAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
-          "dropType": "EXTRA_DROP",
-          "itemId": null
-        }
-      ],
+      "dropInfos": [],
       "minClearTime": 17000.0,
       "stageId": "act54side_08",
       "stageType": "ACTIVITY",
