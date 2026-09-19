@@ -654,8 +654,6 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
     <div class="glass-card">
       <div class="section-title">Before you start</div>
 
-      <div id="confirm-preview"></div>
-
       <div class="test-info-box" id="test-info-box">
         <div class="section-title" style="margin:0 0 10px;">Test information</div>
         <div class="info-row" id="tester-name-row">
@@ -682,9 +680,12 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
       </div>
 
       <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
-        <button class="btn btn-gold" id="confirm-start-btn" style="flex:1;min-width:160px;">🚀 Start</button>
+        <button class="btn btn-gold" id="confirm-start-btn" style="flex:1;min-width:160px;">✅ Ready!</button>
         <button class="btn btn-ghost btn-small" id="confirm-back-btn">← Back</button>
       </div>
+
+      <div class="section-title" style="margin:28px 0 12px;">Loaded procedure</div>
+      <div id="confirm-preview"></div>
     </div>
   </div>
 </section>
@@ -1886,7 +1887,7 @@ function resumeNeedsConfirm(saved, result, requireTesterName) {
 // （記録が一切無ければ試験手順だけの共有URLと同じ状態なので、開始する扱いにする）
 function resumeButtonLabel(saved) {
   var hasAnyResult = (saved.results || []).some(function (r) { return r && r.status; });
-  return hasAnyResult ? '▶ Continue' : '🚀 Start';
+  return hasAnyResult ? '▶ Continue' : '✅ Ready!';
 }
 
 // 表示・書き出しに使うビルド番号。固定値はそのまま、記入モードは入力値。無ければ空文字
@@ -1915,7 +1916,7 @@ function handleLoadedText(text) {
   openConfirmScreen({
     result: result,
     rawText: text,
-    buttonLabel: '🚀 Start',
+    buttonLabel: '✅ Ready!',
     testerName: '',
     buildEntered: '',
     onStart: function () { startNewSession(result, text); }
@@ -1983,7 +1984,7 @@ function wireStartScreen() {
     openConfirmScreen({
       result: result,
       rawText: text,
-      buttonLabel: '🚀 Start',
+      buttonLabel: '✅ Ready!',
       testerName: '',
       buildEntered: '',
       onStart: function () { startNewSession(result, text); }
