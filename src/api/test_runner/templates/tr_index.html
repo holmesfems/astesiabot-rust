@@ -528,7 +528,6 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
   background:linear-gradient(135deg,var(--gold-bright),var(--gold));
 }
 .doc-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.build-hint{margin:0 0 6px;font-size:12px;color:var(--text-dim);line-height:1.6;}
 #build-input.shake-warn{
   animation:ngCommentShake .4s ease;
   border-color:var(--danger);
@@ -674,8 +673,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
         <span class="build-chip" id="build-fixed-chip"></span>
       </div>
       <div class="info-row" id="build-input-row" hidden>
-        <label class="field-label" for="build-input" style="margin:0 0 6px;">実施ビルド（必須）</label>
-        <p class="build-hint" id="build-input-hint" hidden></p>
+        <label class="field-label" for="build-input" id="build-input-label" style="margin:0 0 6px;">実施ビルド（必須）</label>
         <input type="text" id="build-input" placeholder="例: 5.2.1-beta3" autocomplete="off">
       </div>
       <div class="info-row" id="os-row" hidden>
@@ -1501,6 +1499,11 @@ var PRAISE_POOL = [
   '究極を超えた究極', 'これにて全知全能を証明'
 ];
 
+/* テスター名の初期値。名乗るのが面倒でも結果表が「（未入力）」にならないようにする */
+var TESTER_NAME_POOL = [
+  '試験の王者', '最強のテスター', 'バグバスター', '品質の守護者', '検証の達人', '不具合ハンター'
+];
+
 var SECTION_TITLE_POOL = [
   '銀河系試験長', 'タスクバーの支配者', '品質の守護神', '確認作業の賢者', 'クリックの匠',
   '検証界の風雲児', 'OKボタンの申し子', '手順書の使徒', 'バグなき世界の番人', '試験室の英雄',
@@ -1862,9 +1865,9 @@ function renderTestInfo(result) {
 
   el('build-input-row').hidden = (build.mode !== 'input');
   if (build.mode === 'input') {
-    var hintNode = el('build-input-hint');
-    hintNode.textContent = build.hint || '';
-    hintNode.hidden = !build.hint;
+    // 読み取り場所の案内はラベルに畳み込む（別行に出すと見出しと解説の区別が付かないため）
+    el('build-input-label').textContent =
+      '実施ビルド（必須' + (build.hint ? '・' + build.hint : '') + '）';
   }
 
   el('os-row').hidden = (osTags.length === 0);
@@ -1891,9 +1894,10 @@ function openConfirmModal(opts) {
   renderPreview(opts.result);   // 手順モーダル側に先に描いておく（開くたびに組み直さない）
   renderTestInfo(opts.result);
   closeProcedureModal();
-  el('tester-name-input').value = opts.testerName || '';
+  el('tester-name-input').value = opts.testerName || pickRandom(TESTER_NAME_POOL);
   el('build-input').value = opts.buildEntered || '';
   el('confirm-start-btn').textContent = opts.buttonLabel;
+  updateConfirmStartBtnState();
   el('error-box').hidden = true;
   // 進捗URLは hashchange でも飛んでくるので、どの画面から呼ばれても開始画面の上に出す
   stopStepTimer();
@@ -1904,6 +1908,19 @@ function openConfirmModal(opts) {
 function closeConfirmModal() {
   el('modal-confirm').hidden = true;
   confirmContext = null;
+}
+
+// 必須のビルドが空の間は「準備完了！」を押せない見た目にする（NGコメント必須と同じ扱い）
+function updateConfirmStartBtnState() {
+  var build = (confirmContext && confirmContext.result && confirmContext.result.build)
+    ? confirmContext.result.build : { mode: 'none' };
+  el('confirm-start-btn').disabled = (build.mode === 'input' && el('build-input').value.trim() === '');
+}
+
+// 押せない状態でEnterを叩かれたら、黙って無視せず理由を知らせる
+function submitConfirmFromKeyboard() {
+  if (!el('confirm-start-btn').disabled) el('confirm-start-btn').click();
+  else triggerBuildInputWarning();
 }
 
 // 再開時に確認画面を挟むのは、開始に必要な情報が欠けているときだけ。
@@ -2102,12 +2119,15 @@ function wireConfirmScreen() {
     onStart();
   });
   el('tester-name-input').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); el('confirm-start-btn').click(); }
+    if (e.key === 'Enter') { e.preventDefault(); submitConfirmFromKeyboard(); }
   });
   el('build-input').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); el('confirm-start-btn').click(); }
+    if (e.key === 'Enter') { e.preventDefault(); submitConfirmFromKeyboard(); }
   });
-  el('build-input').addEventListener('input', clearBuildInputWarning);
+  el('build-input').addEventListener('input', function () {
+    clearBuildInputWarning();
+    updateConfirmStartBtnState();
+  });
   el('build-input').addEventListener('animationend', clearBuildInputWarning);
 }
 
