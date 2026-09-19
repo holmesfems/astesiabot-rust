@@ -1759,7 +1759,7 @@ function renderBodyLinesHtml(bodyLines) {
 // 確認画面のリンク1行。ここだけで「意図した手順を読み込めたか」が分かるようにする
 function renderProcedureLink(result) {
   el('confirm-preview-link').textContent =
-    '📄 ' + (result.title || '(Untitled)') +
+    '🔍 ' + (result.title || '(Untitled)') +
     ' (' + result.sections.length + ' sections / ' + result.totalItems + ' items)';
 }
 
