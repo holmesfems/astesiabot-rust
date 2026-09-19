@@ -182,7 +182,6 @@ label.field-label{font-size:12px;color:var(--text-dim);display:block;margin:14px
 .badge-gold{color:#2a2005;background:linear-gradient(135deg,var(--gold-bright),var(--gold));border-color:transparent;}
 .badge-os{color:#0c2740;background:linear-gradient(135deg,#9fd9ff,#3fa9f5);border-color:transparent;}
 
-.preview-box{margin-top:20px;}
 .section-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;}
 .section-list li{
   display:flex;justify-content:space-between;gap:8px;align-items:center;
@@ -609,29 +608,6 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 
     <div class="glass-card" style="margin-bottom:16px;">
       <div class="section-title">手順を読み込む</div>
-      <label class="field-label">テスター名（任意・結果表に記載されます）</label>
-      <input type="text" id="tester-name-input" placeholder="例: 山田 太郎">
-
-      <div class="test-info-box" id="test-info-box" hidden>
-        <div class="section-title" style="margin:0 0 10px;">試験情報</div>
-        <div class="info-row" id="build-fixed-row" hidden>
-          <div class="info-label">実施ビルド</div>
-          <span class="build-chip" id="build-fixed-chip"></span>
-        </div>
-        <div class="info-row" id="build-input-row" hidden>
-          <label class="field-label" for="build-input" style="margin:0 0 6px;">実施ビルド（必須）</label>
-          <p class="build-hint" id="build-input-hint" hidden></p>
-          <input type="text" id="build-input" placeholder="例: 5.2.1-beta3" autocomplete="off">
-        </div>
-        <div class="info-row" id="os-row" hidden>
-          <div class="info-label">試験対象OS</div>
-          <div class="badge-row" id="os-badges"></div>
-        </div>
-        <div class="info-row" id="materials-row" hidden>
-          <div class="info-label">配布物（試験前に用意してください）</div>
-          <div id="materials-list"></div>
-        </div>
-      </div>
 
       <label class="field-label" style="margin-top:18px;">① サンプル手順で試す</label>
       <div class="sample-row">
@@ -655,12 +631,6 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
         <input type="file" id="file-input" accept=".txt,.md,text/plain" hidden>
       </div>
 
-      <div id="preview-box" class="preview-box" hidden>
-        <div class="section-title">読み込み結果プレビュー</div>
-        <div id="preview-content"></div>
-        <button class="btn btn-gold btn-block" id="begin-btn" style="margin-top:16px;">🚀 開始する</button>
-      </div>
-
       <div id="error-box" class="error-box" hidden></div>
     </div>
 
@@ -675,6 +645,47 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
       </div>
     </div>
 
+  </div>
+</section>
+
+<!-- ============ CONFIRM SCREEN ============ -->
+<section id="screen-confirm" class="app-screen" hidden>
+  <div class="wrap">
+    <div class="glass-card">
+      <div class="section-title">開始前の確認</div>
+
+      <div id="confirm-preview"></div>
+
+      <div class="test-info-box" id="test-info-box">
+        <div class="section-title" style="margin:0 0 10px;">試験情報</div>
+        <div class="info-row" id="tester-name-row">
+          <label class="field-label" for="tester-name-input" style="margin:0 0 6px;">テスター名（任意・結果表に記載されます）</label>
+          <input type="text" id="tester-name-input" placeholder="例: 山田 太郎">
+        </div>
+        <div class="info-row" id="build-fixed-row" hidden>
+          <div class="info-label">実施ビルド</div>
+          <span class="build-chip" id="build-fixed-chip"></span>
+        </div>
+        <div class="info-row" id="build-input-row" hidden>
+          <label class="field-label" for="build-input" style="margin:0 0 6px;">実施ビルド（必須）</label>
+          <p class="build-hint" id="build-input-hint" hidden></p>
+          <input type="text" id="build-input" placeholder="例: 5.2.1-beta3" autocomplete="off">
+        </div>
+        <div class="info-row" id="os-row" hidden>
+          <div class="info-label">試験対象OS</div>
+          <div class="badge-row" id="os-badges"></div>
+        </div>
+        <div class="info-row" id="materials-row" hidden>
+          <div class="info-label">配布物（試験前に用意してください）</div>
+          <div id="materials-list"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
+        <button class="btn btn-gold" id="confirm-start-btn" style="flex:1;min-width:160px;">🚀 開始する</button>
+        <button class="btn btn-ghost btn-small" id="confirm-back-btn">← 戻る</button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -813,21 +824,6 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
     <div class="section-title">用語・概要</div>
     <div id="glossary-modal-content"></div>
     <div class="modal-close-row"><button class="btn btn-ghost btn-small" id="glossary-close-btn">閉じる</button></div>
-  </div>
-</div>
-
-<!-- ============ TESTER NAME MODAL (URL復元時にテスター名が空のとき) ============ -->
-<div class="modal" id="modal-tester-name" hidden>
-  <div class="glass-card">
-    <div class="section-title">テスター名を入力</div>
-    <p style="font-size:13px;color:var(--text-dim);">共有された進捗URLにテスター名が入っていません。結果表に記載する名前を入力してから再開してください。</p>
-    <div id="tester-modal-info" style="font-size:13px;color:var(--text-dim);margin-bottom:10px;"></div>
-    <label class="field-label">テスター名</label>
-    <input type="text" id="tester-modal-input" placeholder="例: 山田 太郎" autocomplete="off">
-    <div class="modal-close-row" style="gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-ghost btn-small" id="tester-modal-skip-btn">名前なしで続ける</button>
-      <button class="btn btn-gold" id="tester-modal-ok-btn">この名前で再開</button>
-    </div>
   </div>
 </div>
 
@@ -1675,7 +1671,7 @@ function loadSessionRaw() {
 /* =========================================================================
    画面遷移
    ========================================================================= */
-var SCREENS = ['screen-start', 'screen-step', 'screen-result'];
+var SCREENS = ['screen-start', 'screen-confirm', 'screen-step', 'screen-result'];
 function showScreen(id) {
   SCREENS.forEach(function (s) {
     document.getElementById(s).hidden = (s !== id);
@@ -1685,8 +1681,7 @@ function showScreen(id) {
 /* =========================================================================
    スタート画面
    ========================================================================= */
-var lastParseResult = null;
-var lastLoadedRawText = '';
+var confirmContext = null;
 
 function el(id) { return document.getElementById(id); }
 
@@ -1728,7 +1723,7 @@ function renderBodyLinesHtml(bodyLines) {
 }
 
 function renderPreview(result) {
-  var box = el('preview-content');
+  var box = el('confirm-preview');
   var testSections = result.sections;
   var html = '';
   html += '<div class="summary-grid">';
@@ -1749,8 +1744,6 @@ function renderPreview(result) {
   }
 
   box.innerHTML = html;
-  el('preview-box').hidden = false;
-  el('error-box').hidden = true;
 }
 
 /* =========================================================================
@@ -1830,17 +1823,10 @@ function ensureBuildEntered(result) {
   return false;
 }
 
-// 手順書が差し替わって記入すべきビルドの中身が変わったときだけ、入力済みの値を捨てる
-var lastTestInfoBuildKey = '';
-
 function renderTestInfo(result) {
   var build = (result && result.build) ? result.build : { mode: 'none' };
   var materials = (result && result.materials) ? result.materials : [];
   var osTags = result ? collectOsTags(result.sections) : [];
-
-  var buildKey = build.mode + '|' + (build.mode === 'fixed' ? build.value : (build.hint || ''));
-  var buildChanged = (buildKey !== lastTestInfoBuildKey);
-  lastTestInfoBuildKey = buildKey;
 
   clearBuildInputWarning();
 
@@ -1852,7 +1838,6 @@ function renderTestInfo(result) {
     var hintNode = el('build-input-hint');
     hintNode.textContent = build.hint || '';
     hintNode.hidden = !build.hint;
-    if (buildChanged) el('build-input').value = '';
   }
 
   el('os-row').hidden = (osTags.length === 0);
@@ -1864,21 +1849,41 @@ function renderTestInfo(result) {
   if (materials.length > 0) {
     el('materials-list').innerHTML = materials.map(function (m) { return materialRowHtml(m); }).join('');
   }
-
-  el('test-info-box').hidden = !((build.mode !== 'none') || osTags.length > 0 || materials.length > 0);
 }
 
-function refreshTestInfoFromTextarea() {
-  var text = el('paste-textarea').value;
-  if (!text || text.trim() === '') { renderTestInfo(null); return; }
-  renderTestInfo(parseProcedure(text));
+/* =========================================================================
+   開始前の確認画面
+   ------------------------------------------------------------------------
+   読み込みプレビューと試験情報（テスター名/ビルド/OS/配布物）を1画面にまとめ、
+   「開始する」を押すまでは実際のセッションを始めない。旧バージョンにあった
+   URL復元時専用のテスター名入力モーダルもこの画面に統合済み。
+   ========================================================================= */
+function openConfirmScreen(opts) {
+  confirmContext = opts;
+  renderPreview(opts.result);
+  renderTestInfo(opts.result);
+  el('tester-name-input').value = opts.testerName || '';
+  el('build-input').value = opts.buildEntered || '';
+  el('confirm-start-btn').textContent = opts.buttonLabel;
+  el('error-box').hidden = true;
+  showScreen('screen-confirm');
 }
 
-// 貼り付け欄の入力ごとに全文パースし直すので、連打時は少しまとめる
-var testInfoRefreshTimer = null;
-function scheduleTestInfoRefreshFromTextarea() {
-  clearTimeout(testInfoRefreshTimer);
-  testInfoRefreshTimer = setTimeout(refreshTestInfoFromTextarea, 200);
+// 再開時に確認画面を挟むのは、開始に必要な情報が欠けているときだけ。
+// テスター名は任意項目なので、ローカル保存・進捗ファイルでは空でも聞き直さない
+// （本人が意図的に空にしている）。進捗URLだけは共有形式が名前を持たないため聞く。
+function resumeNeedsConfirm(saved, result, requireTesterName) {
+  if (requireTesterName && (!saved.testerName || String(saved.testerName).trim() === '')) return true;
+  var b = (result && result.build) ? result.build : { mode: 'none' };
+  if (b.mode === 'input' && String(saved.buildEntered || '').trim() === '') return true;
+  return false;
+}
+
+// 「続ける」か「開始する」かは、記録済みの結果が1件でもあるかどうかで決める
+// （記録が一切無ければ試験手順だけの共有URLと同じ状態なので、開始する扱いにする）
+function resumeButtonLabel(saved) {
+  var hasAnyResult = (saved.results || []).some(function (r) { return r && r.status; });
+  return hasAnyResult ? '▶ 続ける' : '🚀 開始する';
 }
 
 // 表示・書き出しに使うビルド番号。固定値はそのまま、記入モードは入力値。無ければ空文字
@@ -1896,20 +1901,22 @@ function renderParseError(reason) {
     '<div>' + escapeHtml(reason) + '</div>' +
     '<div style="margin-top:8px;font-size:12px;">Markdown の見出し（<code style="background:rgba(255,255,255,0.15);padding:1px 5px;border-radius:4px;">### 節タイトル</code>）と表（<code style="background:rgba(255,255,255,0.15);padding:1px 5px;border-radius:4px;">| 番号 | 手順 | 期待結果 |</code>）の形式、またはタブ／「→」区切りの簡易形式で記述してください。</div>';
   box.hidden = false;
-  el('preview-box').hidden = true;
 }
 
 function handleLoadedText(text) {
   var result = parseProcedure(text);
-  lastParseResult = result;
-  lastLoadedRawText = text;
   if (!result.ok || result.totalItems === 0) {
-    renderTestInfo(null);
     renderParseError('項目を1つも検出できませんでした。ファイルの中身や形式をご確認ください。');
     return;
   }
-  renderTestInfo(result);
-  renderPreview(result);
+  openConfirmScreen({
+    result: result,
+    rawText: text,
+    buttonLabel: '🚀 開始する',
+    testerName: '',
+    buildEntered: '',
+    onStart: function () { startNewSession(result, text); }
+  });
 }
 
 function decodeArrayBufferAuto(buf) {
@@ -1967,51 +1974,54 @@ function wireStartScreen() {
     }
     var result = parseProcedure(text);
     if (!result.ok || result.totalItems === 0) {
-      renderTestInfo(null);
       renderParseError('項目を1つも検出できませんでした。ファイルの中身や形式をご確認ください。');
       return;
     }
-    // 貼り付け直後に押された場合は試験情報の反映（デバウンス）がまだなので、ここで確定させる
-    renderTestInfo(result);
-    if (!ensureBuildEntered(result)) return;
-    el('error-box').hidden = true;
-    el('preview-box').hidden = true;
-    startNewSession(result, text);
+    openConfirmScreen({
+      result: result,
+      rawText: text,
+      buttonLabel: '🚀 開始する',
+      testerName: '',
+      buildEntered: '',
+      onStart: function () { startNewSession(result, text); }
+    });
   });
 
   el('share-procedure-start-btn').addEventListener('click', function (e) {
     copyProcedureShareUrl(el('paste-textarea').value, !!(e && e.shiftKey));
   });
 
-  el('paste-textarea').addEventListener('input', scheduleTestInfoRefreshFromTextarea);
-  el('build-input').addEventListener('input', clearBuildInputWarning);
-  el('build-input').addEventListener('animationend', clearBuildInputWarning);
-
   el('sample-a-btn').addEventListener('click', function () {
     el('paste-textarea').value = SAMPLE_A;
     el('error-box').hidden = true;
-    el('preview-box').hidden = true;
-    refreshTestInfoFromTextarea();
     showToast('サンプルAを貼り付け欄にセットしました。「🚀 開始する」で始められます');
   });
   el('sample-b-btn').addEventListener('click', function () {
     el('paste-textarea').value = SAMPLE_B;
     el('error-box').hidden = true;
-    el('preview-box').hidden = true;
-    refreshTestInfoFromTextarea();
     showToast('サンプルBを貼り付け欄にセットしました。「🚀 開始する」で始められます');
-  });
-
-  el('begin-btn').addEventListener('click', function () {
-    if (!lastParseResult || !lastParseResult.ok) return;
-    if (!ensureBuildEntered(lastParseResult)) return;
-    startNewSession(lastParseResult, lastLoadedRawText);
   });
 
   el('resume-btn').addEventListener('click', function () {
     var saved = loadSessionRaw();
     if (!saved) return;
-    resumeSession(saved);
+    var result = parseProcedure(saved.rawText);
+    if (result.ok && resumeNeedsConfirm(saved, result, false)) {
+      openConfirmScreen({
+        result: result,
+        rawText: saved.rawText,
+        buttonLabel: resumeButtonLabel(saved),
+        testerName: saved.testerName || '',
+        buildEntered: saved.buildEntered || '',
+        onStart: function () {
+          saved.testerName = el('tester-name-input').value.trim();
+          saved.buildEntered = el('build-input').value.trim();
+          resumeSession(saved);
+        }
+      });
+    } else {
+      resumeSession(saved);
+    }
   });
 
   el('export-progress-btn').addEventListener('click', function () {
@@ -2038,6 +2048,23 @@ function wireStartScreen() {
   });
   pdz.addEventListener('click', function () { el('progress-file-input').click(); });
   pdz.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el('progress-file-input').click(); } });
+}
+
+function wireConfirmScreen() {
+  el('confirm-back-btn').addEventListener('click', function () { showScreen('screen-start'); });
+  el('confirm-start-btn').addEventListener('click', function () {
+    if (!confirmContext) return;
+    if (!ensureBuildEntered(confirmContext.result)) return;
+    confirmContext.onStart();
+  });
+  el('tester-name-input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); el('confirm-start-btn').click(); }
+  });
+  el('build-input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); el('confirm-start-btn').click(); }
+  });
+  el('build-input').addEventListener('input', clearBuildInputWarning);
+  el('build-input').addEventListener('animationend', clearBuildInputWarning);
 }
 
 /* ---------- 進捗ファイルの書き出し / 読み込み ---------- */
@@ -2091,7 +2118,23 @@ function handleProgressFile(file) {
     }
     var progress = normalizeProgressObject(obj);
     if (!progress) return;
-    resumeSession(progress);
+    var result = parseProcedure(progress.rawText);
+    if (result.ok && resumeNeedsConfirm(progress, result, false)) {
+      openConfirmScreen({
+        result: result,
+        rawText: progress.rawText,
+        buttonLabel: resumeButtonLabel(progress),
+        testerName: progress.testerName || '',
+        buildEntered: progress.buildEntered || '',
+        onStart: function () {
+          progress.testerName = el('tester-name-input').value.trim();
+          progress.buildEntered = el('build-input').value.trim();
+          resumeSession(progress);
+        }
+      });
+    } else {
+      resumeSession(progress);
+    }
   };
   reader.readAsText(file);
 }
@@ -2223,44 +2266,24 @@ function restoreFromHash() {
   clearStateHash();
   var progress = normalizeProgressObject(obj);
   if (!progress) return false;
-  if (!progress.testerName || String(progress.testerName).trim() === '') {
-    openTesterNameModal(progress);
+  var result = parseProcedure(progress.rawText);
+  if (result.ok && resumeNeedsConfirm(progress, result, true)) {
+    openConfirmScreen({
+      result: result,
+      rawText: progress.rawText,
+      buttonLabel: resumeButtonLabel(progress),
+      testerName: progress.testerName || '',
+      buildEntered: progress.buildEntered || '',
+      onStart: function () {
+        progress.testerName = el('tester-name-input').value.trim();
+        progress.buildEntered = el('build-input').value.trim();
+        resumeProgressFromUrl(progress);
+      }
+    });
   } else {
     resumeProgressFromUrl(progress);
   }
   return true;
-}
-
-/* ---------- テスター名入力モーダル（URL復元時に名前が空のとき） ---------- */
-var pendingUrlProgress = null;
-
-function openTesterNameModal(progress) {
-  pendingUrlProgress = progress;
-  var result = parseProcedure(progress.rawText);
-  var answered = progress.results.filter(function (r) { return r && r.status; }).length;
-  el('tester-modal-info').textContent = '「' + (result.title || '無題') + '」 ' + answered + ' / ' + result.totalItems + ' 項目 完了';
-  el('tester-modal-input').value = '';
-  el('modal-tester-name').hidden = false;
-  setTimeout(function () { el('tester-modal-input').focus(); }, 0);
-}
-
-function finishTesterNameModal(name) {
-  var progress = pendingUrlProgress;
-  pendingUrlProgress = null;
-  el('modal-tester-name').hidden = true;
-  if (!progress) return;
-  progress.testerName = name;
-  resumeProgressFromUrl(progress);
-}
-
-function wireTesterNameModal() {
-  el('tester-modal-ok-btn').addEventListener('click', function () {
-    finishTesterNameModal(el('tester-modal-input').value.trim());
-  });
-  el('tester-modal-skip-btn').addEventListener('click', function () { finishTesterNameModal(''); });
-  el('tester-modal-input').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); finishTesterNameModal(el('tester-modal-input').value.trim()); }
-  });
 }
 
 // 互換: 旧バージョンの「保留」ステータスは未実施(null)として正規化する
@@ -3473,13 +3496,9 @@ function startNewSessionDirect(result, rawText, testerName, buildEntered) {
 
 function resetToStart() {
   stopStepTimer();
-  lastParseResult = null;
-  lastLoadedRawText = '';
-  el('preview-box').hidden = true;
   el('error-box').hidden = true;
   el('paste-textarea').value = SAMPLE_A; // 初見でも「この手順で開始」だけで体験できるようサンプルを既定値に
   el('tester-name-input').value = '';
-  refreshTestInfoFromTextarea();
   checkResumeAvailable();
   showScreen('screen-start');
 }
@@ -3507,7 +3526,6 @@ document.addEventListener('keydown', function (e) {
     }
     return;
   }
-  if (!el('modal-tester-name').hidden) return; // 名前入力中はEnter/O/N等を拾わない（Enterは入力欄側で処理）
   if (!el('modal-glossary').hidden) {
     if (e.key === 'Escape') closeGlossaryModal();
     return;
@@ -3544,20 +3562,19 @@ document.addEventListener('keydown', function (e) {
    ========================================================================= */
 function init() {
   wireStartScreen();
+  wireConfirmScreen();
   wireStepScreen();
   wireOverlays();
   wireTermPopup();
   wireResultScreen();
-  wireTesterNameModal();
-  // 配布物の「リンクをコピー」は開始画面・用語モーダル・ポップアップの3箇所に出るのでまとめて拾う
+  // 配布物の「リンクをコピー」は確認画面・用語モーダル・ポップアップの3箇所に出るのでまとめて拾う
   document.addEventListener('click', handleMaterialCopyClick);
   checkResumeAvailable();
   showScreen('screen-start');
   el('year').textContent = new Date().getFullYear();
   el('paste-textarea').value = SAMPLE_A; // 初見でも「この手順で開始」だけで体験できるようサンプルを既定値に
-  refreshTestInfoFromTextarea();
 
-  // 進捗URL（#state=...）で開かれた場合はここで復元してステップ画面へ直行する
+  // 進捗URL（#state=...）で開かれた場合はここで復元して確認画面かステップ画面へ直行する
   restoreFromHash();
   window.addEventListener('hashchange', function () { restoreFromHash(); });
 
