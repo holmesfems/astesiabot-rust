@@ -513,6 +513,55 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
 .app-footer{max-width:900px;margin:32px auto 0;padding:0 16px 24px;text-align:center;font-size:11.5px;color:var(--text-dim);position:relative;z-index:1;}
 .app-footer a{color:var(--gold-bright);}
 
+/* ---------- 試験情報（ビルド / 試験対象OS / 配布物） ---------- */
+.test-info-box{margin-top:18px;padding:14px;border-radius:14px;background:rgba(0,0,0,0.22);border:1px solid var(--glass-border);}
+.info-label{font-size:12px;color:var(--text-dim);margin:0 0 6px;}
+.info-row + .info-row{margin-top:14px;}
+.build-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:999px;
+  font-size:16px;font-weight:800;letter-spacing:0.02em;color:#2a2005;
+  background:linear-gradient(135deg,var(--gold-bright),var(--gold));
+  box-shadow:0 4px 18px rgba(242,193,78,0.35);
+}
+.build-chip-sm{
+  display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;
+  font-size:11px;font-weight:800;color:#2a2005;white-space:nowrap;
+  background:linear-gradient(135deg,var(--gold-bright),var(--gold));
+}
+.doc-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.build-hint{margin:0 0 6px;font-size:12px;color:var(--text-dim);line-height:1.6;}
+#build-input.shake-warn{
+  animation:ngCommentShake .4s ease;
+  border-color:var(--danger);
+  box-shadow:0 0 0 2px rgba(255,84,112,0.5);
+}
+@media (prefers-reduced-motion: reduce){ #build-input.shake-warn{animation:none;border-color:var(--danger);box-shadow:0 0 0 2px rgba(255,84,112,0.5);} }
+
+/* ---------- 配布物の行カード ---------- */
+a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;}
+.material-row{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;padding:10px 12px;
+}
+.material-row + .material-row{margin-top:8px;}
+.material-main{flex:1;min-width:180px;}
+.material-name{font-size:14px;font-weight:700;color:var(--text-light);}
+.material-desc{font-size:12px;color:var(--text-dim);line-height:1.6;margin-top:2px;}
+.material-desc code{background:rgba(255,255,255,0.12);padding:1px 5px;border-radius:4px;}
+.material-desc strong{color:var(--text-light);}
+.material-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.term-popup-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+
+/* 配布物のハイライトは用語の金色と区別するため水色系にする */
+.term-material{
+  color:#9fd9ff;
+  text-decoration-color:#3fa9f5;
+  text-shadow:0 0 6px rgba(63,169,245,0.55);
+}
+.term-material:hover,.term-material:active{
+  text-shadow:0 0 14px rgba(63,169,245,0.95);
+}
+
 /* light theme fallback (kept dark-first per design; only if explicitly chosen light) */
 :root[data-theme="light"]{ color-scheme: light; }
 :root[data-theme="light"] body{ background:#f4f1ff; color:#1c1533; }
@@ -562,6 +611,27 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
       <div class="section-title">手順を読み込む</div>
       <label class="field-label">テスター名（任意・結果表に記載されます）</label>
       <input type="text" id="tester-name-input" placeholder="例: 山田 太郎">
+
+      <div class="test-info-box" id="test-info-box" hidden>
+        <div class="section-title" style="margin:0 0 10px;">試験情報</div>
+        <div class="info-row" id="build-fixed-row" hidden>
+          <div class="info-label">実施ビルド</div>
+          <span class="build-chip" id="build-fixed-chip"></span>
+        </div>
+        <div class="info-row" id="build-input-row" hidden>
+          <label class="field-label" for="build-input" style="margin:0 0 6px;">実施ビルド（必須）</label>
+          <p class="build-hint" id="build-input-hint" hidden></p>
+          <input type="text" id="build-input" placeholder="例: 5.2.1-beta3" autocomplete="off">
+        </div>
+        <div class="info-row" id="os-row" hidden>
+          <div class="info-label">試験対象OS</div>
+          <div class="badge-row" id="os-badges"></div>
+        </div>
+        <div class="info-row" id="materials-row" hidden>
+          <div class="info-label">配布物（試験前に用意してください）</div>
+          <div id="materials-list"></div>
+        </div>
+      </div>
 
       <label class="field-label" style="margin-top:18px;">① サンプル手順で試す</label>
       <div class="sample-row">
@@ -613,7 +683,10 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
   <div class="wrap-narrow">
     <div class="step-header">
       <div>
-        <div class="doc-title" id="step-doc-title"></div>
+        <div class="doc-title-row">
+          <div class="doc-title" id="step-doc-title"></div>
+          <span class="build-chip-sm" id="step-build-chip" hidden></span>
+        </div>
         <h2 id="step-section-title"></h2>
       </div>
       <!-- margin-left:auto: ボタンが増えて右カラムが2行目に折り返しても右寄せを保つ（space-betweenは1要素だと左端に置く） -->
@@ -762,9 +835,10 @@ table.result-table input.comment-input.input-error{border-color:var(--danger);bo
 <div class="term-popup-overlay" id="overlay-term" hidden>
   <div class="overlay-card term-popup-card glass-card">
     <div class="term-popup-ring"></div>
-    <div class="term-popup-header">📖 用語解説</div>
+    <div class="term-popup-header" id="term-popup-header">📖 用語解説</div>
     <h2 id="term-popup-title"></h2>
     <div id="term-popup-desc" class="term-popup-desc"></div>
+    <div class="term-popup-actions" id="term-popup-actions" hidden></div>
     <button class="btn btn-gold" id="term-popup-ok-btn">わかった！</button>
   </div>
 </div>
@@ -900,26 +974,141 @@ function extractGlossary(preamble) {
   return glossary;
 }
 
-function highlightGlossaryHtml(html, glossary) {
-  if (!glossary || glossary.length === 0) return { html: html, matched: false };
-  var keyToIdx = {};
-  glossary.forEach(function (g, idx) {
-    if (g.key && g.key.length >= 2 && !(g.key in keyToIdx)) keyToIdx[g.key] = idx;
+/* ---- ビルド指定（ビルド:）/ 配布物（配布物:）— どちらも任意項目 ----
+   前置きの本文行から拾う。行が無ければ build は {mode:'none'}、materials は [] になり、
+   従来の手順書は一切挙動が変わらない。 */
+var BUILD_LINE_RE = /^ビルド\s*[:：]\s*(.*)$/;
+var BUILD_INPUT_RE = /^(記入|入力)/;
+var BUILD_HINT_RE = /[（(]([^）)]*)[）)]/;
+var MATERIALS_LINE_RE = /^配布物\s*[:：]/;
+var MATERIAL_URL_RE = /https?:\/\/\S+/;
+var MATERIAL_URL_TAIL_RE = /[）)、。，,.]+$/;
+
+function parseBuildValue(value) {
+  var v = String(value == null ? '' : value).trim();
+  if (v === '') return { mode: 'none' };
+  if (BUILD_INPUT_RE.test(v)) {
+    var hint = v.match(BUILD_HINT_RE);
+    return { mode: 'input', hint: hint ? hint[1].trim() : '' };
+  }
+  return { mode: 'fixed', value: v };
+}
+
+function extractBuild(preamble) {
+  var found = null;
+  (preamble || []).forEach(function (block) {
+    (block.bodyLines || []).forEach(function (line) {
+      if (found) return;
+      var m = String(line).trim().match(BUILD_LINE_RE);
+      if (m) found = parseBuildValue(m[1]);
+    });
   });
-  var keys = Object.keys(keyToIdx).sort(function (a, b) { return b.length - a.length; });
-  if (keys.length === 0) return { html: html, matched: false };
+  return found || { mode: 'none' };
+}
+
+// 配布物1件。区切りの扱いは parseGlossaryItem と同じ（`* **名前** … 説明`）。
+// 説明の中の最初の http(s) URL を url として切り出し、残りを説明文にする。
+function parseMaterialItem(itemText) {
+  var text = String(itemText).trim();
+  if (!text) return null;
+  var name, desc;
+  var boldMatch = text.match(/^\*\*(.+?)\*\*\s*(.*)$/);
+  if (boldMatch) {
+    name = boldMatch[1].trim();
+    var rest = boldMatch[2];
+    var sepMatch = rest.match(GLOSSARY_SEP_RE);
+    desc = sepMatch ? rest.slice(sepMatch.index + sepMatch[0].length).trim() : rest.trim();
+  } else {
+    var m = text.match(GLOSSARY_SEP_RE);
+    if (!m) return null;
+    name = text.slice(0, m.index).replace(/\*\*/g, '').trim();
+    desc = text.slice(m.index + m[0].length).trim();
+  }
+  if (!name) return null;
+  var url = null;
+  var um = desc.match(MATERIAL_URL_RE);
+  if (um) {
+    url = um[0].replace(MATERIAL_URL_TAIL_RE, '');
+    desc = (desc.slice(0, um.index) + desc.slice(um.index + um[0].length)).replace(/\s+/g, ' ').trim();
+  }
+  // key が2文字未満でも項目としては残す（本文ハイライトの対象から外れるだけ）
+  var key = name.replace(GLOSSARY_PLACEHOLDER_RE, '').trim();
+  return { name: name, key: key, url: url, descHtml: applyInline(desc) };
+}
+
+function extractMaterials(preamble) {
+  var materials = [];
+  var seenKeys = {};
+  (preamble || []).forEach(function (block) {
+    var lines = block.bodyLines || [];
+    var i = 0;
+    while (i < lines.length) {
+      if (MATERIALS_LINE_RE.test(lines[i].trim())) {
+        i++;
+        while (i < lines.length && lines[i].trim() === '') i++;
+        while (i < lines.length && /^[*\-]\s+/.test(lines[i].trim())) {
+          var itemText = lines[i].trim().replace(/^[*\-]\s+/, '');
+          var entry = parseMaterialItem(itemText);
+          if (entry && !seenKeys[entry.key]) {
+            seenKeys[entry.key] = true;
+            materials.push(entry);
+          }
+          i++;
+        }
+        continue;
+      }
+      i++;
+    }
+  });
+  return materials;
+}
+
+// 用語と配布物を1本の正規表現でまとめて拾う。キーが重なったら長い方を優先し、
+// 同じ長さなら配布物を優先する（alternation は先頭から順に試されるので並び順がそのまま優先順位）。
+function buildHighlightIndex(glossary, materials) {
+  var map = {};
+  (glossary || []).forEach(function (g, idx) {
+    if (g.key && g.key.length >= 2 && !(g.key in map)) map[g.key] = { kind: 'term', idx: idx };
+  });
+  (materials || []).forEach(function (m, idx) {
+    if (m.key && m.key.length >= 2) map[m.key] = { kind: 'material', idx: idx };
+  });
+  return map;
+}
+
+function highlightGlossaryHtml(html, glossary, materials) {
+  var map = buildHighlightIndex(glossary, materials);
+  var keys = Object.keys(map);
+  if (keys.length === 0) return { html: html, matched: false, matchedTerm: false, matchedMaterial: false };
+  keys.sort(function (a, b) {
+    if (b.length !== a.length) return b.length - a.length;
+    var am = map[a].kind === 'material' ? 0 : 1;
+    var bm = map[b].kind === 'material' ? 0 : 1;
+    return am - bm;
+  });
   var re = new RegExp(keys.map(escapeRegExp).join('|'), 'g');
-  var matched = false;
+  var matchedTerm = false;
+  var matchedMaterial = false;
   var parts = html.split(/(<[^>]+>)/);
   for (var p = 0; p < parts.length; p++) {
     if (p % 2 === 1) continue; // HTML tag, skip
     if (!parts[p]) continue;
     parts[p] = parts[p].replace(re, function (m) {
-      matched = true;
-      return '<span class="term" data-term-idx="' + keyToIdx[m] + '">' + m + '</span>';
+      var hit = map[m];
+      if (hit.kind === 'material') {
+        matchedMaterial = true;
+        return '<span class="term term-material" data-material-idx="' + hit.idx + '">📎' + m + '</span>';
+      }
+      matchedTerm = true;
+      return '<span class="term" data-term-idx="' + hit.idx + '">' + m + '</span>';
     });
   }
-  return { html: parts.join(''), matched: matched };
+  return {
+    html: parts.join(''),
+    matched: matchedTerm || matchedMaterial,
+    matchedTerm: matchedTerm,
+    matchedMaterial: matchedMaterial
+  };
 }
 
 function isTableLine(line) {
@@ -1069,6 +1258,8 @@ function parseProcedure(rawText) {
     preamble: preamble,
     sections: sections,
     glossary: extractGlossary(preamble),
+    build: extractBuild(preamble),
+    materials: extractMaterials(preamble),
     totalItems: totalItems,
     ok: totalItems > 0
   };
@@ -1115,6 +1306,13 @@ var SAMPLE_A = [
 '',
 '準備するもの: ぽもどーろ君 を初期状態（作業時間 25 分、休憩時間 5 分）でインストールした端末',
 '',
+'ビルド: 5.2.1-beta3',
+'',
+'配布物:',
+'',
+'* **長時間設定データ.pomo** … https://example.com/pomodorin/samples/long-session.pomo 作業時間 120 分が保存された設定ファイル',
+'* **通知音テスト.wav** … https://example.com/pomodorin/samples/beep.wav 完了通知に設定する 1 秒の効果音',
+'',
 '用語定義:',
 '',
 '* **開始ボタン** … 画面中央にある緑色の丸いボタン。押すとボタンの文字が「一時停止」に変わる',
@@ -1141,7 +1339,7 @@ var SAMPLE_A = [
 '',
 '| 番号 | 手順 | 期待結果 |',
 '|---|---|---|',
-'| 7 | **1分に設定**し、**開始ボタン**を押して 1 分待つ | 表示が `00:00` になった瞬間に通知音が 1 回鳴り、「休憩しましょう」というダイアログが表示されること |',
+'| 7 | 設定画面で通知音に **通知音テスト.wav** を指定し、**1分に設定**し、**開始ボタン**を押して 1 分待つ | 表示が `00:00` になった瞬間に **通知音テスト.wav** が 1 回鳴り、「休憩しましょう」というダイアログが表示されること |',
 '| 8 | **1分に設定**し、**開始ボタン**を押して 1 分待ち、表示されたダイアログで［休憩を始める］を選ぶ | 表示が `05:00` に変わり、背景色が青に変わり、押さなくても 1 秒ごとに減り始めること |',
 '| 9 | **1分に設定**し、**開始ボタン**を押して 1 分待ち、表示されたダイアログで［閉じる］を選ぶ | ダイアログが閉じ、表示が `01:00` に戻り、**開始ボタン**が緑色の「開始」表示になること |',
 '',
@@ -1150,7 +1348,7 @@ var SAMPLE_A = [
 '| 番号 | 手順 | 期待結果 |',
 '|---|---|---|',
 '| 10 | **40分に設定**する | 設定画面が閉じ、メイン画面の表示が `40:00` になること |',
-'| 11 | **40分に設定**し、アプリを終了してから再び起動する | 起動直後の表示が `40:00` であること（`25:00` に戻っていないこと） |',
+'| 11 | **長時間設定データ.pomo** を読み込んでからアプリを終了し、再び起動する | 起動直後の表示が `120:00` であること |',
 '| 12 | 右上の歯車アイコンから設定画面を開き、「作業時間」欄に `0` を入力して［保存］を押す | 「1〜120 の数字を入力してください」というエラーが赤字で表示され、設定画面が閉じないこと |',
 '| 13 | 右上の歯車アイコンから設定画面を開き、「作業時間」欄に `121` を入力して［保存］を押す | 「1〜120 の数字を入力してください」というエラーが赤字で表示され、設定画面が閉じないこと |',
 '',
@@ -1172,6 +1370,8 @@ var SAMPLE_B = [
 '試験箇所: 四則演算・小数点処理・メモリ機能',
 '',
 '試験言語: 日本語',
+'',
+'ビルド: 記入（画面右上の「?」→「バージョン情報」に表示される番号）',
 '',
 '用語定義:',
 '',
@@ -1216,6 +1416,10 @@ var AI_FORMAT_PROMPT = [
 '',
 'その次に `### 試験の概要` の節を置き、自由文で試験箇所や準備するものを書きます。用語がある場合は、その下に `用語定義:` という行を置き、さらにその下に `* **用語** … 説明` の形式で箇条書きにしてください（区切りは全角三点リーダ「…」です）。用語が無ければ「用語定義:」の行は省略してかまいません。',
 '',
+'試験するビルドが決まっている場合は、前置きの中に `ビルド: 5.2.1-beta3` のように1行だけ書いてください。ビルド番号をテスター自身に確認させたい場合は `ビルド: 記入（画面右上の「?」→「バージョン情報」に表示される番号）` のように「記入」で始め、括弧の中に番号の読み取り場所を書いてください。どちらでもない場合は `ビルド:` の行ごと省略してかまいません。',
+'',
+'試験前にテスターへ配るファイル（サンプルデータ・素材など）がある場合は、前置きの中に `配布物:` という行を置き、その下に `* **ファイル名** … URL 説明` の形式で箇条書きにしてください（区切りは用語定義と同じく全角三点リーダ「…」です）。説明はその1行だけで意味が通るように書き、他の項目を参照しないでください。配布物が無ければ `配布物:` の行ごと省略してかまいません。',
+'',
 '各節（試験項目のまとまり）は `### 1. 節タイトル【Windows】` のように「番号. タイトル【対象OSや環境】」の形式で書きます。【】内の環境タグは任意です（無くてもかまいません）。',
 '',
 '各節の直下には、次の形式の表を置きます。',
@@ -1236,6 +1440,8 @@ var AI_FORMAT_PROMPT = [
 '### 試験の概要',
 '',
 '試験箇所: 四則演算',
+'',
+'ビルド: 1.0.3',
 '',
 '用語定義:',
 '',
@@ -1399,6 +1605,9 @@ var state = {
   preamble: [],
   sections: [],
   glossary: [],
+  materials: [],       // { name, key, url, descHtml }（手順書に配布物が無ければ空）
+  build: { mode: 'none' }, // 手順書から毎回導出するので保存しない
+  buildEntered: '',    // 記入モードでテスターが入力したビルド番号（保存・復元する）
   flatItems: [],       // { sectionIndex, itemIndexInSection, number, stepHtml, expectedHtml, stepRaw, expectedRaw }
   results: [],         // { status: 'ok'|'ng'|null, comment: '', timestamp: null }
   pointer: 0,
@@ -1440,6 +1649,7 @@ function saveSession() {
     var data = {
       rawText: state.rawText,
       testerName: state.testerName,
+      buildEntered: state.buildEntered,
       results: state.results,
       pointer: state.pointer,
       startedAt: state.startedAt,
@@ -1543,6 +1753,142 @@ function renderPreview(result) {
   el('error-box').hidden = true;
 }
 
+/* =========================================================================
+   試験情報（ビルド / 試験対象OS / 配布物）
+   ------------------------------------------------------------------------
+   手順書に `ビルド:` も `配布物:` も無く、節タグも無ければブロックごと隠れるので、
+   従来の手順書では開始画面の見た目が変わらない。
+   OSは「表示するだけ」で、テスターに選ばせない。
+   ========================================================================= */
+
+// 節タグ（【Windows】等）を出現順・重複排除で集める
+function collectOsTags(sections) {
+  var tags = [];
+  var seen = {};
+  (sections || []).forEach(function (sec) {
+    var t = sec.tag ? String(sec.tag).trim() : '';
+    if (!t || seen[t]) return;
+    seen[t] = true;
+    tags.push(t);
+  });
+  return tags;
+}
+
+// 配布物のリンク操作。http(s) 以外のURLはボタンごと出さない
+function materialActionsHtml(material) {
+  if (!material.url || !/^https?:\/\//i.test(material.url)) return '';
+  var safeUrl = escapeHtml(material.url);
+  return '<a class="btn btn-ghost btn-small" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">開く</a>' +
+    '<button type="button" class="btn btn-ghost btn-small material-copy-btn" data-url="' + safeUrl + '">リンクをコピー</button>';
+}
+
+function materialRowHtml(material) {
+  return '<div class="material-row">' +
+    '<div class="material-main">' +
+    '<div class="material-name">📎 ' + escapeHtml(material.name) + '</div>' +
+    (material.descHtml ? '<div class="material-desc">' + material.descHtml + '</div>' : '') +
+    '</div>' +
+    '<div class="material-actions">' + materialActionsHtml(material) + '</div>' +
+    '</div>';
+}
+
+function materialsSectionHtml(materials) {
+  if (!materials || materials.length === 0) return '';
+  return '<div class="glossary-block"><h4>📎 配布物</h4>' +
+    materials.map(function (m) { return materialRowHtml(m); }).join('') + '</div>';
+}
+
+function handleMaterialCopyClick(e) {
+  var btn = (e.target && e.target.closest) ? e.target.closest('.material-copy-btn') : null;
+  if (!btn) return;
+  var url = btn.getAttribute('data-url');
+  if (url) copyToClipboard(url, 'リンクをコピーしました');
+}
+
+function clearBuildInputWarning() {
+  var inp = el('build-input');
+  if (inp) inp.classList.remove('shake-warn');
+}
+
+function triggerBuildInputWarning() {
+  var inp = el('build-input');
+  if (inp) {
+    inp.classList.remove('shake-warn');
+    void inp.offsetWidth;
+    inp.classList.add('shake-warn');
+    try { inp.focus(); } catch (err) { /* ignore */ }
+  }
+  showToast('実施ビルドを入力してください');
+}
+
+// 記入モードでビルドが空なら開始させない（空欄を揺らして知らせるだけ）
+function ensureBuildEntered(result) {
+  var build = (result && result.build) ? result.build : { mode: 'none' };
+  if (build.mode !== 'input') return true;
+  if (el('build-input').value.trim() !== '') return true;
+  triggerBuildInputWarning();
+  return false;
+}
+
+// 手順書が差し替わって記入すべきビルドの中身が変わったときだけ、入力済みの値を捨てる
+var lastTestInfoBuildKey = '';
+
+function renderTestInfo(result) {
+  var build = (result && result.build) ? result.build : { mode: 'none' };
+  var materials = (result && result.materials) ? result.materials : [];
+  var osTags = result ? collectOsTags(result.sections) : [];
+
+  var buildKey = build.mode + '|' + (build.mode === 'fixed' ? build.value : (build.hint || ''));
+  var buildChanged = (buildKey !== lastTestInfoBuildKey);
+  lastTestInfoBuildKey = buildKey;
+
+  clearBuildInputWarning();
+
+  el('build-fixed-row').hidden = (build.mode !== 'fixed');
+  if (build.mode === 'fixed') el('build-fixed-chip').textContent = 'ビルド ' + build.value;
+
+  el('build-input-row').hidden = (build.mode !== 'input');
+  if (build.mode === 'input') {
+    var hintNode = el('build-input-hint');
+    hintNode.textContent = build.hint || '';
+    hintNode.hidden = !build.hint;
+    if (buildChanged) el('build-input').value = '';
+  }
+
+  el('os-row').hidden = (osTags.length === 0);
+  if (osTags.length > 0) {
+    el('os-badges').innerHTML = '<span class="badge badge-os">🖥 ' + escapeHtml(osTags.join(' / ')) + '</span>';
+  }
+
+  el('materials-row').hidden = (materials.length === 0);
+  if (materials.length > 0) {
+    el('materials-list').innerHTML = materials.map(function (m) { return materialRowHtml(m); }).join('');
+  }
+
+  el('test-info-box').hidden = !((build.mode !== 'none') || osTags.length > 0 || materials.length > 0);
+}
+
+function refreshTestInfoFromTextarea() {
+  var text = el('paste-textarea').value;
+  if (!text || text.trim() === '') { renderTestInfo(null); return; }
+  renderTestInfo(parseProcedure(text));
+}
+
+// 貼り付け欄の入力ごとに全文パースし直すので、連打時は少しまとめる
+var testInfoRefreshTimer = null;
+function scheduleTestInfoRefreshFromTextarea() {
+  clearTimeout(testInfoRefreshTimer);
+  testInfoRefreshTimer = setTimeout(refreshTestInfoFromTextarea, 200);
+}
+
+// 表示・書き出しに使うビルド番号。固定値はそのまま、記入モードは入力値。無ければ空文字
+function currentBuildLabel() {
+  var b = state.build || { mode: 'none' };
+  if (b.mode === 'fixed') return String(b.value || '').trim();
+  if (b.mode === 'input') return String(state.buildEntered || '').trim();
+  return '';
+}
+
 function renderParseError(reason) {
   var box = el('error-box');
   box.innerHTML =
@@ -1558,9 +1904,11 @@ function handleLoadedText(text) {
   lastParseResult = result;
   lastLoadedRawText = text;
   if (!result.ok || result.totalItems === 0) {
+    renderTestInfo(null);
     renderParseError('項目を1つも検出できませんでした。ファイルの中身や形式をご確認ください。');
     return;
   }
+  renderTestInfo(result);
   renderPreview(result);
 }
 
@@ -1619,9 +1967,13 @@ function wireStartScreen() {
     }
     var result = parseProcedure(text);
     if (!result.ok || result.totalItems === 0) {
+      renderTestInfo(null);
       renderParseError('項目を1つも検出できませんでした。ファイルの中身や形式をご確認ください。');
       return;
     }
+    // 貼り付け直後に押された場合は試験情報の反映（デバウンス）がまだなので、ここで確定させる
+    renderTestInfo(result);
+    if (!ensureBuildEntered(result)) return;
     el('error-box').hidden = true;
     el('preview-box').hidden = true;
     startNewSession(result, text);
@@ -1631,21 +1983,28 @@ function wireStartScreen() {
     copyProcedureShareUrl(el('paste-textarea').value, !!(e && e.shiftKey));
   });
 
+  el('paste-textarea').addEventListener('input', scheduleTestInfoRefreshFromTextarea);
+  el('build-input').addEventListener('input', clearBuildInputWarning);
+  el('build-input').addEventListener('animationend', clearBuildInputWarning);
+
   el('sample-a-btn').addEventListener('click', function () {
     el('paste-textarea').value = SAMPLE_A;
     el('error-box').hidden = true;
     el('preview-box').hidden = true;
+    refreshTestInfoFromTextarea();
     showToast('サンプルAを貼り付け欄にセットしました。「🚀 開始する」で始められます');
   });
   el('sample-b-btn').addEventListener('click', function () {
     el('paste-textarea').value = SAMPLE_B;
     el('error-box').hidden = true;
     el('preview-box').hidden = true;
+    refreshTestInfoFromTextarea();
     showToast('サンプルBを貼り付け欄にセットしました。「🚀 開始する」で始められます');
   });
 
   el('begin-btn').addEventListener('click', function () {
     if (!lastParseResult || !lastParseResult.ok) return;
+    if (!ensureBuildEntered(lastParseResult)) return;
     startNewSession(lastParseResult, lastLoadedRawText);
   });
 
@@ -1686,6 +2045,8 @@ function buildProgressExportObject(source) {
   return {
     rawText: source.rawText,
     testerName: source.testerName,
+    // 記入モードのビルド番号だけを持ち回る。固定値は rawText から再導出できるので保存しない
+    buildEntered: source.buildEntered || '',
     results: source.results,
     pointer: source.pointer,
     startedAt: source.startedAt,
@@ -1803,7 +2164,7 @@ function copyShareUrl(source, rawOnly) {
 
 // 試験手順だけを共有する（記録なし・テスター名なし）。開いた人は名前入力モーダルを経て最初から始める。
 function buildProcedureShareObject(rawText) {
-  return { rawText: rawText, testerName: '', results: [], pointer: 0, startedAt: null, score: 0, combo: 0 };
+  return { rawText: rawText, testerName: '', buildEntered: '', results: [], pointer: 0, startedAt: null, score: 0, combo: 0 };
 }
 // rawOnly=true（Shift+クリック）なら Markdown リンクではなく URL だけをコピーする
 function copyProcedureShareUrl(rawText, rawOnly) {
@@ -1928,6 +2289,9 @@ function startNewSession(result, rawText) {
   state.preamble = result.preamble;
   state.sections = result.sections;
   state.glossary = result.glossary || [];
+  state.materials = result.materials || [];
+  state.build = result.build || { mode: 'none' };
+  state.buildEntered = (state.build.mode === 'input') ? el('build-input').value.trim() : '';
   state.rawText = rawText;
   buildFlatItems();
   state.results = state.flatItems.map(function () { return { status: null, comment: '', timestamp: null, durationMs: null }; });
@@ -1949,6 +2313,9 @@ function resumeSession(saved) {
   state.preamble = result.preamble;
   state.sections = result.sections;
   state.glossary = result.glossary || [];
+  state.materials = result.materials || [];
+  state.build = result.build || { mode: 'none' };
+  state.buildEntered = saved.buildEntered || '';
   state.rawText = saved.rawText;
   buildFlatItems();
   var results = saved.results || [];
@@ -1974,7 +2341,9 @@ function resumeSession(saved) {
    ========================================================================= */
 function setupGlossaryFab() {
   var fab = el('glossary-fab-btn');
-  fab.hidden = !(state.preamble && state.preamble.length > 0);
+  var hasPreamble = !!(state.preamble && state.preamble.length > 0);
+  var hasMaterials = !!(state.materials && state.materials.length > 0);
+  fab.hidden = !(hasPreamble || hasMaterials);
 }
 
 function currentItem() { return state.flatItems[state.pointer]; }
@@ -2033,6 +2402,9 @@ function renderStep(animate) {
   var sec = state.sections[sIdx];
 
   el('step-doc-title').textContent = state.docTitle || '（無題の手順）';
+  var buildLabel = currentBuildLabel();
+  el('step-build-chip').textContent = buildLabel ? ('ビルド ' + buildLabel) : '';
+  el('step-build-chip').hidden = !buildLabel;
   el('step-section-title').textContent = (sec.number ? sec.number + '. ' : '') + (sec.title || '（無題の節）');
 
   var badgesHtml = '<span class="badge">第' + (sIdx + 1) + '節 / 全' + state.sections.length + '節</span>';
@@ -2070,11 +2442,11 @@ function renderStep(animate) {
   el('item-number').innerHTML =
     '<span class="item-number-text">番号 ' + escapeHtml(item.number || String(item.itemIndexInSection + 1)) + '</span>' +
     osBadgeHtml + statusPill;
-  var stepHl = highlightGlossaryHtml(item.stepHtml, state.glossary);
-  var expHl = highlightGlossaryHtml(item.expectedHtml, state.glossary);
+  var stepHl = highlightGlossaryHtml(item.stepHtml, state.glossary, state.materials);
+  var expHl = highlightGlossaryHtml(item.expectedHtml, state.glossary, state.materials);
   el('item-step-body').innerHTML = stepHl.html;
   el('item-expected-body').innerHTML = expHl.html;
-  el('term-hint').hidden = !(stepHl.matched || expHl.matched);
+  updateTermHint(stepHl, expHl);
 
   if (sec.note && sec.note.trim() !== '') {
     var noteHtml = sec.note.split('\n').map(function (l) { return applyInline(l); }).join('<br>');
@@ -2109,6 +2481,20 @@ function renderStep(animate) {
     void card.offsetWidth;
     card.classList.add('slide-in');
   }
+}
+
+// 金色=用語 / 水色=配布物。実際にマッチしたものだけを案内する
+function updateTermHint(stepHl, expHl) {
+  var node = el('term-hint');
+  var hasTerm = !!(stepHl.matchedTerm || expHl.matchedTerm);
+  var hasMaterial = !!(stepHl.matchedMaterial || expHl.matchedMaterial);
+  if (!hasTerm && !hasMaterial) { node.hidden = true; return; }
+  var what;
+  if (hasTerm && hasMaterial) what = '金色の用語・水色の配布物';
+  else if (hasTerm) what = '金色の用語';
+  else what = '水色の配布物';
+  node.textContent = '✨ ' + what + 'をクリックすると説明が出ます';
+  node.hidden = false;
 }
 
 function hideActionPanels() {
@@ -2434,21 +2820,40 @@ function wireStepScreen() {
 function handleTermClick(e) {
   var target = e.target.closest ? e.target.closest('.term') : null;
   if (!target) return;
-  var idx = parseInt(target.getAttribute('data-term-idx'), 10);
-  var entry = state.glossary[idx];
+  if (target.classList.contains('term-material')) {
+    var material = state.materials[parseInt(target.getAttribute('data-material-idx'), 10)];
+    if (material) openMaterialPopup(material);
+    return;
+  }
+  var entry = state.glossary[parseInt(target.getAttribute('data-term-idx'), 10)];
   if (entry) openTermPopup(entry);
 }
 
 function openGlossaryModal() {
-  el('glossary-modal-content').innerHTML = renderGlossaryHtml(state.preamble);
+  el('glossary-modal-content').innerHTML = renderGlossaryHtml(state.preamble) + materialsSectionHtml(state.materials);
   el('modal-glossary').hidden = false;
 }
 function closeGlossaryModal() { el('modal-glossary').hidden = true; }
 
-/* ---------- 用語ポップアップ ---------- */
+/* ---------- 用語 / 配布物ポップアップ（同じカードを使い回す） ---------- */
 function openTermPopup(entry) {
+  el('term-popup-header').textContent = '📖 用語解説';
   el('term-popup-title').textContent = entry.term;
   el('term-popup-desc').innerHTML = entry.descHtml;
+  el('term-popup-actions').innerHTML = '';
+  el('term-popup-actions').hidden = true;
+  el('overlay-term').hidden = false;
+  spawnConfetti(24, 0.3);
+}
+
+function openMaterialPopup(material) {
+  el('term-popup-header').textContent = '📎 配布物';
+  el('term-popup-title').textContent = material.name;
+  el('term-popup-desc').innerHTML = material.descHtml || '（説明はありません）';
+  var actions = el('term-popup-actions');
+  var actionsHtml = materialActionsHtml(material);
+  actions.innerHTML = actionsHtml;
+  actions.hidden = (actionsHtml === '');
   el('overlay-term').hidden = false;
   spawnConfetti(24, 0.3);
 }
@@ -2636,7 +3041,9 @@ function buildBusinessReport() {
   var stats = computeOverallStats();
   var title = state.docTitle || '（無題）';
   var lines = [];
-  lines.push('お疲れ様です。' + title + 'の試験について完了しましたので、ご確認をお願いします');
+  var buildLabel = currentBuildLabel();
+  var titleWithBuild = buildLabel ? (title + '（ビルド ' + buildLabel + '）') : title;
+  lines.push('お疲れ様です。' + titleWithBuild + 'の試験について完了しましたので、ご確認をお願いします');
   lines.push('試験項目: ' + stats.total + '件　OK：　' + stats.ok + '件　NG： ' + stats.ng + '件');
   if (stats.ng > 0) {
     lines.push('NG項目は以下の通りです：');
@@ -2755,6 +3162,8 @@ function buildSummaryHtml() {
   html += summaryCell('テスター', testerVal, testerHasName ? 'value-rainbow' : '');
   html += summaryCell('実施日時', new Date().toLocaleString('ja-JP'));
   html += summaryCell('文書タイトル', state.docTitle || '（無題）');
+  var buildLabel = currentBuildLabel();
+  if (buildLabel) html += summaryCell('ビルド', buildLabel);
   html += summaryCell('合計', stats.total);
   html += summaryCell('OK', stats.ok);
   html += summaryCell('NG', stats.ng);
@@ -2915,21 +3324,36 @@ function buildExportRows() {
   });
 }
 
+/* 表は列を増やさず、表の上にビルドを1行添える（ビルド指定が無ければ従来どおり） */
 function toMarkdownTable(rows) {
   var esc = function (s) { return String(s).replace(/\|/g, '\\|'); };
+  var buildLabel = currentBuildLabel();
+  var prefix = buildLabel ? ('ビルド: ' + buildLabel + '\n\n') : '';
   var header = '| 番号 | 節 | 手順 | 期待結果 | 結果 | コメント | 記録時刻 | 所要時間 |';
   var sep = '|---|---|---|---|---|---|---|---|';
   var body = rows.map(function (r) {
     return '| ' + [r.number, r.section, r.step, r.expected, r.status, r.comment, r.time, r.duration].map(esc).join(' | ') + ' |';
   }).join('\n');
-  return header + '\n' + sep + '\n' + body;
+  return prefix + header + '\n' + sep + '\n' + body;
+}
+
+/* CSV/TSV は「ビルド」列を先頭に足す（全行同値）。ビルド指定が無ければ列ごと省く */
+function exportHeaderCells(buildLabel) {
+  var cells = ['番号', '節', '手順', '期待結果', '結果', 'コメント', '記録時刻', '所要時間'];
+  return buildLabel ? ['ビルド'].concat(cells) : cells;
+}
+
+function exportRowCells(r, buildLabel) {
+  var cells = [r.number, r.section, r.step, r.expected, r.status, r.comment, r.time, r.duration];
+  return buildLabel ? [buildLabel].concat(cells) : cells;
 }
 
 function toTsv(rows) {
   var esc = function (s) { return String(s).replace(/\t/g, ' '); };
-  var header = ['番号', '節', '手順', '期待結果', '結果', 'コメント', '記録時刻', '所要時間'].join('\t');
+  var buildLabel = currentBuildLabel();
+  var header = exportHeaderCells(buildLabel).join('\t');
   var body = rows.map(function (r) {
-    return [r.number, r.section, r.step, r.expected, r.status, r.comment, r.time, r.duration].map(esc).join('\t');
+    return exportRowCells(r, buildLabel).map(esc).join('\t');
   }).join('\n');
   return header + '\n' + body;
 }
@@ -2940,9 +3364,10 @@ function toCsv(rows) {
     if (/[",\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
     return v;
   };
-  var header = ['番号', '節', '手順', '期待結果', '結果', 'コメント', '記録時刻', '所要時間'].map(esc).join(',');
+  var buildLabel = currentBuildLabel();
+  var header = exportHeaderCells(buildLabel).map(esc).join(',');
   var body = rows.map(function (r) {
-    return [r.number, r.section, r.step, r.expected, r.status, r.comment, r.time, r.duration].map(esc).join(',');
+    return exportRowCells(r, buildLabel).map(esc).join(',');
   }).join('\n');
   return header + '\n' + body;
 }
@@ -3012,8 +3437,9 @@ function wireResultScreen() {
     if (!confirm('本当に最初からやり直しますか？記録した結果はすべて消去されます。')) return;
     var rawText = state.rawText;
     var testerName = state.testerName;
+    var buildEntered = state.buildEntered;
     var result = parseProcedure(rawText);
-    startNewSessionDirect(result, rawText, testerName);
+    startNewSessionDirect(result, rawText, testerName, buildEntered);
   });
 
   el('load-another-btn').addEventListener('click', function () {
@@ -3022,11 +3448,14 @@ function wireResultScreen() {
   });
 }
 
-function startNewSessionDirect(result, rawText, testerName) {
+function startNewSessionDirect(result, rawText, testerName, buildEntered) {
   state.docTitle = result.title;
   state.preamble = result.preamble;
   state.sections = result.sections;
   state.glossary = result.glossary || [];
+  state.materials = result.materials || [];
+  state.build = result.build || { mode: 'none' };
+  state.buildEntered = buildEntered || '';
   state.rawText = rawText;
   buildFlatItems();
   state.results = state.flatItems.map(function () { return { status: null, comment: '', timestamp: null, durationMs: null }; });
@@ -3050,6 +3479,7 @@ function resetToStart() {
   el('error-box').hidden = true;
   el('paste-textarea').value = SAMPLE_A; // 初見でも「この手順で開始」だけで体験できるようサンプルを既定値に
   el('tester-name-input').value = '';
+  refreshTestInfoFromTextarea();
   checkResumeAvailable();
   showScreen('screen-start');
 }
@@ -3119,10 +3549,13 @@ function init() {
   wireTermPopup();
   wireResultScreen();
   wireTesterNameModal();
+  // 配布物の「リンクをコピー」は開始画面・用語モーダル・ポップアップの3箇所に出るのでまとめて拾う
+  document.addEventListener('click', handleMaterialCopyClick);
   checkResumeAvailable();
   showScreen('screen-start');
   el('year').textContent = new Date().getFullYear();
   el('paste-textarea').value = SAMPLE_A; // 初見でも「この手順で開始」だけで体験できるようサンプルを既定値に
+  refreshTestInfoFromTextarea();
 
   // 進捗URL（#state=...）で開かれた場合はここで復元してステップ画面へ直行する
   restoreFromHash();
