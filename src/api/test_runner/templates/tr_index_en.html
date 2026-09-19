@@ -658,48 +658,46 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
   </div>
 </section>
 
-<!-- ============ CONFIRM SCREEN ============ -->
-<section id="screen-confirm" class="app-screen" hidden>
-  <div class="wrap">
-    <div class="glass-card">
-      <div class="section-title">Before you start</div>
+<!-- ============ 開始前の確認モーダル（常に開始画面の上に出す） ============ -->
+<div class="modal" id="modal-confirm" hidden>
+  <div class="glass-card">
+    <div class="section-title">Before you start</div>
 
-      <div class="test-info-box" id="test-info-box">
-        <div class="section-title" style="margin:0 0 10px;">Test information</div>
-        <div class="info-row" id="tester-name-row">
-          <label class="field-label" for="tester-name-input" style="margin:0 0 6px;">Tester name (optional, shown in the results table)</label>
-          <input type="text" id="tester-name-input" placeholder="e.g. Jane Doe">
-        </div>
-        <div class="info-row" id="build-fixed-row" hidden>
-          <div class="info-label">Build under test</div>
-          <span class="build-chip" id="build-fixed-chip"></span>
-        </div>
-        <div class="info-row" id="build-input-row" hidden>
-          <label class="field-label" for="build-input" style="margin:0 0 6px;">Build under test (required)</label>
-          <p class="build-hint" id="build-input-hint" hidden></p>
-          <input type="text" id="build-input" placeholder="e.g. 5.2.1-beta3" autocomplete="off">
-        </div>
-        <div class="info-row" id="os-row" hidden>
-          <div class="info-label">Target OS</div>
-          <div class="badge-row" id="os-badges"></div>
-        </div>
-        <div class="info-row" id="materials-row" hidden>
-          <div class="info-label">Provided files (get these ready before testing)</div>
-          <div id="materials-list"></div>
-        </div>
+    <div class="test-info-box" id="test-info-box">
+      <div class="section-title" style="margin:0 0 10px;">Test information</div>
+      <div class="info-row" id="tester-name-row">
+        <label class="field-label" for="tester-name-input" style="margin:0 0 6px;">Tester name (optional, shown in the results table)</label>
+        <input type="text" id="tester-name-input" placeholder="e.g. Jane Doe">
       </div>
-
-      <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
-        <button class="btn btn-gold" id="confirm-start-btn" style="flex:1;min-width:160px;">✅ Ready!</button>
-        <button class="btn btn-ghost btn-small" id="confirm-back-btn">← Back</button>
+      <div class="info-row" id="build-fixed-row" hidden>
+        <div class="info-label">Build under test</div>
+        <span class="build-chip" id="build-fixed-chip"></span>
       </div>
-
-      <div class="confirm-preview-link-row">
-        <button type="button" class="link-button" id="confirm-preview-link"></button>
+      <div class="info-row" id="build-input-row" hidden>
+        <label class="field-label" for="build-input" style="margin:0 0 6px;">Build under test (required)</label>
+        <p class="build-hint" id="build-input-hint" hidden></p>
+        <input type="text" id="build-input" placeholder="e.g. 5.2.1-beta3" autocomplete="off">
+      </div>
+      <div class="info-row" id="os-row" hidden>
+        <div class="info-label">Target OS</div>
+        <div class="badge-row" id="os-badges"></div>
+      </div>
+      <div class="info-row" id="materials-row" hidden>
+        <div class="info-label">Provided files (get these ready before testing)</div>
+        <div id="materials-list"></div>
       </div>
     </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
+      <button class="btn btn-gold" id="confirm-start-btn" style="flex:1;min-width:160px;">✅ Ready!</button>
+      <button class="btn btn-ghost btn-small" id="confirm-back-btn">← Back</button>
+    </div>
+
+    <div class="confirm-preview-link-row">
+      <button type="button" class="link-button" id="confirm-preview-link"></button>
+    </div>
   </div>
-</section>
+</div>
 
 <!-- ============ STEP SCREEN ============ -->
 <section id="screen-step" class="app-screen" hidden>
@@ -1695,7 +1693,7 @@ function loadSessionRaw() {
 /* =========================================================================
    画面遷移
    ========================================================================= */
-var SCREENS = ['screen-start', 'screen-confirm', 'screen-step', 'screen-result'];
+var SCREENS = ['screen-start', 'screen-step', 'screen-result'];
 function showScreen(id) {
   SCREENS.forEach(function (s) {
     document.getElementById(s).hidden = (s !== id);
@@ -1884,23 +1882,31 @@ function renderTestInfo(result) {
 }
 
 /* =========================================================================
-   開始前の確認画面
+   開始前の確認モーダル
    ------------------------------------------------------------------------
-   読み込みプレビューと試験情報（テスター名/ビルド/OS/配布物）を1画面にまとめ、
-   「開始する」を押すまでは実際のセッションを始めない。旧バージョンにあった
-   URL復元時専用のテスター名入力モーダルもこの画面に統合済み。
+   試験情報（テスター名/ビルド/OS/配布物）をひとまとめにして開始画面の上に出す。
+   「準備完了！」を押すまで実際のセッションは始めないので、閉じても何も残らない。
+   旧バージョンにあったURL復元時専用のテスター名入力モーダルもここに統合済み。
    ========================================================================= */
-function openConfirmScreen(opts) {
+function openConfirmModal(opts) {
   confirmContext = opts;
   renderProcedureLink(opts.result);
-  renderPreview(opts.result);   // モーダル側に先に描いておく（開くたびに組み直さない）
+  renderPreview(opts.result);   // 手順モーダル側に先に描いておく（開くたびに組み直さない）
   renderTestInfo(opts.result);
   closeProcedureModal();
   el('tester-name-input').value = opts.testerName || '';
   el('build-input').value = opts.buildEntered || '';
   el('confirm-start-btn').textContent = opts.buttonLabel;
   el('error-box').hidden = true;
-  showScreen('screen-confirm');
+  // 進捗URLは hashchange でも飛んでくるので、どの画面から呼ばれても開始画面の上に出す
+  stopStepTimer();
+  showScreen('screen-start');
+  el('modal-confirm').hidden = false;
+}
+
+function closeConfirmModal() {
+  el('modal-confirm').hidden = true;
+  confirmContext = null;
 }
 
 // 再開時に確認画面を挟むのは、開始に必要な情報が欠けているときだけ。
@@ -1943,7 +1949,7 @@ function handleLoadedText(text) {
     renderParseError('No items could be detected. Please check the file contents and format.');
     return;
   }
-  openConfirmScreen({
+  openConfirmModal({
     result: result,
     rawText: text,
     buttonLabel: '✅ Ready!',
@@ -2011,7 +2017,7 @@ function wireStartScreen() {
       renderParseError('No items could be detected. Please check the file contents and format.');
       return;
     }
-    openConfirmScreen({
+    openConfirmModal({
       result: result,
       rawText: text,
       buttonLabel: '✅ Ready!',
@@ -2041,7 +2047,7 @@ function wireStartScreen() {
     if (!saved) return;
     var result = parseProcedure(saved.rawText);
     if (result.ok && resumeNeedsConfirm(saved, result, false)) {
-      openConfirmScreen({
+      openConfirmModal({
         result: result,
         rawText: saved.rawText,
         buttonLabel: resumeButtonLabel(saved),
@@ -2088,13 +2094,15 @@ function openProcedureModal() { el('modal-procedure').hidden = false; }
 function closeProcedureModal() { el('modal-procedure').hidden = true; }
 
 function wireConfirmScreen() {
-  el('confirm-back-btn').addEventListener('click', function () { showScreen('screen-start'); });
+  el('confirm-back-btn').addEventListener('click', closeConfirmModal);
   el('confirm-preview-link').addEventListener('click', openProcedureModal);
   el('procedure-close-btn').addEventListener('click', closeProcedureModal);
   el('confirm-start-btn').addEventListener('click', function () {
     if (!confirmContext) return;
     if (!ensureBuildEntered(confirmContext.result)) return;
-    confirmContext.onStart();
+    var onStart = confirmContext.onStart;
+    closeConfirmModal();
+    onStart();
   });
   el('tester-name-input').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); el('confirm-start-btn').click(); }
@@ -2159,7 +2167,7 @@ function handleProgressFile(file) {
     if (!progress) return;
     var result = parseProcedure(progress.rawText);
     if (result.ok && resumeNeedsConfirm(progress, result, false)) {
-      openConfirmScreen({
+      openConfirmModal({
         result: result,
         rawText: progress.rawText,
         buttonLabel: resumeButtonLabel(progress),
@@ -2307,7 +2315,7 @@ function restoreFromHash() {
   if (!progress) return false;
   var result = parseProcedure(progress.rawText);
   if (result.ok && resumeNeedsConfirm(progress, result, true)) {
-    openConfirmScreen({
+    openConfirmModal({
       result: result,
       rawText: progress.rawText,
       buttonLabel: resumeButtonLabel(progress),
@@ -3567,6 +3575,11 @@ document.addEventListener('keydown', function (e) {
   }
   if (!el('modal-procedure').hidden) {
     if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); closeProcedureModal(); }
+    return;
+  }
+  // Enter は確認モーダル内のテスター名・ビルド欄が拾う（ここでも拾うと二重に開始してしまう）
+  if (!el('modal-confirm').hidden) {
+    if (e.key === 'Escape') closeConfirmModal();
     return;
   }
   if (!el('modal-glossary').hidden) {
