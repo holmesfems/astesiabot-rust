@@ -665,7 +665,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
     <div class="test-info-box" id="test-info-box">
       <div class="section-title" style="margin:0 0 10px;">Test information</div>
       <div class="info-row" id="tester-name-row">
-        <label class="field-label" for="tester-name-input" style="margin:0 0 6px;">Tester name (optional, shown in the results table)</label>
+        <label class="field-label" for="tester-name-input" style="margin:0 0 6px;">Tester name (optional — the faded name is used if you leave this blank)</label>
         <input type="text" id="tester-name-input" placeholder="e.g. Jane Doe">
       </div>
       <div class="info-row" id="build-fixed-row" hidden>
@@ -1708,6 +1708,15 @@ function showScreen(id) {
    ========================================================================= */
 var confirmContext = null;
 
+// 確認モーダルを開くたびに引き直す、テスター名の既定値（placeholder に出している値）
+var defaultTesterName = pickRandom(TESTER_NAME_POOL);
+
+// 入力が空ならプレースホルダに出している名前をそのまま採用する
+function currentTesterName() {
+  var typed = el('tester-name-input').value.trim();
+  return typed !== '' ? typed : defaultTesterName;
+}
+
 function el(id) { return document.getElementById(id); }
 
 function renderGlossaryHtml(preamble) {
@@ -1897,7 +1906,11 @@ function openConfirmModal(opts) {
   renderPreview(opts.result);   // 手順モーダル側に先に描いておく（開くたびに組み直さない）
   renderTestInfo(opts.result);
   closeProcedureModal();
-  el('tester-name-input').value = opts.testerName || pickRandom(TESTER_NAME_POOL);
+  // 初期値を直接入れると消してから打ち直すことになるので、薄字（placeholder）で見せて
+  // 空のまま進んだときだけ採用する
+  defaultTesterName = pickRandom(TESTER_NAME_POOL);
+  el('tester-name-input').placeholder = defaultTesterName;
+  el('tester-name-input').value = opts.testerName || '';
   el('build-input').value = opts.buildEntered || '';
   el('confirm-start-btn').textContent = opts.buttonLabel;
   updateConfirmStartBtnState();
@@ -2071,7 +2084,7 @@ function wireStartScreen() {
         testerName: saved.testerName || '',
         buildEntered: saved.buildEntered || '',
         onStart: function () {
-          saved.testerName = el('tester-name-input').value.trim();
+          saved.testerName = currentTesterName();
           saved.buildEntered = el('build-input').value.trim();
           resumeSession(saved);
         }
@@ -2194,7 +2207,7 @@ function handleProgressFile(file) {
         testerName: progress.testerName || '',
         buildEntered: progress.buildEntered || '',
         onStart: function () {
-          progress.testerName = el('tester-name-input').value.trim();
+          progress.testerName = currentTesterName();
           progress.buildEntered = el('build-input').value.trim();
           resumeSession(progress);
         }
@@ -2342,7 +2355,7 @@ function restoreFromHash() {
       testerName: progress.testerName || '',
       buildEntered: progress.buildEntered || '',
       onStart: function () {
-        progress.testerName = el('tester-name-input').value.trim();
+        progress.testerName = currentTesterName();
         progress.buildEntered = el('build-input').value.trim();
         resumeProgressFromUrl(progress);
       }
@@ -2387,7 +2400,7 @@ function startNewSession(result, rawText) {
   state.results = state.flatItems.map(function () { return { status: null, comment: '', timestamp: null, durationMs: null }; });
   state.pointer = 0;
   state.transitioning = false; // reset runtime guard: a new/resumed session must never inherit a stale flag
-  state.testerName = el('tester-name-input').value.trim();
+  state.testerName = currentTesterName();
   state.startedAt = new Date().toISOString();
   state.score = 0;
   state.combo = 0;
