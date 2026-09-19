@@ -681,7 +681,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
         <div class="badge-row" id="os-badges"></div>
       </div>
       <div class="info-row" id="materials-row" hidden>
-        <div class="info-label" id="materials-label">配布物（試験前に用意してください）</div>
+        <div class="info-label">配布物（試験前に用意してください）</div>
         <div id="materials-list"></div>
       </div>
     </div>
@@ -1886,11 +1886,8 @@ function renderTestInfo(result) {
 
   el('materials-row').hidden = (materials.length === 0);
   if (materials.length > 0) {
-    // URLが無い配布物（手渡し・共有フォルダ等）が混じるなら「ダウンロード」とは言わない
-    var allDownloadable = materials.every(function (m) { return !!m.url; });
-    el('materials-label').textContent = allDownloadable
-      ? '配布物（試験前にダウンロードしてください）'
-      : '配布物（試験前に用意してください）';
+    // 見出しは「用意してください」固定。配布物はURL付きとは限らない（手渡し・共有フォルダ等）ので、
+    // 「ダウンロード」と言い切れる条件を判定するより、どちらでも通る言い方にしておく
     el('materials-list').innerHTML = materials.map(function (m) { return materialRowHtml(m); }).join('');
   }
 }
