@@ -674,7 +674,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
       </div>
       <div class="info-row" id="build-input-row" hidden>
         <label class="field-label" for="build-input" id="build-input-label" style="margin:0 0 6px;">Build under test (required)</label>
-        <input type="text" id="build-input" placeholder="e.g. 5.2.1-beta3" autocomplete="off">
+        <input type="text" id="build-input" placeholder="e.g. 1.2.3-beta4" autocomplete="off">
       </div>
       <div class="info-row" id="os-row" hidden>
         <div class="info-label">Target OS</div>
@@ -1320,7 +1320,7 @@ var SAMPLE_A = [
 '',
 'What to prepare: a device with Pomodorin installed in its initial state (work time 25 min, break time 5 min)',
 '',
-'ビルド: 5.2.1-beta3',
+'ビルド: 1.2.3-beta4',
 '',
 '配布物:',
 '',
@@ -1432,7 +1432,7 @@ var AI_FORMAT_PROMPT = [
 '',
 'Next, add a `### 試験の概要` section with free text describing what is being tested and what needs to be prepared. If there are any terms to define, put a line reading exactly `用語定義:` below that, followed by a bulleted list in the form `* **term** … description` (the separator is the full-width ellipsis character "…"). If there are no terms, you may omit the `用語定義:` line entirely.',
 '',
-'If the build under test is already decided, add a single line such as `ビルド: 5.2.1-beta3` to the preamble (the keyword `ビルド:` stays in Japanese; the value itself can be anything). If instead the tester should look the build number up themselves, start the value with `記入` and put where to find the number in parentheses, like `ビルド: 記入 (the number shown under "?" → "About" at the top right)`. If neither applies, omit the `ビルド:` line entirely.',
+'If the build under test is already decided, add a single line such as `ビルド: 1.2.3-beta4` to the preamble (the keyword `ビルド:` stays in Japanese; the value itself can be anything). If instead the tester should look the build number up themselves, start the value with `記入` and put where to find the number in parentheses, like `ビルド: 記入 (the number shown under "?" → "About" at the top right)`. If neither applies, omit the `ビルド:` line entirely.',
 '',
 'If there are files handed to the tester before testing (sample data, assets, and so on), add a line reading exactly `配布物:` to the preamble, followed by a bulleted list in the form `* **file name** … URL description` (the separator is the same full-width ellipsis "…" used for the glossary). Write each description so it makes sense on its own, without referring to any other item. If there are no such files, omit the `配布物:` line entirely.',
 '',
