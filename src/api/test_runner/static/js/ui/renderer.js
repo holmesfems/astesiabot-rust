@@ -245,7 +245,7 @@ export function wireStartScreen() {
       renderParseError(T.noTextEntered);
       return;
     }
-    var result = parseProcedure(text);
+    var result = parseProcedure(text, T);
     if (!result.ok || result.totalItems === 0) {
       renderParseError(T.noItemsDetected);
       return;
@@ -278,7 +278,7 @@ export function wireStartScreen() {
   el('resume-btn').addEventListener('click', function () {
     var saved = loadSessionRaw();
     if (!saved) return;
-    var result = parseProcedure(saved.rawText);
+    var result = parseProcedure(saved.rawText, T);
     if (result.ok && resumeNeedsConfirm(saved, result, false)) {
       openConfirmModal({
         result: result,
@@ -680,7 +680,7 @@ export function wireResultScreen() {
     var rawText = state.rawText;
     var testerName = state.testerName;
     var buildEntered = state.buildEntered;
-    var result = parseProcedure(rawText);
+    var result = parseProcedure(rawText, T);
     startNewSessionDirect(result, rawText, testerName, buildEntered);
   });
 

@@ -41,14 +41,14 @@ export function toMarkdownLink(title, url) {
 }
 
 export function docTitleOf(rawText) {
-  var r = parseProcedure(rawText);
+  var r = parseProcedure(rawText, T);
   return (r && r.title) ? r.title : T.untitledBare;
 }
 
 // 結果共有のリンク文言。source.results は旧localStorage形式だと空/短いことがあるため、
 // その場合は同じ1回のparseProcedureからtotalItemsを補完する（2回parseしない）。
 export function resultLinkTitle(source) {
-  var parsed = parseProcedure(source.rawText);
+  var parsed = parseProcedure(source.rawText, T);
   var title = (parsed && parsed.title) ? parsed.title : T.untitledBare;
   var total = (source.results || []).length;
   if (total === 0) total = parsed.totalItems;

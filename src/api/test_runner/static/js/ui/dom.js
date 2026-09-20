@@ -34,7 +34,7 @@ export function normalizeProgressObject(obj) {
     showToast(T.invalidProgressFormat);
     return null;
   }
-  var check = parseProcedure(obj.rawText);
+  var check = parseProcedure(obj.rawText, T);
   if (!check.ok) {
     showToast(T.progressProcedureParseFailed);
     return null;
@@ -82,7 +82,7 @@ export function copyShareUrl(source, rawOnly) {
 // rawOnly=true（Shift+クリック）なら Markdown リンクではなく URL だけをコピーする
 export function copyProcedureShareUrl(rawText, rawOnly) {
   if (!rawText || String(rawText).trim() === '') { showToast(T.noProcedureToShare); return; }
-  var check = parseProcedure(rawText);
+  var check = parseProcedure(rawText, T);
   if (!check.ok || check.totalItems === 0) { showToast(T.procedureParseFailed); return; }
   if (!hasLzString()) { showToast(T.lzStringUnavailable); return; }
   // check は上ですでにparseProcedure済みなので、そこからタイトルを組む（二重parseしない）

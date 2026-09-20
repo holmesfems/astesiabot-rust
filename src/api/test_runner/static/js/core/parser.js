@@ -1,9 +1,14 @@
-import { T } from '../constants/i18n.js';
-
 /* =========================================================================
    PARSER (pure functions — decode + parseProcedure)
    DOM非依存（document/window/localStorageを参照しない）。
+   依存ゼロ（他モジュールを import しない）。スキルに1ファイルで同梱するため。
    ========================================================================= */
+
+/** 手順書側に記載が無いときに埋める文言。呼び出し側が渡さなければ日本語を使う。 */
+export const DEFAULT_LABELS = {
+  notSpecified: '（記載なし）',
+  simpleFormatSectionTitle: '手順',
+};
 
 export function escapeHtml(s) {
   return String(s)
@@ -29,15 +34,65 @@ function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/* ---- warnings（「黙って捨てたもの」の機械可読レポート） ----
+   parseProcedure の挙動は一切変えない。既存の分岐がこれまで通り null を返す/
+   entry を捨てるのを見ている箇所に、追加でここへ積むだけ。
+   人間向けの文言は持たない（kind の文字列だけ）。CLI 側（validate.mjs）が
+   kind から文言を引く。line は1始まり。特定できなければ null。 */
+function truncateWarningText(s) {
+  var t = String(s == null ? '' : s).trim();
+  return t.length > 120 ? t.slice(0, 120) : t;
+}
+
+function pushWarning(list, kind, line, text) {
+  list.push({
+    kind: kind,
+    line: line == null ? null : line,
+    text: text == null ? null : truncateWarningText(text)
+  });
+}
+
+// 箇条書きの読み取りループが止まった直後3行以内に、また箇条書きが現れるかを見る。
+// 「地の文に途切れさせられて残りの項目が丸ごと落ちた」疑いの検知用。
+// 既存の while ループの読み取り範囲そのものは変えない（ここは読み取り後の後読みだけ）。
+// 空行は読み飛ばし、地の文を LIST_INTERRUPT_MAX_PROSE 行までまたいで箇条書きが再開して
+// いたら「途切れた」とみなす。行数の固定窓にすると
+//   * 最後の項目 / 空行 / 地の文 / 空行 / * 続きの項目
+// という一番ありがちな形（空行を挟むので4行後になる）を取りこぼす。
+// 警告が指すのは再開した箇条書きではなく、原因になった最初の地の文の行。
+// 別のキーワード行（`配布物:` など）に当たったらそこで打ち切る。そこから先の箇条書きは
+// そのキーワードのものとして正しく読まれるので、途切れではない。
+var LIST_INTERRUPT_MAX_PROSE = 3;
+function checkListInterrupted(lines, stopIdx, lineOf, warnings, kind) {
+  var proseIdx = -1;
+  var proseCount = 0;
+  for (var k = stopIdx; k < lines.length; k++) {
+    var t = lines[k].trim();
+    if (t === '') continue;
+    // 前置きブロックの bodyLines なので ### / ## はここに現れない（ブロック分割で消費済み）。
+    if (GLOSSARY_HEADING_RE.test(t) || MATERIALS_LINE_RE.test(t)) return;
+    if (/^[*\-]\s+/.test(t)) {
+      if (proseIdx >= 0) pushWarning(warnings, kind, lineOf(proseIdx), lines[proseIdx].trim());
+      return;
+    }
+    if (proseIdx < 0) proseIdx = k;
+    proseCount++;
+    if (proseCount > LIST_INTERRUPT_MAX_PROSE) return;
+  }
+}
+
 /* ---- glossary (用語定義 / Glossary) parsing ---- */
 // 手順書側の見出しキーワードは日英どちらでも拾う。日本語部分は /i の影響を受けない。
 var GLOSSARY_HEADING_RE = /用語定義|Definitions?|Glossary/i;
 var GLOSSARY_PLACEHOLDER_RE = /◯◯|〇〇|○○|××|XX|ＸＸ/g;
 var GLOSSARY_SEP_RE = /\.\.\.|…|：|:|—|－|\s-\s/;
 
+// 戻り値を { ok:false, kind } / { ok:true, entry } に変えただけで、
+// term/desc/key の判定条件そのものは1文字も変えていない（ok:false になる条件＝旧コードで
+// return null になっていた条件と完全一致）。
 function parseGlossaryItem(itemText) {
   var text = String(itemText).trim();
-  if (!text) return null;
+  if (!text) return { ok: false, kind: 'glossary-empty-term-or-desc' };
   var term, desc;
   var boldMatch = text.match(/^\*\*(.+?)\*\*\s*(.*)$/);
   if (boldMatch) {
@@ -47,41 +102,52 @@ function parseGlossaryItem(itemText) {
     desc = sepMatch ? rest.slice(sepMatch.index + sepMatch[0].length).trim() : rest.trim();
   } else {
     var m = text.match(GLOSSARY_SEP_RE);
-    if (!m) return null;
+    if (!m) return { ok: false, kind: 'glossary-no-separator' };
     term = text.slice(0, m.index).replace(/\*\*/g, '').trim();
     desc = text.slice(m.index + m[0].length).trim();
   }
-  if (!term || !desc) return null;
+  if (!term || !desc) return { ok: false, kind: 'glossary-empty-term-or-desc' };
   var key = term.replace(GLOSSARY_PLACEHOLDER_RE, '').trim();
-  if (key.length < 2) return null;
-  return { term: term, key: key, descHtml: applyInline(desc) };
+  if (key.length < 2) return { ok: false, kind: 'glossary-key-too-short' };
+  return { ok: true, entry: { term: term, key: key, descHtml: applyInline(desc) } };
 }
 
 function extractGlossary(preamble) {
   var glossary = [];
+  var warnings = [];
   var seenKeys = {};
   (preamble || []).forEach(function (block) {
     var lines = block.bodyLines || [];
+    var bodyStartLine = block.bodyStartLine;
+    function lineOf(idx) { return bodyStartLine == null ? null : bodyStartLine + idx; }
     var i = 0;
     while (i < lines.length) {
       if (GLOSSARY_HEADING_RE.test(lines[i])) {
         i++;
         while (i < lines.length && lines[i].trim() === '') i++;
         while (i < lines.length && /^[*\-]\s+/.test(lines[i].trim())) {
-          var itemText = lines[i].trim().replace(/^[*\-]\s+/, '');
-          var entry = parseGlossaryItem(itemText);
-          if (entry && !seenKeys[entry.key]) {
-            seenKeys[entry.key] = true;
-            glossary.push(entry);
+          var rawLine = lines[i].trim();
+          var itemText = rawLine.replace(/^[*\-]\s+/, '');
+          var result = parseGlossaryItem(itemText);
+          if (result.ok) {
+            if (!seenKeys[result.entry.key]) {
+              seenKeys[result.entry.key] = true;
+              glossary.push(result.entry);
+            } else {
+              pushWarning(warnings, 'glossary-duplicate-key', lineOf(i), rawLine);
+            }
+          } else {
+            pushWarning(warnings, result.kind, lineOf(i), rawLine);
           }
           i++;
         }
+        checkListInterrupted(lines, i, lineOf, warnings, 'list-interrupted');
         continue;
       }
       i++;
     }
   });
-  return glossary;
+  return { glossary: glossary, warnings: warnings };
 }
 
 /* ---- ビルド指定（ビルド: / Build:）/ 配布物（配布物: / Attachments:）— どちらも任意項目 ----
@@ -120,9 +186,12 @@ function extractBuild(preamble) {
 
 // 配布物1件。区切りの扱いは parseGlossaryItem と同じ（`* **名前** … 説明`）。
 // 説明の中の最初の http(s) URL を url として切り出し、残りを説明文にする。
+// glossary と同じく、ok:false になる条件は旧コードの return null と完全一致。
+// name が空でも desc は空チェックしていない（旧コードも同じ）ので
+// materials-empty-name-or-desc は実質「name が空」のときにしか出ない。
 function parseMaterialItem(itemText) {
   var text = String(itemText).trim();
-  if (!text) return null;
+  if (!text) return { ok: false, kind: 'materials-empty-name-or-desc' };
   var name, desc;
   var boldMatch = text.match(/^\*\*(.+?)\*\*\s*(.*)$/);
   if (boldMatch) {
@@ -132,11 +201,11 @@ function parseMaterialItem(itemText) {
     desc = sepMatch ? rest.slice(sepMatch.index + sepMatch[0].length).trim() : rest.trim();
   } else {
     var m = text.match(GLOSSARY_SEP_RE);
-    if (!m) return null;
+    if (!m) return { ok: false, kind: 'materials-no-separator' };
     name = text.slice(0, m.index).replace(/\*\*/g, '').trim();
     desc = text.slice(m.index + m[0].length).trim();
   }
-  if (!name) return null;
+  if (!name) return { ok: false, kind: 'materials-empty-name-or-desc' };
   var url = null;
   var um = desc.match(MATERIAL_URL_RE);
   if (um) {
@@ -145,34 +214,48 @@ function parseMaterialItem(itemText) {
   }
   // key が2文字未満でも項目としては残す（本文ハイライトの対象から外れるだけ）
   var key = name.replace(GLOSSARY_PLACEHOLDER_RE, '').trim();
-  return { name: name, key: key, url: url, descHtml: applyInline(desc) };
+  return { ok: true, entry: { name: name, key: key, url: url, descHtml: applyInline(desc) } };
 }
 
 function extractMaterials(preamble) {
   var materials = [];
+  var warnings = [];
   var seenKeys = {};
   (preamble || []).forEach(function (block) {
     var lines = block.bodyLines || [];
+    var bodyStartLine = block.bodyStartLine;
+    function lineOf(idx) { return bodyStartLine == null ? null : bodyStartLine + idx; }
     var i = 0;
     while (i < lines.length) {
       if (MATERIALS_LINE_RE.test(lines[i].trim())) {
         i++;
         while (i < lines.length && lines[i].trim() === '') i++;
         while (i < lines.length && /^[*\-]\s+/.test(lines[i].trim())) {
-          var itemText = lines[i].trim().replace(/^[*\-]\s+/, '');
-          var entry = parseMaterialItem(itemText);
-          if (entry && !seenKeys[entry.key]) {
-            seenKeys[entry.key] = true;
-            materials.push(entry);
+          var rawLine = lines[i].trim();
+          var itemText = rawLine.replace(/^[*\-]\s+/, '');
+          var result = parseMaterialItem(itemText);
+          if (result.ok) {
+            if (!seenKeys[result.entry.key]) {
+              seenKeys[result.entry.key] = true;
+              materials.push(result.entry);
+              if (!result.entry.url) {
+                pushWarning(warnings, 'material-no-url', lineOf(i), rawLine);
+              }
+            } else {
+              pushWarning(warnings, 'materials-duplicate-key', lineOf(i), rawLine);
+            }
+          } else {
+            pushWarning(warnings, result.kind, lineOf(i), rawLine);
           }
           i++;
         }
+        checkListInterrupted(lines, i, lineOf, warnings, 'list-interrupted');
         continue;
       }
       i++;
     }
   });
-  return materials;
+  return { materials: materials, warnings: warnings };
 }
 
 // 用語と配布物を1本の正規表現でまとめて拾う。キーが重なったら長い方を優先し、
@@ -259,14 +342,19 @@ function parseHeadingMeta(headingText) {
   return { number: number, tag: tag, title: text.trim() };
 }
 
-export function parseProcedure(rawText) {
+export function parseProcedure(rawText, labels) {
+  var L = labels || DEFAULT_LABELS;
   var text = String(rawText).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   var lines = text.split('\n');
+
+  var warnings = [];
 
   var docTitle = '';
   var blocks = [];
   var current = null;
 
+  // block.lines は元テキストの連続したスライスなので、ブロックごとに開始行番号を
+  // 1つ持てば block.lines[j] の絶対行が startLine + j で求まる（行番号の配列は並走させない）。
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
     if (/^##\s+/.test(line) && !/^###/.test(line)) {
@@ -274,7 +362,13 @@ export function parseProcedure(rawText) {
       continue;
     }
     if (/^###\s+/.test(line)) {
-      current = { heading: line.replace(/^###\s+/, '').trim(), lines: [] };
+      current = {
+        heading: line.replace(/^###\s+/, '').trim(),
+        headingRaw: line,
+        headingLine: i + 1,
+        startLine: i + 2,
+        lines: []
+      };
       blocks.push(current);
       continue;
     }
@@ -284,47 +378,72 @@ export function parseProcedure(rawText) {
   var preamble = [];
   var sections = [];
   var totalItems = 0;
+  var seenItemNumbers = {};
 
   blocks.forEach(function (block) {
     var hasTable = block.lines.some(function (l) { return isTableLine(l); });
+    var meta = parseHeadingMeta(block.heading);
 
     if (!hasTable) {
+      // 見出しが「1.」のような番号付きなら、他の試験項目節と同じ命名なのに表が無い
+      // ＝表を書き忘れて前置き扱いに落ちた疑いが強いので警告する。「試験の概要」のような
+      // 番号なし見出し（本来から前置きとして書かれる節）は対象外にする。
+      if (meta.number !== null) {
+        pushWarning(warnings, 'section-without-table', block.headingLine, block.headingRaw);
+      }
       var bodyLines = block.lines.slice();
-      while (bodyLines.length && bodyLines[0].trim() === '') bodyLines.shift();
+      var leadingBlank = 0;
+      while (bodyLines.length && bodyLines[0].trim() === '') { bodyLines.shift(); leadingBlank++; }
       while (bodyLines.length && bodyLines[bodyLines.length - 1].trim() === '') bodyLines.pop();
-      preamble.push({ heading: block.heading, bodyLines: bodyLines });
+      preamble.push({ heading: block.heading, bodyLines: bodyLines, bodyStartLine: block.startLine + leadingBlank });
       return;
     }
 
-    var meta = parseHeadingMeta(block.heading);
     var tableRowsRaw = [];
     var nonTableLines = [];
     var skippedHeader = false;
     var skippedSep = false;
+    var headerCellCount = null;
 
     for (var j = 0; j < block.lines.length; j++) {
       var l2 = block.lines[j];
+      var absLine = block.startLine + j;
       if (isTableLine(l2)) {
         var cells = splitTableRow(l2);
-        if (!skippedHeader) { skippedHeader = true; continue; }
+        if (!skippedHeader) { skippedHeader = true; headerCellCount = cells.length; continue; }
         if (!skippedSep && isSeparatorRow(cells)) { skippedSep = true; continue; }
-        tableRowsRaw.push(cells);
+        if (headerCellCount !== null && cells.length !== headerCellCount) {
+          pushWarning(warnings, 'table-column-count-mismatch', absLine, l2.trim());
+        }
+        tableRowsRaw.push({ cells: cells, line: absLine, raw: l2.trim() });
       } else if (l2.trim() !== '') {
-        nonTableLines.push(l2.trim());
+        var trimmed2 = l2.trim();
+        if (GLOSSARY_HEADING_RE.test(trimmed2) || MATERIALS_LINE_RE.test(trimmed2)) {
+          pushWarning(warnings, 'keyword-in-table-section', absLine, trimmed2);
+        }
+        nonTableLines.push(trimmed2);
       }
     }
 
     var items = [];
-    tableRowsRaw.forEach(function (cells) {
+    tableRowsRaw.forEach(function (row) {
+      var cells = row.cells;
       if (cells.length === 0) return;
       var num = cells[0] || '';
       var step = cells.length > 1 ? cells[1] : '';
       var expected;
       if (cells.length <= 2) {
-        expected = T.notSpecified;
+        expected = L.notSpecified;
       } else {
         expected = cells.slice(2).join(' ').trim();
-        if (expected === '') expected = T.notSpecified;
+        if (expected === '') expected = L.notSpecified;
+      }
+      if (num !== '') {
+        if (seenItemNumbers[num]) {
+          pushWarning(warnings, 'duplicate-item-number', row.line, row.raw);
+        } else {
+          seenItemNumbers[num] = true;
+        }
       }
       items.push({
         number: num,
@@ -353,7 +472,7 @@ export function parseProcedure(rawText) {
       var parts = l.split(/\t|→/);
       var step = parts[0] !== undefined ? parts[0].trim() : l.trim();
       var expected = parts.length > 1 ? parts.slice(1).join('→').trim() : '';
-      if (expected === '') expected = T.notSpecified;
+      if (expected === '') expected = L.notSpecified;
       fallbackItems.push({
         number: String(fallbackItems.length + 1),
         stepRaw: step,
@@ -364,19 +483,34 @@ export function parseProcedure(rawText) {
       totalItems++;
     });
     if (fallbackItems.length > 0) {
-      sections.push({ number: '1', tag: null, title: T.simpleFormatSectionTitle, note: '', items: fallbackItems });
+      sections.push({ number: '1', tag: null, title: L.simpleFormatSectionTitle, note: '', items: fallbackItems });
     }
   }
 
+  var glossaryResult = extractGlossary(preamble);
+  var materialsResult = extractMaterials(preamble);
+  warnings = warnings.concat(glossaryResult.warnings, materialsResult.warnings);
+
+  if (totalItems === 0) {
+    pushWarning(warnings, 'no-items', null, null);
+  }
+
+  // bodyStartLine は行番号計算のための内部情報。戻り値の preamble には元の形
+  // （heading/bodyLines の2キーのみ）だけを載せる（挙動を1つも変えない合意のため）。
+  var preamblePublic = preamble.map(function (p) {
+    return { heading: p.heading, bodyLines: p.bodyLines };
+  });
+
   return {
     title: docTitle,
-    preamble: preamble,
+    preamble: preamblePublic,
     sections: sections,
-    glossary: extractGlossary(preamble),
+    glossary: glossaryResult.glossary,
     build: extractBuild(preamble),
-    materials: extractMaterials(preamble),
+    materials: materialsResult.materials,
     totalItems: totalItems,
-    ok: totalItems > 0
+    ok: totalItems > 0,
+    warnings: warnings
   };
 }
 

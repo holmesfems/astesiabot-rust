@@ -92,7 +92,7 @@ export function renderParseError(reason) {
 }
 
 export function handleLoadedText(text) {
-  var result = parseProcedure(text);
+  var result = parseProcedure(text, T);
   if (!result.ok || result.totalItems === 0) {
     renderParseError(T.noItemsDetected);
     return;

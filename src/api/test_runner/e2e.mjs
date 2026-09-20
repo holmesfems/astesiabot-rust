@@ -353,6 +353,57 @@ async function runLangSuite(browser, baseUrl, lang) {
 }
 
 /* ========================================================================= *
+ * 3b. ラベル注入の踏み抜き防止（パーサー警告ワークストリーム設計書 2.5）
+ *
+ * core/parser.js は i18n 依存を外し、呼び出し側が T（strings.{ja,en}.js）を渡す形に
+ * なった。渡し忘れると「英語ページなのに期待結果欄に日本語の（記載なし）が出る」という
+ * 静かな不具合になる。verify.mjs は DOM を触らずに parseProcedure の戻り値だけを見て
+ * いるので、この不具合そのものは実ブラウザで実際にレンダリングしてみないと踏めない。
+ * ========================================================================= */
+async function runLabelInjectionCheck(browser, baseUrl, lang) {
+  const label = `[${lang}] label-injection`;
+  const path_ = lang === 'ja' ? '/TestRunner' : '/TestRunner/en';
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.goto(baseUrl + path_, { waitUntil: 'networkidle' });
+
+    // 期待結果の列をわざと省いた最小の手順書。2列の表なので expectedRaw が
+    // notSpecified（ページの言語の T.notSpecified）で埋まる。
+    const minimalMd = [
+      '## Label injection check',
+      '### 1. S',
+      '',
+      '| No | Step |',
+      '|---|---|',
+      '| 1 | do it |'
+    ].join('\n');
+
+    await page.fill('#paste-textarea', minimalMd);
+    await page.click('#paste-start-btn');
+    await page.waitForSelector('#modal-confirm:not([hidden])', { timeout: 5000 });
+    await page.click('#confirm-start-btn');
+    await page.waitForSelector('#screen-step:not([hidden])', { timeout: 5000 });
+
+    const expectedText = (await page.locator('#item-expected-body').innerText()).trim();
+    const want = lang === 'ja' ? '（記載なし）' : '(not specified)';
+    ok(`${label}: expected-result column shows the page's own language`, expectedText === want, expectedText);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  ${label} unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, `e2e_fail_label_${lang}.png`);
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
+/* ========================================================================= *
  * main
  * ========================================================================= */
 let serverProc = null;
@@ -400,6 +451,8 @@ try {
 
   await runLangSuite(browser, baseUrl, 'ja');
   await runLangSuite(browser, baseUrl, 'en');
+  await runLabelInjectionCheck(browser, baseUrl, 'ja');
+  await runLabelInjectionCheck(browser, baseUrl, 'en');
 } catch (e) {
   fail++;
   console.log('FAIL  fatal -> ' + (e && e.stack ? e.stack : e));

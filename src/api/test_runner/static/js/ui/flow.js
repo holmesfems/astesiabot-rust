@@ -54,7 +54,7 @@ export function restoreFromHash() {
   clearStateHash();
   var progress = normalizeProgressObject(obj);
   if (!progress) return false;
-  var result = parseProcedure(progress.rawText);
+  var result = parseProcedure(progress.rawText, T);
   if (result.ok && resumeNeedsConfirm(progress, result, true)) {
     openConfirmModal({
       result: result,
@@ -77,7 +77,7 @@ export function restoreFromHash() {
 export function checkResumeAvailable() {
   var saved = loadSessionRaw();
   if (!saved || !saved.rawText) return;
-  var result = parseProcedure(saved.rawText);
+  var result = parseProcedure(saved.rawText, T);
   if (!result.ok) return;
   el('resume-box').hidden = false;
   var answered = (saved.results || []).filter(function (r) { return r && r.status; }).length;
@@ -111,7 +111,7 @@ export function startNewSession(result, rawText) {
 }
 
 export function resumeSession(saved) {
-  var result = parseProcedure(saved.rawText);
+  var result = parseProcedure(saved.rawText, T);
   state.docTitle = result.title;
   state.preamble = result.preamble;
   state.sections = result.sections;
@@ -154,7 +154,7 @@ export function handleProgressFile(file) {
     }
     var progress = normalizeProgressObject(obj);
     if (!progress) return;
-    var result = parseProcedure(progress.rawText);
+    var result = parseProcedure(progress.rawText, T);
     if (result.ok && resumeNeedsConfirm(progress, result, false)) {
       openConfirmModal({
         result: result,

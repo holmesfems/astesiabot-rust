@@ -9,6 +9,9 @@
 //
 // 全部 PASS なら最後に ALL PASS と出る。1件でも落ちれば終了コードが 1 になる。
 
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 const B = new URL('./static/js/', import.meta.url).href;
 
 let fail = 0;
@@ -268,6 +271,236 @@ ok('PHRASES key sets match',
    JSON.stringify(Object.keys(PJA).sort()) === JSON.stringify(Object.keys(PEN).sort()));
 ok('SAMPLES key sets match',
    JSON.stringify(Object.keys(MJA).sort()) === JSON.stringify(Object.keys(MEN).sort()));
+
+/* ========================= parser: warnings（黙って捨てたものの報告） ========================= */
+// core/parser.js の警告機能（パーサー警告ワークストリーム設計書 2.2/2.3）の検証。
+// パースの挙動そのものは1ミリも変えていない前提なので、ここでは主に
+// (1) 既存の戻り値が変わっていないこと (2) warnings が正しく出ること (3) 正常な手順書では
+// 余計な警告が出ないこと (4) ラベル注入 (5) スキル同梱コピーの同一性 を見る。
+
+// --- 1. 既存の出力が変わっていないこと（最重要）---
+// 改修前（i18n の T をアプリ同様に導入した状態）の値をそのままハードコードして突き合わせる。
+// 実装前に改修前の parseProcedure を実際に叩いて採取した値であり、この検証のために
+// 都合よく書いた期待値ではない。
+const UNCHANGED_CASES = [
+  {
+    name: 'SAMPLE_A ja', md: MJA.SAMPLE_A, labels: undefined,
+    title: '「ぽもどーろ君」タイマー動作確認', totalItems: 15, sectionCount: 5,
+    tags: ['Windows', 'Windows', 'Windows', 'Windows', 'Android'],
+    glossaryKeys: ['開始ボタン', 'リセット', '分に設定'],
+    materialsKeys: ['長時間設定データ.pomo', '通知音テスト.wav'],
+    build: { mode: 'fixed', value: '1.2.3-beta4' }
+  },
+  {
+    name: 'SAMPLE_B ja', md: MJA.SAMPLE_B, labels: undefined,
+    title: '「でんたくん」基本演算 試験手順', totalItems: 9, sectionCount: 3,
+    tags: ['共通', '共通', '共通'],
+    glossaryKeys: ['でんたくん', 'クリア', 'M+'],
+    materialsKeys: [],
+    build: { mode: 'input', hint: '画面右上の「?」→「バージョン情報」に表示される番号' }
+  },
+  {
+    name: 'SAMPLE_A en', md: MEN.SAMPLE_A, labels: SEN,
+    title: '"Pomodorin" timer behavior check', totalItems: 15, sectionCount: 5,
+    tags: ['Windows', 'Windows', 'Windows', 'Windows', 'Android'],
+    glossaryKeys: ['Start button', 'Reset', 'Set work time'],
+    materialsKeys: ['long-session.pomo', 'beep.wav'],
+    build: { mode: 'fixed', value: '1.2.3-beta4' }
+  },
+  {
+    name: 'SAMPLE_B en', md: MEN.SAMPLE_B, labels: SEN,
+    title: '"Calcy" basic arithmetic test procedure', totalItems: 9, sectionCount: 3,
+    tags: ['Common', 'Common', 'Common'],
+    glossaryKeys: ['Calcy', 'Clear', 'M+'],
+    materialsKeys: [],
+    build: { mode: 'input', hint: 'the number shown under "?" → "About" at the top right' }
+  }
+];
+// warnings 追加後に許される戻り値のキー集合（warnings 以外は増減しないこと）。
+const KNOWN_RESULT_KEYS = JSON.stringify(
+  ['title', 'preamble', 'sections', 'glossary', 'build', 'materials', 'totalItems', 'ok', 'warnings'].sort()
+);
+for (const c of UNCHANGED_CASES) {
+  const rr = parser.parseProcedure(c.md, c.labels);
+  ok(`unchanged(${c.name}): title`, rr.title === c.title, JSON.stringify(rr.title));
+  ok(`unchanged(${c.name}): totalItems`, rr.totalItems === c.totalItems, rr.totalItems);
+  ok(`unchanged(${c.name}): sections.length`, rr.sections.length === c.sectionCount, rr.sections.length);
+  ok(`unchanged(${c.name}): tags`, JSON.stringify(rr.sections.map((s) => s.tag)) === JSON.stringify(c.tags),
+     JSON.stringify(rr.sections.map((s) => s.tag)));
+  ok(`unchanged(${c.name}): glossary keys`,
+     JSON.stringify(rr.glossary.map((g) => g.key)) === JSON.stringify(c.glossaryKeys),
+     JSON.stringify(rr.glossary.map((g) => g.key)));
+  ok(`unchanged(${c.name}): materials keys`,
+     JSON.stringify(rr.materials.map((m) => m.key)) === JSON.stringify(c.materialsKeys),
+     JSON.stringify(rr.materials.map((m) => m.key)));
+  ok(`unchanged(${c.name}): build`, JSON.stringify(rr.build) === JSON.stringify(c.build), JSON.stringify(rr.build));
+  ok(`unchanged(${c.name}): result keys are the known set (+warnings)`,
+     JSON.stringify(Object.keys(rr).sort()) === KNOWN_RESULT_KEYS, JSON.stringify(Object.keys(rr).sort()));
+  ok(`unchanged(${c.name}): warnings is an array`, Array.isArray(rr.warnings), typeof rr.warnings);
+}
+
+// --- 2. 警告が出ること（設計書1.1の8ケース＋残りのkind。行番号まで見る）---
+// 設計書1.1の例示のうち row2/row3 はそのままの文言だと実際には落ちない
+// （row2: 太字＋区切りなしは rest 全体を desc として拾ってしまう／row3: "OK" は2文字なので
+// key-too-short に掛からない）ため、該当 kind を実際に踏み抜く最小入力に置き換えている。
+function hasWarning(warnings, kind, line) {
+  return warnings.some((w) => w.kind === kind && w.line === line);
+}
+const WARNING_CASES = [
+  {
+    name: '1 section-without-table', kind: 'section-without-table', line: 6,
+    md: ['## T', '### 試験の概要', '', '準備するもの: x', '', '### 3. 設定の保存', '', 'ここには表がありません'].join('\n')
+  },
+  {
+    name: '2 glossary-no-separator', kind: 'glossary-no-separator', line: 6,
+    md: ['## T', '### Pre', '', '用語定義:', '', '* 開始ボタン 緑色のボタン'].join('\n')
+  },
+  {
+    name: '2b glossary-empty-term-or-desc', kind: 'glossary-empty-term-or-desc', line: 6,
+    md: ['## T', '### Pre', '', '用語定義:', '', '* **開始ボタン**'].join('\n')
+  },
+  {
+    name: '3 glossary-key-too-short', kind: 'glossary-key-too-short', line: 6,
+    md: ['## T', '### Pre', '', '用語定義:', '', '* **開** … 確定ボタン'].join('\n')
+  },
+  {
+    name: '4 glossary-duplicate-key', kind: 'glossary-duplicate-key', line: 7,
+    md: ['## T', '### Pre', '', '用語定義:', '', '* **開始ボタン** … 説明1', '* **開始ボタン** … 説明2'].join('\n')
+  },
+  {
+    name: '5 keyword-in-table-section', kind: 'keyword-in-table-section', line: 4,
+    md: ['## T', '### 1. S', '', '用語定義:', '', '| No | Step | Expected |', '|---|---|---|', '| 1 | a | b |'].join('\n')
+  },
+  {
+    name: '6 list-interrupted', kind: 'list-interrupted', line: 7,
+    md: ['## T', '### Pre', '', '用語定義:', '', '* **開始ボタン** … 緑色のボタン', 'これは説明文です',
+      '* **リセット** … リセットボタン'].join('\n')
+  },
+  {
+    // 一番ありがちな形。地の文の前後に空行が入るので、最後の項目から4行後に再開する。
+    // 固定幅の後読み窓だとここを取りこぼす（実際に取りこぼしていた回帰ケース）。
+    name: '6b list-interrupted（空行を挟んで4行後に再開）', kind: 'list-interrupted', line: 8,
+    md: ['## T', '### Pre', '', '用語定義:', '', '* **開始ボタン** … 緑色のボタン', '',
+      'これは説明文です', '', '* **リセット** … リセットボタン'].join('\n')
+  },
+  {
+    // 地の文が3行を超えたら別の話題とみなして警告しない（誤警報の上限）。
+    name: '6c 地の文が4行続いたら list-interrupted にしない', notKind: 'list-interrupted',
+    md: ['## T', '### Pre', '', '用語定義:', '', '* **開始ボタン** … 緑色のボタン', '',
+      '説明1', '説明2', '説明3', '説明4', '', '* **別の箇条書き** … これは別物'].join('\n')
+  },
+  {
+    // 別のキーワードが始まったら、その先の箇条書きはそちらのものなので途切れではない。
+    name: '6d 配布物: が続く場合は list-interrupted にしない', notKind: 'list-interrupted',
+    md: ['## T', '### Pre', '', '用語定義:', '', '* **開始ボタン** … 緑色のボタン', '',
+      '配布物:', '', '* **sample.bin** … https://example.com/a.bin the file'].join('\n')
+  },
+  {
+    name: '7 materials-no-separator', kind: 'materials-no-separator', line: 6,
+    md: ['## T', '### Pre', '', '配布物:', '', '* sample.bin the file'].join('\n')
+  },
+  {
+    name: '7b materials-empty-name-or-desc', kind: 'materials-empty-name-or-desc', line: 6,
+    md: ['## T', '### Pre', '', '配布物:', '', '* … the file with no name'].join('\n')
+  },
+  {
+    name: '7c materials-duplicate-key', kind: 'materials-duplicate-key', line: 7,
+    md: ['## T', '### Pre', '', '配布物:', '', '* **sample.bin** … https://example.com/a first',
+      '* **sample.bin** … https://example.com/b second'].join('\n')
+  },
+  {
+    name: '7d material-no-url', kind: 'material-no-url', line: 6,
+    md: ['## T', '### Pre', '', '配布物:', '', '* **sample.bin** … a file with no url'].join('\n')
+  },
+  {
+    name: '8 table-column-count-mismatch', kind: 'table-column-count-mismatch', line: 6,
+    md: ['## T', '### 1. S', '', '| No | Step | Expected |', '|---|---|---|', '| 1 | a|b | c |'].join('\n')
+  },
+  {
+    name: '9 duplicate-item-number', kind: 'duplicate-item-number', line: 7,
+    md: ['## T', '### 1. S', '', '| No | Step | Expected |', '|---|---|---|', '| 1 | a | b |', '| 1 | c | d |'].join('\n')
+  },
+  { name: '10 no-items', kind: 'no-items', line: null, md: '' }
+];
+for (const c of WARNING_CASES) {
+  const ws = parser.parseProcedure(c.md).warnings;
+  if (c.notKind) {
+    // 誤警報を出さないことの検証（警告が出ない側の境界）
+    ok(`warning case ${c.name}: ${c.notKind} が出ない`,
+       !ws.some((w) => w.kind === c.notKind), JSON.stringify(ws));
+  } else {
+    ok(`warning case ${c.name}: kind+line found`, hasWarning(ws, c.kind, c.line), JSON.stringify(ws));
+  }
+}
+
+// --- 3. 正常な手順書では余計な警告が出ないこと（infoは許容） ---
+const WARN_OR_ERROR_KINDS = new Set([
+  'no-items', 'section-without-table', 'glossary-no-separator', 'glossary-empty-term-or-desc',
+  'glossary-key-too-short', 'materials-no-separator', 'materials-empty-name-or-desc',
+  'list-interrupted', 'keyword-in-table-section', 'table-column-count-mismatch'
+]);
+for (const c of UNCHANGED_CASES) {
+  const ws = parser.parseProcedure(c.md, c.labels).warnings;
+  const bad = ws.filter((w) => WARN_OR_ERROR_KINDS.has(w.kind));
+  ok(`no warn/error-level warnings on ${c.name}`, bad.length === 0, JSON.stringify(bad));
+}
+// AI整形プロンプト自身の実例も同様（プロンプトの自己矛盾チェックを兼ねる）
+for (const [lang, prompt, labels] of [['ja', MJA.AI_FORMAT_PROMPT, undefined], ['en', MEN.AI_FORMAT_PROMPT, SEN]]) {
+  const m = prompt.match(/```markdown\n([\s\S]*?)```/);
+  if (!m) continue;
+  const ws = parser.parseProcedure(m[1], labels).warnings;
+  const bad = ws.filter((w) => WARN_OR_ERROR_KINDS.has(w.kind));
+  ok(`no warn/error-level warnings on AI prompt(${lang}) example`, bad.length === 0, JSON.stringify(bad));
+}
+
+// --- 4. ラベル注入 ---
+const twoColMd = ['## T', '### 1. S', '', '| No | Step |', '|---|---|', '| 1 | a |'].join('\n');
+ok('label injection: default (no 2nd arg) uses ja notSpecified',
+   parser.parseProcedure(twoColMd).sections[0].items[0].expectedRaw === '（記載なし）',
+   parser.parseProcedure(twoColMd).sections[0].items[0].expectedRaw);
+ok('label injection: en labels switch notSpecified',
+   parser.parseProcedure(twoColMd, SEN).sections[0].items[0].expectedRaw === SEN.notSpecified,
+   parser.parseProcedure(twoColMd, SEN).sections[0].items[0].expectedRaw);
+const customLabels = { notSpecified: 'X', simpleFormatSectionTitle: 'Y' };
+ok('label injection: custom notSpecified',
+   parser.parseProcedure(twoColMd, customLabels).sections[0].items[0].expectedRaw === 'X',
+   parser.parseProcedure(twoColMd, customLabels).sections[0].items[0].expectedRaw);
+ok('label injection: default fallback section title',
+   parser.parseProcedure('起動する\t画面が出る').sections[0].title === '手順',
+   parser.parseProcedure('起動する\t画面が出る').sections[0].title);
+ok('label injection: en labels switch fallback section title',
+   parser.parseProcedure('起動する\t画面が出る', SEN).sections[0].title === SEN.simpleFormatSectionTitle,
+   parser.parseProcedure('起動する\t画面が出る', SEN).sections[0].title);
+ok('label injection: custom fallback section title',
+   parser.parseProcedure('起動する\t画面が出る', customLabels).sections[0].title === 'Y',
+   parser.parseProcedure('起動する\t画面が出る', customLabels).sections[0].title);
+
+// --- 5. スキル同梱コピーの同一性 ---
+// .claude/skills/test-procedure-author/ は別端末へコピーして使う配布物なので、
+// アプリ本体と中身がズレていないかをバイト単位で見る。
+const REPO_ROOT_FOR_SKILL = fileURLToPath(new URL('../../../', import.meta.url));
+const SKILL_DIR = REPO_ROOT_FOR_SKILL + '.claude/skills/test-procedure-author/';
+function readIfExists(p) {
+  try { return fs.readFileSync(p); } catch (e) { return null; }
+}
+const appParserBuf = readIfExists(fileURLToPath(B + 'core/parser.js'));
+const skillParserBuf = readIfExists(SKILL_DIR + 'parser.js');
+ok('skill parser.js exists', skillParserBuf !== null, SKILL_DIR + 'parser.js');
+if (appParserBuf && skillParserBuf) {
+  ok('skill parser.js is byte-identical to app core/parser.js', appParserBuf.equals(skillParserBuf));
+}
+const skillFormatJa = readIfExists(SKILL_DIR + 'format.ja.md');
+const skillFormatEn = readIfExists(SKILL_DIR + 'format.en.md');
+ok('skill format.ja.md exists', skillFormatJa !== null, SKILL_DIR + 'format.ja.md');
+ok('skill format.en.md exists', skillFormatEn !== null, SKILL_DIR + 'format.en.md');
+if (skillFormatJa) {
+  ok('skill format.ja.md matches AI_FORMAT_PROMPT(ja) exactly', skillFormatJa.toString('utf-8') === MJA.AI_FORMAT_PROMPT);
+}
+if (skillFormatEn) {
+  ok('skill format.en.md matches AI_FORMAT_PROMPT(en) exactly', skillFormatEn.toString('utf-8') === MEN.AI_FORMAT_PROMPT);
+}
+ok('skill SKILL.md exists', readIfExists(SKILL_DIR + 'SKILL.md') !== null, SKILL_DIR + 'SKILL.md');
+ok('skill validate.mjs exists', readIfExists(SKILL_DIR + 'validate.mjs') !== null, SKILL_DIR + 'validate.mjs');
 
 console.log(fail === 0 ? '\nALL PASS' : '\n' + fail + ' FAILURES');
 if (fail > 0) process.exit(1);
