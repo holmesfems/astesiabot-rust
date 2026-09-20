@@ -31,8 +31,13 @@ src/
 │                    起動時ロード → bot と api に Arc で共有。1日1回
 │                    ExternalSourceRegistry::refresh_all() を叩くループも起動
 ├── bin/
-│   └── regen_seeds.rs … external_source の Seed（data/seed/*.json）を手動再生成する
-│                          独立ツール。main.rs には依存しない。使い方は後述
+│   ├── regen_seeds.rs … external_source の Seed（data/seed/*.json）を手動再生成する
+│   │                      独立ツール。main.rs には依存しない。使い方は後述
+│   └── serve_web.rs   … Web UI（AppStateに依存しないページ群）だけを配信するdevサーバー。
+│                          bot も ExternalSourceRegistry も起こさず、.env も要求しない
+│                          （`WEB_UI_PORT`、既定3001。bindは127.0.0.1のみ）。
+│                          `api::web_ui_router()` を使うので run_api とルートは常に一致する。
+│                          `src/api/test_runner/e2e.mjs` がこれをspawnして使う
 ├── engine/
 │   ├── external_source/ … 外部サイトから取得する情報のレジストリ（bot にも api にも
 │   │   │                依存しない）。起動時に一括fetchしてメモリ保持し、以後は
@@ -91,7 +96,10 @@ src/
 │       └── search.rs  … resolve（オペレーター名+スキル指定→FkSearchResult）、autocomplete
 ├── api/
 │   ├── mod.rs             … axum。AppState、run_api、base_url()（canonical/hreflang/sitemap用の
-│   │                        絶対URL起点）、/robots.txt・/sitemap.xml
+│   │                        絶対URL起点）、/robots.txt・/sitemap.xml。`web_ui_router()`
+│   │                        （AppStateに依存しないUIルートだけを束ねる公開関数）もここ。
+│   │                        UIのルートはここに足せば run_api にも serve_web にも自動で
+│   │                        反映される。片方にだけ書かないこと
 │   ├── recruitment.rs     … POST /recruitment/ （Python の doRecruitment と完全一致）
 │   ├── wl_battery_simulator/ … 武陵発電制御シミュレーター（askama + htmx の Web UI）
 │   │   ├── mod.rs        … ルーター（index/calculate/static配信）
@@ -119,6 +127,11 @@ src/
 │       │                   "/static"=ServeDir。JS/CSSは全てここから配信する
 │       ├── verify.mjs    … static/js/core/ と constants/ の検証（実モジュールをimportして
 │       │                   実行）。ui/ はDOM依存なので対象外。実行方法は「動作確認手順」参照
+│       ├── e2e.mjs       … 表現層のブラウザ実機テスト（Playwright）。`cargo run --quiet
+│       │                   --bin serve_web` を自分でspawnし、`/health` を待ってから
+│       │                   ja/enの両方を検証して必ず後始末する。verify.mjs と対になる
+│       │                   ものなので、DOM操作が絡む変更（画面遷移・演出・ボタンid等）は
+│       │                   こちらで検証する。実行方法は「動作確認手順」参照
 │       ├── static/
 │       │   ├── lz-string.min.js … 1.5.0, MIT。進捗URL共有 `#state=<圧縮JSON>` の圧縮/解凍用。
 │       │   │                      CDN参照せず同一オリジン配信
@@ -303,6 +316,11 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   `PUBLIC_BASE_URL`（任意。独自ドメインへ寄せたい場合に設定）があればそれを優先し、
   無ければ `X-Forwarded-Proto` + `Host` から組み立てる（Heroku等は手前でTLSを終端するため、
   schemeをヘッダから見ないとhttpになる）。SEO用のURLを足すときも個別にホスト名を書かない。
+- **Web UI のルートは `web_ui_router()` に集約する**: `api/mod.rs` の `run_api` に
+  直接ルートを書くと、dev用の `serve_web`（bot/ExternalSourceRegistryを起こさない
+  Web UI専用サーバー）とその `e2e.mjs` から見えなくなり、dev と本番でルート集合が
+  ズレる。UIルート（AppStateに依存しないページ群）を増やすときは必ず `web_ui_router()`
+  に足すこと。`run_api` はそれに `/recruitment/` と SwaggerUi を足すだけにする。
 
 ## 動作確認手順
 
@@ -335,16 +353,42 @@ askama はテンプレートをバイナリに埋め込むので、`templates/*.
 **再ビルド＋再起動しないと反映されない**（`static/*` の css/js はリロードで反映）。
 サーバーを起動したまま `cargo build` すると exe のロックで失敗する（os error 5）。
 
-フロントエンドの計算層の検証（node が入っていないので VS Code の Electron を node として使う）:
+Web UI だけを見たい/自動テストしたいとき（bot も外部情報取得も起こさない・`.env` 不要）:
 
 ```powershell
-$env:ELECTRON_RUN_AS_NODE="1"
-& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" src/api/lod_chest_solver/verify.mjs
-& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" src/api/test_runner/verify.mjs
+$env:WEB_UI_PORT="3001"  # 省略時も既定3001（本番既定の3000と衝突しないので同時起動可）
+cargo run --bin serve_web
 ```
 
-ヘッドレスブラウザは無いので、**DOM描画・アニメーション・演出は自動検証できない**。
-`cargo test` も `verify.mjs` も通ったうえで、`cargo run` して実際に画面を触ること。
+フロントエンドの検証は2段階ある:
+
+- `verify.mjs`（計算層。DOM非依存のモジュールを直接importして検証）
+- `e2e.mjs`（表現層。Playwrightで実ブラウザを起動し、`serve_web` に対して
+  実際のクリック・ホバー・アニメーションを検証する）
+
+このマシンには **`node` が PATH に無いが実体は存在する**（`C:\Program Files\nodejs\node.exe`）。
+絶対パスで呼べば普通のnodeとして動く（VS CodeのElectronをnode代わりに使う方法も
+引き続き使えるが、実nodeがあるのでそちらでよい）:
+
+```powershell
+& "C:\Program Files\nodejs\node.exe" src/api/lod_chest_solver/verify.mjs
+& "C:\Program Files\nodejs\node.exe" src/api/test_runner/verify.mjs
+& "C:\Program Files\nodejs\node.exe" src/api/test_runner/e2e.mjs
+```
+
+`e2e.mjs` は Playwright を使う。このマシンでは `npx playwright install` 経由で
+入っているため node_modules が標準の場所（プロジェクト直下）に無く、
+`%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\playwright` 配下にある。
+`e2e.mjs` はこれを自動で探す（ハッシュ名は決め打ちしない）ので、
+別マシンでセットアップし直した場合も基本はそのまま動く。
+
+`e2e.mjs` は `cargo run --quiet --bin serve_web` を自分でspawnして`/health`を待つ
+（初回ビルドがあるので最大240秒待つ）ので、事前に `serve_web` を起動しておく必要は無い。
+Windows では `cargo run` の子プロセスが残ることがあるため、後始末は
+`taskkill /pid <pid> /T /F` で子プロセスごと落とす。
+
+`cargo test` と `verify.mjs`（計算層）・`e2e.mjs`（表現層のブラウザ実機）が
+全部通ったうえで、必要なら `cargo run` して実際に画面を触ること。
 
 Seedの更新（push前に思い出したら）: `cargo run --bin regen_seeds`。
 `data/seed/*.json` が更新されるので `git status` で差分を確認して commit/push する。

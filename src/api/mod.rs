@@ -133,13 +133,18 @@ async fn sitemap(headers: HeaderMap) -> impl IntoResponse {
     )
 }
 
-pub async fn run_api(state: Arc<AppState>) {
-    let app = Router::new()
+/// Web UI（AppState に依存しないページ群）だけのルーター。
+/// 本番の `run_api` と、dev 用の `serve_web` バイナリ / e2e テストが共有する。
+/// ここにルートを足せば両方に反映される。片方にだけ書かないこと。
+pub fn web_ui_router<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    Router::new()
         .route("/", get(|| async { Redirect::temporary("/WLBatterySimulator") }))
         .route("/health", get(|| async { "ok" }))
         .route("/robots.txt", get(robots))
         .route("/sitemap.xml", get(sitemap))
-        .route("/recruitment/", post(recruitment::do_recruitment)) // Python と同じパス
         // axum の nest() は内側の "/" を末尾スラッシュなしの prefix にのみ割り当てるため、
         // "/WLBatterySimulator/" 単体は別途 prefix なしへリダイレクトする。
         .route(
@@ -162,6 +167,11 @@ pub async fn run_api(state: Arc<AppState>) {
             get(|| async { Redirect::permanent("/TestRunner") }),
         )
         .nest("/TestRunner", test_runner::router())
+}
+
+pub async fn run_api(state: Arc<AppState>) {
+    let app = web_ui_router::<Arc<AppState>>()
+        .route("/recruitment/", post(recruitment::do_recruitment)) // Python と同じパス
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .fallback(not_found)
         .with_state(state);
