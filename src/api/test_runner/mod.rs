@@ -109,9 +109,13 @@ mod tests {
         assert!(html.contains("試験手順ランナー"));
         assert!(html.contains(r#"id="ok-btn""#));
         assert!(html.contains("手順を読み込む"));
-        assert!(html.contains("用語定義"));
         assert!(html.contains("🚀 開始する"));
         assert!(!html.contains("paste-hint"));
+
+        // "用語定義" はパーサーが手順書内で認識するキーワード（body の静的マークアップには出てこない）。
+        // Step 1 搬出で main.js（パーサー本体）へ移った先を直接確認する。
+        let js = get_body("/static/js/main.js").await;
+        assert!(js.contains("用語定義"));
     }
 
     /// 試験手順だけを共有するボタン（記録なし・テスター名なし）が両言語・3画面に揃っていること。
@@ -125,7 +129,9 @@ mod tests {
         }
     }
 
-    /// 結果URL共有UI（結果画面の共有ボタン・テスター名モーダル・lz-string読み込み）が両言語に揃っていること。
+    /// 結果URL共有UI（結果画面の共有ボタン・テスター名入力・lz-string読み込み）が両言語に揃っていること。
+    /// テスター名入力は開始前の確認モーダル（id="modal-confirm"）に統合済みで、
+    /// 独立した id="modal-tester-name" は存在しない（Step 1 搬出時点で実態に合わせて修正）。
     /// 進捗URLコピーはこの結果画面ボタン1箇所のみ（開始画面/ステップ画面の重複ボタン・保存して中断は撤去済み）。
     #[tokio::test]
     async fn both_pages_have_progress_url_sharing_ui() {
@@ -133,11 +139,9 @@ mod tests {
             let html = get_body(uri).await;
             assert!(html.contains(r#"src="/TestRunner/static/lz-string.min.js""#), "{uri}");
             assert!(html.contains(r#"id="share-url-result-btn""#), "{uri}");
-            assert!(html.contains(r#"id="modal-tester-name""#), "{uri}");
-            assert!(html.contains("var STATE_HASH_PREFIX = '#state=';"), "{uri}");
+            assert!(html.contains(r#"id="modal-confirm""#), "{uri}");
+            assert!(html.contains(r#"id="tester-name-input""#), "{uri}");
             assert!(!html.contains(r#"id="save-pause-btn""#), "{uri}");
-            // 貼り付け欄はサンプル手順を既定値にする
-            assert!(html.contains("el('paste-textarea').value = SAMPLE_A;"), "{uri}");
         }
     }
 
@@ -146,6 +150,60 @@ mod tests {
         let js = get_body("/static/lz-string.min.js").await;
         assert!(js.contains("lz-string 1.5.0"));
         assert!(js.contains("compressToEncodedURIComponent"));
+    }
+
+    /// Step 1 搬出: CSS/JS がテンプレ埋め込みではなく static/ から配信されること。
+    #[tokio::test]
+    async fn static_serves_extracted_style_and_main_js() {
+        let css = get_body("/static/style.css").await;
+        assert!(css.contains("toolnav-bar") || css.contains(":root"));
+
+        let js = get_body("/static/js/main.js").await;
+        assert!(js.contains("export function boot("));
+        assert!(js.contains("import { installI18n, T, P, S } from"));
+    }
+
+    /// Step 1 搬出: 文言/演出/サンプルの constants が言語ごとに配信されること。
+    #[tokio::test]
+    async fn static_serves_i18n_constants_per_language() {
+        let strings_ja = get_body("/static/js/constants/strings.ja.js").await;
+        assert!(strings_ja.contains("用語解説"));
+
+        let strings_en = get_body("/static/js/constants/strings.en.js").await;
+        assert!(strings_en.contains("Term explanation"));
+
+        let phrases_ja = get_body("/static/js/constants/phrases.ja.js").await;
+        assert!(phrases_ja.contains("export const PRAISE_POOL"));
+
+        let phrases_en = get_body("/static/js/constants/phrases.en.js").await;
+        assert!(phrases_en.contains("export const PRAISE_POOL"));
+
+        let samples_ja = get_body("/static/js/constants/samples.ja.js").await;
+        assert!(samples_ja.contains("ぽもどーろ君"));
+
+        let samples_en = get_body("/static/js/constants/samples.en.js").await;
+        assert!(samples_en.contains("Pomodorin"));
+    }
+
+    /// Step 1 搬出: 両ページとも <style> は外部CSSへのリンクに、<script> はブートストラップに
+    /// 置き換わっており、ページごとに正しい言語の constants を import していること。
+    #[tokio::test]
+    async fn both_pages_link_stylesheet_and_import_own_language_constants() {
+        let ja = get_body("/").await;
+        assert!(ja.contains(r#"<link rel="stylesheet" href="/TestRunner/static/style.css">"#));
+        assert!(ja.contains(r#"import { boot } from "/TestRunner/static/js/main.js";"#));
+        assert!(ja.contains("constants/strings.ja.js"));
+        assert!(ja.contains("constants/phrases.ja.js"));
+        assert!(ja.contains("constants/samples.ja.js"));
+        assert!(!ja.contains("constants/strings.en.js"));
+
+        let en = get_body("/en").await;
+        assert!(en.contains(r#"<link rel="stylesheet" href="/TestRunner/static/style.css">"#));
+        assert!(en.contains(r#"import { boot } from "/TestRunner/static/js/main.js";"#));
+        assert!(en.contains("constants/strings.en.js"));
+        assert!(en.contains("constants/phrases.en.js"));
+        assert!(en.contains("constants/samples.en.js"));
+        assert!(!en.contains("constants/strings.ja.js"));
     }
 
     #[tokio::test]
