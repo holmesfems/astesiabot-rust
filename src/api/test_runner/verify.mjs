@@ -109,6 +109,48 @@ for (const [label, line, hint] of [
 const noKw = parser.parseProcedure(minimal('Glossary', 'Attachments', 'Built by: someone'));
 ok('no false positive on "Built by:"', noKw.build.mode === 'none', JSON.stringify(noKw.build));
 
+// --- 節タグ: 日本語の【】と英語手順書向けの[] の両方 ---
+function heading(h) {
+  const p = parser.parseProcedure(['## T', '### ' + h, '', '| No | Step | Exp |', '|---|---|---|', '| 1 | a | b |'].join('\n'));
+  return p.sections[0];
+}
+ok('tag 【Windows】', heading('1. リセット【Windows】').tag === 'Windows', JSON.stringify(heading('1. リセット【Windows】')));
+ok('tag [Windows]', heading('1. Reset [Windows]').tag === 'Windows', JSON.stringify(heading('1. Reset [Windows]')));
+ok('tag [Windows] strips from title', heading('1. Reset [Windows]').title === 'Reset',
+   JSON.stringify(heading('1. Reset [Windows]').title));
+ok('tag【】strips from title', heading('1. リセット【Windows】').title === 'リセット',
+   JSON.stringify(heading('1. リセット【Windows】').title));
+ok('no tag when absent', heading('1. Reset').tag === null);
+// 誤爆しないこと: Markdownリンクは ) で終わるので末尾アンカーに掛からない
+ok('markdown link in heading is not a tag', heading('1. See [docs](https://example.com)').tag === null,
+   JSON.stringify(heading('1. See [docs](https://example.com)').tag));
+ok('bracket not at end is not a tag', heading('1. [Draft] Login').tag === null,
+   JSON.stringify(heading('1. [Draft] Login').tag));
+ok('trailing [WIP] is taken as a tag', heading('1. Login [WIP]').tag === 'WIP');
+
+// --- 同梱サンプルが実際にパースできること（英語版は節タグも英語括弧） ---
+ok('sample(en): section tags parsed', rEn.sections.every(s => s.tag),
+   rEn.sections.map(s => s.tag).join(','));
+ok('sample(en) SAMPLE_B: build input mode',
+   parser.parseProcedure(MEN.SAMPLE_B).build.mode === 'input',
+   JSON.stringify(parser.parseProcedure(MEN.SAMPLE_B).build));
+ok('sample(ja) SAMPLE_B: build input mode',
+   parser.parseProcedure(MJA.SAMPLE_B).build.mode === 'input',
+   JSON.stringify(parser.parseProcedure(MJA.SAMPLE_B).build));
+// AI整形プロンプトが提示する書式そのものが、このパーサーで通ること。
+// （プロンプトのコードブロック内の例をそのまま食わせる）
+for (const [lang, prompt] of [['ja', MJA.AI_FORMAT_PROMPT], ['en', MEN.AI_FORMAT_PROMPT]]) {
+  const m = prompt.match(/```markdown\n([\s\S]*?)```/);
+  ok('AI prompt(' + lang + '): example block present', !!m);
+  if (!m) continue;
+  const p = parser.parseProcedure(m[1]);
+  ok('AI prompt(' + lang + '): its own example parses',
+     p.ok && p.totalItems === 2 && p.glossary.length === 1 &&
+     p.build.mode === 'fixed' && p.sections[0].tag !== null,
+     'items=' + p.totalItems + ' glossary=' + p.glossary.length +
+     ' build=' + JSON.stringify(p.build) + ' tag=' + JSON.stringify(p.sections[0].tag));
+}
+
 // --- 表の見出し行・前置きの見出しはパース対象外（言語に依存しない） ---
 const headerAgnostic = parser.parseProcedure([
   '## T', '### 1. S', '',

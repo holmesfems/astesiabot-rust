@@ -247,10 +247,13 @@ function parseHeadingMeta(headingText) {
     number = mNum[1];
     text = text.slice(mNum[0].length);
   }
+  // 節タグ（試験対象OS等）は見出しの末尾。日本語の【】と英語手順書向けの[]の両方を受ける。
+  // 末尾アンカーなので `### See [docs](url)` は `)` 終わりでマッチせず、`### [Draft] Login` も
+  // 行末でないのでマッチしない。
   var tag = null;
-  var mTag = text.match(/【([^】]*)】\s*$/);
+  var mTag = text.match(/【([^】]*)】\s*$|\[([^\]]*)\]\s*$/);
   if (mTag) {
-    tag = mTag[1];
+    tag = mTag[1] !== undefined ? mTag[1] : mTag[2];
     text = text.slice(0, mTag.index).trim();
   }
   return { number: number, tag: tag, title: text.trim() };
