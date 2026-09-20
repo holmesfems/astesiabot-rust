@@ -211,9 +211,19 @@ async function runLangSuite(browser, baseUrl, lang) {
     await page.click('#sample-a-btn');
     await page.click('#paste-start-btn');
     await page.waitForSelector('#modal-confirm:not([hidden])', { timeout: 5000 });
+
+    // 開始画面で下までスクロールした状態から遷移させ、実行画面が先頭から始まることを見る。
+    // showScreen() の window.scrollTo(0,0) が無いとステップカードの上部が見切れる。
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const scrollBeforeStart = await page.evaluate(() => window.scrollY);
+    ok(`${label} scrolled down before starting (前提)`, scrollBeforeStart > 0, scrollBeforeStart);
+
     await page.click('#confirm-start-btn');
     await page.waitForSelector('#screen-step:not([hidden])', { timeout: 5000 });
     ok(`${label} started -> screen-step`, true);
+    ok(`${label} scroll reset to top on screen transition`,
+      (await page.evaluate(() => window.scrollY)) === 0,
+      await page.evaluate(() => window.scrollY));
 
     // --- 紙吹雪: OK前は不透明ピクセル0、OKの250ms後は>0 ---
     async function opaquePixelCount() {
@@ -314,6 +324,10 @@ async function runLangSuite(browser, baseUrl, lang) {
     }
     await page.waitForSelector('#screen-result:not([hidden])', { timeout: 10000 });
     ok(`${label} reached screen-result`, true);
+    // 結果画面は縦に長いので、途中から表示されると総合ランクやサマリーを見落とす
+    ok(`${label} scroll reset to top on reaching the result screen`,
+      (await page.evaluate(() => window.scrollY)) === 0,
+      await page.evaluate(() => window.scrollY));
 
     const rowCount = await page.locator('#result-table-body tr').count();
     const expectedTotal = expectedA[lang].totalItems;

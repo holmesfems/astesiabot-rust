@@ -18,6 +18,13 @@ export function showScreen(id) {
   SCREENS.forEach(function (s) {
     document.getElementById(s).hidden = (s !== id);
   });
+  // 画面を入れ替えたらスクロール位置も先頭へ戻す。開始画面で下までスクロールした
+  // まま実行画面へ移ると、ステップカードの上部が見切れたところから始まってしまう。
+  // 同じことが 実行→結果 / フィナーレ→結果 / 進捗URLで開いたときの確認モーダル でも
+  // 起きるので、遷移を一手に引き受けているここで直す。
+  // 項目送り（OK/NG・戻る）は renderStep だけで showScreen を通らないため、
+  // 同じ画面の中でのスクロール位置は維持される。
+  window.scrollTo(0, 0);
 }
 
 // 進捗ファイル / 進捗URL 共通: 進捗オブジェクトの形式検証と旧形式の正規化。
