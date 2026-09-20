@@ -29,7 +29,9 @@ function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/* ---- glossary (用語定義) parsing ---- */
+/* ---- glossary (用語定義 / Glossary) parsing ---- */
+// 手順書側の見出しキーワードは日英どちらでも拾う。日本語部分は /i の影響を受けない。
+var GLOSSARY_HEADING_RE = /用語定義|Definitions?|Glossary/i;
 var GLOSSARY_PLACEHOLDER_RE = /◯◯|〇〇|○○|××|XX|ＸＸ/g;
 var GLOSSARY_SEP_RE = /\.\.\.|…|：|:|—|－|\s-\s/;
 
@@ -62,7 +64,7 @@ function extractGlossary(preamble) {
     var lines = block.bodyLines || [];
     var i = 0;
     while (i < lines.length) {
-      if (/用語定義/.test(lines[i])) {
+      if (GLOSSARY_HEADING_RE.test(lines[i])) {
         i++;
         while (i < lines.length && lines[i].trim() === '') i++;
         while (i < lines.length && /^[*\-]\s+/.test(lines[i].trim())) {
@@ -82,13 +84,15 @@ function extractGlossary(preamble) {
   return glossary;
 }
 
-/* ---- ビルド指定（ビルド:）/ 配布物（配布物:）— どちらも任意項目 ----
+/* ---- ビルド指定（ビルド: / Build:）/ 配布物（配布物: / Attachments:）— どちらも任意項目 ----
    前置きの本文行から拾う。行が無ければ build は {mode:'none'}、materials は [] になり、
-   従来の手順書は一切挙動が変わらない。 */
-var BUILD_LINE_RE = /^ビルド\s*[:：]\s*(.*)$/;
-var BUILD_INPUT_RE = /^(記入|入力)/;
+   従来の手順書は一切挙動が変わらない。
+   英語エイリアスは (?:...) の非キャプチャグループで足すこと。BUILD_LINE_RE の m[1] と
+   BUILD_INPUT_RE のグループ1を呼び出し側が使っているので、番号をずらすと壊れる。 */
+var BUILD_LINE_RE = /^(?:ビルド|Build|Version)\s*[:：]\s*(.*)$/i;
+var BUILD_INPUT_RE = /^(記入|入力|Enter|Fill ?in|TBD)/i;
 var BUILD_HINT_RE = /[（(]([^）)]*)[）)]/;
-var MATERIALS_LINE_RE = /^配布物\s*[:：]/;
+var MATERIALS_LINE_RE = /^(?:配布物|Attachments?|Downloads?|Assets?)\s*[:：]/i;
 var MATERIAL_URL_RE = /https?:\/\/\S+/;
 var MATERIAL_URL_TAIL_RE = /[）)、。，,.]+$/;
 

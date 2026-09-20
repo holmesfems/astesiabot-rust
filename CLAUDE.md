@@ -113,17 +113,30 @@ src/
 │   │   └── static/       … engine.js（純粋ソルバー。DOM非依存）/ ui.js（DOM描画。文言は
 │   │                       initUi(strings)で各ページから受け取る）/ style.css（言語共通）
 │   └── test_runner/       … 試験手順ランナー（元は test-procedure/test_runner.html。
-│       │                    手順書のMarkdownを読み込みOK/NGを押すだけで進められる、
-│       │                    オフライン動作の単一HTMLアプリ。アークナイツ外の単発ツール）
+│       │                    手順書のMarkdownを読み込みOK/NGを押すだけで進められる。
+│       │                    CDN参照ゼロ、進捗はサーバーに送らない。アークナイツ外の単発ツール）
 │       ├── mod.rs        … ルーター。"/"=ja / "/en"=en（lod_chest_solverと同じ1URL=1言語）。
-│       │                   "/static"=ServeDir（lz-string 同梱配信のみ。app本体のJSは各HTMLに内包）
-│       ├── static/       … lz-string.min.js（1.5.0, MIT。進捗URL共有 `#state=<圧縮JSON>` の
-│       │                   圧縮/解凍用。CDN参照せず同一オリジン配信でオフライン動作を維持）
-│       └── templates/    … tr_index.html（ja）/ tr_index_en.html（en）。lod_chest_solverと
-│                           異なり計算層(パーサー)/表現層(DOM描画)の分離はせずHTML+JSを
-│                           全文複製している。英語版は主要UI文言のみ翻訳し、パーサーが
-│                           認識する見出しキーワード（`用語定義:` 等）は意図的に日本語のまま
-│                           （理由は下記ポイント参照）
+│       │                   "/static"=ServeDir。JS/CSSは全てここから配信する
+│       ├── verify.mjs    … static/js/core/ と constants/ の検証（実モジュールをimportして
+│       │                   実行）。ui/ はDOM依存なので対象外。実行方法は「動作確認手順」参照
+│       ├── static/
+│       │   ├── lz-string.min.js … 1.5.0, MIT。進捗URL共有 `#state=<圧縮JSON>` の圧縮/解凍用。
+│       │   │                      CDN参照せず同一オリジン配信
+│       │   ├── style.css        … ja/en 共通（言語差は文言だけなのでCSSは1本）
+│       │   └── js/              … ES module。依存の向きは constants ← core ← ui ← main
+│       │       ├── main.js      … boot({strings,phrases,samples}) と init() だけ
+│       │       ├── constants/   … config.js（非文言の定数）/ i18n.js（T・P・S の器と
+│       │       │                  installI18n）/ {strings,phrases,samples}.{ja,en}.js
+│       │       ├── core/        … parser.js（Markdown→手順書データ）/ score.js /
+│       │       │                  state.js（状態と集計）/ io.js（進捗JSON・共有URL・CSV等）。
+│       │       │                  ★DOM非依存。documentを触らせないこと（verify.mjsが落ちる）
+│       │       └── ui/          … dom.js（el/showScreen/toast/clipboard。ui内の最下層）/
+│       │                          renderer.js / modal.js / flow.js /
+│       │                          effects/{confetti,dodge}.js
+│       └── templates/    … tr_index.html（ja）/ tr_index_en.html（en）。
+│                           静的ラベルはmarkupに直書き＋SEOタグ。末尾は
+│                           `<link>` と5行のブートストラップ（言語別constantsをimportして
+│                           boot()を呼ぶ）だけで、ロジックもCSSも持たない
 └── bot/
     ├── mod.rs     … run_bot(token, state)。setup() で ChannelRouting::from_env()・
     │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn
@@ -253,12 +266,30 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   見せるのが目的なので、静的ラベルは各言語テンプレートのmarkupに直書きし、動的に
   組み立てる文言だけを渡す。Accept-Language による自動振り分けもしない（1URL=1言語を
   崩すとクローラ側で重複扱いされ得る）。
-  lod_chest_solver は計算層（`static/engine.js`。DOM非依存）と表現層（`static/ui.js`。
-  文言は `initUi(strings)` で受け取る）を言語間で共有するが、test_runner は元がDOM操作と
-  パーサーロジックが密結合した単一HTMLだったため、事前リファクタで分離するコストを
-  かけず ja/en 各テンプレートに全文複製する設計にした。英語版の翻訳スコープも「主要UI
-  文言のみ」に絞り、手順書パーサーが認識する見出しキーワード（`用語定義:` など）は
-  意図的に日本語のまま残している（英語手順書のネイティブ解釈はスコープ外）。
+  どちらも計算層と表現層を言語間で共有し、言語差は文言データだけに閉じ込める。
+  lod_chest_solver は `static/engine.js`（DOM非依存）+ `static/ui.js`（文言は `initUi(strings)`
+  で受け取る）。test_runner は `static/js/` のESモジュール群 + `constants/*.{ja,en}.js`
+  （テンプレートが自分の言語のものをimportして `boot()` に渡す）。
+  CSSも `static/style.css` 1本を両言語で共有する。
+- **test_runner の core/ はDOM非依存を維持すること**: `static/js/core/` の4モジュールは
+  `document` を一切参照しない。そのおかげで `verify.mjs` が実モジュールをimportして
+  node（VS CodeのElectron）だけで検証できる。`window`/`localStorage`/`LZString` は
+  `state.js` の保存3関数と `io.js` の共有URLに限って触ってよいが、`document` は不可。
+  `constants/config.js` にも実行時に `window` を評価する値を置かないこと（`core/` が
+  importしているので、置くと `verify.mjs` が動かなくなる。環境フラグは `ui/dom.js` へ）。
+  `ui/` 側は renderer ↔ modal ↔ flow ↔ effects/confetti が相互依存している（画面遷移の
+  相互呼び出し）。ESMは関数の循環importを正しく扱うので許容しているが、**importした
+  ものをモジュールのトップレベルで呼ばないこと**（TDZで落ちる）。`ui/dom.js` は
+  循環に入っていない葉なので、ここにアプリ層のフローを足さないこと。
+- **test_runner のパーサーは日英両方のキーワードを受け付ける**:
+  `用語定義|Definitions?|Glossary` / `配布物|Attachments?|Downloads?|Assets?` /
+  `ビルド|Build|Version` / ビルド値の記入モード `記入|入力|Enter|Fill ?in|TBD`。
+  エイリアスを足すときは **`(?:...)` の非キャプチャグループ**を使うこと
+  （`BUILD_LINE_RE` の `m[1]` と `BUILD_INPUT_RE` のグループ1を呼び出し側が使っている）。
+  一方 `準備するもの` / `試験箇所` / `試験の概要` と、表の見出し行（`手順` / `期待結果`）は
+  **元からパース対象外**。前置きは本文としてそのまま表示しているだけで、表の1行目は
+  文字列に関係なく無条件スキップしている。つまり英語手順書は元々そのまま通るので、
+  ここにエイリアスを足す必要はない。節タグは `【Windows】` の全角括弧のみ（`[Windows]` は未対応）。
 - **canonical/hreflang/sitemap の絶対URLは `api/mod.rs` の `base_url()` に集約**:
   `PUBLIC_BASE_URL`（任意。独自ドメインへ寄せたい場合に設定）があればそれを優先し、
   無ければ `X-Forwarded-Proto` + `Host` から組み立てる（Heroku等は手前でTLSを終端するため、
@@ -294,6 +325,17 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 askama はテンプレートをバイナリに埋め込むので、`templates/*.html` を直しても
 **再ビルド＋再起動しないと反映されない**（`static/*` の css/js はリロードで反映）。
 サーバーを起動したまま `cargo build` すると exe のロックで失敗する（os error 5）。
+
+フロントエンドの計算層の検証（node が入っていないので VS Code の Electron を node として使う）:
+
+```powershell
+$env:ELECTRON_RUN_AS_NODE="1"
+& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" src/api/lod_chest_solver/verify.mjs
+& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" src/api/test_runner/verify.mjs
+```
+
+ヘッドレスブラウザは無いので、**DOM描画・アニメーション・演出は自動検証できない**。
+`cargo test` も `verify.mjs` も通ったうえで、`cargo run` して実際に画面を触ること。
 
 Seedの更新（push前に思い出したら）: `cargo run --bin regen_seeds`。
 `data/seed/*.json` が更新されるので `git status` で差分を確認して commit/push する。
