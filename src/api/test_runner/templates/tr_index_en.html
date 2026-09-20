@@ -364,7 +364,10 @@ details.glossary-details summary{cursor:pointer;color:var(--gold-bright);font-we
 .term-popup-desc{font-size:15px;line-height:1.85;color:var(--text-light);background:rgba(0,0,0,0.22);border-radius:12px;padding:14px 16px;}
 .term-popup-desc strong{color:var(--gold-bright);}
 .term-popup-desc code{background:rgba(255,255,255,0.14);padding:1px 6px;border-radius:5px;font-size:0.9em;}
-.term-popup-card .btn{display:block;margin:16px auto 0;}
+.term-popup-desc.term-popup-desc-material{text-align:center;}
+.term-popup-desc-divider{height:1px;background:var(--glass-border);margin:12px 0;}
+.term-popup-actions-inline{display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap;}
+.term-popup-card .btn{display:block;margin:20px auto 0;padding:14px 44px;border-radius:999px;}
 @media (prefers-reduced-motion: reduce){ .term-popup-ring{animation:none;opacity:0;} }
 
 /* ---------- overlays ---------- */
@@ -442,7 +445,7 @@ details.glossary-details summary{cursor:pointer;color:var(--gold-bright);font-we
   100%{opacity:0;transform:translate(-50%,-58%) scale(0.96);}
 }
 #score-float{
-  position:fixed;left:50%;top:56%;transform:translate(-50%,0);z-index:60;
+  position:fixed;left:50%;top:56%;transform:translate(-50%,0);z-index:69;
   font-size:26px;font-weight:800;color:var(--ok);opacity:0;pointer-events:none;text-align:center;
   padding:10px 22px;border-radius:14px;
   background:rgba(10,8,30,0.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
@@ -548,7 +551,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .material-desc code{background:rgba(255,255,255,0.12);padding:1px 5px;border-radius:4px;}
 .material-desc strong{color:var(--text-light);}
 .material-actions{display:flex;gap:6px;flex-wrap:wrap;}
-.term-popup-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+.term-popup-link{font-size:13px;font-weight:600;}
+.term-popup-link-sep{color:var(--text-dim);font-size:12px;}
 
 /* 確認画面を短く保つため、読み込んだ手順の中身はリンク1行に畳んでモーダルで開く */
 .confirm-preview-link-row{margin-top:20px;}
@@ -851,7 +855,6 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
     <div class="term-popup-header" id="term-popup-header">📖 Term explanation</div>
     <h2 id="term-popup-title"></h2>
     <div id="term-popup-desc" class="term-popup-desc"></div>
-    <div class="term-popup-actions" id="term-popup-actions" hidden></div>
     <button class="btn btn-gold" id="term-popup-ok-btn">Got it!</button>
   </div>
 </div>
@@ -1815,6 +1818,16 @@ function materialActionsHtml(material) {
   var safeUrl = escapeHtml(material.url);
   return '<a class="btn btn-ghost btn-small" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">Open</a>' +
     '<button type="button" class="btn btn-ghost btn-small material-copy-btn" data-url="' + safeUrl + '">Copy link</button>';
+}
+
+// For the material popup. Use plain text links instead of button shapes so they
+// don't visually compete with the primary "Got it!" button.
+function materialPopupActionsHtml(material) {
+  if (!material.url || !/^https?:\/\//i.test(material.url)) return '';
+  var safeUrl = escapeHtml(material.url);
+  return '<a class="link-button term-popup-link" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">↗ Open</a>' +
+    '<span class="term-popup-link-sep" aria-hidden="true">|</span>' +
+    '<button type="button" class="link-button term-popup-link material-copy-btn" data-url="' + safeUrl + '">📋 Copy link</button>';
 }
 
 function materialRowHtml(material) {
@@ -2944,9 +2957,9 @@ function closeGlossaryModal() { el('modal-glossary').hidden = true; }
 function openTermPopup(entry) {
   el('term-popup-header').textContent = '📖 Term explanation';
   el('term-popup-title').textContent = entry.term;
-  el('term-popup-desc').innerHTML = entry.descHtml;
-  el('term-popup-actions').innerHTML = '';
-  el('term-popup-actions').hidden = true;
+  var desc = el('term-popup-desc');
+  desc.classList.remove('term-popup-desc-material');
+  desc.innerHTML = entry.descHtml;
   el('overlay-term').hidden = false;
   spawnConfetti(24, 0.3);
 }
@@ -2954,11 +2967,11 @@ function openTermPopup(entry) {
 function openMaterialPopup(material) {
   el('term-popup-header').textContent = '📎 Provided file';
   el('term-popup-title').textContent = material.name;
-  el('term-popup-desc').innerHTML = material.descHtml || '(No description)';
-  var actions = el('term-popup-actions');
-  var actionsHtml = materialActionsHtml(material);
-  actions.innerHTML = actionsHtml;
-  actions.hidden = (actionsHtml === '');
+  var desc = el('term-popup-desc');
+  desc.classList.add('term-popup-desc-material');
+  var actionsHtml = materialPopupActionsHtml(material);
+  desc.innerHTML = (material.descHtml || '(No description)') +
+    (actionsHtml ? '<div class="term-popup-desc-divider"></div><div class="term-popup-actions-inline">' + actionsHtml + '</div>' : '');
   el('overlay-term').hidden = false;
   spawnConfetti(24, 0.3);
 }
