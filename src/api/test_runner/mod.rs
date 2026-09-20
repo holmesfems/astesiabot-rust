@@ -113,8 +113,8 @@ mod tests {
         assert!(!html.contains("paste-hint"));
 
         // "用語定義" はパーサーが手順書内で認識するキーワード（body の静的マークアップには出てこない）。
-        // Step 1 搬出で main.js（パーサー本体）へ移った先を直接確認する。
-        let js = get_body("/static/js/main.js").await;
+        // Step 1 で main.js へ、Step 2 で core/parser.js へ移ったので、その先を直接確認する。
+        let js = get_body("/static/js/core/parser.js").await;
         assert!(js.contains("用語定義"));
     }
 
@@ -160,7 +160,39 @@ mod tests {
 
         let js = get_body("/static/js/main.js").await;
         assert!(js.contains("export function boot("));
-        assert!(js.contains("import { installI18n, T, P, S } from"));
+        assert!(js.contains("installI18n"));
+    }
+
+    /// Step 2 分割: 全モジュールが static/ から配信され、それぞれの責務が入っていること。
+    /// ES module は import を1本書き忘れても読み込み時には落ちず、その関数が呼ばれる瞬間まで
+    /// 表面化しないので、ここでは「配信されること」と「中身が期待した層のものであること」だけを見る。
+    /// 未定義参照の全数チェックは別途 static 解析で行う（cargo test では検出できない）。
+    #[tokio::test]
+    async fn static_serves_all_split_modules() {
+        // core/ は DOM 非依存であること（document を掴んでいたら層の切り分けが壊れている）
+        for (path, needle) in [
+            ("core/parser.js", "export function parseProcedure("),
+            ("core/score.js", "export function getPraiseForCombo("),
+            ("core/state.js", "export var state ="),
+            ("core/io.js", "export function buildShareUrl("),
+        ] {
+            let js = get_body(&format!("/static/js/{path}")).await;
+            assert!(js.contains(needle), "{path}");
+            assert!(!js.contains("document."), "{path} must stay DOM-free");
+        }
+
+        for (path, needle) in [
+            ("ui/dom.js", "export function el("),
+            ("ui/renderer.js", "export function renderStep("),
+            ("ui/modal.js", "export function openConfirmModal("),
+            ("ui/flow.js", "export function recordResult("),
+            ("ui/effects/confetti.js", "export function spawnConfetti("),
+            ("ui/effects/dodge.js", "export function wireNgDodge("),
+            ("constants/config.js", "export const STORAGE_KEY ="),
+        ] {
+            let js = get_body(&format!("/static/js/{path}")).await;
+            assert!(js.contains(needle), "{path}");
+        }
     }
 
     /// Step 1 搬出: 文言/演出/サンプルの constants が言語ごとに配信されること。
