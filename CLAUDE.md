@@ -124,7 +124,13 @@ src/
 │       │                    手順書のMarkdownを読み込みOK/NGを押すだけで進められる。
 │       │                    CDN参照ゼロ、進捗はサーバーに送らない。アークナイツ外の単発ツール）
 │       ├── mod.rs        … ルーター。"/"=ja / "/en"=en（lod_chest_solverと同じ1URL=1言語）。
-│       │                   "/static"=ServeDir。JS/CSSは全てここから配信する
+│       │                   "/static"=ServeDir。JS/CSSは全てここから配信する。
+│       │                   "/skill.zip"=test-procedure-formatterスキルの配布zip
+│       │                   （リクエスト毎に組み立てる。詳細は下記ポイント参照）
+│       ├── skill/        … 手順書整形AIエージェント用スキル test-procedure-formatter の正本
+│       │                   （SKILL.md / format.ja.md / format.en.md / validate.mjs の4ファイル。
+│       │                   parser.jsは置かない。理由は下記ポイント参照）。`/TestRunner/skill.zip`
+│       │                   がここ+static/js/core/parser.jsから毎回zipを組み立てて配布する
 │       ├── verify.mjs    … static/js/core/ と constants/ の検証（実モジュールをimportして
 │       │                   実行）。ui/ はDOM依存なので対象外。実行方法は「動作確認手順」参照
 │       ├── e2e.mjs       … 表現層のブラウザ実機テスト（Playwright）。`cargo run --quiet
@@ -312,6 +318,16 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   日本語キーワードが残っていると英語ユーザーに日本語での記述を強いることになる。
   `verify.mjs` はプロンプト内のコードブロックの例をそのままパーサーに通して、
   プロンプトが提示する書式が実際に解釈できることを日英とも確認している。
+- **整形スキルの parser.js は同梱コピーを持たない**: `GET /TestRunner/skill.zip`
+  （`test_runner/mod.rs`）はリクエストのたびに `test_runner/skill/`（SKILL.md /
+  format.ja.md / format.en.md / validate.mjs）と、アプリ本体の
+  `static/js/core/parser.js` を直接読んで zip を組み立てる。だから配布した zip の
+  パーサーが本体から古くなることは原理的に起きない。`skill/` に `parser.js` の
+  コピーを置かないこと（`verify.mjs` が `skill/parser.js` の非存在を検査する。
+  `mod.rs` のテストは zip 内の `parser.js` が本体とバイト一致することを検証する）。
+  ローカルの `.claude/skills/` は zip を展開して置くだけの使い捨てで、
+  `/.claude` は `.gitignore` によりデプロイ先に含まれないため、正本は
+  `src/api/test_runner/skill/` 側に置く（`.gitignore` はこの理由により変更しない）。
 - **canonical/hreflang/sitemap の絶対URLは `api/mod.rs` の `base_url()` に集約**:
   `PUBLIC_BASE_URL`（任意。独自ドメインへ寄せたい場合に設定）があればそれを優先し、
   無ければ `X-Forwarded-Proto` + `Host` から組み立てる（Heroku等は手前でTLSを終端するため、
@@ -348,6 +364,10 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
    - `http://localhost:3000/LodChestSolver`（日本語）/ `/LodChestSolver/en`（英語）
    - `http://localhost:3000/TestRunner`（日本語）/ `/TestRunner/en`（英語）
    - `http://localhost:3000/robots.txt` / `/sitemap.xml`
+   - `http://localhost:3000/TestRunner/skill.zip` … 手順書整形AIエージェント用スキル
+     （test-procedure-formatter）の配布zip。ダウンロードして展開すると
+     `test-procedure-formatter/` フォルダができるので、そのまま `.claude/skills/`
+     の下に置けば別端末でも動く（sitemapには含めていない。ページではないため）
 
 askama はテンプレートをバイナリに埋め込むので、`templates/*.html` を直しても
 **再ビルド＋再起動しないと反映されない**（`static/*` の css/js はリロードで反映）。

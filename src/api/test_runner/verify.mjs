@@ -475,20 +475,17 @@ ok('label injection: custom fallback section title',
    parser.parseProcedure('起動する\t画面が出る', customLabels).sections[0].title === 'Y',
    parser.parseProcedure('起動する\t画面が出る', customLabels).sections[0].title);
 
-// --- 5. スキル同梱コピーの同一性 ---
-// .claude/skills/test-procedure-author/ は別端末へコピーして使う配布物なので、
-// アプリ本体と中身がズレていないかをバイト単位で見る。
+// --- 5. test-procedure-formatter スキルの配布元（src/api/test_runner/skill/）---
+// ローカルの .claude/skills/ は zip を展開して置くだけの使い捨てなので、もう検証対象
+// ではない（合意事項3）。正本はここ（skill/）で、parser.js は「置かないこと」自体が
+// 検証対象（GET /TestRunner/skill.zip がリクエストのたびに本体の
+// static/js/core/parser.js を直接詰めるので、コピーがあると二重管理でズレる）。
 const REPO_ROOT_FOR_SKILL = fileURLToPath(new URL('../../../', import.meta.url));
-const SKILL_DIR = REPO_ROOT_FOR_SKILL + '.claude/skills/test-procedure-author/';
+const SKILL_DIR = REPO_ROOT_FOR_SKILL + 'src/api/test_runner/skill/';
 function readIfExists(p) {
   try { return fs.readFileSync(p); } catch (e) { return null; }
 }
-const appParserBuf = readIfExists(fileURLToPath(B + 'core/parser.js'));
-const skillParserBuf = readIfExists(SKILL_DIR + 'parser.js');
-ok('skill parser.js exists', skillParserBuf !== null, SKILL_DIR + 'parser.js');
-if (appParserBuf && skillParserBuf) {
-  ok('skill parser.js is byte-identical to app core/parser.js', appParserBuf.equals(skillParserBuf));
-}
+
 const skillFormatJa = readIfExists(SKILL_DIR + 'format.ja.md');
 const skillFormatEn = readIfExists(SKILL_DIR + 'format.en.md');
 ok('skill format.ja.md exists', skillFormatJa !== null, SKILL_DIR + 'format.ja.md');
@@ -499,8 +496,30 @@ if (skillFormatJa) {
 if (skillFormatEn) {
   ok('skill format.en.md matches AI_FORMAT_PROMPT(en) exactly', skillFormatEn.toString('utf-8') === MEN.AI_FORMAT_PROMPT);
 }
-ok('skill SKILL.md exists', readIfExists(SKILL_DIR + 'SKILL.md') !== null, SKILL_DIR + 'SKILL.md');
-ok('skill validate.mjs exists', readIfExists(SKILL_DIR + 'validate.mjs') !== null, SKILL_DIR + 'validate.mjs');
+
+const skillMd = readIfExists(SKILL_DIR + 'SKILL.md');
+ok('skill SKILL.md exists', skillMd !== null, SKILL_DIR + 'SKILL.md');
+if (skillMd) {
+  const nameMatch = skillMd.toString('utf-8').match(/^---\r?\n[\s\S]*?^name:\s*(\S+)\s*$/m);
+  ok('skill SKILL.md frontmatter name is test-procedure-formatter',
+     !!nameMatch && nameMatch[1] === 'test-procedure-formatter',
+     nameMatch ? nameMatch[1] : '(name: not found)');
+}
+
+const skillValidateMjs = readIfExists(SKILL_DIR + 'validate.mjs');
+ok('skill validate.mjs exists', skillValidateMjs !== null, SKILL_DIR + 'validate.mjs');
+if (skillValidateMjs) {
+  const src = skillValidateMjs.toString('utf-8');
+  const importSpecifiers = [...src.matchAll(/^import\s[\s\S]*?from\s+['"]([^'"]+)['"]/gm)].map((m) => m[1]);
+  ok('skill validate.mjs has at least one import', importSpecifiers.length > 0, importSpecifiers);
+  const badImports = importSpecifiers.filter((spec) => spec !== './parser.js' && !spec.startsWith('node:'));
+  ok('skill validate.mjs only imports node:* and ./parser.js (no repo-relative or external packages)',
+     badImports.length === 0, badImports);
+}
+
+// parser.js のコピーが無いこと（今回の設計の要）。ズレの再発をここで機械的に検出する。
+ok('skill/parser.js does NOT exist (parser is packed from static/js/core/parser.js at zip time)',
+   readIfExists(SKILL_DIR + 'parser.js') === null, SKILL_DIR + 'parser.js');
 
 console.log(fail === 0 ? '\nALL PASS' : '\n' + fail + ' FAILURES');
 if (fail > 0) process.exit(1);

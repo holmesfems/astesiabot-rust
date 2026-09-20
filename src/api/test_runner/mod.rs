@@ -16,15 +16,33 @@
 //! ために lz-string 1.5.0（MIT）を `static/lz-string.min.js` として同梱し、
 //! `/TestRunner/static` から同一オリジンで配信する（CDN参照はせず、オフライン動作を維持）。
 //! 進捗はサーバーへ送らず、フロントエンドが window.location.hash だけで復元する。
+//!
+//! `GET /TestRunner/skill.zip` は、手順書整形AIエージェント用のスキル
+//! （`test-procedure-formatter`）を配布する zip をリクエストごとに組み立てて返す。
+//! 中身は `skill/` の4ファイル + 本体の `static/js/core/parser.js`。
+//! `skill/` に `parser.js` のコピーは置かない（配布物のパーサーが本体から
+//! ズレることが原理的に起きないようにするための設計。詳細は `skill/SKILL.md` 冒頭参照）。
 
 use askama::Template;
-use axum::http::HeaderMap;
-use axum::response::{Html, Redirect};
+use axum::http::{header, HeaderMap, StatusCode};
+use axum::response::{Html, IntoResponse, Redirect};
 use axum::routing::get;
 use axum::Router;
 use tower_http::services::ServeDir;
 
 const STATIC_DIR: &str = "src/api/test_runner/static";
+
+/// `test-procedure-formatter` スキルの配布物。zip 内では `parser.js` を除いた
+/// 4ファイルをここから、`parser.js` 自体は `static/js/core/parser.js`（本体そのもの）
+/// から読む。ここに `parser.js` のコピーを置かないこと（配布物が古くなる原因になる）。
+const SKILL_FILES: [(&str, &str); 4] = [
+    ("SKILL.md", "src/api/test_runner/skill/SKILL.md"),
+    ("format.ja.md", "src/api/test_runner/skill/format.ja.md"),
+    ("format.en.md", "src/api/test_runner/skill/format.en.md"),
+    ("validate.mjs", "src/api/test_runner/skill/validate.mjs"),
+];
+const PARSER_JS_PATH: &str = "src/api/test_runner/static/js/core/parser.js";
+const SKILL_ZIP_ROOT_DIR: &str = "test-procedure-formatter";
 
 #[derive(Template)]
 #[template(path = "tr_index.html")]
@@ -66,6 +84,60 @@ async fn index_en(headers: HeaderMap) -> Html<String> {
     Html(page)
 }
 
+/// `test-procedure-formatter` スキルの zip を組み立てる。リクエストのたびに
+/// ディスクから読み直すので、配布物のパーサーが本体からズレることは起きない。
+/// 無圧縮（Stored）で十分な小さいファイル群なので圧縮はしない。
+fn build_skill_zip() -> std::io::Result<Vec<u8>> {
+    use std::io::{Cursor, Write};
+    use zip::write::SimpleFileOptions;
+    use zip::CompressionMethod;
+
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+
+    for (entry_name, path) in SKILL_FILES {
+        let data = std::fs::read(path)?;
+        writer
+            .start_file(format!("{SKILL_ZIP_ROOT_DIR}/{entry_name}"), options)
+            .map_err(std::io::Error::other)?;
+        writer.write_all(&data)?;
+    }
+    let parser_js = std::fs::read(PARSER_JS_PATH)?;
+    writer
+        .start_file(format!("{SKILL_ZIP_ROOT_DIR}/parser.js"), options)
+        .map_err(std::io::Error::other)?;
+    writer.write_all(&parser_js)?;
+
+    let cursor = writer.finish().map_err(std::io::Error::other)?;
+    Ok(cursor.into_inner())
+}
+
+async fn skill_zip() -> impl IntoResponse {
+    match build_skill_zip() {
+        Ok(bytes) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "application/zip".to_string()),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"test-procedure-formatter.zip\"".to_string(),
+                ),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Err(e) => {
+            // デプロイ事故（ファイル欠落等）を黙って隠さない。
+            eprintln!("skill.zip の組み立てに失敗しました: {e}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to build skill.zip",
+            )
+                .into_response()
+        }
+    }
+}
+
 pub fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -78,6 +150,7 @@ where
             "/en/",
             get(|| async { Redirect::permanent("/TestRunner/en") }),
         )
+        .route("/skill.zip", get(skill_zip))
         .nest_service("/static", ServeDir::new(STATIC_DIR))
 }
 
@@ -236,6 +309,68 @@ mod tests {
         assert!(en.contains("constants/phrases.en.js"));
         assert!(en.contains("constants/samples.en.js"));
         assert!(!en.contains("constants/strings.ja.js"));
+    }
+
+    /// `GET /skill.zip` が正しい `Content-Type`/`Content-Disposition` で
+    /// 5エントリの zip を返し、中の `parser.js` が本体 `static/js/core/parser.js` と
+    /// バイト一致すること。ここが緑なら「配った zip のパーサーが古い」は起こり得ない
+    /// （skill.zip は毎回ディスクから読んで組み立てるため）。
+    #[tokio::test]
+    async fn skill_zip_endpoint_serves_expected_entries_byte_identical_to_source() {
+        let app = router::<()>();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/skill.zip")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let headers = response.headers().clone();
+        assert_eq!(
+            headers.get(axum::http::header::CONTENT_TYPE).unwrap(),
+            "application/zip"
+        );
+        assert_eq!(
+            headers.get(axum::http::header::CONTENT_DISPOSITION).unwrap(),
+            "attachment; filename=\"test-procedure-formatter.zip\""
+        );
+
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let mut archive =
+            zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec())).expect("valid zip");
+
+        let mut names: Vec<String> = (0..archive.len())
+            .map(|i| archive.by_index(i).unwrap().name().to_string())
+            .collect();
+        names.sort();
+        let mut expected = vec![
+            "test-procedure-formatter/SKILL.md".to_string(),
+            "test-procedure-formatter/format.ja.md".to_string(),
+            "test-procedure-formatter/format.en.md".to_string(),
+            "test-procedure-formatter/validate.mjs".to_string(),
+            "test-procedure-formatter/parser.js".to_string(),
+        ];
+        expected.sort();
+        assert_eq!(names, expected);
+
+        let mut parser_in_zip = Vec::new();
+        {
+            let mut entry = archive
+                .by_name("test-procedure-formatter/parser.js")
+                .expect("parser.js entry present");
+            std::io::Read::read_to_end(&mut entry, &mut parser_in_zip).unwrap();
+        }
+        let parser_on_disk = std::fs::read(PARSER_JS_PATH).unwrap();
+        assert_eq!(
+            parser_in_zip, parser_on_disk,
+            "zip 内の parser.js は static/js/core/parser.js とバイト一致しなければならない \
+             （配布物のパーサーが古くなることが原理的に起きないことの検証）"
+        );
     }
 
     #[tokio::test]

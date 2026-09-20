@@ -179,6 +179,12 @@ async function runLangSuite(browser, baseUrl, lang) {
     const pasteText = await page.locator('#paste-textarea').inputValue();
     ok(`${label} boot: sample loaded into paste-textarea`, pasteText.length > 50, pasteText.length);
 
+    // --- 整形スキルのzipダウンロードリンク（見た目の崩れはブラウザ確認のみで担保。
+    //     ここでは href が正しいことだけを見る。中身は mod.rs のテストが担保している） ---
+    const skillZipHref = await page.locator('#skill-zip-link').getAttribute('href');
+    ok(`${label} skill-zip-link points to /TestRunner/skill.zip`,
+      skillZipHref === '/TestRunner/skill.zip', skillZipHref);
+
     // --- 開始 -> 確認モーダル ---
     await page.click('#paste-start-btn');
     await page.waitForSelector('#modal-confirm:not([hidden])', { timeout: 5000 });
