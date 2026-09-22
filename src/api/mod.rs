@@ -1,4 +1,5 @@
 mod ef_recipe_calculator;
+mod legacy_host_redirect;
 mod lod_chest_solver;
 mod recruitment;
 mod test_runner;
@@ -170,11 +171,19 @@ where
 }
 
 pub async fn run_api(state: Arc<AppState>) {
-    let app = web_ui_router::<Arc<AppState>>()
+    let mut app = web_ui_router::<Arc<AppState>>()
         .route("/recruitment/", post(recruitment::do_recruitment)) // Python と同じパス
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .fallback(not_found)
         .with_state(state);
+    // 旧ホスト（*.herokuapp.com / www.）の GET を PUBLIC_BASE_URL へ 301。未設定なら何もしない。
+    // serve_web は 127.0.0.1 でしか受けないので、ここ（本番側）だけに掛ける。
+    if let Some(canonical) = legacy_host_redirect::CanonicalBase::from_env() {
+        app = app.layer(axum::middleware::from_fn_with_state(
+            Arc::new(canonical),
+            legacy_host_redirect::redirect_legacy_host,
+        ));
+    }
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()

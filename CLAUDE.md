@@ -101,6 +101,8 @@ src/
 │   │                        UIのルートはここに足せば run_api にも serve_web にも自動で
 │   │                        反映される。片方にだけ書かないこと
 │   ├── recruitment.rs     … POST /recruitment/ （Python の doRecruitment と完全一致）
+│   ├── legacy_host_redirect.rs … 旧ホスト（*.herokuapp.com / www.）の GET/HEAD を
+│   │                        PUBLIC_BASE_URL へ 301 するミドルウェア（run_api のみに掛ける）
 │   ├── wl_battery_simulator/ … 武陵発電制御シミュレーター（askama + htmx の Web UI）
 │   │   ├── mod.rs        … ルーター（index/calculate/static配信）
 │   │   ├── battery_sim.rs… シミュレーションエンジン（Python版 batterySim.py 移植）
@@ -332,6 +334,11 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   `PUBLIC_BASE_URL`（任意。独自ドメインへ寄せたい場合に設定）があればそれを優先し、
   無ければ `X-Forwarded-Proto` + `Host` から組み立てる（Heroku等は手前でTLSを終端するため、
   schemeをヘッダから見ないとhttpになる）。SEO用のURLを足すときも個別にホスト名を書かない。
+- **旧ホストからのリダイレクトは GET/HEAD のみ**: `api/legacy_host_redirect.rs` は
+  `*.herokuapp.com` と `www.<正規ホスト>` へのリクエストを `PUBLIC_BASE_URL` へ 301 する
+  （未設定なら無効）。POST をリダイレクトするとクライアントが GET に変えて本文を捨てるため
+  API が壊れる。ショートカットから叩かれる `/recruitment/` と死活監視の `/health` は
+  パスでも除外している。axum の `Redirect::permanent` は 308 なので 301 は自前で組んでいる。
 - **Web UI のルートは `web_ui_router()` に集約する**: `api/mod.rs` の `run_api` に
   直接ルートを書くと、dev用の `serve_web`（bot/ExternalSourceRegistryを起こさない
   Web UI専用サーバー）とその `e2e.mjs` から見えなくなり、dev と本番でルート集合が
