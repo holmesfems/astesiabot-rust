@@ -16,9 +16,17 @@
      href="/TestRunner"{% if active_tool == "tr" %} aria-current="page"{% endif %}>{% if lang == "en" %}Test Runner{% else %}試験手順ランナー{% endif %}</a>
 </nav>
 <style>
+  /* 狭い画面でも折り返さず1行のまま横スクロールさせる(折り返すと sticky のバーが
+     縦に膨らんで本文を覆うため)。スクロールバーは細くして目立たせない。 */
   .toolnav-bar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #3a4258 transparent;
     align-items: center;
     gap: 8px;
     padding: 8px 16px;
@@ -31,7 +39,12 @@
     top: 0;
     z-index: 1000;
   }
+  .toolnav-label,
+  .toolnav-chip {
+    flex-shrink: 0;
+  }
   .toolnav-label {
+    white-space: nowrap;
     color: #8891a5;
     margin-right: 4px;
     letter-spacing: .02em;
@@ -57,3 +70,15 @@
     pointer-events: none;
   }
 </style>
+<script>
+  // 横スクロール時、選択中のチップが画面外なら見える位置までバーだけをスクロールする
+  // (scrollIntoView はページ全体の縦スクロールも動かし得るので使わない)。
+  // offsetLeft は sticky(=positioned) なバー基準になる。
+  (function () {
+    var bar = document.querySelector('.toolnav-bar');
+    var active = bar && bar.querySelector('.toolnav-chip-active');
+    if (!active) return;
+    var right = active.offsetLeft + active.offsetWidth + 16;
+    if (right > bar.clientWidth) bar.scrollLeft = right - bar.clientWidth;
+  })();
+</script>
