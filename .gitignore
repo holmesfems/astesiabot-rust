@@ -4,3 +4,4 @@
 token.txt
 /ref_python
 /.claude
+.claude/settings.json
