@@ -1,252 +1,327 @@
-// トップページの星空背景。天球(単位球)上に星と天の川を置き、ステレオ投影で
-// 描画する。視線は天の北極まわりに一定速度で回り続ける(=空がゆっくり日周運動する)。
-// 星の配置はシード付き乱数なので毎回同じ空になる。
-// 描画先は #star-canvas。装飾専用なので失敗しても本文には影響させない。
+// トップページの星空背景: 「宇宙空間から見た星空」。
+//
+// 星は3次元空間の球(半径 FIELD_RADIUS)の中にばらまき、カメラはその内側から
+// 透視投影で眺める。星の集まり全体を、カメラの少し後ろにある点(PIVOT)を中心に
+// ゆっくり回す。回転中心がカメラ位置と一致していると遠近に関係なく全ての星が同じ
+// 角速度で動いて奥行きが出ない。中心をカメラの後ろへずらすと、見えている星は全部
+// 同じ向きに流れつつ、遠い星ほど全体の回転(1周 PERIOD_SECONDS)そのままの速さに、
+// 手前の星ほどそれより速く動く(=視差)。中心をカメラの前に置くと、中心より奥の星が
+// 逆向きに流れて「遠い星ほど動かない」感じが出ないので、後ろに置いている。
+// 明るさは距離の2乗に反比例させ、見かけの明るさが一定以上の星にだけ光条を付ける。
+// 星は瞬かせない。星雲は星の球のさらに外側に置いた淡い雲の塊で、同じ回転に乗る。
+//
+// 描画先は #star-canvas。装飾専用なので、失敗しても本文には影響させない。
 (function(){
   "use strict";
   var canvas = document.getElementById("star-canvas");
   if(!canvas || !canvas.getContext){ return }
   var ctx = canvas.getContext("2d");
-  var reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
-  var reduced = reduceMQ.matches;
-  var TAU = Math.PI * 2, D2R = Math.PI / 180;
+  var motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  var still = motionQuery.matches;
 
   // ============ 見た目パラメータ(微調整はここだけ) ============
-  var SKY = {
-    PERIOD_SECONDS: 1200,  // 天球が1周する秒数(20分)
-    VIEW_DEC_DEG: 52,      // 視線の赤緯。北極が画面上端のすぐ外に来る程度
-    VIEW_RA0_DEG: 300,     // 初期の視線の赤経(はくちょう座付近=天の川が画面を横切る)
-    ROLL_DEG: 24,          // 画面の傾き。正で北極が右上へ寄る
-    FOV_DEG: 60,           // 対角方向の視野角(狭い画面では FOV_MOBILE_DEG)
-    FOV_MOBILE_DEG: 46,
-    STARS: 4300,           // 全天の星の数(うち STARS_FIELD 個は一様分布、残りは銀河面に集中)
-    STARS_FIELD: 2900,
-    MW_CLOUDS: 2300,       // 天の川の光の雲(ぼかしスプライト)
-    MW_DUST: 3600,         // 天の川の微光星(1pxの点)
-    MW_GAIN: 1.7,          // 天の川の明るさ倍率(参考実装比。本文の裏でも見えるよう強め)
-    METEOR_FIRST_MS: 5000, // 最初の流れ星までの時間
-    METEOR_GAP_MS: [9000, 23000]
+  var CFG = {
+    SEED: 20260923,
+    PERIOD_SECONDS: 1200,      // 星の集まりが1回転する秒数(20分)
+    AXIS: [0.28, 1, 0.18],     // 回転軸(正規化前)。ほぼ縦軸まわり=星は横へ流れる
+    FIELD_RADIUS: 1,           // 星を置く球の半径(ワールド単位)
+    PIVOT_Z: -0.35,            // 回転中心の位置(z。負=カメラの後ろ)。0だと視差が消える
+    NEAR_Z: 0.04,              // これより手前(z)の星は描かない
+    NEAR_FADE_Z: 0.16,         // ここから NEAR_Z にかけて手前の星を消していく
+    FOV_DEG: 72,               // 画面の対角方向の視野角
+    STAR_COUNT: 10000,         // 球全体の星の数(視野に入るのはこの一部)
+    REF_DIST: 0.5,             // この距離にある lum=1 の星を「明るさ1」とする
+    FLARE_MIN: 1.9,            // 見かけの明るさがこれ以上で光条を付ける
+    NEBULA_CLUSTERS: 14,       // 星雲の塊の数(全方向に散らして常にどこかが見えるように)
+    NEBULA_PUFFS: 16,          // 塊ひとつあたりの雲の数
+    NEBULA_DIST: [1.25, 1.7],  // 星雲を置く距離(回転中心から)
+    NEBULA_GAIN: 1.5,          // 星雲の濃さの倍率
+    NEBULA_SCALE: 0.25         // 星雲を描く作業用キャンバスの解像度(画面比)。ぼやけた絵なので
+                               // 低解像度で描いて拡大しても見た目は変わらず、描画負荷が大きく減る
   };
-  var OMEGA = TAU / SKY.PERIOD_SECONDS;
 
-  // ============ シード付き乱数 ============
-  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-  var rnd = mulberry32(90417);
-  function gauss(){var u=0;while(u===0)u=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(TAU*rnd());}
-  function radec(ra,dec){var c=Math.cos(dec);return [c*Math.cos(ra),c*Math.sin(ra),Math.sin(dec)];}
-  function norm(v){var l=Math.hypot(v[0],v[1],v[2])||1;return [v[0]/l,v[1]/l,v[2]/l];}
-  function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
-  function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
-
-  // ============ 銀河座標系(J2000の銀河北極と銀河中心) ============
-  // 天の川を実際の空と同じ位置・傾きに流すため。
-  var GN = radec(192.8595*D2R, 27.1283*D2R);
-  var GA = radec(266.405*D2R, -28.936*D2R);
-  (function(){var d=dot(GA,GN);GA=norm([GA[0]-d*GN[0],GA[1]-d*GN[1],GA[2]-d*GN[2]]);})();
-  var GB = cross(GN, GA);
-  function galactic(l,b){var cb=Math.cos(b),sb=Math.sin(b),cl=Math.cos(l),sl=Math.sin(l);
-    return [cb*(cl*GA[0]+sl*GB[0])+sb*GN[0], cb*(cl*GA[1]+sl*GB[1])+sb*GN[1], cb*(cl*GA[2]+sl*GB[2])+sb*GN[2]];}
-
-  // ============ 星 ============
-  // 等級は暗い星ほど多い指数分布。色は色温度(青白→白→黄→橙)のグラデーションから取る。
-  var NS = SKY.STARS;
-  var SX=new Float32Array(NS),SY=new Float32Array(NS),SZ=new Float32Array(NS);
-  var MAG=new Float32Array(NS),RAD=new Float32Array(NS),ALP=new Float32Array(NS);
-  var PH=new Float32Array(NS),FQ=new Float32Array(NS),TB=new Uint8Array(NS);
-  var SEL=new Float32Array(NS); // 狭い画面での間引き用の一様乱数(resize の density と比べる)
-  var COL=new Array(NS);
-  var TSTOPS=[[0,[157,184,255]],[.3,[206,220,255]],[.5,[255,248,236]],[.72,[255,226,173]],[1,[255,179,102]]];
-  function tcol(t){for(var k=1;k<TSTOPS.length;k++){if(t<=TSTOPS[k][0]){var a=TSTOPS[k-1],b=TSTOPS[k],f=(t-a[0])/(b[0]-a[0]);return [0,1,2].map(function(j){return Math.round(a[1][j]+(b[1][j]-a[1][j])*f)});}}return TSTOPS[4][1];}
-  for(var i=0;i<NS;i++){
-    var v;
-    if(i<SKY.STARS_FIELD){var z=2*rnd()-1,ra=TAU*rnd(),c=Math.sqrt(1-z*z);v=[c*Math.cos(ra),c*Math.sin(ra),z];}
-    else{v=galactic(rnd()*TAU, gauss()*0.14);}
-    SX[i]=v[0];SY[i]=v[1];SZ[i]=v[2];
-    var m=Math.max(-1.3, 6.6+Math.log10(rnd()+1e-9)/0.44);
-    MAG[i]=m;
-    RAD[i]=0.55+Math.max(0,6.6-m)*0.42;
-    ALP[i]=Math.min(1,0.34+(6.6-m)*0.17);
-    PH[i]=rnd()*TAU; FQ[i]=0.0012+rnd()*0.0035;
-    var t=Math.min(1,Math.max(0,0.5+gauss()*0.21));
-    var col=tcol(t); COL[i]="rgb("+col[0]+","+col[1]+","+col[2]+")";
-    TB[i]=Math.min(4,Math.floor(t*5));
-    SEL[i]=rnd();
+  // ============ 乱数(固定シード: 毎回同じ空) ============
+  function makeRng(seed){
+    var state = seed >>> 0;
+    return function(){
+      state = (state + 0x9E3779B9) >>> 0;
+      var z = state;
+      z = Math.imul(z ^ (z >>> 16), 0x85EBCA6B);
+      z = Math.imul(z ^ (z >>> 13), 0xC2B2AE35);
+      return ((z ^ (z >>> 16)) >>> 0) / 4294967296;
+    };
+  }
+  var rng = makeRng(CFG.SEED);
+  function between(lo, hi){ return lo + (hi - lo) * rng() }
+  function normal(){ // Box-Muller
+    var u = 1 - rng(), v = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  // 単位球面上の一様な方向
+  function randomDirection(){
+    var z = between(-1, 1), a = between(0, 2 * Math.PI), s = Math.sqrt(1 - z * z);
+    return [s * Math.cos(a), s * Math.sin(a), z];
   }
 
-  // ============ 天の川 ============
-  // 銀河面に沿って、中心方向ほど厚く明るい雲を置く。中心付近には暗黒帯(ダストレーン)を
-  // 抜き、低周波のノイズで濃淡のむらを付ける。
-  var NMW=SKY.MW_CLOUDS, NDU=SKY.MW_DUST;
-  var MX=new Float32Array(NMW),MY=new Float32Array(NMW),MZ=new Float32Array(NMW),MS=new Float32Array(NMW),MA=new Float32Array(NMW),MT=new Uint8Array(NMW);
-  var DX=new Float32Array(NDU),DY=new Float32Array(NDU),DZ=new Float32Array(NDU),DA=new Float32Array(NDU);
-  function mwSample(thick){
-    for(var guard=0;guard<60;guard++){
-      var l = rnd()<0.52 ? rnd()*TAU-Math.PI : gauss()*0.95;
-      var cf=(1+Math.cos(l))/2;
-      var b=gauss()*(thick+0.07*cf*cf);
-      var lane=0.014*Math.sin(l*2.3)+0.004;
-      if(Math.abs(l)<1.3 && Math.abs(b-lane)<0.026*(0.55+cf) && rnd()<0.82) continue;
-      var nz=0.5+0.5*Math.sin(l*11.7+Math.sin(l*3.1)*2)*Math.cos(b*37+l*5.3);
-      if(rnd()>0.3+0.7*nz) continue;
-      return {v:galactic(l,b),cf:cf};
+  // ============ 星の色 ============
+  // [重み, r, g, b]。白〜青白を多めに、黄・橙は少なめ。
+  var STAR_TINTS = [
+    [0.22, 170, 196, 255],
+    [0.34, 222, 232, 255],
+    [0.24, 255, 250, 242],
+    [0.13, 255, 232, 190],
+    [0.07, 255, 198, 150]
+  ];
+  function pickTint(){
+    var x = rng(), acc = 0;
+    for(var i = 0; i < STAR_TINTS.length; i++){
+      acc += STAR_TINTS[i][0];
+      if(x <= acc){ return i }
     }
-    return {v:galactic(rnd()*TAU,0),cf:0.3};
+    return STAR_TINTS.length - 1;
   }
-  for(i=0;i<NMW;i++){
-    var s=mwSample(0.075);
-    MX[i]=s.v[0];MY[i]=s.v[1];MZ[i]=s.v[2];
-    MS[i]=(12+rnd()*34)*(0.8+0.5*s.cf);
-    MA[i]=(0.028+0.05*rnd())*(0.5+0.65*s.cf);
-    var r=rnd(); MT[i]= r<0.2?2:(r<0.55?0:1);
+  var TINT_CSS = STAR_TINTS.map(function(t){ return "rgb(" + t[1] + "," + t[2] + "," + t[3] + ")" });
+
+  // ============ 星の生成 ============
+  // 位置は球内で体積一様(半径は一様乱数の立方根)。つまり遠くの星ほど数が多く、
+  // それらは距離のぶん暗く小さく見える。固有の明るさ lum は大半が暗く、ごく一部が明るい。
+  var N = CFG.STAR_COUNT;
+  var PX0 = new Float32Array(N), PY0 = new Float32Array(N), PZ0 = new Float32Array(N);
+  var LUM = new Float32Array(N), TINT = new Uint8Array(N), KEEP = new Float32Array(N);
+  (function(){
+    for(var i = 0; i < N; i++){
+      var d = randomDirection(), r = CFG.FIELD_RADIUS * Math.cbrt(rng());
+      // 回転中心まわりの相対位置で持つ(回転はこの相対位置に掛ける)
+      PX0[i] = d[0] * r; PY0[i] = d[1] * r; PZ0[i] = d[2] * r;
+      var u = rng();
+      LUM[i] = 0.18 + 0.5 * u * u + 3.2 * Math.pow(u, 14);
+      TINT[i] = pickTint();
+      KEEP[i] = rng();
+    }
+  })();
+
+  // ============ 星雲の生成 ============
+  // 塊の中心を全方向にばらし、その周りに大きさの違う雲をガウス分布で散らす。
+  // 色は藍・菫・青緑・薄紅の淡いものだけ。
+  var NEBULA_TINTS = [[92, 112, 230], [146, 108, 214], [78, 160, 205], [196, 118, 178]];
+  var nebula = [];
+  (function(){
+    for(var c = 0; c < CFG.NEBULA_CLUSTERS; c++){
+      var dir = randomDirection();
+      var dist = between(CFG.NEBULA_DIST[0], CFG.NEBULA_DIST[1]);
+      var tintA = Math.floor(rng() * NEBULA_TINTS.length);
+      var tintB = Math.floor(rng() * NEBULA_TINTS.length);
+      for(var k = 0; k < CFG.NEBULA_PUFFS; k++){
+        var spread = 0.32;
+        nebula.push({
+          x: dir[0] * dist + normal() * spread,
+          y: dir[1] * dist + normal() * spread * 0.6,
+          z: dir[2] * dist + normal() * spread,
+          size: between(0.25, 0.7),
+          alpha: between(0.035, 0.085),
+          tint: rng() < 0.65 ? tintA : tintB
+        });
+      }
+    }
+  })();
+
+  // ============ スプライト(起動時に1回だけ作る) ============
+  function makeCanvas(size){
+    var c = document.createElement("canvas");
+    c.width = c.height = size;
+    return c;
   }
-  for(i=0;i<NDU;i++){
-    var s2=mwSample(0.055);
-    DX[i]=s2.v[0];DY[i]=s2.v[1];DZ[i]=s2.v[2];
-    DA[i]=0.12+rnd()*0.4*(0.5+s2.cf);
+  // 星雲用: 中心がふんわり明るく、縁へなめらかに消える円
+  var NEBULA_SPRITES = NEBULA_TINTS.map(function(t){
+    var c = makeCanvas(128), g = c.getContext("2d");
+    var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    var rgb = t[0] + "," + t[1] + "," + t[2];
+    grad.addColorStop(0, "rgba(" + rgb + ",1)");
+    grad.addColorStop(0.4, "rgba(" + rgb + ",0.5)");
+    grad.addColorStop(0.75, "rgba(" + rgb + ",0.14)");
+    grad.addColorStop(1, "rgba(" + rgb + ",0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    return c;
+  });
+  // 明るい星用: 小さな光のにじみ + 縦横4本の光条(先へ行くほど細く薄く)
+  var FLARE_SIZE = 256, FLARE_HALF = FLARE_SIZE / 2;
+  var FLARE_SPRITES = STAR_TINTS.map(function(t){
+    var c = makeCanvas(FLARE_SIZE), g = c.getContext("2d");
+    var rgb = t[1] + "," + t[2] + "," + t[3];
+    g.translate(FLARE_HALF, FLARE_HALF);
+    var halo = g.createRadialGradient(0, 0, 0, 0, 0, FLARE_HALF * 0.22);
+    halo.addColorStop(0, "rgba(" + rgb + ",0.55)");
+    halo.addColorStop(1, "rgba(" + rgb + ",0)");
+    g.fillStyle = halo;
+    g.fillRect(-FLARE_HALF, -FLARE_HALF, FLARE_SIZE, FLARE_SIZE);
+    for(var q = 0; q < 4; q++){
+      g.save();
+      g.rotate(q * Math.PI / 2);
+      var ray = g.createLinearGradient(0, 0, FLARE_HALF, 0);
+      ray.addColorStop(0, "rgba(" + rgb + ",0.9)");
+      ray.addColorStop(0.35, "rgba(" + rgb + ",0.28)");
+      ray.addColorStop(1, "rgba(" + rgb + ",0)");
+      g.fillStyle = ray;
+      g.beginPath();
+      g.moveTo(0, -2.2);
+      g.lineTo(FLARE_HALF, 0);
+      g.lineTo(0, 2.2);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+    return c;
+  });
+
+  // ============ 回転 ============
+  // 回転軸 AXIS まわりに角度 angle だけ回す3x3行列(ロドリゲスの回転公式)。
+  var axis = (function(){
+    var a = CFG.AXIS, l = Math.hypot(a[0], a[1], a[2]);
+    return [a[0] / l, a[1] / l, a[2] / l];
+  })();
+  var M = new Float64Array(9);
+  function setRotation(angle){
+    var c = Math.cos(angle), s = Math.sin(angle), t = 1 - c;
+    var x = axis[0], y = axis[1], z = axis[2];
+    M[0] = t*x*x + c;   M[1] = t*x*y - s*z; M[2] = t*x*z + s*y;
+    M[3] = t*x*y + s*z; M[4] = t*y*y + c;   M[5] = t*y*z - s*x;
+    M[6] = t*x*z - s*y; M[7] = t*y*z + s*x; M[8] = t*z*z + c;
   }
 
-  // ============ スプライト(放射グラデーションの円) ============
-  function blob(r,g,b,a){var c=document.createElement("canvas");c.width=c.height=64;var x=c.getContext("2d");var gr=x.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,"rgba("+r+","+g+","+b+","+a+")");gr.addColorStop(.35,"rgba("+r+","+g+","+b+","+(a*.45)+")");gr.addColorStop(1,"rgba("+r+","+g+","+b+",0)");x.fillStyle=gr;x.fillRect(0,0,64,64);return c;}
-  var MWSPR=[blob(150,176,255,1),blob(255,240,216,1),blob(255,196,150,1)];
-  var GLOW=[];for(var k=0;k<5;k++){var gc=tcol((k+.5)/5);GLOW.push(blob(gc[0],gc[1],gc[2],.9));}
-
-  // ============ 投影 ============
-  // 天球を視線の赤経 ra だけZ軸まわりに回し、赤緯 dec だけ傾けてから、視線方向を
-  // 中心にステレオ投影する。最後に画面内でロール(ROLL_DEG)を掛ける。
-  // 回転は ra を増やすだけ=天の北極まわりの剛体回転なので、星は北極を中心に弧を描く。
-  var viewRa = SKY.VIEW_RA0_DEG*D2R;
-  var viewDec = SKY.VIEW_DEC_DEG*D2R;
-  var cR=1,sR=0,cD=Math.cos(viewDec),sD=Math.sin(viewDec);
-  var cRoll=Math.cos(SKY.ROLL_DEG*D2R), sRoll=Math.sin(SKY.ROLL_DEG*D2R);
-  var SC=600,CX=0,CY=0,W=0,H=0,DPR=1,SZSCALE=1;
-  var starDensity=1, drawCloudsN=NMW, drawDustN=NDU;
-  var PX=0,PY=0,PD=0;
-  function setView(){cR=Math.cos(viewRa);sR=Math.sin(viewRa);}
-  function proj(x,y,z){
-    var x1=x*cR+y*sR, y1=-x*sR+y*cR;
-    var d=x1*cD+z*sD;
-    if(d<-0.3) return false;
-    var up=-x1*sD+z*cD;
-    var k=SC*2/(1+d);
-    var ux=-y1*k, uy=-up*k;
-    PX=CX+ux*cRoll-uy*sRoll; PY=CY+ux*sRoll+uy*cRoll; PD=d;
-    return true;
-  }
-  function onScreen(m){return PX>-m&&PX<W+m&&PY>-m&&PY<H+m;}
+  // ============ 画面 ============
+  var width = 0, height = 0, dpr = 1, focal = 1, keepRatio = 1;
+  var nebulaCanvas = document.createElement("canvas");
+  var nebulaCtx = nebulaCanvas.getContext("2d");
+  var angle = 0;
+  var omega = 2 * Math.PI / CFG.PERIOD_SECONDS;
 
   function resize(){
-    W=Math.max(1,window.innerWidth);H=Math.max(1,window.innerHeight);
-    DPR=Math.min(2,window.devicePixelRatio||1);
-    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
-    canvas.style.width=W+"px";canvas.style.height=H+"px";
-    var mobile=W<760;
-    CX=W/2; CY=H/2;
-    var halfDiag=Math.hypot(W,H)/2;
-    var fov=(mobile?SKY.FOV_MOBILE_DEG:SKY.FOV_DEG)*D2R;
-    SC=halfDiag/(2*Math.tan(fov/2));
-    SZSCALE=Math.max(0.55,Math.min(1.4,SC/700));
-    // 狭い画面では同じ視野に同じ数の星が詰まって重く・うるさくなるので、面積に応じて
-    // 間引く。星は配列の前半が一様分布・後半が銀河面なので先頭から切ると銀河面だけが
-    // 消える。星ごとの一様乱数 SEL で選ぶ。天の川の雲と微光星は生成順に偏りが無いので
-    // 先頭から一部だけ描けばよい。
-    var density=Math.max(0.45,Math.min(1,(W*H)/(1440*900)));
-    starDensity=density;
-    drawCloudsN=Math.round(NMW*Math.max(0.7,density));
-    drawDustN=Math.round(NDU*density);
-    if(reduced){ draw(performance.now()) }
+    width = Math.max(1, window.innerWidth);
+    height = Math.max(1, window.innerHeight);
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    var halfDiag = Math.hypot(width, height) / 2;
+    focal = halfDiag / Math.tan(CFG.FOV_DEG * Math.PI / 360);
+    // 狭い画面では同じ視野に同じ数の星が詰まるので、面積に応じて間引く。
+    keepRatio = Math.max(0.4, Math.min(1, (width * height) / (1440 * 900)));
+    nebulaCanvas.width = Math.max(1, Math.round(width * CFG.NEBULA_SCALE));
+    nebulaCanvas.height = Math.max(1, Math.round(height * CFG.NEBULA_SCALE));
+    render();
   }
 
   // ============ 描画 ============
-  var meteor=null, nextMeteor=performance.now()+SKY.METEOR_FIRST_MS;
+  function render(){
+    setRotation(angle);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, width, height);
+    var cx = width / 2, cy = height / 2, pz = CFG.PIVOT_Z;
+    var m0=M[0],m1=M[1],m2=M[2],m3=M[3],m4=M[4],m5=M[5],m6=M[6],m7=M[7],m8=M[8];
 
-  function draw(now){
-    setView();
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    ctx.globalCompositeOperation="source-over";ctx.globalAlpha=1;
-    ctx.clearRect(0,0,W,H);
-
-    // 天の川(加算合成で重なるほど明るく)
-    ctx.globalCompositeOperation="lighter";
-    for(var i=0;i<drawCloudsN;i++){
-      if(!proj(MX[i],MY[i],MZ[i])||PD<-0.1) continue;
-      var s=MS[i]*SZSCALE*(1.2/(0.2+PD*0.5+0.5));
-      if(!onScreen(s)) continue;
-      ctx.globalAlpha=Math.min(1,MA[i]*SKY.MW_GAIN);
-      ctx.drawImage(MWSPR[MT[i]],PX-s/2,PY-s/2,s,s);
+    // --- 星雲(低解像度の作業用キャンバスに加算合成で描き、拡大して貼る) ---
+    var ns = CFG.NEBULA_SCALE;
+    nebulaCtx.setTransform(1, 0, 0, 1, 0, 0);
+    nebulaCtx.globalCompositeOperation = "source-over";
+    nebulaCtx.globalAlpha = 1;
+    nebulaCtx.clearRect(0, 0, nebulaCanvas.width, nebulaCanvas.height);
+    nebulaCtx.setTransform(ns, 0, 0, ns, 0, 0);
+    nebulaCtx.globalCompositeOperation = "lighter";
+    for(var n = 0; n < nebula.length; n++){
+      var b = nebula[n];
+      var z = m6*b.x + m7*b.y + m8*b.z + pz;
+      if(z < 0.2){ continue }
+      var sx = cx + focal * (m0*b.x + m1*b.y + m2*b.z) / z;
+      var sy = cy - focal * (m3*b.x + m4*b.y + m5*b.z) / z;
+      var size = focal * b.size / z;
+      if(sx + size < 0 || sx - size > width || sy + size < 0 || sy - size > height){ continue }
+      nebulaCtx.globalAlpha = Math.min(1, b.alpha * CFG.NEBULA_GAIN);
+      nebulaCtx.drawImage(NEBULA_SPRITES[b.tint], sx - size, sy - size, size * 2, size * 2);
     }
-    ctx.fillStyle="#e3e8ff";
-    for(i=0;i<drawDustN;i++){
-      if(!proj(DX[i],DY[i],DZ[i])||!onScreen(2)) continue;
-      ctx.globalAlpha=Math.min(1,DA[i]*0.85*SKY.MW_GAIN);ctx.fillRect(PX,PY,1,1);
-    }
-    ctx.globalCompositeOperation="source-over";
+    ctx.drawImage(nebulaCanvas, 0, 0, width, height);
 
-    drawStars(now);
-    drawMeteor(now);
-    ctx.globalAlpha=1;
-  }
-
-  // 明るい星(等級<3.4)は色付きのグロー、特に明るい星(<1.2)は十字の光条を付ける。
-  function drawStars(now){
-    var amp=reduced?0:0.32;
-    for(var i=0;i<NS;i++){
-      if(SEL[i]>starDensity||!proj(SX[i],SY[i],SZ[i])||!onScreen(30)) continue;
-      var x=PX,y=PY;
-      var tw=1-amp*(0.5+0.5*Math.sin(now*FQ[i]+PH[i]))*(MAG[i]>3?1:0.55);
-      var r=RAD[i]*(0.85+0.3*SZSCALE);
-      var a=ALP[i]*tw;
-      if(MAG[i]<3.4){
-        var gs=r*(MAG[i]<1.5?11:8);
-        ctx.globalAlpha=a*0.55;ctx.drawImage(GLOW[TB[i]],x-gs/2,y-gs/2,gs,gs);
+    // --- 星 ---
+    var flares = [];
+    var ref2 = CFG.REF_DIST * CFG.REF_DIST;
+    var fadeSpan = CFG.NEAR_FADE_Z - CFG.NEAR_Z;
+    ctx.globalCompositeOperation = "source-over";
+    for(var i = 0; i < N; i++){
+      if(KEEP[i] > keepRatio){ continue }
+      var x0 = PX0[i], y0 = PY0[i], z0 = PZ0[i];
+      var wz = m6*x0 + m7*y0 + m8*z0 + pz;
+      if(wz < CFG.NEAR_Z){ continue }
+      var wx = m0*x0 + m1*y0 + m2*z0;
+      var wy = m3*x0 + m4*y0 + m5*z0;
+      var px = cx + focal * wx / wz;
+      var py = cy - focal * wy / wz;
+      if(px < -8 || px > width + 8 || py < -8 || py > height + 8){ continue }
+      var dist2 = wx*wx + wy*wy + wz*wz;
+      var bright = Math.min(6, LUM[i] * ref2 / dist2);
+      var fade = wz < CFG.NEAR_FADE_Z ? (wz - CFG.NEAR_Z) / fadeSpan : 1;
+      var alpha = Math.min(1, 0.24 + 0.8 * Math.sqrt(bright)) * fade;
+      if(alpha < 0.03){ continue }
+      var radius = Math.min(2.6, 0.5 + 0.8 * Math.sqrt(bright));
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = TINT_CSS[TINT[i]];
+      if(radius < 1.1){
+        ctx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
+      }else{
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, 2 * Math.PI);
+        ctx.fill();
       }
-      ctx.globalAlpha=a;ctx.fillStyle=COL[i];
-      if(r<1.1){ctx.fillRect(x-r,y-r,r*2,r*2);}
-      else{ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();}
-      if(MAG[i]<1.2){
-        var L=r*6*tw;ctx.globalAlpha=0.35*tw;ctx.strokeStyle=COL[i];ctx.lineWidth=0.7;
-        ctx.beginPath();ctx.moveTo(x-L,y);ctx.lineTo(x+L,y);ctx.moveTo(x,y-L);ctx.lineTo(x,y+L);ctx.stroke();
-      }
+      if(bright >= CFG.FLARE_MIN){ flares.push(px, py, bright, TINT[i], fade) }
     }
-  }
 
-  function drawMeteor(now){
-    if(reduced)return;
-    if(!meteor&&now>nextMeteor){
-      meteor={x:W*(0.1+Math.random()*0.6),y:H*(0.08+Math.random()*0.4),a:Math.PI*0.15+Math.random()*0.35,t0:now,len:120+Math.random()*120,sp:0.9+Math.random()*0.5};
-      nextMeteor=now+SKY.METEOR_GAP_MS[0]+Math.random()*(SKY.METEOR_GAP_MS[1]-SKY.METEOR_GAP_MS[0]);
+    // --- 明るい星の光条(星の上に加算で重ねる) ---
+    ctx.globalCompositeOperation = "lighter";
+    for(var f = 0; f < flares.length; f += 5){
+      var fb = flares[f + 2];
+      var half = Math.min(46, 10 + 12 * Math.sqrt(fb - CFG.FLARE_MIN + 0.1));
+      ctx.globalAlpha = Math.min(0.85, 0.35 + 0.15 * fb) * flares[f + 4];
+      ctx.drawImage(FLARE_SPRITES[flares[f + 3]], flares[f] - half, flares[f + 1] - half, half * 2, half * 2);
     }
-    if(!meteor)return;
-    var t=(now-meteor.t0)/900;if(t>1){meteor=null;return;}
-    var d=t*meteor.len*3*meteor.sp;
-    var hx=meteor.x+Math.cos(meteor.a)*d,hy=meteor.y+Math.sin(meteor.a)*d;
-    var tx=hx-Math.cos(meteor.a)*meteor.len*(1-t*0.5),ty=hy-Math.sin(meteor.a)*meteor.len*(1-t*0.5);
-    var g=ctx.createLinearGradient(tx,ty,hx,hy);var fa=Math.sin(t*Math.PI);
-    g.addColorStop(0,"rgba(255,245,220,0)");g.addColorStop(1,"rgba(255,245,220,"+0.8*fa+")");
-    ctx.globalAlpha=1;ctx.strokeStyle=g;ctx.lineWidth=1.2;
-    ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(hx,hy);ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
   }
 
   // ============ ループ ============
-  var raf=0,lastT=0;
-  function frame(now){
-    raf=requestAnimationFrame(frame);
-    // タブ復帰直後などの大きすぎるdtで一気に回らないようクランプする。
-    var dt=Math.min(0.05,Math.max(0,(now-lastT)/1000));lastT=now;
-    viewRa+=OMEGA*dt;
-    draw(now);
+  var raf = 0, lastTime = 0;
+  function tick(now){
+    raf = requestAnimationFrame(tick);
+    // タブ復帰直後などの大きすぎる経過時間で一気に回らないよう上限を設ける。
+    var dt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
+    lastTime = now;
+    angle += omega * dt;
+    render();
   }
-  function start(){if(!raf&&!reduced){lastT=performance.now();raf=requestAnimationFrame(frame);}}
-  function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}
-  document.addEventListener("visibilitychange",function(){ if(document.hidden){stop()}else{start()} });
-  if(reduceMQ.addEventListener){
-    reduceMQ.addEventListener("change",function(e){
-      reduced=e.matches;
-      if(reduced){ stop(); draw(performance.now()) } else { start() }
+  function start(){
+    if(raf || still){ return }
+    lastTime = performance.now();
+    raf = requestAnimationFrame(tick);
+  }
+  function stop(){
+    if(raf){ cancelAnimationFrame(raf); raf = 0 }
+  }
+  document.addEventListener("visibilitychange", function(){
+    if(document.hidden){ stop() }else{ start() }
+  });
+  if(motionQuery.addEventListener){
+    motionQuery.addEventListener("change", function(e){
+      still = e.matches;
+      if(still){ stop(); render() }else{ start() }
     });
   }
-  var rzT=0;
-  window.addEventListener("resize",function(){ clearTimeout(rzT); rzT=setTimeout(resize,150) },{passive:true});
+  var resizeTimer = 0;
+  window.addEventListener("resize", function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 150);
+  }, {passive: true});
 
   resize();
-  if(reduced){ draw(performance.now()) } else { start() }
+  start();
 })();

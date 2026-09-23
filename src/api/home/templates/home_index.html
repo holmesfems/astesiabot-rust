@@ -54,7 +54,7 @@
   /* ============ 装飾レイヤー: 星空背景 ============
      position:fixed でビューポートに固定し、本文のスクロールから切り離す。
      stacking順(奥→手前): 夜空のグラデーション(-3) → 星と天の川のcanvas(-2) → 可読性用オーバーレイ(-1) → 本文(auto=0)。
-     星空は /static/starfield.js が描く(天球をステレオ投影し、北極まわりにゆっくり回す)。
+     星空は /static/starfield.js が描く(3D空間の星を透視投影し、視差つきでゆっくり回す)。
      いずれも aria-hidden かつ pointer-events:none で操作・読み上げに影響しない。 */
   .galaxy-bg,.galaxy-overlay,#star-canvas{
     position:fixed;inset:0;pointer-events:none;
@@ -62,9 +62,9 @@
   .galaxy-bg{
     z-index:-3;
     background:
-      radial-gradient(ellipse 80% 70% at 45% 45%, rgba(40,52,120,.22) 0%, rgba(10,14,40,0) 60%),
-      radial-gradient(ellipse 120% 100% at 50% 50%, transparent 55%, rgba(2,3,10,.6) 100%),
-      linear-gradient(170deg, #060818 0%, #141a3d 100%);
+      radial-gradient(ellipse 70% 55% at 30% 35%, rgba(58,72,168,.20) 0%, rgba(58,72,168,0) 70%),
+      radial-gradient(ellipse 60% 50% at 75% 70%, rgba(86,58,150,.14) 0%, rgba(86,58,150,0) 70%),
+      linear-gradient(160deg, #0a0e26 0%, #111838 55%, #0b0f28 100%);
   }
   #star-canvas{z-index:-2;width:100%;height:100%}
   /* 本文の読みやすさのため中央〜下を少しだけ沈める。星空を見せたいので濃くしすぎない
