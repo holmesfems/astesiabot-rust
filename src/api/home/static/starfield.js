@@ -64,14 +64,23 @@
   }
 
   // ============ 星の色 ============
-  // [重み, r, g, b]。白〜青白を多めに、黄・橙は少なめ。
-  var STAR_TINTS = [
-    [0.22, 170, 196, 255],
-    [0.34, 222, 232, 255],
-    [0.24, 255, 250, 242],
-    [0.13, 255, 232, 190],
-    [0.07, 255, 198, 150]
-  ];
+  // 色温度(ケルビン)から sRGB を求める近似式(Tanner Helland の方法)。
+  function kelvinToRgb(kelvin){
+    var t = kelvin / 100;
+    function clamp(v){ return Math.round(Math.min(255, Math.max(0, v))) }
+    var r = t <= 66 ? 255 : 329.698727446 * Math.pow(t - 60, -0.1332047592);
+    var g = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661
+                    : 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+    var b = t >= 66 ? 255 : (t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307);
+    return [clamp(r), clamp(g), clamp(b)];
+  }
+  // [重み, 色温度]。白〜青白を多めに、黄・橙は少なめ。
+  var STAR_TYPES = [[0.22, 16000], [0.34, 9500], [0.24, 7000], [0.13, 5600], [0.07, 4200]];
+  // [重み, r, g, b]
+  var STAR_TINTS = STAR_TYPES.map(function(s){
+    var c = kelvinToRgb(s[1]);
+    return [s[0], c[0], c[1], c[2]];
+  });
   function pickTint(){
     var x = rng(), acc = 0;
     for(var i = 0; i < STAR_TINTS.length; i++){
