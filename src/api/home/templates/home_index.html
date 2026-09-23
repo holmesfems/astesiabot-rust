@@ -37,7 +37,6 @@
     --accent-heading:#7b95ff;
     --gold:#e8dcb0;
     --gold-dim:#d4c08a;
-    --galaxy-navy:#1e2029;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -52,28 +51,27 @@
     position:relative;
   }
 
-  /* ============ 装飾レイヤー: 銀河背景 ============
+  /* ============ 装飾レイヤー: 星空背景 ============
      position:fixed でビューポートに固定し、本文のスクロールから切り離す。
-     stacking順(奥→手前): グラデーション層(-3) → 星のcanvas(-2) → 可読性用オーバーレイ(-1) → 本文(auto=0)。
+     stacking順(奥→手前): 夜空のグラデーション(-3) → 星と天の川のcanvas(-2) → 可読性用オーバーレイ(-1) → 本文(auto=0)。
+     星空は /static/starfield.js が描く(天球をステレオ投影し、北極まわりにゆっくり回す)。
      いずれも aria-hidden かつ pointer-events:none で操作・読み上げに影響しない。 */
   .galaxy-bg,.galaxy-overlay,#star-canvas{
     position:fixed;inset:0;pointer-events:none;
   }
-  /* 銀河の中心は画面外(右上のさらに外、JS側 GALAXY.CENTER_X/Y_RATIO と同じ比率
-     ={{ galaxy_cx_ratio }}, {{ galaxy_cy_ratio }})に置いているため、光は非対称な
-     腕を描くconic-gradientではなく、その方向がわずかに明るいだけの単純な
-     radial-gradientにする(回転しないので星の回転と同期させる必要も無くなった)。 */
   .galaxy-bg{
     z-index:-3;
     background:
-      radial-gradient(60% 60% at {{ galaxy_cx_pct }} {{ galaxy_cy_pct }},
-        rgba(88,101,242,.30) 0%, rgba(59,42,110,.16) 45%, transparent 72%),
-      var(--galaxy-navy);
+      radial-gradient(ellipse 80% 70% at 45% 45%, rgba(40,52,120,.22) 0%, rgba(10,14,40,0) 60%),
+      radial-gradient(ellipse 120% 100% at 50% 50%, transparent 55%, rgba(2,3,10,.6) 100%),
+      linear-gradient(170deg, #060818 0%, #141a3d 100%);
   }
   #star-canvas{z-index:-2;width:100%;height:100%}
+  /* 本文の読みやすさのため中央〜下を少しだけ沈める。星空を見せたいので濃くしすぎない
+     (パネル自体がすりガラスの背景を持っているので、文字の可読性はそちらで確保する)。 */
   .galaxy-overlay{
     z-index:-1;
-    background:radial-gradient(ellipse at 50% 0%, rgba(22,26,36,.35) 0%, rgba(14,16,22,.72) 70%, rgba(10,11,16,.85) 100%);
+    background:radial-gradient(ellipse at 50% 0%, rgba(6,8,24,0) 0%, rgba(6,8,24,.28) 65%, rgba(4,5,14,.5) 100%);
   }
 
   .wrap{max-width:680px;margin:0 auto;padding:0 16px 64px;position:relative}
@@ -339,238 +337,6 @@
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
 </script>
-<script>
-(function(){
-  "use strict";
-  var canvas = document.getElementById("star-canvas");
-  if(!canvas || !canvas.getContext){return}
-  var ctx = canvas.getContext("2d");
-  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var dpr = Math.min(window.devicePixelRatio || 1, 2);
-  var width = 0, height = 0, raf = null, lastTime = null;
-
-  // ============ 銀河ディスクの見た目パラメータ ============
-  // 見た目を微調整したい時はここだけ触ればよい。
-  var GALAXY = {
-    TILT_DEG: -28,             // ディスクを斜めから見た傾き(-20〜-35度の目安)
-    FLATTEN_K: 0.42,           // 傾き投影前の扁平率(0.35〜0.5の目安)
-    PERIOD_SECONDS: 300,       // 1周にかかる秒数(4〜6分の目安。300s=5分)
-    // 回転中心は画面右上の角からさらに外側(比率で指定)。CSS側の光の中心
-    // (.galaxy-bgのradial-gradient位置)と必ず同じ値にするため、Rust側の
-    // home/mod.rs の GALAXY_CENTER_X/Y_RATIO をテンプレート変数として
-    // 埋め込んでいる(ここを直接書き換えない。ソースはRust側)。
-    CENTER_X_RATIO: {{ galaxy_cx_ratio }},
-    CENTER_Y_RATIO: {{ galaxy_cy_ratio }},
-    DEPTH_SCALE_MIN: 1.0,      // ディスク奥側(sinθ<0)の縮小・減光の下限倍率
-    DEPTH_SCALE_MAX: 1.3,      // 手前側(sinθ>0)の拡大・増光の上限倍率
-    REACH_MARGIN: 1.15,        // 必要な最大半径(隅までの距離÷k)に対する安全マージン
-    VISIBLE_SAMPLE_COUNT: 3000,// 可視割合を見積もるモンテカルロ試行回数
-    MIN_VISIBLE_FRACTION: 0.002,// 可視割合の下限(ゼロ割り・過剰生成の防止)
-    MAX_STARS_PER_TIER: 2500,  // 生成数の安全上限(1層あたり)
-    MAX_SPARKLES: 300          // 生成数の安全上限(スパークル)
-  };
-  // 剛体回転の角速度(rad/秒)。星・光すべてがこの1つの値だけで回る
-  // (星ごとの速度差や個別の揺れは持たない)。
-  var OMEGA = (Math.PI * 2) / GALAXY.PERIOD_SECONDS;
-  var TILT_RAD = GALAXY.TILT_DEG * Math.PI / 180;
-  var COS_TILT = Math.cos(TILT_RAD), SIN_TILT = Math.sin(TILT_RAD);
-
-  var cx = 0, cy = 0, reachPx = 0, rotation = 0;
-
-  // 3層は「見た目の大きさ・明るさのレンジ」だけが違う(速度差はもう無い。全星が剛体回転)。
-  var TIERS = {
-    small:  { r:[0.3,1.0], a:[0.3,0.7],  list:[] },
-    medium: { r:[0.9,1.9], a:[0.35,0.7], list:[] },
-    large:  { r:[1.4,2.7], a:[0.4,0.7],  list:[] }
-  };
-  var TIER_NAMES = ["small","medium","large"];
-  var sparkles = [];
-
-  // 画面の面積に応じて粒子数を間引く(モバイルで重くしすぎない)。
-  function densityFor(w, h){
-    var area = w * h;
-    var scale = Math.max(0.35, Math.min(1, area / (1440 * 900)));
-    return {
-      small: Math.round(140 * scale),
-      medium: Math.round(45 * scale),
-      large: Math.round(14 * scale),
-      sparkle: Math.round(6 * scale)
-    };
-  }
-
-  function rand(min, max){ return min + Math.random() * (max - min) }
-
-  // rNorm は「画面を覆うのに必要な最大半径(reachPx)に対する比率」(0〜1)。
-  // r = R×sqrt(random) は円(楕円)の面積に対して一様な分布になる標準的な方法
-  // (rを一様に取ると中心に集まってしまうため)。中心付近を密にする補正は入れない
-  // ＝ 画面のどこでも密度がほぼ均一になる。
-  function randomRNorm(){
-    return Math.sqrt(Math.random());
-  }
-
-  // 中心が画面外にあるため、生成した星の大半は(その瞬間は)画面外にいる。
-  // 「画面内に見える星の数」を以前と同程度に保つには、見えない分を見込んで
-  // 多めに生成する必要がある。その倍率をモンテカルロ法で見積もる
-  // (θを一様分布のまま回転させても見える割合の期待値は変わらないため、
-  // 現在の rotation 値のまま何回か点をサンプルして画面内に入った割合を見ればよい)。
-  function estimateVisibleFraction(){
-    var hits = 0, n = GALAXY.VISIBLE_SAMPLE_COUNT;
-    for(var i=0;i<n;i++){
-      var p = project(randomRNorm(), Math.random()*Math.PI*2);
-      if(p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height){ hits++ }
-    }
-    return Math.max(hits / n, GALAXY.MIN_VISIBLE_FRACTION);
-  }
-
-  // target(=画面内に見せたい数)まで不足分だけ追加する。既存の星の
-  // r(=rNorm), theta0 には一切触れない(リサイズで画面が広がって密度が
-  // 足りなくなった時だけ、増えた分を足す)。
-  function growTier(tier, onScreenTarget, inflate){
-    var target = Math.min(Math.ceil(onScreenTarget * inflate), GALAXY.MAX_STARS_PER_TIER);
-    while(tier.list.length < target){
-      tier.list.push({
-        rNorm:randomRNorm(), theta0:Math.random()*Math.PI*2,
-        r:rand(tier.r[0], tier.r[1]), a:rand(tier.a[0], tier.a[1])
-      });
-    }
-  }
-
-  function growSparkles(onScreenTarget, inflate){
-    var target = Math.min(Math.ceil(onScreenTarget * inflate), GALAXY.MAX_SPARKLES);
-    while(sparkles.length < target){
-      sparkles.push({
-        rNorm:randomRNorm(), theta0:Math.random()*Math.PI*2, r:rand(2, 3.6),
-        phase:Math.random()*Math.PI*2, twSpeed:0.4 + Math.random()*0.5
-      });
-    }
-  }
-
-  // リサイズ中の連続発火でcanvasを何度も作り直さないようdebounceする。
-  var resizeTimer = null;
-  function scheduleResize(){
-    if(resizeTimer){ clearTimeout(resizeTimer) }
-    resizeTimer = setTimeout(applyResize, 150);
-  }
-
-  function applyResize(){
-    width = window.innerWidth;
-    height = window.innerHeight;
-    // canvas.width/height の再設定は描画内容をクリアするだけで、
-    // 星の極座標(rNorm/theta0)は上の TIERS/sparkles にそのまま残り続ける。
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    canvas.style.width = width + "px";
-    canvas.style.height = height + "px";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // 回転中心と「画面の最も遠い隅まで確実に届く半径」だけを画面サイズに合わせて
-    // 再計算する。星のr,θそのものは変えない。
-    cx = width * GALAXY.CENTER_X_RATIO;
-    cy = height * GALAXY.CENTER_Y_RATIO;
-    var corners = [[0,0],[width,0],[0,height],[width,height]];
-    var farthest = 0;
-    for(var c=0;c<corners.length;c++){
-      var dx = corners[c][0]-cx, dy = corners[c][1]-cy;
-      farthest = Math.max(farthest, Math.sqrt(dx*dx+dy*dy));
-    }
-    reachPx = (farthest / GALAXY.FLATTEN_K) * GALAXY.REACH_MARGIN;
-
-    var d = densityFor(width, height);
-    var inflate = 1 / estimateVisibleFraction();
-    growTier(TIERS.small, d.small, inflate);
-    growTier(TIERS.medium, d.medium, inflate);
-    growTier(TIERS.large, d.large, inflate);
-    growSparkles(d.sparkle, inflate);
-    // 動きを止めている場合はrAFループを回していないので、リサイズ後の
-    // 再描画(でないとcanvasの再生成でクリアされたまま何も映らなくなる)をここで行う。
-    if(reduceMotion){ frame(performance.now()) }
-  }
-
-  // 極座標(rNorm, theta0+rotation) → 傾いた円盤上のスクリーン座標。
-  // depthT(0=ディスクの最も奥, 1=最も手前)も合わせて返す。
-  function project(rNorm, theta0){
-    var theta = theta0 + rotation;
-    var r = rNorm * reachPx;
-    var ex = Math.cos(theta) * r;
-    var ey = Math.sin(theta) * r * GALAXY.FLATTEN_K;
-    return {
-      x: cx + (ex*COS_TILT - ey*SIN_TILT),
-      y: cy + (ex*SIN_TILT + ey*COS_TILT),
-      depthT: (Math.sin(theta) + 1) / 2
-    };
-  }
-
-  function depthScale(depthT){
-    return GALAXY.DEPTH_SCALE_MIN + (GALAXY.DEPTH_SCALE_MAX - GALAXY.DEPTH_SCALE_MIN) * depthT;
-  }
-
-  function drawFourPointStar(x, y, r, alpha){
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-    ctx.beginPath();
-    ctx.moveTo(0, -r); ctx.lineTo(r*0.22, -r*0.22);
-    ctx.lineTo(r, 0);  ctx.lineTo(r*0.22, r*0.22);
-    ctx.lineTo(0, r);  ctx.lineTo(-r*0.22, r*0.22);
-    ctx.lineTo(-r, 0); ctx.lineTo(-r*0.22, -r*0.22);
-    ctx.closePath();
-    ctx.fillStyle = "#f5f2e8";
-    ctx.fill();
-    ctx.restore();
-  }
-
-  function frame(t){
-    if(lastTime === null){ lastTime = t }
-    // タブ復帰直後などの大きすぎるdtで一気に回転しないようクランプする。
-    var dtSec = Math.min(Math.max(t - lastTime, 0) / 1000, 0.05);
-    lastTime = t;
-    // 剛体回転: 角度(rotation)だけを進める。半径や星ごとの速度は存在しない。
-    if(!reduceMotion){ rotation += OMEGA * dtSec }
-
-    ctx.clearRect(0, 0, width, height);
-
-    ctx.fillStyle = "#ffffff";
-    for(var ti=0; ti<TIER_NAMES.length; ti++){
-      var list = TIERS[TIER_NAMES[ti]].list;
-      for(var i=0;i<list.length;i++){
-        var s = list[i];
-        var p = project(s.rNorm, s.theta0);
-        var ds = depthScale(p.depthT);
-        ctx.globalAlpha = Math.min(1, s.a * ds);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, s.r * ds, 0, Math.PI*2);
-        ctx.fill();
-      }
-    }
-    ctx.globalAlpha = 1;
-    for(i=0;i<sparkles.length;i++){
-      var sp = sparkles[i];
-      var p2 = project(sp.rNorm, sp.theta0);
-      var ds2 = depthScale(p2.depthT);
-      var pulse = reduceMotion ? 1 : (Math.sin(t*0.001*sp.twSpeed + sp.phase) + 1) / 2;
-      drawFourPointStar(p2.x, p2.y, sp.r * ds2, Math.min(1, (0.15 + pulse*0.55) * ds2));
-    }
-    if(!reduceMotion){ raf = requestAnimationFrame(frame) }
-  }
-
-  function startLoop(){
-    if(raf !== null || reduceMotion){ return }
-    lastTime = null;
-    raf = requestAnimationFrame(frame);
-  }
-  function stopLoop(){
-    if(raf !== null){ cancelAnimationFrame(raf); raf = null }
-  }
-
-  // タブが非表示の間は描画を止める(無駄な計算をしない)。
-  document.addEventListener("visibilitychange", function(){
-    if(document.hidden){ stopLoop() } else { startLoop() }
-  });
-
-  window.addEventListener("resize", scheduleResize, {passive:true});
-  applyResize();
-  if(!reduceMotion){ startLoop() }
-})();
-</script>
+<script src="/static/starfield.js" defer></script>
 </body>
 </html>
