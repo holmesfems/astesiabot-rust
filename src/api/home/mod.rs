@@ -3,14 +3,17 @@
 //!
 //! 日本語のみ・1URL（`/`）。LodChestSolver/TestRunnerのような言語別URL分割はしない。
 //! F鯖向けの案内が主目的で、汎用ツールのようにクローラへ多言語を見せる必要が薄いため。
-//! CSSは分量が小さいので `templates_shared/toolnav.html` と同様にページ内に直書きし、
-//! 他ツールのような専用 `static/` ディレクトリは持たない。
+//! CSSは分量が小さいので `templates_shared/toolnav.html` と同様にページ内に直書きしている。
+//! `static/` は OGP画像(ogp.png)の配信専用。
 
 use askama::Template;
 use axum::http::HeaderMap;
 use axum::response::Html;
 use axum::routing::get;
 use axum::Router;
+use tower_http::services::ServeDir;
+
+const STATIC_DIR: &str = "src/api/home/static";
 
 // 銀河背景の回転中心(画面右上の角からさらに外側)の比率。CSSの光の中心とJSの星の
 // 回転中心が同じ点になるよう、この2つの定数だけを唯一の情報源にしてテンプレートへ
@@ -49,7 +52,9 @@ pub fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    Router::new().route("/", get(index))
+    Router::new()
+        .route("/", get(index))
+        .nest_service("/static", ServeDir::new(STATIC_DIR))
 }
 
 #[cfg(test)]
