@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アステシアちゃん | アークナイツ Discordサーバー「F鯖」</title>
+<meta name="description" content="約2000人規模のアークナイツ Discordサーバー「F鯖」の紹介と、鯖のbot「アステシアちゃん」が提供する計算ツール一覧。">
+<link rel="canonical" href="{{ base }}/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="アステシアちゃん | アークナイツ Discordサーバー「F鯖」">
+<meta property="og:description" content="約2000人規模のアークナイツ Discordサーバー「F鯖」の紹介と、鯖のbot「アステシアちゃん」が提供する計算ツール一覧。">
+<meta property="og:url" content="{{ base }}/">
+<meta property="og:locale" content="ja_JP">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "アステシアちゃん | F鯖",
+  "url": "{{ base }}/",
+  "inLanguage": "ja",
+  "description": "約2000人規模のアークナイツ Discordサーバー「F鯖」の紹介と、鯖のbot「アステシアちゃん」が提供する計算ツール一覧。"
+}
+</script>
+<style>
+  :root{
+    --bg:#161a24;
+    --panel:#1f2430;
+    --panel-edge:#333a4a;
+    --text:#e4e7f0;
+    --faint:#9aa2b8;
+    --accent:#4f7cff;
+    --accent-heading:#7b95ff;
+    --gold:#e8dcb0;
+    --gold-dim:#d4c08a;
+    --galaxy-navy:#1e2029;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,
+      system-ui,-apple-system,sans-serif;
+    font-size:15px;
+    line-height:1.7;
+    min-height:100vh;
+    position:relative;
+  }
+
+  /* ============ 装飾レイヤー: 銀河背景 ============
+     position:fixed でビューポートに固定し、本文のスクロールから切り離す。
+     stacking順(奥→手前): グラデーション層(-3) → 星のcanvas(-2) → 可読性用オーバーレイ(-1) → 本文(auto=0)。
+     いずれも aria-hidden かつ pointer-events:none で操作・読み上げに影響しない。 */
+  .galaxy-bg,.galaxy-overlay,#star-canvas{
+    position:fixed;inset:0;pointer-events:none;
+  }
+  /* 銀河の中心は画面外(右上のさらに外、JS側 GALAXY.CENTER_X/Y_RATIO と同じ比率
+     ={{ galaxy_cx_ratio }}, {{ galaxy_cy_ratio }})に置いているため、光は非対称な
+     腕を描くconic-gradientではなく、その方向がわずかに明るいだけの単純な
+     radial-gradientにする(回転しないので星の回転と同期させる必要も無くなった)。 */
+  .galaxy-bg{
+    z-index:-3;
+    background:
+      radial-gradient(60% 60% at {{ galaxy_cx_pct }} {{ galaxy_cy_pct }},
+        rgba(88,101,242,.30) 0%, rgba(59,42,110,.16) 45%, transparent 72%),
+      var(--galaxy-navy);
+  }
+  #star-canvas{z-index:-2;width:100%;height:100%}
+  .galaxy-overlay{
+    z-index:-1;
+    background:radial-gradient(ellipse at 50% 0%, rgba(22,26,36,.35) 0%, rgba(14,16,22,.72) 70%, rgba(10,11,16,.85) 100%);
+  }
+
+  .wrap{max-width:680px;margin:0 auto;padding:0 16px 64px;position:relative}
+
+  .hero{padding:40px 0 8px;text-align:center}
+  .hero h1{
+    margin:0 0 10px;font-size:22px;font-weight:700;
+    color:var(--text);
+    background:linear-gradient(180deg,#ffffff 0%, #cdd9ff 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    text-shadow:0 0 18px rgba(120,150,255,.25);
+  }
+  .hero p{margin:0;color:var(--faint)}
+
+  /* 星と両側へ消えていく線。中央の「✦」以外はCSS疑似要素のグラデーションだけで組む。 */
+  .star-divider{
+    display:flex;align-items:center;gap:10px;
+    max-width:220px;margin:0 auto 10px;
+    color:var(--gold);font-size:11px;line-height:1;
+    opacity:.75;
+  }
+  .star-divider::before,.star-divider::after{
+    content:'';flex:1 1 auto;height:1px;
+    background:linear-gradient(to right, transparent, var(--gold-dim));
+  }
+  .star-divider::after{background:linear-gradient(to left, transparent, var(--gold-dim))}
+  .hero h1 + .star-divider{margin:10px auto 0}
+
+  section{margin-top:32px}
+  section h2{
+    margin:0 0 14px;font-size:15px;font-weight:700;
+    color:var(--accent-heading);letter-spacing:.04em;
+  }
+  section h2::after{
+    content:'';display:block;margin-top:8px;width:64px;height:8px;
+    background:
+      radial-gradient(circle at center, var(--gold) 0%, var(--gold) 12%, transparent 75%),
+      linear-gradient(to right, transparent, var(--gold-dim) 35%, var(--gold-dim) 65%, transparent);
+    background-repeat:no-repeat;
+    background-size:8px 8px, 100% 1px;
+    background-position:left center, left center;
+    opacity:.55;
+  }
+
+  /* corners: 四隅の細い星座線を、コーナーごとに独立した背景レイヤーとして重ねる
+     (要素追加なし)。1枚のスプライトに全コーナーをまとめると、カードの実寸に応じて
+     位置がずれる(左上以外のコーナーがカード内側に食い込む)ため、コーナーの数だけ
+     background-image レイヤーを分けて各々を対応する角に position させている。 */
+  .panel,.tool-card{
+    --corner-tl:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8dcb0' stroke-width='1' opacity='.5'%3E%3Cpath d='M2 10 V2 H10'/%3E%3Ccircle cx='2' cy='2' r='1.3' fill='%23e8dcb0' stroke='none' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
+    --corner-tr:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8dcb0' stroke-width='1' opacity='.5'%3E%3Cpath d='M14 2 H22 V10'/%3E%3Ccircle cx='22' cy='2' r='1.3' fill='%23e8dcb0' stroke='none' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
+    --corner-bl:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8dcb0' stroke-width='1' opacity='.5'%3E%3Cpath d='M2 14 V22 H10'/%3E%3Ccircle cx='2' cy='22' r='1.3' fill='%23e8dcb0' stroke='none' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
+    --corner-br:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8dcb0' stroke-width='1' opacity='.5'%3E%3Cpath d='M14 22 H22 V14'/%3E%3Ccircle cx='22' cy='22' r='1.3' fill='%23e8dcb0' stroke='none' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
+    background-image:
+      var(--corner-tl), var(--corner-tr), var(--corner-bl), var(--corner-br),
+      linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 40%);
+    background-repeat:no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    background-size:20px 20px, 20px 20px, 20px 20px, 20px 20px, 100% 100%;
+    background-position:top left, top right, bottom left, bottom right, top left;
+  }
+
+  .panel{
+    background-color:rgba(31,36,48,.55);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(228,231,240,.10);
+    border-top-color:rgba(232,220,176,.35);
+    border-radius:10px;padding:20px;
+    box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+  }
+  .panel p{margin:0 0 12px}
+  .panel p:last-child{margin-bottom:0}
+
+  .invite-btn{
+    display:inline-flex;align-items:center;gap:8px;
+    margin-top:4px;padding:10px 20px;
+    background:var(--accent);color:#fff;font-weight:700;
+    text-decoration:none;border-radius:999px;
+    transition:background .2s ease, box-shadow .3s ease;
+  }
+  .invite-btn:hover{
+    background:#3a63e0;
+    box-shadow:0 0 0 5px rgba(79,124,255,.18), 0 0 22px rgba(79,124,255,.35);
+  }
+  .github-btn{background:#24292f}
+  .github-btn:hover{
+    background:#33393f;
+    box-shadow:0 0 0 5px rgba(36,41,47,.22), 0 0 22px rgba(36,41,47,.4);
+  }
+
+  .tool-grid{
+    display:grid;grid-template-columns:repeat(2,1fr);gap:12px;
+  }
+  @media (max-width:480px){
+    .tool-grid{grid-template-columns:1fr}
+  }
+  .tool-card{
+    position:relative;display:block;
+    background-color:rgba(31,36,48,.5);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(228,231,240,.10);
+    border-top-color:rgba(232,220,176,.32);
+    border-radius:10px;padding:16px;color:var(--text);text-decoration:none;
+    transition:border-color .3s ease, background-color .3s ease, transform .3s ease, box-shadow .3s ease;
+  }
+  .tool-card:hover{
+    transform:translateY(-2px);
+    border-color:rgba(232,220,176,.4);
+    background-color:rgba(36,43,58,.6);
+    box-shadow:0 8px 24px rgba(0,0,0,.3), 0 0 0 1px rgba(232,220,176,.15);
+  }
+  .tool-card strong{display:block;margin-bottom:4px;font-size:15px}
+  .tool-card span{color:var(--faint);font-size:13px}
+
+  .social-section{text-align:center}
+  .social-row{
+    display:flex;justify-content:center;align-items:flex-start;
+    gap:28px;margin-top:4px;
+  }
+  .social-btn{
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    text-decoration:none;cursor:pointer;
+  }
+  .social-icon{
+    display:flex;align-items:center;justify-content:center;
+    width:40px;height:40px;border-radius:50%;
+    background-color:rgba(31,36,48,.55);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(228,231,240,.12);
+    transition:border-color .3s ease, box-shadow .3s ease;
+  }
+  .social-icon svg{
+    width:18px;height:18px;fill:var(--gold);opacity:.6;
+    transition:opacity .3s ease;
+  }
+  .social-btn:hover .social-icon,
+  .social-btn:focus-visible .social-icon{
+    border-color:rgba(232,220,176,.5);
+    box-shadow:0 0 0 1px rgba(232,220,176,.2), 0 0 16px rgba(232,220,176,.25);
+  }
+  .social-btn:hover .social-icon svg,
+  .social-btn:focus-visible .social-icon svg{opacity:1}
+  .social-btn:focus-visible{outline:2px solid var(--gold);outline-offset:4px;border-radius:10px}
+  .social-label{font-size:11px;color:var(--faint)}
+
+  footer{margin-top:40px;text-align:center;font-size:11.5px;color:var(--faint)}
+  footer a{color:var(--gold-dim)}
+  footer .disclaimer{margin:6px 0 0;font-size:10.5px;opacity:.7}
+
+  @media (prefers-reduced-motion: reduce){
+    .panel,.tool-card,.invite-btn,.social-icon,.social-icon svg{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="galaxy-bg" aria-hidden="true"></div>
+<canvas id="star-canvas" aria-hidden="true"></canvas>
+<div class="galaxy-overlay" aria-hidden="true"></div>
+{% include "toolnav.html" %}
+<div class="wrap">
+
+  <div class="hero">
+    <div class="star-divider" aria-hidden="true">✦</div>
+    <h1>アステシアちゃんbot</h1>
+    <div class="star-divider" aria-hidden="true">✦</div>
+    <p>F鯖を支えるbotと、便利ツールのご案内</p>
+  </div>
+
+  <section>
+    <h2>F鯖(フレーム鯖)について</h2>
+    <div class="panel">
+      <p> 約2000人規模のアークナイツ Discordサーバーです。高速周回の情報共有を中心に、初心者支援や雑談、各種計算ツールの提供も行っています。</p>
+      <a class="invite-btn" href="https://discord.gg/arknightsflame" target="_blank" rel="noopener noreferrer">Discordに参加する</a>
+    </div>
+  </section>
+
+  <section>
+    <h2>アステシアちゃんについて</h2>
+    <div class="panel">
+      <p>F鯖での日々を穏やかに支える案内役botです。オペレーターの誕生日アナウンスや各種計算機能の提供、サーバー環境の維持など、さまざまな役割を担っています。</p>
+      <a class="invite-btn github-btn" href="https://github.com/holmesfems/astesiabot-rust" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        GitHubで見る
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>アークナイツ</h2>
+    <div class="tool-grid">
+      <a class="tool-card" href="https://www.icloud.com/shortcuts/3d125afe01584343a6cedf3cfa12b804" target="_blank" rel="noopener noreferrer">
+        <strong>公開求人ショートカット</strong>
+        <span>iOSからワンクリックで公開求人検索</span>
+      </a>
+      <a class="tool-card" href="https://www.icloud.com/shortcuts/a203881800bd4de18f49c823dc306b47" target="_blank" rel="noopener noreferrer">
+        <strong>理性タイマーショートカット</strong>
+        <span>iOSで理性満タンになる瞬間をお知らせ</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>エンドフィールド</h2>
+    <div class="tool-grid">
+      <a class="tool-card" href="/WLBatterySimulator">
+        <strong>武陵発電計算機</strong>
+        <span>武陵ステージの発電制御を最適化</span>
+      </a>
+      <a class="tool-card" href="/EFRecipeCalculator">
+        <strong>ENDFIELDレシピ計算機</strong>
+        <span>エンドフィールドの資材レシピを計算</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>他の趣味ツール</h2>
+    <div class="tool-grid">
+      <a class="tool-card" href="/LodChestSolver">
+        <strong>幽霊船宝箱ソルバー</strong>
+        <span>レジェンド オブ ドラグーンの幽霊船宝箱を解く</span>
+      </a>
+      <a class="tool-card" href="/TestRunner">
+        <strong>試験手順ランナー</strong>
+        <span>試験手順書をチェックリスト形式で進行</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="social-section">
+    <div class="star-divider" aria-hidden="true">✦</div>
+    <div class="social-row">
+      <a class="social-btn" href="https://www.youtube.com/holmesfems" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+        <span class="social-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.51 3.5 12 3.5 12 3.5s-7.51 0-9.38.55A3.02 3.02 0 0 0 .5 6.19 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.81 3.02 3.02 0 0 0 2.12 2.14C4.49 20.5 12 20.5 12 20.5s7.51 0 9.38-.55a3.02 3.02 0 0 0 2.12-2.14A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.81ZM9.6 15.6V8.4l6.4 3.6-6.4 3.6Z"/></svg>
+        </span>
+        <span class="social-label">YouTube</span>
+      </a>
+      <a class="social-btn" href="https://x.com/holmesfems" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)">
+        <span class="social-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.24 2h3.32l-7.26 8.3L23 22h-6.7l-5.24-6.86L4.9 22H1.58l7.77-8.88L1 2h6.86l4.74 6.27L18.24 2Zm-1.17 18h1.84L7.02 3.9H5.05L17.07 20Z"/></svg>
+        </span>
+        <span class="social-label">X</span>
+      </a>
+      <a class="social-btn" href="mailto:holmesfems@gmail.com" aria-label="メール">
+        <span class="social-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5.5C2 4.67 2.67 4 3.5 4h17c.83 0 1.5.67 1.5 1.5v13c0 .83-.67 1.5-1.5 1.5h-17C2.67 20 2 19.33 2 18.5v-13Zm2.2.5 7.3 5.84a.8.8 0 0 0 1 0L19.8 6H4.2ZM4 8.1v10.4h16V8.1l-7.31 5.84a2.3 2.3 0 0 1-2.87 0L4 8.1Z"/></svg>
+        </span>
+        <span class="social-label">Mail</span>
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <a href="https://github.com/holmesfems/astesiaBot-rust" target="_blank" rel="noopener noreferrer">GitHub</a>
+    ｜ © <span id="year"></span> holmesfems. Licensed under the
+    <a href="https://opensource.org/license/mit/" target="_blank" rel="noopener noreferrer">MIT License</a>
+    <p class="disclaimer">本サイトは非公式のファンサイトです。<br>
+      　アークナイツ ©Hypergryph / Yostar<br>
+      　アークナイツ：エンドフィールド ©Hypergryph / GRYPHLINE</p>
+  </footer>
+
+</div>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+<script>
+(function(){
+  "use strict";
+  var canvas = document.getElementById("star-canvas");
+  if(!canvas || !canvas.getContext){return}
+  var ctx = canvas.getContext("2d");
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var width = 0, height = 0, raf = null, lastTime = null;
+
+  // ============ 銀河ディスクの見た目パラメータ ============
+  // 見た目を微調整したい時はここだけ触ればよい。
+  var GALAXY = {
+    TILT_DEG: -28,             // ディスクを斜めから見た傾き(-20〜-35度の目安)
+    FLATTEN_K: 0.42,           // 傾き投影前の扁平率(0.35〜0.5の目安)
+    PERIOD_SECONDS: 300,       // 1周にかかる秒数(4〜6分の目安。300s=5分)
+    // 回転中心は画面右上の角からさらに外側(比率で指定)。CSS側の光の中心
+    // (.galaxy-bgのradial-gradient位置)と必ず同じ値にするため、Rust側の
+    // home/mod.rs の GALAXY_CENTER_X/Y_RATIO をテンプレート変数として
+    // 埋め込んでいる(ここを直接書き換えない。ソースはRust側)。
+    CENTER_X_RATIO: {{ galaxy_cx_ratio }},
+    CENTER_Y_RATIO: {{ galaxy_cy_ratio }},
+    DEPTH_SCALE_MIN: 1.0,      // ディスク奥側(sinθ<0)の縮小・減光の下限倍率
+    DEPTH_SCALE_MAX: 1.3,      // 手前側(sinθ>0)の拡大・増光の上限倍率
+    REACH_MARGIN: 1.15,        // 必要な最大半径(隅までの距離÷k)に対する安全マージン
+    VISIBLE_SAMPLE_COUNT: 3000,// 可視割合を見積もるモンテカルロ試行回数
+    MIN_VISIBLE_FRACTION: 0.002,// 可視割合の下限(ゼロ割り・過剰生成の防止)
+    MAX_STARS_PER_TIER: 2500,  // 生成数の安全上限(1層あたり)
+    MAX_SPARKLES: 300          // 生成数の安全上限(スパークル)
+  };
+  // 剛体回転の角速度(rad/秒)。星・光すべてがこの1つの値だけで回る
+  // (星ごとの速度差や個別の揺れは持たない)。
+  var OMEGA = (Math.PI * 2) / GALAXY.PERIOD_SECONDS;
+  var TILT_RAD = GALAXY.TILT_DEG * Math.PI / 180;
+  var COS_TILT = Math.cos(TILT_RAD), SIN_TILT = Math.sin(TILT_RAD);
+
+  var cx = 0, cy = 0, reachPx = 0, rotation = 0;
+
+  // 3層は「見た目の大きさ・明るさのレンジ」だけが違う(速度差はもう無い。全星が剛体回転)。
+  var TIERS = {
+    small:  { r:[0.3,1.0], a:[0.3,0.7],  list:[] },
+    medium: { r:[0.9,1.9], a:[0.35,0.7], list:[] },
+    large:  { r:[1.4,2.7], a:[0.4,0.7],  list:[] }
+  };
+  var TIER_NAMES = ["small","medium","large"];
+  var sparkles = [];
+
+  // 画面の面積に応じて粒子数を間引く(モバイルで重くしすぎない)。
+  function densityFor(w, h){
+    var area = w * h;
+    var scale = Math.max(0.35, Math.min(1, area / (1440 * 900)));
+    return {
+      small: Math.round(140 * scale),
+      medium: Math.round(45 * scale),
+      large: Math.round(14 * scale),
+      sparkle: Math.round(6 * scale)
+    };
+  }
+
+  function rand(min, max){ return min + Math.random() * (max - min) }
+
+  // rNorm は「画面を覆うのに必要な最大半径(reachPx)に対する比率」(0〜1)。
+  // r = R×sqrt(random) は円(楕円)の面積に対して一様な分布になる標準的な方法
+  // (rを一様に取ると中心に集まってしまうため)。中心付近を密にする補正は入れない
+  // ＝ 画面のどこでも密度がほぼ均一になる。
+  function randomRNorm(){
+    return Math.sqrt(Math.random());
+  }
+
+  // 中心が画面外にあるため、生成した星の大半は(その瞬間は)画面外にいる。
+  // 「画面内に見える星の数」を以前と同程度に保つには、見えない分を見込んで
+  // 多めに生成する必要がある。その倍率をモンテカルロ法で見積もる
+  // (θを一様分布のまま回転させても見える割合の期待値は変わらないため、
+  // 現在の rotation 値のまま何回か点をサンプルして画面内に入った割合を見ればよい)。
+  function estimateVisibleFraction(){
+    var hits = 0, n = GALAXY.VISIBLE_SAMPLE_COUNT;
+    for(var i=0;i<n;i++){
+      var p = project(randomRNorm(), Math.random()*Math.PI*2);
+      if(p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height){ hits++ }
+    }
+    return Math.max(hits / n, GALAXY.MIN_VISIBLE_FRACTION);
+  }
+
+  // target(=画面内に見せたい数)まで不足分だけ追加する。既存の星の
+  // r(=rNorm), theta0 には一切触れない(リサイズで画面が広がって密度が
+  // 足りなくなった時だけ、増えた分を足す)。
+  function growTier(tier, onScreenTarget, inflate){
+    var target = Math.min(Math.ceil(onScreenTarget * inflate), GALAXY.MAX_STARS_PER_TIER);
+    while(tier.list.length < target){
+      tier.list.push({
+        rNorm:randomRNorm(), theta0:Math.random()*Math.PI*2,
+        r:rand(tier.r[0], tier.r[1]), a:rand(tier.a[0], tier.a[1])
+      });
+    }
+  }
+
+  function growSparkles(onScreenTarget, inflate){
+    var target = Math.min(Math.ceil(onScreenTarget * inflate), GALAXY.MAX_SPARKLES);
+    while(sparkles.length < target){
+      sparkles.push({
+        rNorm:randomRNorm(), theta0:Math.random()*Math.PI*2, r:rand(2, 3.6),
+        phase:Math.random()*Math.PI*2, twSpeed:0.4 + Math.random()*0.5
+      });
+    }
+  }
+
+  // リサイズ中の連続発火でcanvasを何度も作り直さないようdebounceする。
+  var resizeTimer = null;
+  function scheduleResize(){
+    if(resizeTimer){ clearTimeout(resizeTimer) }
+    resizeTimer = setTimeout(applyResize, 150);
+  }
+
+  function applyResize(){
+    width = window.innerWidth;
+    height = window.innerHeight;
+    // canvas.width/height の再設定は描画内容をクリアするだけで、
+    // 星の極座標(rNorm/theta0)は上の TIERS/sparkles にそのまま残り続ける。
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // 回転中心と「画面の最も遠い隅まで確実に届く半径」だけを画面サイズに合わせて
+    // 再計算する。星のr,θそのものは変えない。
+    cx = width * GALAXY.CENTER_X_RATIO;
+    cy = height * GALAXY.CENTER_Y_RATIO;
+    var corners = [[0,0],[width,0],[0,height],[width,height]];
+    var farthest = 0;
+    for(var c=0;c<corners.length;c++){
+      var dx = corners[c][0]-cx, dy = corners[c][1]-cy;
+      farthest = Math.max(farthest, Math.sqrt(dx*dx+dy*dy));
+    }
+    reachPx = (farthest / GALAXY.FLATTEN_K) * GALAXY.REACH_MARGIN;
+
+    var d = densityFor(width, height);
+    var inflate = 1 / estimateVisibleFraction();
+    growTier(TIERS.small, d.small, inflate);
+    growTier(TIERS.medium, d.medium, inflate);
+    growTier(TIERS.large, d.large, inflate);
+    growSparkles(d.sparkle, inflate);
+    // 動きを止めている場合はrAFループを回していないので、リサイズ後の
+    // 再描画(でないとcanvasの再生成でクリアされたまま何も映らなくなる)をここで行う。
+    if(reduceMotion){ frame(performance.now()) }
+  }
+
+  // 極座標(rNorm, theta0+rotation) → 傾いた円盤上のスクリーン座標。
+  // depthT(0=ディスクの最も奥, 1=最も手前)も合わせて返す。
+  function project(rNorm, theta0){
+    var theta = theta0 + rotation;
+    var r = rNorm * reachPx;
+    var ex = Math.cos(theta) * r;
+    var ey = Math.sin(theta) * r * GALAXY.FLATTEN_K;
+    return {
+      x: cx + (ex*COS_TILT - ey*SIN_TILT),
+      y: cy + (ex*SIN_TILT + ey*COS_TILT),
+      depthT: (Math.sin(theta) + 1) / 2
+    };
+  }
+
+  function depthScale(depthT){
+    return GALAXY.DEPTH_SCALE_MIN + (GALAXY.DEPTH_SCALE_MAX - GALAXY.DEPTH_SCALE_MIN) * depthT;
+  }
+
+  function drawFourPointStar(x, y, r, alpha){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y);
+    ctx.beginPath();
+    ctx.moveTo(0, -r); ctx.lineTo(r*0.22, -r*0.22);
+    ctx.lineTo(r, 0);  ctx.lineTo(r*0.22, r*0.22);
+    ctx.lineTo(0, r);  ctx.lineTo(-r*0.22, r*0.22);
+    ctx.lineTo(-r, 0); ctx.lineTo(-r*0.22, -r*0.22);
+    ctx.closePath();
+    ctx.fillStyle = "#f5f2e8";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function frame(t){
+    if(lastTime === null){ lastTime = t }
+    // タブ復帰直後などの大きすぎるdtで一気に回転しないようクランプする。
+    var dtSec = Math.min(Math.max(t - lastTime, 0) / 1000, 0.05);
+    lastTime = t;
+    // 剛体回転: 角度(rotation)だけを進める。半径や星ごとの速度は存在しない。
+    if(!reduceMotion){ rotation += OMEGA * dtSec }
+
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.fillStyle = "#ffffff";
+    for(var ti=0; ti<TIER_NAMES.length; ti++){
+      var list = TIERS[TIER_NAMES[ti]].list;
+      for(var i=0;i<list.length;i++){
+        var s = list[i];
+        var p = project(s.rNorm, s.theta0);
+        var ds = depthScale(p.depthT);
+        ctx.globalAlpha = Math.min(1, s.a * ds);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, s.r * ds, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    for(i=0;i<sparkles.length;i++){
+      var sp = sparkles[i];
+      var p2 = project(sp.rNorm, sp.theta0);
+      var ds2 = depthScale(p2.depthT);
+      var pulse = reduceMotion ? 1 : (Math.sin(t*0.001*sp.twSpeed + sp.phase) + 1) / 2;
+      drawFourPointStar(p2.x, p2.y, sp.r * ds2, Math.min(1, (0.15 + pulse*0.55) * ds2));
+    }
+    if(!reduceMotion){ raf = requestAnimationFrame(frame) }
+  }
+
+  function startLoop(){
+    if(raf !== null || reduceMotion){ return }
+    lastTime = null;
+    raf = requestAnimationFrame(frame);
+  }
+  function stopLoop(){
+    if(raf !== null){ cancelAnimationFrame(raf); raf = null }
+  }
+
+  // タブが非表示の間は描画を止める(無駄な計算をしない)。
+  document.addEventListener("visibilitychange", function(){
+    if(document.hidden){ stopLoop() } else { startLoop() }
+  });
+
+  window.addEventListener("resize", scheduleResize, {passive:true});
+  applyResize();
+  if(!reduceMotion){ startLoop() }
+})();
+</script>
+</body>
+</html>

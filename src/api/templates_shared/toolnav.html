@@ -1,9 +1,11 @@
 <!-- ツール切り替えヘッダーチップ。各ツールのstyle.cssには依存させず、
      ここだけで完結するCSSを持つ(toolnav- prefixで衝突回避)。
-     include先のTemplate structが active_tool("wl"/"ef"/"lod"/"tr") と
+     include先のTemplate structが active_tool("home"/"wl"/"ef"/"lod"/"tr") と
      lang("ja"/"en") を持っていることが前提。 -->
 <nav class="toolnav-bar" aria-label="{% if lang == "en" %}Switch tool{% else %}ツール切り替え{% endif %}">
   <span class="toolnav-label">{% if lang == "en" %}Tools{% else %}ツール{% endif %}</span>
+  <a class="toolnav-chip{% if active_tool == "home" %} toolnav-chip-active{% endif %}"
+     href="/"{% if active_tool == "home" %} aria-current="page"{% endif %}>{% if lang == "en" %}Home{% else %}ホーム{% endif %}</a>
   <a class="toolnav-chip{% if active_tool == "wl" %} toolnav-chip-active{% endif %}"
      href="/WLBatterySimulator"{% if active_tool == "wl" %} aria-current="page"{% endif %}>{% if lang == "en" %}Battery Sim{% else %}武陵発電計算機{% endif %}</a>
   <a class="toolnav-chip{% if active_tool == "ef" %} toolnav-chip-active{% endif %}"

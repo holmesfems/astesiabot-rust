@@ -1,4 +1,5 @@
 mod ef_recipe_calculator;
+mod home;
 mod legacy_host_redirect;
 mod lod_chest_solver;
 mod recruitment;
@@ -96,6 +97,9 @@ async fn sitemap(headers: HeaderMap) -> impl IntoResponse {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>{base}/</loc>
+  </url>
+  <url>
     <loc>{base}/LodChestSolver</loc>
     <xhtml:link rel="alternate" hreflang="ja" href="{base}/LodChestSolver"/>
     <xhtml:link rel="alternate" hreflang="en" href="{base}/LodChestSolver/en"/>
@@ -142,7 +146,7 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
-        .route("/", get(|| async { Redirect::temporary("/WLBatterySimulator") }))
+        .merge(home::router())
         .route("/health", get(|| async { "ok" }))
         .route("/robots.txt", get(robots))
         .route("/sitemap.xml", get(sitemap))
