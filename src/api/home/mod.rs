@@ -4,7 +4,8 @@
 //! 日本語のみ・1URL（`/`）。LodChestSolver/TestRunnerのような言語別URL分割はしない。
 //! F鯖向けの案内が主目的で、汎用ツールのようにクローラへ多言語を見せる必要が薄いため。
 //! CSSは分量が小さいので `templates_shared/toolnav.html` と同様にページ内に直書きしている。
-//! `static/` は OGP画像(ogp.png)の配信専用。
+//! `static/` は OGP画像(ogp.png)と星空背景のスクリプト(starfield.js)の配信用。
+//! 星空のJSは分量が大きいのでテンプレートから切り出している。
 
 use askama::Template;
 use axum::http::HeaderMap;
@@ -15,22 +16,12 @@ use tower_http::services::ServeDir;
 
 const STATIC_DIR: &str = "src/api/home/static";
 
-// 銀河背景の回転中心(画面右上の角からさらに外側)の比率。CSSの光の中心とJSの星の
-// 回転中心が同じ点になるよう、この2つの定数だけを唯一の情報源にしてテンプレートへ
-// 両方(JS用の比率そのもの/CSS用の%表記)を渡す。値を変える時はここだけ直せばよい。
-const GALAXY_CENTER_X_RATIO: f64 = 1.3;
-const GALAXY_CENTER_Y_RATIO: f64 = -0.3;
-
 #[derive(Template)]
 #[template(path = "home_index.html")]
 struct IndexTemplate {
     base: String,
     active_tool: &'static str,
     lang: &'static str,
-    galaxy_cx_ratio: String,
-    galaxy_cy_ratio: String,
-    galaxy_cx_pct: String,
-    galaxy_cy_pct: String,
 }
 
 async fn index(headers: HeaderMap) -> Html<String> {
@@ -38,10 +29,6 @@ async fn index(headers: HeaderMap) -> Html<String> {
         base: super::base_url(&headers),
         active_tool: "home",
         lang: "ja",
-        galaxy_cx_ratio: GALAXY_CENTER_X_RATIO.to_string(),
-        galaxy_cy_ratio: GALAXY_CENTER_Y_RATIO.to_string(),
-        galaxy_cx_pct: format!("{}%", GALAXY_CENTER_X_RATIO * 100.0),
-        galaxy_cy_pct: format!("{}%", GALAXY_CENTER_Y_RATIO * 100.0),
     }
     .render()
     .unwrap();
@@ -85,5 +72,21 @@ mod tests {
         assert!(html.contains("href=\"/TestRunner\""));
         assert!(html.contains("<h2>エンドフィールド</h2>"));
         assert!(html.contains("<h2>他の趣味ツール</h2>"));
+        assert!(html.contains(r#"<script src="/static/starfield.js" defer></script>"#));
+    }
+
+    #[tokio::test]
+    async fn starfield_script_is_served() {
+        let app = router::<()>();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/static/starfield.js")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 }
