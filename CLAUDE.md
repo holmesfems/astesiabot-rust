@@ -157,7 +157,10 @@ src/
 │       └── templates/    … tr_index.html（ja）/ tr_index_en.html（en）。
 │                           静的ラベルはmarkupに直書き＋SEOタグ。末尾は
 │                           `<link>` と5行のブートストラップ（言語別constantsをimportして
-│                           boot()を呼ぶ）だけで、ロジックもCSSも持たない
+│                           boot()を呼ぶ）だけで、ロジックもCSSも持たない。
+                           ツール切り替えバー（templates_shared/toolnav.html）は
+                           業務で使う想定のため意図的に include しない（バー側の
+                           TestRunnerチップは残す）
 └── bot/
     ├── mod.rs     … run_bot(token, state)。setup() で ChannelRouting::from_env()・
     │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn
