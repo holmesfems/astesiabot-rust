@@ -19,15 +19,22 @@ export function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+// 表のセル内は1行で書くしかないので、`<br>` / `<br/>` / `<br />`（大文字小文字不問）を改行として扱う。
+// コードスパン内の `<br>` はリテラルのまま残すため、コードスパンと同じ走査で拾う。
 export function applyInline(raw) {
   var s = escapeHtml(raw);
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/`(.+?)`/g, '<code>$1</code>');
+  s = s.replace(/`(.+?)`|&lt;br\s*\/?&gt;/gi, function (m, code) {
+    return code !== undefined ? '<code>' + code + '</code>' : '<br>';
+  });
   return s;
 }
 
+// プレーンテキスト化。`<br>` は改行（\n）に戻す（呼び出し側が \n を ' / ' 等に置き換える）。
 export function stripMd(raw) {
-  return String(raw).replace(/\*\*(.+?)\*\*/g, '$1').replace(/`(.+?)`/g, '$1');
+  return String(raw).replace(/\*\*(.+?)\*\*/g, '$1').replace(/`(.+?)`|<br\s*\/?>/gi, function (m, code) {
+    return code !== undefined ? code : '\n';
+  });
 }
 
 function escapeRegExp(s) {

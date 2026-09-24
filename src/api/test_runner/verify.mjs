@@ -57,6 +57,27 @@ ok('sample(en): same totalItems', rEn.totalItems === r.totalItems,
 ok('sample(en): glossary found', rEn.glossary.length > 0, rEn.glossary.map(g => g.key).join(' / '));
 ok('sample(en): materials found', rEn.materials.length > 0, rEn.materials.map(m => m.key).join(' / '));
 
+// --- セル内の <br> 改行 ---
+ok('applyInline: <br> variants become line breaks',
+   parser.applyInline('a<br>b<br/>c<BR />d') === 'a<br>b<br>c<br>d',
+   parser.applyInline('a<br>b<br/>c<BR />d'));
+ok('applyInline: <br> inside code span stays literal',
+   parser.applyInline('x `<br>` y') === 'x <code>&lt;br&gt;</code> y',
+   parser.applyInline('x `<br>` y'));
+ok('applyInline: other tags stay escaped',
+   parser.applyInline('<b>x</b><brx>') === '&lt;b&gt;x&lt;/b&gt;&lt;brx&gt;',
+   parser.applyInline('<b>x</b><brx>'));
+ok('applyInline: bold spanning <br> still works',
+   parser.applyInline('**a<br>b**') === '<strong>a<br>b</strong>',
+   parser.applyInline('**a<br>b**'));
+ok('stripMd: <br> becomes newline', parser.stripMd('**a**<br />`b`') === 'a\nb',
+   JSON.stringify(parser.stripMd('**a**<br />`b`')));
+const brCell = parser.parseProcedure('## T\n### 1. S\n| No | 手順 | 期待結果 |\n|---|---|---|\n| 1 | 開く<br>閉じる | 表示される<br/>消える |\n');
+ok('table cell <br> -> stepHtml/expectedHtml',
+   brCell.sections[0].items[0].stepHtml === '開く<br>閉じる' &&
+   brCell.sections[0].items[0].expectedHtml === '表示される<br>消える',
+   JSON.stringify(brCell.sections[0].items[0]));
+
 // --- 見出しキーワードの日英エイリアス ---
 // 日本語版は従来どおり動くこと（回帰）、英語版も同じ結果になること。
 function minimal(glossaryWord, materialsWord, buildLine) {

@@ -54,7 +54,7 @@ Note: This is just a formatting example.
 - Write each row so it can be carried out by reading only that row and the one immediately before it. A row may assume the state left by completing the previous row (the screen that is open, values already entered, and so on), e.g. "In the dialog that appears, click **OK**". However, borrowing the content of the action or expected result of the previous row ("same as above", "same as the previous item"), or referring to rows two or more back or by number ("redo N", "as above"), is forbidden. Write every required action in full each time, without abbreviating. The first row of each section must not assume any state left by the previous section.
 - Write expected results as definite statements, specifying exactly what should be visible — values, positions, counts, and so on. Do not use words that require subjective judgment, such as "appropriately", "correctly", "reasonably", "roughly", "as before", or "without issue". If the original text uses such a word and it cannot be made concrete without changing its meaning, keep the word as-is and append `(Needs review: judgment criteria unclear)` at the end of the line.
 - Wrap words you want bolded in `**word**`. Wrap key names or commands in backticks, like `word`.
-- Do not use `|` inside table cells — replace it with the full-width character `｜`. Do not put line breaks inside a cell.
+- Do not use `|` inside table cells — replace it with the full-width character `｜`. If you need a line break inside a cell, use `<br>` only (no actual newlines and no other HTML tags).
 
 ## How to respond
 
