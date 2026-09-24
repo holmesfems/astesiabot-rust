@@ -49,24 +49,19 @@ const SKILL_ZIP_ROOT_DIR: &str = "test-procedure-formatter";
 struct IndexJaTemplate {
     /// canonical / hreflang 用の絶対URLの起点（例: https://example.com）。
     base: String,
-    /// ツール切り替えヘッダー(templates_shared/toolnav.html)用。
-    active_tool: &'static str,
-    lang: &'static str,
+    // ツール切り替えヘッダー(templates_shared/toolnav.html)は業務用途を想定して
+    // 意図的に include していないので、active_tool / lang は持たない。
 }
 
 #[derive(Template)]
 #[template(path = "tr_index_en.html")]
 struct IndexEnTemplate {
     base: String,
-    active_tool: &'static str,
-    lang: &'static str,
 }
 
 async fn index_ja(headers: HeaderMap) -> Html<String> {
     let page = IndexJaTemplate {
         base: super::base_url(&headers),
-        active_tool: "tr",
-        lang: "ja",
     }
     .render()
     .unwrap();
@@ -76,8 +71,6 @@ async fn index_ja(headers: HeaderMap) -> Html<String> {
 async fn index_en(headers: HeaderMap) -> Html<String> {
     let page = IndexEnTemplate {
         base: super::base_url(&headers),
-        active_tool: "tr",
-        lang: "en",
     }
     .render()
     .unwrap();
@@ -174,11 +167,19 @@ mod tests {
         String::from_utf8(bytes.to_vec()).unwrap()
     }
 
+    /// 業務で使う想定のページなので、ツール切り替えバーも他ツール（ゲーム用）への
+    /// リンクも出してはいけない。
+    fn assert_no_toolnav(html: &str) {
+        assert!(!html.contains("toolnav-bar"));
+        for other in ["/WLBatterySimulator", "/EFRecipeCalculator", "/LodChestSolver", r#"href="/""#] {
+            assert!(!html.contains(other), "TestRunner のページに {other} へのリンクがある");
+        }
+    }
+
     #[tokio::test]
-    async fn ja_page_renders_japanese_toolnav_with_active_chip() {
+    async fn ja_page_renders_without_toolnav() {
         let html = get_body("/").await;
-        assert!(html.contains("toolnav-bar"));
-        assert!(html.contains(r#"href="/TestRunner" aria-current="page""#));
+        assert_no_toolnav(&html);
         assert!(html.contains("試験手順ランナー"));
         assert!(html.contains(r#"id="ok-btn""#));
         assert!(html.contains("手順を読み込む"));
@@ -374,10 +375,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn en_page_renders_english_toolnav_with_active_chip() {
+    async fn en_page_renders_without_toolnav() {
         let html = get_body("/en").await;
-        assert!(html.contains("toolnav-bar"));
-        assert!(html.contains(r#"href="/TestRunner" aria-current="page""#));
+        assert_no_toolnav(&html);
         assert!(html.contains("Test Runner"));
         assert!(html.contains(r#"id="ok-btn""#));
         assert!(html.contains("Load a procedure"));
