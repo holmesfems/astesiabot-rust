@@ -167,7 +167,7 @@ export const AI_FORMAT_PROMPT = [
 '',
 '## Writing rules (important)',
 '',
-'- Write each row so it can be carried out from that row alone. References to other rows, such as "redo N", "same as above", "same as the previous item", or "as above", are forbidden. Rewrite every required action in full each time, without abbreviating.',
+'- Write each row so it can be carried out by reading only that row and the one immediately before it. A row may assume the state left by completing the previous row (the screen that is open, values already entered, and so on), e.g. "In the dialog that appears, click **OK**". However, borrowing the content of the action or expected result of the previous row ("same as above", "same as the previous item"), or referring to rows two or more back or by number ("redo N", "as above"), is forbidden. Write every required action in full each time, without abbreviating. The first row of each section must not assume any state left by the previous section.',
 '- Write expected results as definite statements, specifying exactly what should be visible \u2014 values, positions, counts, and so on. Do not use words that require subjective judgment, such as "appropriately", "correctly", "reasonably", "roughly", "as before", or "without issue". If the original text uses such a word and it cannot be made concrete without changing its meaning, keep the word as-is and append `(Needs review: judgment criteria unclear)` at the end of the line.',
 '- Wrap words you want bolded in `**word**`. Wrap key names or commands in backticks, like `word`.',
 '- Do not use `|` inside table cells \u2014 replace it with the full-width character `\uff5c`. Do not put line breaks inside a cell.',
