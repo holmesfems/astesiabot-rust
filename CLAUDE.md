@@ -103,6 +103,14 @@ src/
 │   ├── recruitment.rs     … POST /recruitment/ （Python の doRecruitment と完全一致）
 │   ├── legacy_host_redirect.rs … 旧ホスト（*.herokuapp.com / www.）の GET/HEAD を
 │   │                        PUBLIC_BASE_URL へ 301 するミドルウェア（run_api のみに掛ける）
+│   ├── site_icons/        … サイト共通アイコンをルート直下で配信（/favicon.ico・/favicon.svg・
+│   │                        /apple-touch-icon.png・/icon-{192,512,maskable-512}.png・
+│   │                        /site.webmanifest）。include_bytes! で埋め込み。static/ の画像は
+│   │                        `assets/icon/generate.mjs` の生成物（手で編集しない）
+│   ├── templates_shared/  … 各ページが include する共通パーツ。toolnav.html（ツール切り替え）/
+│   │                        head_icons.html（全ページの<head>に必須）/ og_square_image.html
+│   │                        （横長OGPを持たないページ用の正方形 og:image。home 以外の全ページが
+│   │                        使う。include先のstructに base が必要）
 │   ├── wl_battery_simulator/ … 武陵発電制御シミュレーター（askama + htmx の Web UI）
 │   │   ├── mod.rs        … ルーター（index/calculate/static配信）
 │   │   ├── battery_sim.rs… シミュレーションエンジン（Python版 batterySim.py 移植）
@@ -344,6 +352,15 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   Web UI専用サーバー）とその `e2e.mjs` から見えなくなり、dev と本番でルート集合が
   ズレる。UIルート（AppStateに依存しないページ群）を増やすときは必ず `web_ui_router()`
   に足すこと。`run_api` はそれに `/recruitment/` と SwaggerUi を足すだけにする。
+- **サイトアイコンは元画像から生成して commit する**: 元画像は `assets/icon/`
+  （通常版 PNG と simple版 SVG）。差し替えたら
+  `& "C:\Program Files\nodejs\node.exe" assets/icon/generate.mjs` を回して
+  `src/api/site_icons/static/` を更新する（Playwright の Chromium で描く）。48px 以下の
+  ファビコンと maskable は simple版、180px 以上は通常版を使う。simple版 SVG は星を
+  `<use fill="…">` で描いており、ブラウザ以外のラスタライザ（デザインツールの PNG 書き出し等）
+  はこの fill を落として星を黒く塗るので、PNG 化は必ず generate.mjs 経由にすること。
+  新しいページを足したら `head_icons.html` を include する（`api/mod.rs` の
+  `every_page_links_site_icons` にもパスを足す）。
 
 ## 動作確認手順
 

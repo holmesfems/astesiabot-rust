@@ -1,0 +1,7 @@
+<!-- 専用の横長OGP画像を持たないページ用の正方形OGP（サイトアイコンの通常版）。
+     include先のTemplate structが base（絶対URLの起点）を持っていることが前提。
+     横長の画像を持つページ（home）は twitter:card が summary_large_image なので使わない。 -->
+<meta property="og:image" content="{{ base }}/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta name="twitter:card" content="summary">
