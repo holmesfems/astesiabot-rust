@@ -4,8 +4,10 @@
 //! 日本語のみ・1URL（`/`）。LodChestSolver/TestRunnerのような言語別URL分割はしない。
 //! F鯖向けの案内が主目的で、汎用ツールのようにクローラへ多言語を見せる必要が薄いため。
 //! CSSは分量が小さいので `templates_shared/toolnav.html` と同様にページ内に直書きしている。
-//! `static/` は OGP画像(ogp.png)と星空背景のスクリプト(starfield.js)の配信用。
-//! 星空のJSは分量が大きいのでテンプレートから切り出している。
+//! `static/` は OGP画像(ogp.png)と星空背景のスクリプト(starfield.js)、オープニングの
+//! スクリプト(opening.js)の配信用。どちらのJSも分量が大きいのでテンプレートから切り出している。
+//! オープニング（星の細剣のエンブレム）のSVGは `templates/home_opening.html` を include して
+//! サーバー側で埋め込む（JS無効でも本文はそのまま見える。再生の要否は home_index.html の <head>）。
 
 use askama::Template;
 use axum::http::HeaderMap;
@@ -73,20 +75,20 @@ mod tests {
         assert!(html.contains("<h2>エンドフィールド</h2>"));
         assert!(html.contains("<h2>他の趣味ツール</h2>"));
         assert!(html.contains(r#"<script src="/static/starfield.js" defer></script>"#));
+        assert!(html.contains(r#"<script src="/static/opening.js" defer></script>"#));
+        assert!(html.contains(r#"<div id="opening" aria-hidden="true">"#));
+        assert!(html.contains(r#"<svg id="emblem""#));
     }
 
     #[tokio::test]
-    async fn starfield_script_is_served() {
-        let app = router::<()>();
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/static/starfield.js")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+    async fn static_scripts_are_served() {
+        for uri in ["/static/starfield.js", "/static/opening.js"] {
+            let app = router::<()>();
+            let response = app
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{uri}");
+        }
     }
 }
