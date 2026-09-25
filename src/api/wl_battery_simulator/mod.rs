@@ -3,6 +3,7 @@ mod optimizer;
 
 use askama::Template;
 use axum::extract::Multipart;
+use axum::http::HeaderMap;
 use axum::response::{Html, Redirect};
 use axum::routing::get;
 use axum::Router;
@@ -21,6 +22,8 @@ struct IndexTemplate {
     error_html: String,
     result_html: String,
     chart_html: String,
+    /// OGP(og:url / og:image)用の絶対URLの起点（例: https://example.com）。
+    base: String,
     /// ツール切り替えヘッダー(templates_shared/toolnav.html)用。
     active_tool: &'static str,
     lang: &'static str,
@@ -44,7 +47,7 @@ struct ErrorTemplate {
     error: Option<String>,
 }
 
-async fn index() -> Html<String> {
+async fn index(headers: HeaderMap) -> Html<String> {
     let error_html = ErrorTemplate { error: None }.render().unwrap();
     let chart_html = ChartTemplate { result: None }.render().unwrap();
     let page = IndexTemplate {
@@ -54,6 +57,7 @@ async fn index() -> Html<String> {
         error_html,
         result_html: String::new(),
         chart_html,
+        base: super::base_url(&headers),
         active_tool: "wl",
         lang: "ja",
     }

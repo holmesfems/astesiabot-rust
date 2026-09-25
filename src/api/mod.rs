@@ -3,6 +3,7 @@ mod home;
 mod legacy_host_redirect;
 mod lod_chest_solver;
 mod recruitment;
+mod site_icons;
 mod test_runner;
 mod wl_battery_simulator;
 
@@ -147,6 +148,7 @@ where
 {
     Router::new()
         .merge(home::router())
+        .merge(site_icons::router())
         .route("/health", get(|| async { "ok" }))
         .route("/robots.txt", get(robots))
         .route("/sitemap.xml", get(sitemap))
@@ -203,3 +205,75 @@ async fn not_found() -> (StatusCode, &'static str) {
     (StatusCode::NOT_FOUND, "404 Not Found")
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    async fn get_html(path: &str) -> String {
+        let response = web_ui_router::<()>()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .header("host", "example.com")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        String::from_utf8(bytes.to_vec()).unwrap()
+    }
+
+    /// templates_shared/head_icons.html を include し忘れたページが無いこと。
+    #[tokio::test]
+    async fn every_page_links_site_icons() {
+        for path in [
+            "/",
+            "/WLBatterySimulator",
+            "/EFRecipeCalculator",
+            "/LodChestSolver",
+            "/LodChestSolver/en",
+            "/TestRunner",
+            "/TestRunner/en",
+        ] {
+            let html = get_html(path).await;
+            let head = &html[..html.find("</head>").expect(path)];
+            assert!(head.contains(r#"<link rel="icon" href="/favicon.svg""#), "{path}");
+            assert!(head.contains(r#"<link rel="apple-touch-icon" href="/apple-touch-icon.png">"#), "{path}");
+            assert!(head.contains(r#"<link rel="manifest" href="/site.webmanifest">"#), "{path}");
+        }
+    }
+
+    /// 横長OGPを持たないページは正方形アイコンを絶対URLで og:image にする。
+    #[tokio::test]
+    async fn pages_without_own_ogp_use_square_icon() {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::HOST, "example.com".parse().unwrap());
+        let base = base_url(&headers);
+        for path in [
+            "/WLBatterySimulator",
+            "/EFRecipeCalculator",
+            "/LodChestSolver",
+            "/LodChestSolver/en",
+            "/TestRunner",
+            "/TestRunner/en",
+        ] {
+            let html = get_html(path).await;
+            assert!(
+                html.contains(&format!(r#"<meta property="og:image" content="{base}/icon-512.png">"#)),
+                "{path}"
+            );
+            assert!(html.contains(r#"<meta name="twitter:card" content="summary">"#), "{path}");
+        }
+        let home = get_html("/").await;
+        assert!(home.contains(&format!(r#"<meta property="og:image" content="{base}/static/ogp.png">"#)));
+        assert!(!home.contains("icon-512.png"));
+    }
+}

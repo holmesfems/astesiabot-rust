@@ -2,6 +2,7 @@ mod solver;
 
 use askama::Template;
 use axum::extract::Multipart;
+use axum::http::HeaderMap;
 use axum::response::{Html, Redirect};
 use axum::routing::get;
 use axum::Router;
@@ -77,6 +78,8 @@ struct IndexTemplate {
     byproduct_surplus_html: String,
     bottleneck_html: String,
     warnings_html: String,
+    /// OGP(og:url / og:image)用の絶対URLの起点（例: https://example.com）。
+    base: String,
     /// ツール切り替えヘッダー(templates_shared/toolnav.html)用。
     active_tool: &'static str,
     lang: &'static str,
@@ -124,7 +127,7 @@ struct WarningsTemplate {
     warnings: Vec<String>,
 }
 
-async fn index() -> Html<String> {
+async fn index(headers: HeaderMap) -> Html<String> {
     let page = IndexTemplate {
         error_html: (ErrorTemplate { error: None }).render().unwrap(),
         steps_html: (StepsTemplate { steps: vec![] }).render().unwrap(),
@@ -133,6 +136,7 @@ async fn index() -> Html<String> {
         byproduct_surplus_html: (ByproductSurplusTemplate { surplus: vec![] }).render().unwrap(),
         bottleneck_html: (BottleneckTemplate { bottleneck: None }).render().unwrap(),
         warnings_html: (WarningsTemplate { warnings: vec![] }).render().unwrap(),
+        base: super::base_url(&headers),
         active_tool: "ef",
         lang: "ja",
     }

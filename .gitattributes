@@ -1,0 +1,4 @@
+# 整形スキル（/TestRunner/skill.zip で配布）は OS を問わず LF で置く。
+# verify.mjs が format.*.md と samples.*.js の AI_FORMAT_PROMPT（LF で組み立てた文字列）を
+# 完全一致で比べるのと、zip の中身をチェックアウトした環境で変えないため。
+src/api/test_runner/skill/** text eol=lf
