@@ -37,7 +37,6 @@ async fn try_endpoint(
     api_key: &str,
     image_uri: &str,
 ) -> Result<Option<String>, Error> {
-    let url = format!("{endpoint}?key={api_key}");
     let body = serde_json::json!({
         "requests": [{
             "image": { "source": { "imageUri": image_uri } },
@@ -45,7 +44,13 @@ async fn try_endpoint(
         }]
     });
 
-    let resp = client.post(&url).json(&body).send().await?;
+    // APIキーはURLに載せずヘッダーで渡す（reqwestのエラー文言にURLがそのまま出るため）。
+    let resp = client
+        .post(endpoint)
+        .header("X-goog-api-key", api_key)
+        .json(&body)
+        .send()
+        .await?;
     if !resp.status().is_success() {
         return Ok(None);
     }

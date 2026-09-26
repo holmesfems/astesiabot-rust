@@ -22,6 +22,8 @@ pub async fn fetch_json_with_retry(client: &reqwest::Client, url: &str) -> Resul
 
 /// [`fetch_json_with_retry`] にヘッダー指定を足したもの。penguin-stats系の
 /// fetchは `User-Agent: ArkPlanner` が必要なため、これを使う。
+/// APIキーはURLのクエリに載せずヘッダーで渡すこと（URLはログやreqwestのエラー文言に
+/// そのまま出るため。ヘッダーはログに名前しか出さない）。
 pub async fn fetch_json_with_retry_headers(
     client: &reqwest::Client,
     url: &str,
@@ -30,7 +32,9 @@ pub async fn fetch_json_with_retry_headers(
     let mut last_err: Option<FetchError> = None;
     for i in 0..FETCH_RETRIES {
         let mut req = client.get(url);
-        print!("[fetch_json] try {i} url={url} headers={:?}\n", headers);
+        // ヘッダーは値にAPIキーを載せることがある（fk_dataの`X-goog-api-key`等）ため、名前だけ出す。
+        let header_names: Vec<&str> = headers.iter().map(|(key, _)| *key).collect();
+        print!("[fetch_json] try {i} url={url} headers={header_names:?}\n");
         for (key, value) in headers {
             req = req.header(*key, *value);
         }
