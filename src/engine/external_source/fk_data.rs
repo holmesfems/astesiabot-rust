@@ -1,5 +1,5 @@
 use super::cache::write_seed_file;
-use super::http::{client, fetch_json_with_retry};
+use super::http::{client, fetch_json_with_retry_headers};
 use super::{BoxFuture, FetchError};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -49,10 +49,11 @@ pub fn update_seed() -> BoxFuture<'static, Result<(), FetchError>> {
 async fn fetch_impl() -> Result<FkSheetData, FetchError> {
     let api_key = std::env::var("FK_SHEETS_API_KEY").map_err(|_| "FK_SHEETS_API_KEY not set")?;
     let spreadsheet_id = std::env::var("FK_SHEETS_SPREADSHEET_ID").map_err(|_| "FK_SHEETS_SPREADSHEET_ID not set")?;
-    let url = format!("https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{SHEET_NAME}?key={api_key}");
+    // APIキーはURLに載せずヘッダーで渡す（URLはfetchログやエラー文言に出るため）。
+    let url = format!("https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{SHEET_NAME}");
 
     let client = client();
-    let json = fetch_json_with_retry(&client, &url).await?;
+    let json = fetch_json_with_retry_headers(&client, &url, &[("X-goog-api-key", &api_key)]).await?;
 
     let mut by_operator: IndexMap<String, Vec<FkSheetRow>> = IndexMap::new();
     let Some(rows) = json.get("values").and_then(Value::as_array) else {
