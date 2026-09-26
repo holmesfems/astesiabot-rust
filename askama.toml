@@ -6,6 +6,7 @@ dirs = [
     # プレフィックス付き（ef_* / lod_* / tr_* / home_*）にすること。
     "src/api/lod_chest_solver/templates",
     "src/api/test_runner/templates",
+    "src/api/fk_kill_calculator/templates",
     "src/api/home/templates",
     # 各ツール共通で {% include %} するパーツ（ツール切り替えヘッダー等）。
     "src/api/templates_shared",

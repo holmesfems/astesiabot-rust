@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>フレームキル計算機 | アステシアちゃんbot</title>
+{% include "head_icons.html" %}
+<meta name="description" content="アークナイツのフレームキル(FK)情報をもとに、オペレーターのスキルダメージが敵を撃破できるか計算するツール。攻撃力・防御/術耐性・モジュール・潜在を入力すると、撃破可否と不足分の目安をその場で表示します。">
+<link rel="canonical" href="{{ base }}/FrameKillCalculator">
+<meta property="og:type" content="website">
+<meta property="og:title" content="フレームキル計算機">
+<meta property="og:description" content="アークナイツのFK情報からスキルダメージの撃破可否を計算するツール。">
+<meta property="og:url" content="{{ base }}/FrameKillCalculator">
+<meta property="og:locale" content="ja_JP">
+{% include "og_square_image.html" %}
+<link rel="stylesheet" href="/FrameKillCalculator/static/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "フレームキル計算機",
+  "url": "{{ base }}/FrameKillCalculator",
+  "inLanguage": "ja",
+  "applicationCategory": "GameApplication",
+  "operatingSystem": "Web",
+  "isAccessibleForFree": true,
+  "description": "アークナイツのフレームキル(FK)情報をもとに、オペレーターのスキルダメージが敵を撃破できるか計算するツール。"
+}
+</script>
+</head>
+<body>
+{% include "toolnav.html" %}
+<div id="toast-container" aria-live="polite"></div>
+<div class="wrap">
+  <h1>フレームキル計算機</h1>
+  <p class="sub">敵のHP/防御/術耐性と、FKするオペレーターのスキルを入力すると撃破可否をその場で計算します。</p>
+  <div id="app">読み込み中…</div>
+  <footer>
+    <a href="https://github.com/holmesfems/astesiaBot-rust" target="_blank" rel="noopener noreferrer">GitHub</a>
+    ｜ © <span id="year"></span> holmesfems. Licensed under the
+    <a href="https://opensource.org/license/mit/" target="_blank" rel="noopener noreferrer">MIT License</a>
+  </footer>
+</div>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script src="/FrameKillCalculator/static/lz-string.min.js"></script>
+<script type="module">
+  import { initUi } from "/FrameKillCalculator/static/ui.js";
+  initUi();
+</script>
+</body>
+</html>

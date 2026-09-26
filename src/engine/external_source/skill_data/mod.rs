@@ -1,6 +1,7 @@
 use super::cache::write_seed_file;
 use super::http::{client, fetch_json_with_retry};
 use super::{BoxFuture, FetchError};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -21,6 +22,11 @@ pub struct SkillItem {
     pub name: String,
     /// 最大レベルの説明文（ヘッダ込みで組み立て済み）。説明文が無いスキルは空文字列。
     pub description: String,
+    /// 最大レベルのblackboard（キー→値。`value`が`None`の項目は除外済み）。
+    /// フレームキル計算機がスキル倍率等の数値をそのまま参照するための生データで、
+    /// `description`の文字列組み立てとは独立に持つ。`IndexMap`はJSON上の元の並び順を
+    /// 保持するため（挿入順保持が必要な他ソースとの一貫性。厳密な順序依存は今のところ無い）。
+    pub blackboard: IndexMap<String, f64>,
 }
 
 /// スキルID→名前/説明文（Python `SkillIdToName`相当。旧`SkillNames`を統合）。
@@ -38,6 +44,11 @@ impl SkillData {
     /// idから説明文を解決する。無ければ空文字列（Python `SkillIdToName.getDescription`と同じフォールバック）。
     pub fn get_description(&self, id: &str) -> &str {
         self.id_to_item.get(id).map(|item| item.description.as_str()).unwrap_or("")
+    }
+
+    /// idから最大レベルのblackboardを解決する。無ければ`None`。
+    pub fn get_blackboard(&self, id: &str) -> Option<&IndexMap<String, f64>> {
+        self.id_to_item.get(id).map(|item| &item.blackboard)
     }
 
     #[cfg(test)]
@@ -77,11 +88,15 @@ async fn fetch_impl() -> Result<SkillData, FetchError> {
                 continue;
             };
             let description = description::build_description(&level);
+            // `value`が`None`の項目（Python版もduck typingで実質参照しない）は除外する。
+            let blackboard: IndexMap<String, f64> =
+                level.blackboard.iter().filter_map(|item| item.value.map(|v| (item.key.clone(), v))).collect();
             id_to_item.insert(
                 id.clone(),
                 SkillItem {
                     name: level.name,
                     description,
+                    blackboard,
                 },
             );
         }

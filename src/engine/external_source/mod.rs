@@ -5,6 +5,7 @@ pub mod fk_data;
 pub mod formulas;
 pub mod http;
 pub mod item_names;
+pub mod operator_combat;
 pub mod operator_data;
 pub mod skill_data;
 pub mod zones;
@@ -34,6 +35,9 @@ pub struct ExternalSourceRegistry {
     /// （character_table.json / uniequip_table.json / char_patch_table.json を1回のfetchで
     /// まとめて構築する。旧`operator_names`はこれに統合済み）。
     pub operator_data: Source<operator_data::OperatorData>,
+    /// フレームキル計算機用のオペレーター戦闘生データ（元ATK/潜在ATK/モジュールATK加算値）。
+    /// `operator_data`とは意図的に別ソース（消費素材ドメインと戦闘ドメインを分離するため）。
+    pub operator_combat: Source<operator_combat::OperatorCombat>,
     /// スキルID→表示名+説明文（最大レベルの説明文をヘッダ込みで組み立て済み）。
     pub skill_data: Source<skill_data::SkillData>,
     pub item_names: Source<item_names::ItemNames>,
@@ -57,6 +61,7 @@ impl ExternalSourceRegistry {
     pub async fn load(debug: bool) -> Self {
         Self {
             operator_data: Source::load("operator_data", Some(operator_data::SEED_PATH), operator_data::fetch, debug).await,
+            operator_combat: Source::load("operator_combat", Some(operator_combat::SEED_PATH), operator_combat::fetch, debug).await,
             skill_data: Source::load("skill_data", Some(skill_data::SEED_PATH), skill_data::fetch, debug).await,
             item_names: Source::load("item_names", Some(item_names::SEED_PATH), item_names::fetch, debug).await,
             zones: Source::load("zones", Some(zones::SEED_PATH), zones::fetch, debug).await,
@@ -72,6 +77,7 @@ impl ExternalSourceRegistry {
     pub async fn refresh_all(&self) {
         tokio::join!(
             self.operator_data.refresh(),
+            self.operator_combat.refresh(),
             self.skill_data.refresh(),
             self.item_names.refresh(),
             self.zones.refresh(),
@@ -89,6 +95,7 @@ impl ExternalSourceRegistry {
     pub async fn refresh_by_name(&self, name: &str) -> Option<bool> {
         match name {
             "operator_data" => Some(self.operator_data.refresh().await),
+            "operator_combat" => Some(self.operator_combat.refresh().await),
             "skill_data" => Some(self.skill_data.refresh().await),
             "item_names" => Some(self.item_names.refresh().await),
             "zones" => Some(self.zones.refresh().await),
@@ -114,6 +121,11 @@ pub const SEED_JOBS: &[SeedJob] = &[
         name: "operator_data",
         path: operator_data::SEED_PATH,
         update: operator_data::update_seed,
+    },
+    SeedJob {
+        name: "operator_combat",
+        path: operator_combat::SEED_PATH,
+        update: operator_combat::update_seed,
     },
     SeedJob {
         name: "skill_data",
