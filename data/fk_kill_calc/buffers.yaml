@@ -1,0 +1,54 @@
+# フレームキル計算機のバフカタログ(P2)。
+#
+# 読み込み方法・スキーマの詳細は`src/engine/fk_kill_calc/buffers.rs`冒頭のコメントを参照。
+# 簡単には:
+#   individual: 行ごとにチップで選ぶバフ(自己バフ等)。
+#     - { id, name, pct: 0.xx (または flat: 数値), single_target: true(省略時false), note }
+#   conditional: 全体で1回ON/OFFし、targetsのタグを持つ行にだけ自動で効くバフ。
+#     - { id, name, pct: 0.xx (または flat: 数値), targets: [タグ,...],
+#         bonus: { tags: [タグ,...], pct/flat: 数値, note } (省略可。targetsに加えて
+#         bonus.tagsのいずれかも持つ行には基本値の代わりにbonus側の値を使う), note }
+#
+# targets/bonus.tagsに書けるタグ名は`tags.rs::tag_vocabulary()`の語彙のみ
+# (`cargo test`のドリフト検知テスト`buffers.rs::every_target_tag_is_in_the_known_vocabulary`
+# が保証する)。値は全てオーナー提供の参照スプレッドシートに基づく(出典: 各行のnote参照。
+# 数値未確定のものは `# 要確認` を付けてある)。
+
+individual:
+  - { id: plasma, name: 血漿, pct: 0.90 }
+  - { id: durian, name: ドリアン, pct: 0.50 }
+  # 素質「天使の祝福」(能天使/Exusiai, char_103_angel) E2最大素質凸:
+  # 攻撃力+8%(+2%)=+10%、生命上限+13%(+3%)=+16%。「配置後、この効果はランダムな味方
+  # 1名にも同様に付与される」ため、選んだ行1つにだけ効くバフとして"individual"に置く
+  # (single_target=true。同じ行に2回選んでも意味が無い/他の行と同時に選ぶと「本当に
+  # そのランダム対象がこの2行になるか」は保証されないので警告対象にする)。
+  - { id: exusiai, name: エクシア, pct: 0.10, single_target: true, note: "素質「天使の祝福」E2最大素質凸: 自身攻撃力+10%(生命上限+16%)。配置後ランダムな味方1名にも同じ効果を付与する" }
+  - { id: ceo_normal, name: "CEO(通常)", pct: 0.07 }
+  - { id: ceo_skill, name: "CEO(スキル)", pct: 0.14 }
+  - { id: swire_s1, name: スワイヤーS1, pct: 0.24 }
+  - { id: stainless_2, name: "ステインレス(2)", pct: 0.96 }
+  - { id: stainless_1, name: "ステインレス(1)", pct: 0.48 }
+  - { id: nasty_s3, name: ナスティS3, pct: 0.60 }
+
+conditional:
+  - { id: castle3, name: Castle, pct: 0.20, targets: [近距離] }
+  - { id: zima, name: ズィマー, pct: 0.45, targets: [先鋒] }
+  - { id: aya, name: エイヤ, pct: 0.14, targets: [術師] }
+  - { id: podenco, name: ポデンコ, pct: 0.11, targets: [補助] }
+  - { id: schwarz, name: シュヴァルツ, pct: 0.15, targets: [狙撃] }
+  - { id: suzuran, name: スズラン, pct: 0.09, targets: [補助] }
+  - { id: sprria, name: スプリア, pct: 0.20, targets: [狙撃] }
+  - { id: pepe, name: ペペ, pct: 0.20, targets: [前衛] }
+  # 新約能天使(異格エクシア。char_1041_angel2)の素質「铳弹协约」E2最大潜在:
+  # 「在场时，携带弹药类技能的干员攻击力+13%，对【拉特兰】干员的效果翻倍」
+  # (在場時、弾薬類スキルを持つ干員の攻撃力+13%。【ラテラーノ】干員へは効果2倍)。
+  # target=弾薬スキル(machine tag。durationType==AMMOで判定)、
+  # ラテラーノ勢だけ2倍(26%)になるのをbonusで表現する。
+  - {
+      id: exusiai_alter,
+      name: 異格エクシア,
+      pct: 0.13,
+      targets: [弾薬スキル],
+      bonus: { tags: [ラテラーノ], pct: 0.26, note: "素質「铳弹协约」: ラテラーノ勢は効果2倍" },
+      note: "新約能天使(char_1041_angel2)素質「铳弹协约」E2最大潜在の値",
+    }

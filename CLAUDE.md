@@ -64,18 +64,22 @@ src/
 │   │   │                       構築する（旧operator_names.rsはこれに統合済み）。
 │   │   │                       SEED_PATH = data/seed/operator_data.json
 │   │   ├── operator_combat.rs … フレームキル計算機用のオペレーター戦闘生データ
-│   │   │                       （元ATK/信頼度込みATK・潜在ATK・モジュールのATK加算値。
+│   │   │                       （元ATK/信頼度込みATK・潜在ATK・モジュールのATK加算値・
+│   │   │                       nationId(P2で追加。勢力タグ判定用machine-only)。
 │   │   │                       machine-extractableな数値のみ）。character_table.json /
 │   │   │                       uniequip_table.json / battle_equip_table.json から構築する。
 │   │   │                       operator_data.rs（消費素材ドメイン）とは意図的に別ソース
 │   │   │                       （オーナー方針: 両ドメインを混ぜない。詳細は下記ポイント参照）。
 │   │   │                       SEED_PATH = data/seed/operator_combat.json
-│   │   └── skill_data/      … スキルID→表示名+説明文+blackboard（skill_table.json をfetch）。
+│   │   └── skill_data/      … スキルID→表示名+説明文+blackboard+is_ammo_skill
+│   │       │                  （skill_table.json をfetch）。
 │   │       ├── mod.rs          … SkillData（旧skill_names.rsのSkillNamesを統合）。get_str/
 │   │       │                      get_description/get_blackboard（最大レベルのblackboard。
-│   │       │                      フレームキル計算機のスキル倍率取得に使う）。
+│   │       │                      フレームキル計算機のスキル倍率取得に使う）/is_ammo_skill
+│   │       │                      （P2で追加。`durationType == "AMMO"`か。フレームキル計算機の
+│   │       │                      「弾薬スキル」タグ判定用machine-only）。
 │   │       │                      SEED_PATH = data/seed/skill_data.json
-│   │       ├── raw.rs          … skill_table.jsonの生JSON構造体
+│   │       ├── raw.rs          … skill_table.jsonの生JSON構造体（durationTypeもここ）
 │   │       └── description.rs  … 最大レベルの説明文組み立て（タグ除去・プレースホルダ解決・
 │   │                              ヘッダ合成）。Python版のcleanStr副作用バグ（フォーマット指定子の
 │   │                              小数点が壊れる/chain.max_targetの誤統合）は踏襲せず、実データに
@@ -114,12 +118,28 @@ src/
 │       │                fk_data上のオペレーター名は`skipped`に集約する）、
 │       │                resolve_multiplier_defaults（倍率の自動判定+候補一覧の決定的な並び順）、
 │       │                validate_overrides（overrides.yamlのドリフト検知）
-│       ├── dto.rs     … Catalog/CatalogOperator/FkEntry等（JSONはcamelCase）。
-│       │                Valued<T>{value,source}でAuto/Manualの出所を持つ
-│       ├── tags.rs    … profession/positionからタグ・ダメージ属性の初期値を推測する
-│       └── overrides.rs … data/fk_kill_calc/overrides.yaml（include_str!でビルド時埋め込み。
-│                           実行時ファイルI/Oなし）のロード。`Overrides::global()`でプロセス内
-│                           1回だけパースして使い回す
+│       ├── dto.rs     … Catalog/CatalogOperator/FkEntry/Buffer等（JSONはcamelCase）。
+│       │                Valued<T>{value,source}でAuto/Manualの出所を持つ。FkEntry.tags
+│       │                (P2)・FkEntry.special(P2。特殊強化トグル)もここ
+│       ├── tags.rs    … profession/position/nationIdからタグ・ダメージ属性の初期値を推測する。
+│       │                tag_vocabulary()(P2。近距離/職業/勢力/弾薬スキルの全タグ語彙。
+│       │                overrides.yamlの手動tags・buffers.yamlのtargets/bonus.tagsの
+│       │                ドリフト検知に使う)、faction_tag_for(nationId→勢力タグ。今は
+│       │                ラテラーノのみ)もここ
+│       ├── overrides.rs … data/fk_kill_calc/overrides.yaml（include_str!でビルド時埋め込み。
+│       │                   実行時ファイルI/Oなし）のロード。`Overrides::global()`でプロセス内
+│       │                   1回だけパースして使い回す。OverrideVariant.tags(P2。手動タグの加算)・
+│       │                   OverrideVariant.special(P2。特殊強化。label必須、multiplier/
+│       │                   self_atk_pct/dmg_mult/hitsは全て省略可能)もここ
+│       └── buffers.rs … data/fk_kill_calc/buffers.yaml（P2で追加。個別バフ/条件付きバフの
+│                         定義。同じくinclude_str!埋め込み）のロード。`buffers::global()`で
+│                         1回だけパースして使い回す。個別(individual)は行ごとにチップで選ぶ
+│                         バフ、条件付き(conditional)は全体で1回ON/OFFしFkEntry.tagsとの
+│                         重なりで自動適用。`bonus`(省略可)はタグ限定の上書き値(例: 異格
+│                         エクシアは弾薬スキル+13%、ラテラーノ勢は基本値の代わりに26%を採用。
+│                         加算ではなく置き換え)。ドリフト検知テスト(unique id・pct/flat
+│                         どちらか一方・targetタグがtag_vocabulary()に存在・値が現実的な
+│                         範囲)は`buffers.rs`の`#[cfg(test)]`
 ├── api/
 │   ├── mod.rs             … axum。AppState、run_api、base_url()（canonical/hreflang/sitemap用の
 │   │                        絶対URL起点）、/robots.txt・/sitemap.xml。`web_ui_router()`
@@ -218,7 +238,11 @@ src/
 │           │                     再描画は構造が変わる操作ではrender（#app丸ごと。フォーカスは
 │           │                     `withPreservedFocus`で復元）、数値欄の打鍵中はrenderLive
 │           │                     （入力欄を作り直さず導出表示だけ差し替え。type=numberは
-│           │                     カーソル位置を復元できないため）
+│           │                     カーソル位置を復元できないため）。row.buffIds/specialOn・
+│           │                     state.globalBuffIds(P2の個別/条件付きバフ・特殊強化状態)は
+│           │                     チップ/チェックボックス操作なので常にrender（renderLiveでは
+│           │                     扱わない）。dropStaleRowsが未知バフidの除去と旧(P1)形
+│           │                     state(これらのフィールドが無い)の欠損補完を兼ねる
 │           ├── style.css       … 420px想定の縦長1カラム。他ページ(home/lod_chest_solver)と
 │           │                     同じくダーク固定（配色トークンはhome_index.htmlの:rootを流用）
 │           └── lz-string.min.js … test_runner/static/lz-string.min.jsと同じ1.5.0, MITを
@@ -265,8 +289,11 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 ├── customItemId.yaml          … 理性価値計算で使う特殊アイテムのID補完（例外用の予備ファイル）
 ├── customItemZhToJa.yaml      … アイテムCN→JA名前フォールバック（customOperatorZhToJaのアイテム版）
 ├── fk_kill_calc/
-│   └── overrides.yaml     … フレームキル計算機の手動補正データ（operator_id→skill_num→
-│                             バリアント一覧）。`include_str!`でビルド時埋め込み。
+│   ├── overrides.yaml     … フレームキル計算機の手動補正データ（operator_id→skill_num→
+│   │                         バリアント一覧）。`include_str!`でビルド時埋め込み。
+│   │                         スキーマ・記入例はファイル冒頭コメント参照
+│   └── buffers.yaml       … フレームキル計算機のバフカタログ（P2で追加。individual/
+│                             conditionalの2種）。同じく`include_str!`でビルド時埋め込み。
 │                             スキーマ・記入例はファイル冒頭コメント参照
 ├── golden/operator_cost_calc/ … Python版charmaterials.pyの出力をゴールデンJSON化したもの。
 │                                 `ref_python/.../dump_charmaterials_golden.py`で生成し、
@@ -446,6 +473,53 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   ここにAppState依存のロジックを混ぜ込めないため。`CatalogProvider`（クロージャ）を
   `run_api`/`serve_web`それぞれが個別に組み立てて`catalog_router(provider)`に渡し、
   両方が個別に`merge`する。
+- **fk_kill_calculator のバフ(P2)は個別/条件付きの2種で、FkEntry.tagsで判定する**:
+  `data/fk_kill_calc/buffers.yaml`(`individual`/`conditional`)→`buffers::global()`→
+  `Catalog.buffers`。個別バフは行ごとに`row.buffIds`でチップ選択(タグ判定なし)、
+  条件付きバフは`state.globalBuffIds`で全体ON/OFFし、`FkEntry.tags`と
+  `scope.targetTags`が1つでも重なれば自動適用する。`FkEntry.tags`は
+  オペレーター機械タグ(近距離/職業/勢力。`tags.rs::tags_for`。勢力タグは
+  `operator_combat.nation_id`由来で今はラテラーノのみ) + スキル機械タグ
+  (`弾薬スキル`。`skill_data::is_ammo_skill`が`durationType == "AMMO"`で判定) +
+  overrideの手動`tags`(加算)。`bonus`(条件付きバフのみ、省略可)は
+  「`bonus.targetTags`にも重なっていれば基本値の代わりにbonus値を採用(加算でなく
+  置き換え)」という汎用の仕組み（例: 異格エクシアは弾薬スキル+13%、ラテラーノ勢は
+  基本値の代わりに26%）。
+- **fk_kill_calculator の「特殊強化」(`overrides.yaml`の`special`)はモジュール依存の
+  加算系/乗算系のみ**: 初期実装(置き換え系。ONの間だけmultiplier/self_atk_pct等を
+  固定値へ置き換える)はFW/Weedyの実データ精査の結果どちらも実態と合わず、P2 follow-upで
+  以下の2系統に置き換えた(併用可。`label`のみ必須で他は全省略可能)。行フィールドへ
+  スナップショットしない(entryIdx変更時に一度だけ効くのではなく、`row.specialOn`+
+  モジュール/Lvの組み合わせから毎回計算し直す)ため、モジュールを変更すれば即座に
+  結果へ反映される:
+  - 加算系(`requires_module`+`add_self_atk_pct_by_module_level`。要素数3必須、
+    効果の無いLvは0): 指定モジュール装備時だけセルフ%に加算する。
+    `engine.js`の`resolveSpecialAddPct`が計算。モジュール条件を満たさない間は
+    UIがチェックボックスの代わりにヒント(「特殊強化「<label>」はモジュール<X> Lv<N>
+    以上で有効」)を出す(`specialUiState`が判定)。例: ブレイズS3「待機ボーナス」
+    (モジュールX Lv1=0/Lv2=0.04/Lv3=0.06)、ウィーディS3「蓄水砲配置バフ」
+    (モジュールX Lv1=0/Lv2=0.15/Lv3=0.20)
+  - 乗算系(`mul_multiplier`。`base`+`module`(省略可)+`by_module_level`):
+    `row.multiplier`に乗算する係数。指定モジュール装備時は`by_module_level`の対応要素、
+    未装備/条件不一致時は常に`base`(＝「適用不可」という状態が無いので、UIは常時
+    チェックボックスを出す)。`engine.js`の`resolveSpecialMultiplierFactor`が計算。
+    例: ファイヤーウォッチS2「遠距離特効」(素質「暗殺者」E2最大潜在がbase=1.45、
+    モジュールY Lv1=1.45/Lv2=1.5/Lv3=1.55)
+  - 各`special`は`description`(短い説明文)を持てる。UIはⓘボタン(`aria-expanded`で
+    開閉、titleでもホバー表示)をチェックボックス/ヒントの隣に出し、クリックで
+    説明文+「現在: +N%」/「現在: ×N」(`resolveSpecialCurrentValue`が計算する
+    prospectiveな値。`specialOn`の状態に関わらず「今ONにしたら/今の設定なら」を示す)
+    を展開する。
+  - モジュール依存の値は必ず`battle_equip_table.json`の該当uniEquipIdの
+    `addOrOverrideTalentDataBundle`(通常E2最大潜在=`requiredPotentialRank`最大)を
+    実データから読み、Lvごとに違う値を確認してから入れること(Lv1は素質強化自体が
+    付かず0になることが多い。1つの定数を全Lvに当てはめない)。
+  - Rustのドリフト検知: `requires_module`/`mul_multiplier.module`が指すuniEquipIdが
+    実際にそのオペレーターのmodulesに存在することを
+    `validate_special_requires_module`(`cargo test`)が検証する。
+- fk_kill_calculatorのstate/URLのバックワード互換は`v:1`のまま、`row.buffIds`/
+  `row.specialOn`/`state.globalBuffIds`を省略可能フィールドとして追加し、
+  `dropStaleRows`が旧(P1)形の補完＋未知バフidの静かな除去を兼ねる。
 - **サイトアイコンは元画像から生成して commit する**: 元画像は `assets/icon/`
   （通常版 PNG と simple版 SVG）。差し替えたら
   `& "C:\Program Files\nodejs\node.exe" assets/icon/generate.mjs` を回して

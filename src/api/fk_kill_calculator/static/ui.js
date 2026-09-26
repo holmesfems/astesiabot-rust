@@ -24,7 +24,11 @@ import {
   findOperator,
   findEntry,
   makeDefaultRow,
+  resolveEntryValues,
+  specialUiState,
+  resolveSpecialCurrentValue,
   computeTotal,
+  findSingleTargetConflicts,
   dropStaleRows,
   suggest,
   describeSuggestion,
@@ -38,6 +42,13 @@ const BAR_COLORS = ["#4f7cff", "#e8dcb0", "#79e2d0", "#d4794a", "#b48ef0", "#f07
 let catalog = null;
 let state = null;
 let expandedIdx = null;
+// 「② 全体バフ」の<details>開閉状態(P2)。render()は#app丸ごと作り直すため、
+// <details>のネイティブなopen状態はDOM要素ごと消える。ここに覚えておいて
+// renderGlobalBuffs()が毎回復元する(expandedIdxと同じ考え方)。
+let globalBuffsOpen = false;
+// P2 follow-up: 特殊強化のⓘ説明文が展開されている行のインデックス集合。
+// render()は#app丸ごと作り直すため、ここに覚えておいて復元する(globalBuffsOpenと同じ考え方)。
+const specialDescOpenIdx = new Set();
 let saveTimer = null;
 
 /* ---------------- ユーティリティ ---------------- */
@@ -99,6 +110,8 @@ function blankRow() {
     buffPct: 0,
     dmgMult: 1,
     ignoreDef: 0,
+    buffIds: [], // P2: 個別バフ(行ごとに選ぶ)
+    specialOn: true, // P2: 特殊強化トグル(デフォルトON)
   };
 }
 
@@ -241,12 +254,21 @@ function rowPlainSummary(row) {
   const op = findOperator(catalog, row.opId);
   if (!op) return "オペレーター未選択";
   const entry = findEntry(op, row.entryIdx);
-  const { results } = computeTotal(catalog, [row], state.enemy);
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds);
   const r = results[0];
   return `${op.name} ${shortSkillRef(entry)}: ${fmtInt(r.perHit)}×${row.hits}Hit → 実ダメ ${fmtInt(r.rowDamage)}`;
 }
 
-// 折りたたみ行の中身: [色ドット(凡例兼用)] [名前+短いスキル参照。省略可] … [ダメージ。省略不可・太字]。
+// バフN件(個別+適用中の条件付き)。0件ならバッジを出さない。
+function buffCountBadge(r) {
+  if (!r || !r.breakdown) return "";
+  const n = (r.row.buffIds || []).length + r.breakdown.appliedConditional.length;
+  if (n <= 0) return "";
+  return `<span class="badge badge-buffcount" title="適用中のバフ数">バフ${n}</span>`;
+}
+
+// 折りたたみ行の中身: [色ドット(凡例兼用)] [名前+短いスキル参照。省略可] [バフN。0件なら省略]
+// … [ダメージ。省略不可・太字]。
 // スキルの表示名(entry.skillLabel)は展開ビューにあるのでここには出さない（UIラウンド2）。
 function renderRowSummary(row, idx) {
   const op = findOperator(catalog, row.opId);
@@ -255,11 +277,11 @@ function renderRowSummary(row, idx) {
     return `${dot}<span class="row-summary-name row-summary-empty">オペレーター未選択</span>`;
   }
   const entry = findEntry(op, row.entryIdx);
-  const { results } = computeTotal(catalog, [row], state.enemy);
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds);
   const r = results[0];
   const tooltip = escapeHtml(rowPlainSummary(row));
   const nameRef = escapeHtml(`${op.name} ${shortSkillRef(entry)}`);
-  return `${dot}<span class="row-summary-name" title="${tooltip}">${nameRef}</span>`
+  return `${dot}<span class="row-summary-name" title="${tooltip}">${nameRef}</span>${buffCountBadge(r)}`
     + `<span class="row-summary-damage" title="${tooltip}">${fmtInt(r.rowDamage)}</span>`;
 }
 
@@ -288,14 +310,12 @@ function multiplierCandidateOptions(entry) {
 
 // カタログ側の既定値(entry由来)。行のフィールドがユーザー操作でこの値から
 // 変わっていれば「↺」リセットボタンを出す。entryが無ければ全てnull。
+// P2 follow-up: 特殊強化はもう置き換え系を持たない(加算系/乗算系は都度計算する
+// 別枠なので、ここでの既定値には影響しない)ため`specialOn`は見なくなった。
 function catalogDefaults(entry) {
   if (!entry) return { multiplier: null, selfPct: null, hits: null, dmgType: null };
-  return {
-    multiplier: entry.multiplier.value,
-    selfPct: entry.selfAtkPct.value,
-    hits: entry.hits.value,
-    dmgType: entry.damageType.value,
-  };
+  const values = resolveEntryValues(entry);
+  return { multiplier: values.multiplier, selfPct: values.selfPct, hits: values.hits, dmgType: values.dmgType };
 }
 
 function fieldBadges(entry, field, currentValue, idx) {
@@ -318,9 +338,99 @@ function valuesEqual(a, b) {
   return a === b;
 }
 
-function renderRowExpanded(row, idx) {
+// entry.tagsを小さな地味なチップで並べる(P2)。
+function renderTagsChips(entry) {
+  if (!entry || !entry.tags || !entry.tags.length) return "";
+  return `<div class="row-tags">${entry.tags.map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join("")}</div>`;
+}
+
+// 個別バフ(行ごとに選ぶ)のトグルチップ一覧(P2)。同じsingle_targetバフが他の行でも
+// 選ばれていれば⚠を出す(singleConflicts: findSingleTargetConflictsの戻り値)。
+function renderIndividualBuffChips(row, idx, singleConflicts) {
+  const individual = (catalog.buffers || []).filter((b) => b.scope.type === "individual");
+  if (!individual.length) return "";
+  const chips = individual
+    .map((b) => {
+      const on = (row.buffIds || []).includes(b.id);
+      const pctLabel = b.kind === "pct" ? `+${fmtPct(b.value)}%` : `+${trimNum(b.value)}`;
+      const conflict = on && singleConflicts.has(b.id);
+      const warn = conflict ? `<span class="chip-warn" title="単体対象のバフです。他の行でも選ばれています">⚠</span>` : "";
+      return `<button type="button" class="chip" data-action="toggle-row-buff" data-idx="${idx}" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${warn}${escapeHtml(b.name)} ${pctLabel}</button>`;
+    })
+    .join("");
+  return `<div class="row-field"><label>個別バフ</label><div class="chip-row">${chips}</div></div>`;
+}
+
+// 全体でONの条件付きバフが、このエントリに適用されるか(✓)/されないか(–)の一覧(P2)。
+// ON中の条件付きバフが1件も無ければ何も出さない。
+function renderConditionalStatusLine(r) {
+  if (!r || !r.breakdown) return "";
+  const { appliedConditional, notAppliedConditional } = r.breakdown;
+  if (!appliedConditional.length && !notAppliedConditional.length) return "";
+  const parts = [
+    ...appliedConditional.map((c) => `<span class="cond-applies">✓ ${escapeHtml(c.name)}</span>`),
+    ...notAppliedConditional.map((c) => `<span class="cond-not-applies">– ${escapeHtml(c.name)}</span>`),
+  ];
+  return `<p class="row-conditional-status">条件付き: ${parts.join(" ")}</p>`;
+}
+
+// entry.special.requiresModule(加算系)が指すモジュールの表示名("X"等)をop.modulesから
+// 引く。見つからなければ"X"にフォールバックする(該当モジュールは大抵種別Xのため)。
+function moduleTypeNameFor(op, moduleId) {
+  const m = op && op.modules.find((mm) => mm.id === moduleId);
+  return m ? m.typeName : "X";
+}
+
+// 「特殊強化「<label>」はモジュール<X> Lv<N>以上で有効」ヒント文(加算系専用。
+// addSelfAtkPctByModuleLevelの最初の非ゼロ要素からLvを逆算する)。
+function specialHintText(op, entry) {
+  const sp = entry.special;
+  const typeName = moduleTypeNameFor(op, sp.requiresModule);
+  const arr = sp.addSelfAtkPctByModuleLevel || [];
+  const nonZeroIdx = arr.findIndex((v) => v > 0);
+  const minLv = nonZeroIdx >= 0 ? nonZeroIdx + 1 : 1;
+  return `特殊強化「${sp.label}」はモジュール${typeName} Lv${minLv}以上で有効`;
+}
+
+// ⓘ説明文の末尾に付ける「現在: +N%」/「現在: ×N」(P2 follow-up)。
+function specialCurrentValueText(entry, row) {
+  const cur = resolveSpecialCurrentValue(entry, row);
+  if (!cur) return "";
+  return cur.kind === "mul" ? `現在: ×${trimNum(cur.value)}` : `現在: +${fmtPct(cur.value)}%`;
+}
+
+// 「特殊強化: <label>」チェックボックス + ⓘ説明文トグル(P2/P2 follow-up)。
+// entry.specialが無いスキルは何も出さない。加算系(requiresModule)でモジュール条件を
+// 満たさない間はチェックボックスの代わりにヒントを出す(乗算系はmulMultiplier.baseが
+// 常に効くので出し分けしない。`specialUiState`が判定する)。
+function renderSpecialCheckbox(op, entry, row, idx) {
+  if (!entry || !entry.special) return "";
+  const sp = entry.special;
+  const uiState = specialUiState(entry, row);
+  const descOpen = specialDescOpenIdx.has(idx);
+  const descText = [sp.description, specialCurrentValueText(entry, row)].filter(Boolean).join(" / ");
+  const infoBtn = sp.description
+    ? `<button type="button" class="special-info-btn" data-action="toggle-special-desc" data-idx="${idx}" aria-expanded="${descOpen}" title="${escapeHtml(descText)}">ⓘ</button>`
+    : "";
+  const descBlock = descOpen && sp.description ? `<p class="special-desc">${escapeHtml(descText)}</p>` : "";
+
+  if (uiState === "hint") {
+    return `<div class="row-field"><p class="special-hint">${escapeHtml(specialHintText(op, entry))}${infoBtn}</p>${descBlock}</div>`;
+  }
+  return `<div class="row-field">
+    <label class="check-label">
+      <input type="checkbox" data-role="row" data-field="specialOn" data-idx="${idx}" ${row.specialOn !== false ? "checked" : ""}>
+      特殊強化: ${escapeHtml(sp.label)}
+    </label>${infoBtn}
+    ${descBlock}
+  </div>`;
+}
+
+function renderRowExpanded(row, idx, singleConflicts) {
   const op = findOperator(catalog, row.opId);
   const entry = op ? findEntry(op, row.entryIdx) : null;
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds);
+  const r = results[0];
 
   let entrySelectHtml = `<select data-role="row" data-field="entryIdx" data-idx="${idx}" ${op ? "" : "disabled"}>`;
   if (op) {
@@ -368,6 +478,7 @@ function renderRowExpanded(row, idx) {
         攻撃凸
       </label>
     </div>
+    ${renderTagsChips(entry)}
     <div class="row-grid2">
       <label>モジュール
         <select data-role="row" data-field="moduleId" data-idx="${idx}" ${moduleDisabled}>${op ? moduleOptions(op, row) : '<option value="">なし</option>'}</select>
@@ -401,8 +512,11 @@ function renderRowExpanded(row, idx) {
         ${fieldBadges(entry, "hits", row.hits, idx)}
       </label>
     </div>
+    ${renderIndividualBuffChips(row, idx, singleConflicts)}
+    ${renderConditionalStatusLine(r)}
+    ${renderSpecialCheckbox(op, entry, row, idx)}
     <div class="row-grid2">
-      <label>このオペへのバフ+%
+      <label>手入力バフ+%
         <input type="number" step="any" data-role="row" data-field="buffPct" data-idx="${idx}" value="${fmtPct(row.buffPct, 3)}">
       </label>
       <label>ダメージ倍率%
@@ -422,23 +536,62 @@ function renderRowExpanded(row, idx) {
   `;
 }
 
+// フォーミュラ行(P2): `691 ×(1 + セルフ0% + 個別150% + 条件0% + 手入力0%) × 400% = 6,910 /hit`。
+// 鼓舞(flat種バフの合計)は0でない時だけ足す(仕様どおり)。
 function renderFormulaLine(op, row) {
-  const { atk, pct, final, perHit, rowDamage, atFloor } = computeTotal(catalog, [row], state.enemy).results[0];
-  const selfPart = `セルフ${fmtPct(row.selfPct)}%`;
-  const buffPart = `バフ${fmtPct(row.buffPct)}%`;
-  const line1 = `${fmtInt(atk)} ×(1 + ${selfPart} + ${buffPart}) × ${fmtPct(row.multiplier)}% = ${fmtInt(final)} /hit`;
+  const entry = findEntry(op, row.entryIdx);
+  const { atk, final, perHit, rowDamage, atFloor, breakdown, specialAddPct, specialMulFactor } = computeTotal(
+    catalog,
+    [row],
+    state.enemy,
+    state.globalBuffIds,
+  ).results[0];
+  const specialLabel = entry && entry.special ? entry.special.label : "";
+  const selfPart = specialAddPct > 0 ? `セルフ${fmtPct(row.selfPct)}%+${specialLabel}${fmtPct(specialAddPct)}%` : `セルフ${fmtPct(row.selfPct)}%`;
+  const individualPart = `個別${fmtPct(breakdown.individualPct)}%`;
+  const conditionalPart = `条件${fmtPct(breakdown.conditionalPct)}%`;
+  const manualPart = `手入力${fmtPct(row.buffPct)}%`;
+  const flatTotal = breakdown.individualFlat + breakdown.conditionalFlat;
+  const inspirePart = flatTotal !== 0 ? ` + 鼓舞${fmtInt(flatTotal)}` : "";
+  const multiplierPart =
+    specialMulFactor !== 1 ? `${fmtPct(row.multiplier)}% × ×${trimNum(specialMulFactor)}(${specialLabel})` : `${fmtPct(row.multiplier)}%`;
+  const line1 = `${fmtInt(atk)} ×(1 + ${selfPart} + ${individualPart} + ${conditionalPart} + ${manualPart})${inspirePart} × ${multiplierPart} = ${fmtInt(final)} /hit`;
   const floorNote = atFloor ? `<span class="floor-note">（5%floor発動中）</span>` : "";
   const line2 = `→ 実ダメ ${fmtInt(perHit)}/hit × ${row.hits}Hit = <b>${fmtInt(rowDamage)}</b> ${floorNote}`;
   return `${escapeHtml(line1)}<br>${line2}`;
 }
 
+// 「② 全体バフ（条件付き）」セクション。summaryに"N件ON"を出す(仕様どおり)。
+function renderGlobalBuffs() {
+  const conditional = (catalog.buffers || []).filter((b) => b.scope.type === "conditional");
+  const onIds = state.globalBuffIds || [];
+  const onCount = conditional.filter((b) => onIds.includes(b.id)).length;
+  const chips = conditional
+    .map((b) => {
+      const on = onIds.includes(b.id);
+      const pctLabel = b.kind === "pct" ? `+${fmtPct(b.value)}%` : `+${trimNum(b.value)}`;
+      const targetLabel = b.scope.targetTags.join("/");
+      return `<button type="button" class="chip" data-action="toggle-global-buff" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${escapeHtml(b.name)} ${escapeHtml(targetLabel)} ${pctLabel}</button>`;
+    })
+    .join("");
+  return `
+  <section class="card" id="global-buffs-section">
+    <h2>② 全体バフ（条件付き）</h2>
+    <details id="global-buffs-details"${globalBuffsOpen ? " open" : ""}>
+      <summary>${onCount}件ON</summary>
+      <div class="chip-row">${chips}</div>
+    </details>
+  </section>`;
+}
+
 function renderRows() {
-  let html = `${operatorDatalist()}<section class="card" id="rows-section"><h2>② FKするオペレーター</h2><div id="rows-list">`;
+  const singleConflicts = findSingleTargetConflicts(catalog, state.rows);
+  let html = `${operatorDatalist()}<section class="card" id="rows-section"><h2>③ FKするオペレーター</h2><div id="rows-list">`;
   state.rows.forEach((row, idx) => {
     const expanded = idx === expandedIdx;
     html += `<div class="row-card${expanded ? " row-expanded" : ""}" data-idx="${idx}">`;
     if (expanded) {
-      html += renderRowExpanded(row, idx);
+      html += renderRowExpanded(row, idx, singleConflicts);
     } else {
       html += `<div class="row-summary">
         <span class="row-summary-main">${renderRowSummary(row, idx)}</span>
@@ -458,7 +611,7 @@ function renderRows() {
 /* ---------------- 描画: 判定セクション ---------------- */
 
 function renderVerdict() {
-  const { results, total, killed } = computeTotal(catalog, state.rows, state.enemy);
+  const { results, total, killed } = computeTotal(catalog, state.rows, state.enemy, state.globalBuffIds);
   const hp = state.enemy.hp;
   const scale = Math.max(total, hp, 1);
 
@@ -473,7 +626,10 @@ function renderVerdict() {
   const hpLinePct = Math.min((hp / scale) * 100, 100);
 
   let verdictHtml;
-  if (killed) {
+  if (hp <= 0) {
+    // HP未入力(0)で「撃破できる」と出すと誤解を招くので、入力を促すだけにする。
+    verdictHtml = `<span class="verdict-pending">敵のHPを入力してください</span> (与ダメ合計 ${fmtInt(total)})`;
+  } else if (killed) {
     const pct = hp > 0 ? Math.round((total / hp) * 100) : 100;
     const margin = fmtInt(total - hp);
     verdictHtml = `<span class="verdict-ok">✅ 撃破できる</span> (${fmtInt(total)} / ${fmtInt(hp)}, ${pct}%, 余裕 +${margin})`;
@@ -517,7 +673,7 @@ function renderVerdict() {
 
 function render() {
   withPreservedFocus(() => {
-    $("app").innerHTML = renderEnemy() + renderRows() + renderVerdict();
+    $("app").innerHTML = renderEnemy() + renderGlobalBuffs() + renderRows() + renderVerdict();
   });
   saveState();
 }
@@ -595,11 +751,20 @@ function onRowFieldChange(el) {
     const entry = op ? findEntry(op, newIdx) : null;
     row.entryIdx = newIdx;
     if (entry) {
-      row.multiplier = entry.multiplier.value;
-      row.selfPct = entry.selfAtkPct.value;
-      row.hits = entry.hits.value;
-      row.dmgType = entry.damageType.value;
+      const values = resolveEntryValues(entry);
+      row.multiplier = values.multiplier;
+      row.selfPct = values.selfPct;
+      row.hits = values.hits;
+      row.dmgType = values.dmgType;
+      row.dmgMult = values.dmgMult;
     }
+    render();
+    return;
+  }
+  if (field === "specialOn") {
+    // P2 follow-upで置き換え系の特殊強化を撤去したため、ONにしても行フィールドの
+    // 再スナップは不要(加算系/乗算系はcomputeTotal側で都度計算される)。
+    row.specialOn = el.checked;
     render();
     return;
   }
@@ -643,6 +808,25 @@ function onResetField(idx, field) {
   const defaults = catalogDefaults(entry);
   if (defaults[field] === null || defaults[field] === undefined) return;
   row[field] = defaults[field];
+  render();
+}
+
+function toggleRowBuff(idx, buffId) {
+  const row = state.rows[idx];
+  if (!row) return;
+  const set = new Set(row.buffIds || []);
+  if (set.has(buffId)) set.delete(buffId);
+  else set.add(buffId);
+  row.buffIds = Array.from(set);
+  render();
+}
+
+function toggleGlobalBuff(buffId) {
+  const set = new Set(state.globalBuffIds || []);
+  if (set.has(buffId)) set.delete(buffId);
+  else set.add(buffId);
+  state.globalBuffIds = Array.from(set);
+  globalBuffsOpen = true; // チップを操作した=開いて見ている最中なので、再描画後も開いたままにする
   render();
 }
 
@@ -729,6 +913,17 @@ function onAppClick(ev) {
     case "share":
       shareUrl();
       break;
+    case "toggle-row-buff":
+      toggleRowBuff(idx, btn.dataset.buffId);
+      break;
+    case "toggle-global-buff":
+      toggleGlobalBuff(btn.dataset.buffId);
+      break;
+    case "toggle-special-desc":
+      if (specialDescOpenIdx.has(idx)) specialDescOpenIdx.delete(idx);
+      else specialDescOpenIdx.add(idx);
+      render();
+      break;
     default:
       break;
   }
@@ -739,7 +934,7 @@ function onAppClick(ev) {
 export async function initUi() {
   catalog = await fetchCatalog();
   const shared = takeStateFromSharedUrl();
-  state = shared ?? loadSavedState() ?? { v: 1, enemy: defaultEnemy(), rows: [] };
+  state = shared ?? loadSavedState() ?? { v: 1, enemy: defaultEnemy(), rows: [], globalBuffIds: [] };
   if (shared) {
     showToast("共有URLの内容を読み込みました");
     saveState();
@@ -750,6 +945,15 @@ export async function initUi() {
   app.addEventListener("input", onAppInput);
   app.addEventListener("change", onAppChange);
   app.addEventListener("click", onAppClick);
+  // <details id="global-buffs-details">をユーザーがsummary直クリックで開閉した場合、
+  // その状態をrender()後も覚えておく(toggleイベントはbubbleしないためcapture:trueで拾う)。
+  app.addEventListener(
+    "toggle",
+    (ev) => {
+      if (ev.target && ev.target.id === "global-buffs-details") globalBuffsOpen = ev.target.open;
+    },
+    true,
+  );
 
   render();
 }

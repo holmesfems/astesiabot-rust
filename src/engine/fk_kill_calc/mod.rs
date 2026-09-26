@@ -8,19 +8,20 @@
 //! 2. 手動補正 → `overrides.rs`(`data/fk_kill_calc/overrides.yaml`)
 //! 3. マージ → このモジュールの`build_catalog`
 
+pub mod buffers;
 pub mod dto;
 mod overrides;
-mod tags;
+pub mod tags;
 
 pub use dto::Catalog;
-pub use overrides::{OverrideVariant, Overrides, OverridesMap};
+pub use overrides::{OverrideSpecial, OverrideVariant, Overrides, OverridesMap};
 
 use crate::engine::external_source::fk_data::{FkSheetData, FkSheetRow};
 use crate::engine::external_source::operator_combat::OperatorCombat;
 use crate::engine::external_source::operator_data::OperatorData;
 use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::fk_data_search::search::skill_id_by_num;
-use dto::{CatalogModule, CatalogOperator, DamageType, FkEntry, Valued};
+use dto::{CatalogModule, CatalogOperator, DamageType, FkEntry, MulMultiplier, Special, Valued};
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
@@ -73,7 +74,7 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
         };
 
         let skill_ids = skill_id_by_num(cost_op);
-        let tags = tags::tags_for(&combat_op.profession, &combat_op.position);
+        let operator_tags = tags::tags_for(&combat_op.profession, &combat_op.position, &combat_op.nation_id);
         let default_damage_type = tags::guess_damage_type(&combat_op.profession);
 
         let mut fk_entries = Vec::new();
@@ -90,9 +91,22 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
             let default_self_atk_pct = blackboard.and_then(|bb| bb.get("atk")).copied().unwrap_or(0.0);
             let default_hits: u32 = 1;
 
+            // このエントリ(スキル単位)のタグ = オペレーター機械タグ + 弾薬スキル機械タグ
+            // (`skill_data::is_ammo_skill`。skill_idが解決できないエントリ(素質行等)は
+            // 対象外) + overrideの手動tags(加算。variantごとに追加できる)。
+            let is_ammo = skill_id.map(|id| skills.is_ammo_skill(id)).unwrap_or(false);
+            let mut entry_tags = operator_tags.clone();
+            if is_ammo {
+                entry_tags.push(tags::AMMO_SKILL_TAG.to_string());
+            }
+
             match overrides.variants_for(op_id, &row.skill_num) {
                 Some(variants) if !variants.is_empty() => {
                     for variant in variants {
+                        let mut tags_for_variant = entry_tags.clone();
+                        if let Some(extra) = &variant.tags {
+                            tags_for_variant.extend(extra.iter().cloned());
+                        }
                         fk_entries.push(build_entry(
                             row,
                             skill_label.clone(),
@@ -102,6 +116,8 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                             Valued::from_override(variant.self_atk_pct, default_self_atk_pct),
                             Valued::from_override(variant.hits, default_hits),
                             Valued::from_override(variant.damage_type, default_damage_type),
+                            tags_for_variant,
+                            variant.special.as_ref().map(to_special_dto),
                             variant.note.clone(),
                         ));
                     }
@@ -116,6 +132,8 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                         Valued::auto(default_self_atk_pct),
                         Valued::auto(default_hits),
                         Valued::auto(default_damage_type),
+                        entry_tags,
+                        None,
                         None,
                     ));
                 }
@@ -125,7 +143,7 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
         operators.push(CatalogOperator {
             id: op_id.to_string(),
             name: name.clone(),
-            tags,
+            tags: operator_tags,
             atk_base: combat_op.atk_base,
             atk_potential: combat_op.atk_potential,
             modules: combat_op
@@ -143,8 +161,23 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
     }
 
     CatalogBuild {
-        catalog: Catalog { operators, buffers: Vec::new() },
+        catalog: Catalog { operators, buffers: buffers::global().to_vec() },
         skipped,
+    }
+}
+
+/// `overrides.yaml`の`special`(手動データ)をそのままDTO(`dto::Special`)へ変換する。
+fn to_special_dto(special: &OverrideSpecial) -> Special {
+    Special {
+        label: special.label.clone(),
+        description: special.description.clone(),
+        requires_module: special.requires_module.clone(),
+        add_self_atk_pct_by_module_level: special.add_self_atk_pct_by_module_level,
+        mul_multiplier: special.mul_multiplier.as_ref().map(|m| MulMultiplier {
+            base: m.base,
+            module: m.module.clone(),
+            by_module_level: m.by_module_level,
+        }),
     }
 }
 
@@ -158,6 +191,8 @@ fn build_entry(
     self_atk_pct: Valued<f64>,
     hits: Valued<u32>,
     damage_type: Valued<DamageType>,
+    tags: Vec<String>,
+    special: Option<Special>,
     note: Option<String>,
 ) -> FkEntry {
     FkEntry {
@@ -173,6 +208,8 @@ fn build_entry(
         self_atk_pct,
         hits,
         damage_type,
+        tags,
+        special,
         note,
     }
 }
@@ -257,6 +294,39 @@ pub fn validate_overrides(overrides: &Overrides, fk: &FkSheetData, combat: &Oper
     bad
 }
 
+/// overrides.yamlの`special.requires_module`(加算系特殊強化のモジュール条件)が、
+/// そのオペレーターの実際のモジュール(operator_combatのmodules)を指しているかを検証する。
+/// 存在しない参照の一覧を返す(空ならOK)。ゲームデータ更新でuniEquipIdが変わった際の
+/// ドリフト検知用(`cargo test`で実行する。P2 follow-upで追加)。
+pub fn validate_special_requires_module(overrides: &Overrides, combat: &OperatorCombat) -> Vec<String> {
+    let mut bad = Vec::new();
+    let check_module_id = |op_id: &str, skill_num: &str, module_id: &str, field: &str, bad: &mut Vec<String>| {
+        let Some(op) = combat.operators.get(op_id) else {
+            bad.push(format!("{op_id}/{skill_num} (operator idがoperator_combatに無い)"));
+            return;
+        };
+        if !op.modules.iter().any(|m| m.eq_id == module_id) {
+            bad.push(format!("{op_id}/{skill_num} ({field}'{module_id}'が'{}'のmodulesに無い)", op.name));
+        }
+    };
+
+    for (op_id, skill_num) in overrides.all_keys() {
+        let Some(variants) = overrides.variants_for(op_id, skill_num) else { continue };
+        for variant in variants {
+            let Some(special) = &variant.special else { continue };
+            if let Some(module_id) = &special.requires_module {
+                check_module_id(op_id, skill_num, module_id, "special.requires_module", &mut bad);
+            }
+            if let Some(mul) = &special.mul_multiplier {
+                if let Some(module_id) = &mul.module {
+                    check_module_id(op_id, skill_num, module_id, "special.mul_multiplier.module", &mut bad);
+                }
+            }
+        }
+    }
+    bad
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -279,7 +349,7 @@ mod tests {
     fn catalog_builds_from_seeds() {
         let result = build_from_seeds();
         assert!(!result.catalog.operators.is_empty());
-        assert!(result.catalog.buffers.is_empty(), "P1のbuffersは常に空のはず");
+        assert!(!result.catalog.buffers.is_empty(), "P2でbuffers.yaml起点のバフが入るはず");
     }
 
     #[test]
@@ -319,6 +389,66 @@ mod tests {
         assert!(bad.is_empty(), "overrides.yamlに実データと不一致なキーがある:\n{}", bad.join("\n"));
     }
 
+    /// overrides.yamlの`special.requires_module`(P2 follow-upで追加)が、実データの
+    /// modules一覧に存在するuniEquipIdを指していること。ゲームデータ更新でモジュールIDが
+    /// 変わった際のドリフト検知用。
+    #[test]
+    fn every_special_requires_module_points_to_an_existing_module() {
+        let combat: OperatorCombat = load_seed(operator_combat::SEED_PATH);
+        let bad = validate_special_requires_module(Overrides::global(), &combat);
+        assert!(bad.is_empty(), "overrides.yamlのspecial.requires_moduleが実データと不一致:\n{}", bad.join("\n"));
+    }
+
+    /// ブレイズ(char_017_huang) S3: self_atk_pctは特殊強化の有無に関わらず常に0.712
+    /// (Manual。バグにより理論値0.8の8/9しか反映されない実測値)で、特殊強化
+    /// 「待機ボーナス」はモジュールX(uniequip_002_huang)Lv2で+4%/Lv3で+6%を「加算」する
+    /// (置き換えではない)。P2 follow-upの回帰テスト。
+    #[test]
+    fn blaze_s3_self_atk_pct_is_always_0_712_and_special_is_additive_module_gated() {
+        let result = build_from_seeds();
+        let blaze = result.catalog.operators.iter().find(|op| op.name == "ブレイズ").expect("ブレイズがカタログに存在すること");
+        let s3 = blaze.fk_entries.iter().find(|e| e.skill_num == "3").expect("ブレイズのS3が存在すること");
+        assert_eq!(s3.self_atk_pct.value, 0.712, "self_atk_pctはバグ込みの実測値0.712で常に一定のはず");
+        assert_eq!(s3.self_atk_pct.source, dto::ValueSource::Manual);
+        let special = s3.special.as_ref().expect("ブレイズS3に特殊強化(待機ボーナス)があるはず");
+        assert_eq!(special.label, "待機ボーナス");
+        assert_eq!(special.requires_module.as_deref(), Some("uniequip_002_huang"));
+        assert_eq!(special.add_self_atk_pct_by_module_level, Some([0.0, 0.04, 0.06]));
+        assert!(special.description.is_some(), "descriptionがあるはず(ⓘボタン表示用)");
+        // 乗算系(mul_multiplier)はブレイズには無い(加算系のみ)。
+        assert!(special.mul_multiplier.is_none());
+    }
+
+    /// ファイヤーウォッチ(char_158_milu) S2「遠距離特効」: 乗算系(mul_multiplier)で、
+    /// モジュールY(uniequip_002_milu)未装備時はbase=1.45、Lv1=1.45/Lv2=1.5/Lv3=1.55
+    /// (P2 follow-up 2回目で追加)。
+    #[test]
+    fn fw_s2_special_uses_mul_multiplier_with_module_y_levels() {
+        let result = build_from_seeds();
+        let fw = result.catalog.operators.iter().find(|op| op.name == "ファイヤーウォッチ").expect("ファイヤーウォッチがカタログに存在すること");
+        let s2 = fw.fk_entries.iter().find(|e| e.skill_num == "2").expect("ファイヤーウォッチのS2が存在すること");
+        let special = s2.special.as_ref().expect("ファイヤーウォッチS2に特殊強化(遠距離特効)があるはず");
+        let mul = special.mul_multiplier.as_ref().expect("mul_multiplierがあるはず");
+        assert_eq!(mul.base, 1.45);
+        assert_eq!(mul.module.as_deref(), Some("uniequip_002_milu"));
+        assert_eq!(mul.by_module_level, Some([1.45, 1.5, 1.55]));
+        // 加算系(requires_module)はFWには無い(乗算系のみ)。
+        assert!(special.requires_module.is_none());
+    }
+
+    /// ウィーディ(char_400_weedy) S3「蓄水砲配置バフ」: 加算系(requires_module +
+    /// add_self_atk_pct_by_module_level)で、モジュールX(uniequip_002_weedy)
+    /// Lv1=0/Lv2=0.15/Lv3=0.20(P2 follow-up 2回目で実データから再導出)。
+    #[test]
+    fn weedy_s3_special_add_values_match_module_x_levels() {
+        let result = build_from_seeds();
+        let weedy = result.catalog.operators.iter().find(|op| op.name == "ウィーディ").expect("ウィーディがカタログに存在すること");
+        let s3 = weedy.fk_entries.iter().find(|e| e.skill_num == "3").expect("ウィーディのS3が存在すること");
+        let special = s3.special.as_ref().expect("ウィーディS3に特殊強化(蓄水砲配置バフ)があるはず");
+        assert_eq!(special.requires_module.as_deref(), Some("uniequip_002_weedy"));
+        assert_eq!(special.add_self_atk_pct_by_module_level, Some([0.0, 0.15, 0.2]));
+    }
+
     /// 全角括弧(fk_dataシート表記)/半角括弧(ゲームデータ表記)の表記ゆれを吸収して
     /// 名前解決できること(step3で追加した`normalize_operator_name`のドリフト修正)。
     #[test]
@@ -335,7 +465,9 @@ mod tests {
 
     /// ブレイズ(char_017_huang) S3: multiplierのoverrideを外した後もblackboardの
     /// `damage_by_atk_scale`(末尾一致ルール)経由でAutoの4.0が採れること。
-    /// self_atk_pctは引き続きManual(0.772)。
+    /// self_atk_pctはP2 follow-upで「バグ込みの実測値0.712固定」に変更したため、
+    /// 常にManualの0.712になる(このケースの詳細は
+    /// `blaze_s3_self_atk_pct_is_always_0_712_and_special_is_additive_module_gated`参照)。
     #[test]
     fn blaze_s3_multiplier_is_now_auto_via_suffix_rule() {
         let result = build_from_seeds();
@@ -343,8 +475,6 @@ mod tests {
         let s3 = blaze.fk_entries.iter().find(|e| e.skill_num == "3").expect("ブレイズのS3が存在すること");
         assert_eq!(s3.multiplier.value, 4.0);
         assert_eq!(s3.multiplier.source, dto::ValueSource::Auto, "multiplierのoverrideは撤去済みのはず");
-        assert_eq!(s3.self_atk_pct.value, 0.772);
-        assert_eq!(s3.self_atk_pct.source, dto::ValueSource::Manual);
     }
 
     /// ホルンS2の倍率候補一覧の並びが「選ばれたデフォルト(物理側)が先頭、残りはキー名
@@ -357,6 +487,31 @@ mod tests {
         let s2 = horn.fk_entries.iter().find(|e| e.skill_num == "2").expect("ホルンのskill_num=2が存在すること");
         let keys: Vec<&str> = s2.multiplier_candidates.iter().map(|(k, _)| k.as_str()).collect();
         assert_eq!(keys, vec!["attack@s2.atk_scale", "attack@s2.magic_atk_scale"]);
+    }
+
+    /// ホルン(異格。char_4039_horn)S2「テンペストオーダー」は`durationType == "AMMO"`の
+    /// 弾薬スキルなので、両バリアントとも機械タグ"弾薬スキル"を持つこと(P2)。
+    #[test]
+    fn horn_s2_entries_are_tagged_ammo_skill() {
+        let result = build_from_seeds();
+        let horn = result.catalog.operators.iter().find(|op| op.name == "ホルン").expect("ホルンがカタログに存在すること");
+        let s2_entries: Vec<_> = horn.fk_entries.iter().filter(|e| e.skill_num == "2").collect();
+        assert_eq!(s2_entries.len(), 2, "ホルンのS2は物理/術の2バリアントのはず");
+        for e in &s2_entries {
+            assert!(e.tags.contains(&tags::AMMO_SKILL_TAG.to_string()), "ホルンS2/{:?}に弾薬スキルタグが無い: {:?}", e.variant_label, e.tags);
+        }
+    }
+
+    /// フィアメッタ(char_300_phenxi、nationId=laterano)のカタログエントリが
+    /// 勢力タグ"ラテラーノ"を持つこと(P2。「異格エクシア」バフのラテラーノ2倍判定に使う)。
+    #[test]
+    fn fiammetta_has_laterano_faction_tag() {
+        let result = build_from_seeds();
+        let fiammetta = result.catalog.operators.iter().find(|op| op.name == "フィアメッタ").expect("フィアメッタがカタログに存在すること");
+        assert!(fiammetta.tags.contains(&"ラテラーノ".to_string()), "フィアメッタのタグにラテラーノが無い: {:?}", fiammetta.tags);
+        for e in &fiammetta.fk_entries {
+            assert!(e.tags.contains(&"ラテラーノ".to_string()), "フィアメッタのFkEntryタグにラテラーノが無い: {:?}", e.tags);
+        }
     }
 
     /// カバレッジ確認用(fk_dataの何件がカタログに解決できたか)。`--nocapture`で確認する。

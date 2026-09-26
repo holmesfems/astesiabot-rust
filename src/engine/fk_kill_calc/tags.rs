@@ -1,6 +1,11 @@
-//! オペレーターの`profession`/`position`(operator_combatの生値)から、フレームキル計算機の
-//! フィルタ用タグ・ダメージ属性の初期値を推測する。あくまで機械的な推測であり、実データと
-//! ズレる場合は`overrides.yaml`の`damage_type`で個別に上書きする想定。
+//! オペレーターの`profession`/`position`/`nationId`(operator_combatの生値)から、
+//! フレームキル計算機のフィルタ用タグ・ダメージ属性の初期値を推測する。あくまで機械的な
+//! 推測であり、実データとズレる場合は`overrides.yaml`の`damage_type`/`tags`で個別に
+//! 上書きする想定。
+//!
+//! `TAG_VOCAB`はP2で追加した「タグの語彙」。`FkEntry.tags`に載りうる全タグ名を1箇所に
+//! 集約し、`buffers.yaml`の`targets`/`bonus.tags`のドリフト検知(`buffers.rs`のテスト)が
+//! これを参照する。新しいタグ種別(勢力タグ等)を足すときはここに追加すること。
 
 use super::dto::DamageType;
 
@@ -18,15 +23,44 @@ const PROFESSION_TAGS: &[(&str, &str)] = &[
     ("SPECIAL", "特殊"),
 ];
 
-/// profession + position からタグ一覧を組み立てる。
+/// 勢力ID(nationId、大陸版の生値)→タグ名。バフの対象条件に必要な勢力タグだけを持つ
+/// (現時点では「ラテラーノ」バフ1件のみ使うため、ここも1件だけ)。将来別勢力のバフが
+/// 増えたらここに追加する。
+const FACTION_TAGS: &[(&str, &str)] = &[("laterano", "ラテラーノ")];
+
+/// スキルが「弾薬スキル」(`durationType == "AMMO"`)である場合に付与する機械タグ
+/// (`skill_data::SkillData::is_ammo_skill`から判定。`build_catalog`がFkEntry単位で足す)。
+pub const AMMO_SKILL_TAG: &str = "弾薬スキル";
+
+/// `FkEntry.tags`に載りうる全タグの語彙(近距離判定+職業+勢力+弾薬スキル)。
+/// `overrides.yaml`の手動`tags`、`buffers.yaml`の`targets`/`bonus.tags`はここに
+/// 含まれる名前だけを使うことを`cargo test`のドリフト検知(buffers.rs)で保証する。
+pub fn tag_vocabulary() -> Vec<&'static str> {
+    let mut vocab = vec!["近距離", AMMO_SKILL_TAG];
+    vocab.extend(PROFESSION_TAGS.iter().map(|(_, ja)| *ja));
+    vocab.extend(FACTION_TAGS.iter().map(|(_, ja)| *ja));
+    vocab
+}
+
+/// nationIdからタグ名を引く(登録の無い勢力は`None`)。
+pub fn faction_tag_for(nation_id: &str) -> Option<&'static str> {
+    FACTION_TAGS.iter().find(|(id, _)| *id == nation_id).map(|(_, ja)| *ja)
+}
+
+/// profession + position + nationId からオペレーター単位のタグ一覧を組み立てる。
 /// `position == "MELEE"` なら"近距離"を追加する(参照スプレッドシートの列構成
 /// 近距離/先鋒/前衛/術師/補助/狙撃に合わせた。"遠距離"に相当する明示タグは持たない)。
-pub fn tags_for(profession: &str, position: &str) -> Vec<String> {
+/// 勢力タグ(例:"ラテラーノ")は該当勢力なら追加する。
+/// (弾薬スキルタグはスキル単位なので、ここではなく`build_catalog`がFkEntry組み立て時に足す)。
+pub fn tags_for(profession: &str, position: &str, nation_id: &str) -> Vec<String> {
     let mut tags = Vec::new();
     if position == "MELEE" {
         tags.push("近距離".to_string());
     }
     if let Some((_, ja)) = PROFESSION_TAGS.iter().find(|(id, _)| *id == profession) {
+        tags.push(ja.to_string());
+    }
+    if let Some(ja) = faction_tag_for(nation_id) {
         tags.push(ja.to_string());
     }
     tags
@@ -47,17 +81,36 @@ mod tests {
 
     #[test]
     fn melee_position_adds_close_range_tag_before_profession_tag() {
-        assert_eq!(tags_for("WARRIOR", "MELEE"), vec!["近距離".to_string(), "前衛".to_string()]);
+        assert_eq!(tags_for("WARRIOR", "MELEE", ""), vec!["近距離".to_string(), "前衛".to_string()]);
     }
 
     #[test]
     fn ranged_position_has_no_close_range_tag() {
-        assert_eq!(tags_for("SNIPER", "RANGED"), vec!["狙撃".to_string()]);
+        assert_eq!(tags_for("SNIPER", "RANGED", ""), vec!["狙撃".to_string()]);
     }
 
     #[test]
     fn unknown_profession_yields_no_profession_tag() {
-        assert_eq!(tags_for("UNKNOWN", "RANGED"), Vec::<String>::new());
+        assert_eq!(tags_for("UNKNOWN", "RANGED", ""), Vec::<String>::new());
+    }
+
+    #[test]
+    fn laterano_nation_id_adds_faction_tag_after_profession_tag() {
+        assert_eq!(tags_for("SPECIAL", "RANGED", "laterano"), vec!["特殊".to_string(), "ラテラーノ".to_string()]);
+    }
+
+    #[test]
+    fn unknown_nation_id_yields_no_faction_tag() {
+        assert_eq!(faction_tag_for("lungmen"), None);
+        assert_eq!(faction_tag_for("laterano"), Some("ラテラーノ"));
+    }
+
+    #[test]
+    fn tag_vocabulary_contains_ammo_and_faction_tags() {
+        let vocab = tag_vocabulary();
+        assert!(vocab.contains(&AMMO_SKILL_TAG));
+        assert!(vocab.contains(&"ラテラーノ"));
+        assert!(vocab.contains(&"近距離"));
     }
 
     #[test]
