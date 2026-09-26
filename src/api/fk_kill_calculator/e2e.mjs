@@ -151,7 +151,8 @@ async function addOperator(page, name, entrySubstring) {
 async function runMainScenario(browser, baseUrl) {
   const consoleErrors = [];
   const pageErrors = [];
-  const context = await browser.newContext();
+  // 「共有URLをコピー」の中身をクリップボードから読んで検証するため権限を付ける。
+  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
   page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
   page.on('pageerror', (err) => pageErrors.push(String(err && err.stack ? err.stack : err)));
@@ -166,6 +167,12 @@ async function runMainScenario(browser, baseUrl) {
     await page.waitForSelector('#add-row-btn', { timeout: 5000 });
     ok('catalog loaded (operator datalist has options)',
       (await page.locator('#operator-datalist option').count()) > 50);
+
+    // --- 開いた直後(未入力)はURLに#state=を書かない（ページ自体を共有しやすくするため） ---
+    await page.waitForTimeout(500); // saveToHashのデバウンス(300ms)より長く待つ
+    const hashOnLoad = await page.evaluate(() => location.hash);
+    ok('URL has no #state= right after opening (empty state)', hashOnLoad === '', hashOnLoad);
+    ok('URL has no trailing "#" either', !(await page.evaluate(() => location.href)).endsWith('#'));
 
     // --- Ash を追加してS3/400%を選び、敵HPを設定すると判定が更新される ---
     await addOperator(page, 'Ash', '400%');
@@ -262,22 +269,42 @@ async function runMainScenario(browser, baseUrl) {
     await page.waitForTimeout(100);
     ok('row count back to before after delete', (await page.locator('.row-card').count()) === beforeDup);
 
-    // --- 共有URL -> リロード -> 同じ状態 ---
+    // --- 入力しても URL は書き換わらない（状態はlocalStorageに保存） ---
+    await page.waitForTimeout(500); // 保存のデバウンス(300ms)より長く待つ
+    ok('URL stays without #state= while editing', (await page.evaluate(() => location.hash)) === '');
+
+    // --- リロード -> localStorageから同じ状態に戻る ---
     const rowsBefore = await page.locator('.row-card').count();
     const verdictBefore = await page.locator('#verdict-text').innerText();
-    await page.click('[data-action="share"]');
-    await page.waitForTimeout(150);
-    const hashBefore = await page.evaluate(() => location.hash);
-    ok('share sets #state= hash', hashBefore.startsWith('#state='), hashBefore.slice(0, 20));
-
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(200);
-    const rowsAfter = await page.locator('.row-card').count();
-    const verdictAfter = await page.locator('#verdict-text').innerText();
-    ok('row count identical after reload', rowsAfter === rowsBefore, `${rowsAfter} vs ${rowsBefore}`);
-    ok('verdict text identical after reload', verdictAfter === verdictBefore, `"${verdictAfter}" vs "${verdictBefore}"`);
-    const hashAfter = await page.evaluate(() => location.hash);
-    ok('hash preserved across reload', hashAfter === hashBefore);
+    ok('row count identical after reload (localStorage)', (await page.locator('.row-card').count()) === rowsBefore);
+    ok('verdict text identical after reload (localStorage)',
+      (await page.locator('#verdict-text').innerText()) === verdictBefore);
+
+    // --- 共有URLをコピー: #state=付きURLがクリップボードに入り、アドレスバーは変わらない ---
+    await page.click('[data-action="share"]');
+    await page.waitForTimeout(150);
+    const sharedUrl = await page.evaluate(() => navigator.clipboard.readText());
+    ok('share copies a URL with #state=', sharedUrl.startsWith(baseUrl + '/FrameKillCalculator#state='), sharedUrl.slice(0, 80));
+    ok('share does not change the address bar', (await page.evaluate(() => location.hash)) === '');
+
+    // --- 共有URLを別環境(localStorage空)で開く -> 同じ状態が復元され、#state=は消える ---
+    const otherContext = await browser.newContext();
+    try {
+      const other = await otherContext.newPage();
+      await other.setViewportSize({ width: 420, height: 900 });
+      await other.goto(sharedUrl, { waitUntil: 'networkidle' });
+      await other.waitForTimeout(300);
+      ok('shared URL restores the same rows in a fresh browser', (await other.locator('.row-card').count()) === rowsBefore);
+      ok('shared URL restores the same verdict', (await other.locator('#verdict-text').innerText()) === verdictBefore);
+      ok('#state= is removed from the address bar after loading a shared URL',
+        (await other.evaluate(() => location.hash)) === '');
+      ok('toast tells the shared state was loaded',
+        (await other.locator('.toast').allTextContents()).some((t) => t.includes('共有URLの内容を読み込みました')));
+    } finally {
+      await otherContext.close();
+    }
 
     // --- 420px幅で横スクロールが出ない ---
     const hasHScroll = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);

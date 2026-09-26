@@ -211,9 +211,14 @@ src/
 │           ├── engine.js       … 計算層。DOM非依存（`document`/`window`を参照しない）。
 │           │                     atk/final/perHit/rowDamage計算、撃破提案(suggest)、
 │           │                     stale row除去(dropStaleRows)。単位の約束はファイル冒頭コメント参照
-│           ├── ui.js           … 表現層。カタログfetch・状態管理・DOM描画・URL(#state=...)の
-│           │                     読み書き。再描画は状態変更のたびに#app配下を丸ごと作り直す方式
-│           │                     （フォーカス位置は`withPreservedFocus`で復元する）
+│           ├── ui.js           … 表現層。カタログfetch・状態管理・DOM描画。状態はlocalStorageに
+│           │                     自動保存し、アドレスバーのURLは書き換えない（ページ自体を共有
+│           │                     しやすくするため）。#state=付きURLは「共有URLをコピー」時だけ
+│           │                     組み立て、開いたら読み込んでアドレスバーから消す。
+│           │                     再描画は構造が変わる操作ではrender（#app丸ごと。フォーカスは
+│           │                     `withPreservedFocus`で復元）、数値欄の打鍵中はrenderLive
+│           │                     （入力欄を作り直さず導出表示だけ差し替え。type=numberは
+│           │                     カーソル位置を復元できないため）
 │           ├── style.css       … 420px想定の縦長1カラム。他ページ(home/lod_chest_solver)と
 │           │                     同じくダーク固定（配色トークンはhome_index.htmlの:rootを流用）
 │           └── lz-string.min.js … test_runner/static/lz-string.min.jsと同じ1.5.0, MITを
