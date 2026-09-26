@@ -5,3 +5,5 @@ token.txt
 /ref_python
 /.claude
 .claude/settings.json
+# e2e.mjs の失敗時スクリーンショット（ローカルの調査用）
+e2e_fail_*.png
