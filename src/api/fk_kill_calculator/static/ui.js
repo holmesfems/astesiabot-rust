@@ -2,8 +2,8 @@
    フレームキル計算機 — 表現層（DOM描画・イベント配線・URL共有）
 
    計算そのものは ./engine.js（DOM非依存）に任せ、ここでは
-   カタログ取得(fetch)・状態管理・DOM描画・URL(#state=...)の
-   読み書きだけを担当する。日本語専用ページなので文言はここに直書きする
+   カタログ取得(fetch)・状態管理(localStorage保存)・DOM描画・共有URL(#state=...)の
+   組み立て/読み込みだけを担当する。日本語専用ページなので文言はここに直書きする
    （lod_chest_solver/test_runnerのような多言語ページではないため、
    strings引数を受け取る設計にはしていない）。
 
@@ -38,7 +38,7 @@ const BAR_COLORS = ["#4f7cff", "#e8dcb0", "#79e2d0", "#d4794a", "#b48ef0", "#f07
 let catalog = null;
 let state = null;
 let expandedIdx = null;
-let hashTimer = null;
+let saveTimer = null;
 
 /* ---------------- ユーティリティ ---------------- */
 
@@ -79,7 +79,7 @@ function showToast(msg) {
   }, 4000);
 }
 
-/* ---------------- 状態の初期値・URL共有 ---------------- */
+/* ---------------- 状態の初期値・保存・URL共有 ---------------- */
 
 function defaultEnemy() {
   return { hp: 0, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 };
@@ -102,37 +102,55 @@ function blankRow() {
   };
 }
 
-function saveToHash() {
-  clearTimeout(hashTimer);
-  hashTimer = setTimeout(() => {
-    const json = JSON.stringify(state);
-    const compressed = window.LZString.compressToEncodedURIComponent(json);
-    const newHash = "#state=" + compressed;
-    if (location.hash !== newHash) history.replaceState(null, "", newHash);
+// 状態の保存先。普段はlocalStorageに自動保存し、アドレスバーのURLは書き換えない
+// （開いた直後から#state=付きURLになると、ページ自体を共有したいときにそのまま
+// 貼れないため）。#state=付きURLは「共有URLをコピー」を押したときだけ組み立てて
+// クリップボードへ渡す。test_runnerの「ローカル保存+共有URLコピー」と同じ考え方。
+const STORAGE_KEY = "fkc-state-v1";
+
+function parseStoredState(json) {
+  if (!json) return null;
+  const parsed = JSON.parse(json);
+  if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.rows) || !parsed.enemy) return null;
+  const { state: cleaned, dropped } = dropStaleRows(parsed, catalog);
+  if (dropped > 0) {
+    showToast(`カタログに存在しないオペレーター/スキルが${dropped}件あったため取り除きました`);
+  }
+  return cleaned;
+}
+
+function saveState() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      /* プライベートモード等で保存できなくても計算自体は続けられる */
+    }
   }, 300);
 }
 
-// share操作等、直後にURLを他所へコピーしたい場合はデバウンスを待たずに即書き込む。
-function flushHash() {
-  clearTimeout(hashTimer);
-  const json = JSON.stringify(state);
-  const compressed = window.LZString.compressToEncodedURIComponent(json);
-  location.hash = "state=" + compressed;
+function loadSavedState() {
+  try {
+    return parseStoredState(localStorage.getItem(STORAGE_KEY));
+  } catch (e) {
+    return null;
+  }
 }
 
-function restoreFromHash() {
+function shareUrlForState() {
+  const compressed = window.LZString.compressToEncodedURIComponent(JSON.stringify(state));
+  return location.origin + location.pathname + "#state=" + compressed;
+}
+
+// 共有URL(#state=...)から開いた場合の読み込み。読み込んだらアドレスバーから
+// #state=を消す（以後はlocalStorageが正本。手元の前回状態より共有リンクを優先する）。
+function takeStateFromSharedUrl() {
   const m = /^#state=(.+)$/.exec(location.hash);
   if (!m) return null;
+  history.replaceState(null, "", location.pathname + location.search);
   try {
-    const json = window.LZString.decompressFromEncodedURIComponent(m[1]);
-    if (!json) return null;
-    const parsed = JSON.parse(json);
-    if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.rows) || !parsed.enemy) return null;
-    const { state: cleaned, dropped } = dropStaleRows(parsed, catalog);
-    if (dropped > 0) {
-      showToast(`カタログに存在しないオペレーター/スキルが${dropped}件あったため取り除きました`);
-    }
-    return cleaned;
+    return parseStoredState(window.LZString.decompressFromEncodedURIComponent(m[1]));
   } catch (e) {
     return null;
   }
@@ -501,7 +519,7 @@ function render() {
   withPreservedFocus(() => {
     $("app").innerHTML = renderEnemy() + renderRows() + renderVerdict();
   });
-  saveToHash();
+  saveState();
 }
 
 // 数値・テキスト欄の打鍵中の再描画。入力欄は触らず、導出表示だけを差し替える
@@ -525,7 +543,7 @@ function renderLive() {
     }
   });
   $("verdict-section").outerHTML = renderVerdict();
-  saveToHash();
+  saveState();
 }
 
 /* ---------------- イベント処理 ---------------- */
@@ -658,9 +676,8 @@ function collapseRow() {
 }
 
 async function shareUrl() {
-  flushHash();
   try {
-    await navigator.clipboard.writeText(location.href);
+    await navigator.clipboard.writeText(shareUrlForState());
     showToast("URLをコピーしました");
   } catch (e) {
     showToast("コピーに失敗しました（手動でコピーしてください）");
@@ -721,7 +738,12 @@ function onAppClick(ev) {
 
 export async function initUi() {
   catalog = await fetchCatalog();
-  state = restoreFromHash() ?? { v: 1, enemy: defaultEnemy(), rows: [] };
+  const shared = takeStateFromSharedUrl();
+  state = shared ?? loadSavedState() ?? { v: 1, enemy: defaultEnemy(), rows: [] };
+  if (shared) {
+    showToast("共有URLの内容を読み込みました");
+    saveState();
+  }
   expandedIdx = null;
 
   const app = $("app");
