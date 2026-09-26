@@ -10,9 +10,15 @@
 
    全体の流れ（1行=1オペレーターのFK指定）:
      atk    = atkBase + (potential ? atkPotential : 0) + (module ? module.atkByLevel[lv-1] : 0)
-     pct    = selfPct + buffPct                          （加算）
-     final  = (atk × (1 + pct) + inspireFlat) × multiplier
-              （inspireFlatは常に0。P2/P3で「Σ鼓舞」を足す差し込み口として残してある）
+     pct    = selfPct + buffPct + extraPct + specialAddPct （加算。extraPctはP2で追加した
+              個別バフ(row.buffIds)+条件付きバフ(state.globalBuffIds)のΣ、
+              specialAddPctはP2 follow-upで追加した特殊強化(加算系)のΣ。
+              `computeBuffBreakdown`/`resolveSpecialAddPct`が計算し、
+              `computeTotal`経由で流し込む）
+     final  = (atk × (1 + pct) + inspireFlat) × multiplier × specialMulFactor
+              （inspireFlatはP1では常に0。P2でflat種のバフ(Σ鼓舞)をここに足す。
+              specialMulFactorはP2 follow-upで追加した特殊強化(乗算系)の係数。
+              無ければ1＝影響なし。`resolveSpecialMultiplierFactor`が計算する）
      defEff = max(def × (1 − defPct) − defFlat − ignoreDef, 0)
      resEff = clamp(res − resFlat, 0, 100)
      物理: perHit = max(final − defEff, final × 0.05)
@@ -20,6 +26,27 @@
      真  : perHit = final
      rowDamage = perHit × dmgMult × (1 + vulnPct) × hits
      total = Σ rowDamage; killed = total >= hp
+
+   P2で追加したバフの適用ルール（`computeBuffBreakdown`）:
+     - 個別バフ(catalog.buffers中`scope.type==="individual"`): row.buffIdsに
+       含まれるものを無条件に合算する(タグ判定なし。行ごとにユーザーが選ぶため)。
+     - 条件付きバフ(`scope.type==="conditional"`): state.globalBuffIdsでON中の
+       ものだけ対象。`scope.targetTags`とエントリの`entry.tags`が1つでも
+       重なれば適用。`bonus`(省略可)がある場合、`bonus.targetTags`とも
+       重なっていれば基本値の代わりに`bonus.value`を採用する(置き換え。加算ではない。
+       例: 異格エクシアは弾薬スキル+13%だが、ラテラーノ勢は26%に置き換わる)。
+     - どちらも`kind`(pct/flat)ごとに合算し、pct分はextraPctへ、flat分は
+       extraFlatへ(inspireFlatとして)反映する。
+
+   P2 follow-upで追加した「特殊強化」の2系統(`entry.special`。詳細は各関数のコメント参照)。
+   どちらも`row.specialOn`が有効かつモジュール条件を満たす時だけ効く。置き換え系
+   (旧仕様。行フィールドをスナップショットで上書き)はFW/Weedy実データ精査の結果
+   不要と判明したため撤去済み(`resolveEntryValues`はもうentry.specialを見ない):
+     - 加算系(`requires_module`+`addSelfAtkPctByModuleLevel`): セルフ%に加算
+       (`resolveSpecialAddPct`)。例: ブレイズ/ウィーディ
+     - 乗算系(`mulMultiplier`): `multiplier`に乗算する係数(`resolveSpecialMultiplierFactor`)。
+       モジュール未装備でも`mulMultiplier.base`が常に効く(「常に適用可能」＝UIは
+       チェックボックスを隠さない)。例: ファイヤーウォッチ
    ============================================================ */
 
 /**
@@ -51,22 +78,135 @@ export function defaultModuleId(op) {
   return best.id;
 }
 
-/** オペレーター+FkEntryから、カタログ値をそのまま初期値にした行を作る。 */
-export function makeDefaultRow(op, entryIdx) {
-  const entry = op.fkEntries[entryIdx];
+/**
+ * FkEntryが持つ機械/手動の値をそのまま行フィールドへ写した実効値を組み立てる
+ * (multiplier/selfPct/hits/dmgType。dmgMultは特殊強化が持たない限り常に1)。
+ * `entryIdx`変更時にこれを使い、行フィールドを新しいエントリの値へ再スナップする
+ * （ユーザーの手動編集は「別のエントリを選び直した」時点でリセットされる）。
+ * P2 follow-upで「置き換え系」特殊強化(FW/Weedy等)を撤去したため、`entry.special`は
+ * もう見ない(加算系/乗算系は`resolveSpecialAddPct`/`resolveSpecialMultiplierFactor`が
+ * 都度計算する。行フィールドへのスナップショットが不要になった)。
+ */
+export function resolveEntryValues(entry) {
   return {
-    opId: op.id,
-    entryIdx,
-    dmgType: entry.damageType.value,
-    potential: true,
-    moduleId: defaultModuleId(op),
-    moduleLv: 3,
     multiplier: entry.multiplier.value,
     selfPct: entry.selfAtkPct.value,
     hits: entry.hits.value,
-    buffPct: 0,
+    dmgType: entry.damageType.value,
     dmgMult: 1,
+  };
+}
+
+/**
+ * 特殊強化の「加算系」(`entry.special.requiresModule` + `addSelfAtkPctByModuleLevel`)が、
+ * 現在の行のモジュール/Lvの組み合わせで有効になり得るかどうか。**`row.specialOn`は
+ * 見ない**(UIがチェックボックス/ヒントの出し分けに使うための「モジュール条件だけ」の
+ * 判定。ONかどうかは別途`resolveSpecialAddPct`が見る)。この関数は加算系
+ * (`requiresModule`が付いている特殊強化)専用で、乗算系(`mulMultiplier`。モジュール
+ * 無しでも`base`が常に効くため「適用不可」という状態が無い)には使わない
+ * (呼び出し側=`specialUiState`が`requiresModule`の有無で分岐する)。
+ */
+export function specialAddCanApply(entry, row) {
+  if (!entry || !entry.special || !entry.special.requiresModule) return false;
+  const sp = entry.special;
+  if (row.moduleId !== sp.requiresModule) return false;
+  const arr = sp.addSelfAtkPctByModuleLevel || [];
+  return (arr[row.moduleLv - 1] || 0) > 0;
+}
+
+/**
+ * 特殊強化の「加算系」がセルフ%に加える値。行フィールドへスナップショットせず
+ * **都度**計算する(モジュールを変更しても即座に反映される)。加算系を持たない
+ * 特殊強化(乗算系のみ等)には常に0を返す。`row.specialOn`がfalseなら常に0。
+ */
+export function resolveSpecialAddPct(entry, row) {
+  if (!row.specialOn || !entry || !entry.special || !entry.special.requiresModule) return 0;
+  if (!specialAddCanApply(entry, row)) return 0;
+  const arr = entry.special.addSelfAtkPctByModuleLevel || [];
+  return arr[row.moduleLv - 1] || 0;
+}
+
+/**
+ * 特殊強化の「乗算系」(`entry.special.mulMultiplier`)が`row.multiplier`に掛ける係数。
+ * `mulMultiplier.module`を`row.moduleId`がそのLvで装備していれば`byModuleLevel`の
+ * 対応要素、そうでなければ常に`base`を使う(モジュール未装備でも`base`は必ず効く＝
+ * 「適用不可」という状態が無い)。乗算系を持たない特殊強化には常に1(影響なし)を返す。
+ * `row.specialOn`がfalseなら常に1。
+ */
+export function resolveSpecialMultiplierFactor(entry, row) {
+  if (!row.specialOn || !entry || !entry.special || !entry.special.mulMultiplier) return 1;
+  const mm = entry.special.mulMultiplier;
+  if (mm.module && row.moduleId === mm.module) {
+    const arr = mm.byModuleLevel || [];
+    const v = arr[row.moduleLv - 1];
+    if (v != null) return v;
+  }
+  return mm.base;
+}
+
+/**
+ * UIが特殊強化のチェックボックス/ヒントのどちらを出すべきかを判定する(P2 follow-up)。
+ * 加算系(`requiresModule`付き)はモジュール条件を満たさない間「適用不可」になり得るため
+ * ヒントに切り替える。乗算系(`mulMultiplier`。モジュール無しでも`base`が常に効く)や
+ * 特殊強化そのものが無い場合は常にチェックボックス側(「無い」場合は呼び出し側で
+ * `entry.special`自体の有無を見て描画をスキップする)。
+ * @returns {"checkbox"|"hint"|"none"}
+ */
+export function specialUiState(entry, row) {
+  if (!entry || !entry.special) return "none";
+  if (entry.special.requiresModule) {
+    return specialAddCanApply(entry, row) ? "checkbox" : "hint";
+  }
+  return "checkbox";
+}
+
+/**
+ * 特殊強化のⓘ説明文に付け足す「現在の効果値」(P2 follow-up)。`row.specialOn`に
+ * 関わらず、今のモジュール/Lvなら発動時にどんな値になるかを返す(プレビュー用途)。
+ * 加算系(`requiresModule`)は`{kind:"add", value}`、乗算系(`mulMultiplier`)は
+ * `{kind:"mul", value}`を返す。特殊強化が無い/どちらの系統も無ければ`null`。
+ * @returns {null|{kind:"add"|"mul", value:number}}
+ */
+export function resolveSpecialCurrentValue(entry, row) {
+  if (!entry || !entry.special) return null;
+  const sp = entry.special;
+  if (sp.mulMultiplier) {
+    const mm = sp.mulMultiplier;
+    let value = mm.base;
+    if (mm.module && row.moduleId === mm.module) {
+      const arr = mm.byModuleLevel || [];
+      const v = arr[row.moduleLv - 1];
+      if (v != null) value = v;
+    }
+    return { kind: "mul", value };
+  }
+  if (sp.requiresModule && sp.addSelfAtkPctByModuleLevel) {
+    const idx = row.moduleId === sp.requiresModule ? row.moduleLv - 1 : -1;
+    const value = idx >= 0 ? sp.addSelfAtkPctByModuleLevel[idx] || 0 : 0;
+    return { kind: "add", value };
+  }
+  return null;
+}
+
+/** オペレーター+FkEntryから、カタログ値をそのまま初期値にした行を作る。 */
+export function makeDefaultRow(op, entryIdx) {
+  const entry = op.fkEntries[entryIdx];
+  const values = resolveEntryValues(entry);
+  return {
+    opId: op.id,
+    entryIdx,
+    dmgType: values.dmgType,
+    potential: true,
+    moduleId: defaultModuleId(op),
+    moduleLv: 3,
+    multiplier: values.multiplier,
+    selfPct: values.selfPct,
+    hits: values.hits,
+    buffPct: 0,
+    dmgMult: values.dmgMult,
     ignoreDef: 0,
+    buffIds: [], // P2: 個別バフ(行ごとに選ぶ)
+    specialOn: true, // P2: 特殊強化トグル(デフォルトON。entry.specialが無ければ意味を持たない)
   };
 }
 
@@ -98,15 +238,93 @@ export function resolveResEff(enemy) {
 }
 
 /**
- * 1行分のダメージを計算する。`inspireFlat`はP2/P3の鼓舞合計を足すための差し込み口
- * （P1では常に0）。
+ * P2のバフ内訳を計算する。個別バフ(row.buffIds)は無条件に合算、条件付きバフ
+ * (globalBuffIds)はentry.tagsとの重なりで判定する（詳細はファイル冒頭コメント参照）。
+ * `entry`が無い(未選択行等)場合はタグ判定ができないため条件付きバフは全て不適用扱いになる
+ * （個別バフはタグ判定不要なのでentryが無くても合算する）。
+ * @returns {{individualPct:number, individualFlat:number, conditionalPct:number,
+ *            conditionalFlat:number, extraPct:number, extraFlat:number,
+ *            appliedConditional:Array<{id:string,name:string,value:number,kind:string,bonusApplied:boolean}>,
+ *            notAppliedConditional:Array<{id:string,name:string}>}}
+ */
+export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = []) {
+  const buffers = (catalog && catalog.buffers) || [];
+  const byId = new Map(buffers.map((b) => [b.id, b]));
+  const entryTags = entry && entry.tags ? entry.tags : [];
+
+  let individualPct = 0,
+    individualFlat = 0;
+  for (const id of row.buffIds || []) {
+    const b = byId.get(id);
+    if (!b || b.scope.type !== "individual") continue;
+    if (b.kind === "pct") individualPct += b.value;
+    else individualFlat += b.value;
+  }
+
+  let conditionalPct = 0,
+    conditionalFlat = 0;
+  const appliedConditional = [];
+  const notAppliedConditional = [];
+  for (const id of globalBuffIds) {
+    const b = byId.get(id);
+    if (!b || b.scope.type !== "conditional") continue;
+    const matches = b.scope.targetTags.some((t) => entryTags.includes(t));
+    if (!matches) {
+      notAppliedConditional.push({ id, name: b.name });
+      continue;
+    }
+    const bonusMatches = !!(b.bonus && b.bonus.targetTags.some((t) => entryTags.includes(t)));
+    const value = bonusMatches ? b.bonus.value : b.value;
+    if (b.kind === "pct") conditionalPct += value;
+    else conditionalFlat += value;
+    appliedConditional.push({ id, name: b.name, value, kind: b.kind, bonusApplied: bonusMatches });
+  }
+
+  return {
+    individualPct,
+    individualFlat,
+    conditionalPct,
+    conditionalFlat,
+    extraPct: individualPct + conditionalPct,
+    extraFlat: individualFlat + conditionalFlat,
+    appliedConditional,
+    notAppliedConditional,
+  };
+}
+
+/**
+ * `single_target`(単体対象)バフが2行以上で選ばれているかを検出する。
+ * UIが⚠警告を出すためのデータ(「本当に両方に乗るのか？」の注意喚起。計算自体は
+ * 単純合算のままで、警告を出すだけに留める)。
+ * @returns {Set<string>} 複数行で選ばれているバフidの集合
+ */
+export function findSingleTargetConflicts(catalog, rows) {
+  const buffers = (catalog && catalog.buffers) || [];
+  const singleIds = new Set(buffers.filter((b) => b.singleTarget).map((b) => b.id));
+  const countById = new Map();
+  for (const row of rows) {
+    for (const id of row.buffIds || []) {
+      if (!singleIds.has(id)) continue;
+      countById.set(id, (countById.get(id) || 0) + 1);
+    }
+  }
+  const conflicts = new Set();
+  for (const [id, count] of countById) if (count > 1) conflicts.add(id);
+  return conflicts;
+}
+
+/**
+ * 1行分のダメージを計算する。`inspireFlat`はP1/P2の鼓舞合計(flat種バフのΣ)を足すための
+ * 差し込み口、`extraPct`はP2の個別/条件付きバフ(pct種)+特殊強化(加算系)のΣ差し込み口、
+ * `multiplierFactor`はP2 follow-upの特殊強化(乗算系)の係数差し込み口
+ * (いずれも既定値でP1と完全互換: inspireFlat=0/extraPct=0/multiplierFactor=1)。
  * @returns {{atk:number, pct:number, final:number, defEff:number, resEff:number,
  *            perHit:number, atFloor:boolean, rowDamage:number}}
  */
-export function computeRowDamage(op, row, enemy, inspireFlat = 0) {
+export function computeRowDamage(op, row, enemy, inspireFlat = 0, extraPct = 0, multiplierFactor = 1) {
   const atk = resolveAtk(op, row);
-  const pct = row.selfPct + row.buffPct;
-  const final = (atk * (1 + pct) + inspireFlat) * row.multiplier;
+  const pct = row.selfPct + row.buffPct + extraPct;
+  const final = (atk * (1 + pct) + inspireFlat) * row.multiplier * multiplierFactor;
   const defEff = resolveDefEff(enemy, row.ignoreDef);
   const resEff = resolveResEff(enemy);
 
@@ -134,14 +352,20 @@ export function computeRowDamage(op, row, enemy, inspireFlat = 0) {
  * 全行の合計ダメージと撃破可否。opId解決に失敗した行(カタログとズレた古いURL等)は
  * `results`に`null`を置き、合計には含めない。呼び出し側は事前に`dropStaleRows`で
  * 弾いておくのが基本だが、ここでも二重に安全策を取る。
- * @returns {{results:(Array<null|{row:RowState, op:object}&ReturnType<typeof computeRowDamage>>),
+ * `globalBuffIds`(P2。省略時は`[]`=P1互換)は条件付きバフの判定に使う。
+ * @returns {{results:(Array<null|{row:RowState, op:object, breakdown:object}&ReturnType<typeof computeRowDamage>>),
  *            total:number, killed:boolean}}
  */
-export function computeTotal(catalog, rows, enemy) {
+export function computeTotal(catalog, rows, enemy, globalBuffIds = []) {
   const results = rows.map((row) => {
     const op = findOperator(catalog, row.opId);
     if (!op) return null;
-    return { row, op, ...computeRowDamage(op, row, enemy) };
+    const entry = findEntry(op, row.entryIdx);
+    const breakdown = computeBuffBreakdown(row, entry, catalog, globalBuffIds);
+    const specialAddPct = resolveSpecialAddPct(entry, row);
+    const specialMulFactor = resolveSpecialMultiplierFactor(entry, row);
+    const dmg = computeRowDamage(op, row, enemy, breakdown.extraFlat, breakdown.extraPct + specialAddPct, specialMulFactor);
+    return { row, op, breakdown, specialAddPct, specialMulFactor, ...dmg };
   });
   const total = results.reduce((sum, r) => sum + (r ? r.rowDamage : 0), 0);
   return { results, total, killed: total >= enemy.hp };
@@ -150,18 +374,29 @@ export function computeTotal(catalog, rows, enemy) {
 /**
  * カタログに存在しない opId/entryIdx を指す行を取り除く
  * （ゲームデータ更新でオペレーター/スキルが変わったURL状態を安全に読み込むため）。
+ * ついでに(P2) カタログに存在しないバフidを`row.buffIds`/`state.globalBuffIds`から
+ * 静かに(トースト無し)取り除き、`specialOn`の省略時デフォルト(true)も補う
+ * （古い形(P1)のstate/共有URLにはこれらのフィールドが無いため、そのまま読めるようにする）。
  * @returns {{state:object, dropped:number}}
  */
 export function dropStaleRows(state, catalog) {
   const opById = new Map(catalog.operators.map((o) => [o.id, o]));
+  const validBuffIds = new Set((catalog.buffers || []).map((b) => b.id));
   let dropped = 0;
-  const rows = state.rows.filter((row) => {
-    const op = opById.get(row.opId);
-    const ok = !!op && row.entryIdx >= 0 && row.entryIdx < op.fkEntries.length;
-    if (!ok) dropped++;
-    return ok;
-  });
-  return { state: { ...state, rows }, dropped };
+  const rows = state.rows
+    .filter((row) => {
+      const op = opById.get(row.opId);
+      const ok = !!op && row.entryIdx >= 0 && row.entryIdx < op.fkEntries.length;
+      if (!ok) dropped++;
+      return ok;
+    })
+    .map((row) => ({
+      ...row,
+      buffIds: (row.buffIds || []).filter((id) => validBuffIds.has(id)),
+      specialOn: row.specialOn !== false,
+    }));
+  const globalBuffIds = (state.globalBuffIds || []).filter((id) => validBuffIds.has(id));
+  return { state: { ...state, rows, globalBuffIds }, dropped };
 }
 
 /* ============================================================
@@ -197,20 +432,24 @@ function minimalIntegerSatisfying(lo, hi, predicate) {
  * 撃破できていない状態に対し、撃破に足りる最小の変更案を最大4件まで返す。
  * 種類: 'rowBuffPct'(その行のバフ+n%、上限+300%) / 'rowHits'(その行のHit数+n、上限+3) /
  *       'enemyDefFlat'(敵の防御-n、物理行が1つでも5%floorでなければ。上限は敵の現在の防御値) /
- *       'enemyResFlat'(敵の術耐性-n、術行が1つでも5%floorでなければ。上限は敵の現在の術耐性値)。
+ *       'enemyResFlat'(敵の術耐性-n、術行が1つでも5%floorでなければ。上限は敵の現在の術耐性値) /
+ *       'addIndividualBuff'(P2。その行にまだ選んでいない個別バフを1つ追加する) /
+ *       'toggleGlobalBuff'(P2。まだOFFの条件付きバフを1つONにする)。
  * 上限を超えないと撃破できない場合や、効果が無い（floor済みで伸びしろが無い等）場合は
  * その種類の提案を出さない。全種類が出せなければ`suggest()`は空配列を返す
  * （呼び出し側は「現実的な補正では届きません」のような文言を出す想定）。
  * `effort`（小さいほど「簡単」）昇順でソートする。hits系は+1した値をeffortにする
- * （%やflatの数値と同じ物差しに乗せるための簡単な変換）。
+ * （%やflatの数値と同じ物差しに乗せるための簡単な変換）。バフ系の`effort`はそのバフの
+ * pct(%換算)/flat値そのもの（"cheapest first by added pct"の仕様どおり）。
  */
 export function suggest(state, catalog) {
-  const { rows, enemy } = state;
-  const { results, killed } = computeTotal(catalog, rows, enemy);
+  const { rows, enemy, globalBuffIds = [] } = state;
+  const { results, killed } = computeTotal(catalog, rows, enemy, globalBuffIds);
   if (killed) return [];
 
   const suggestions = [];
-  const killsWith = (testRows, testEnemy) => computeTotal(catalog, testRows, testEnemy ?? enemy).killed;
+  const killsWith = (testRows, testEnemy, testGlobalBuffIds) =>
+    computeTotal(catalog, testRows, testEnemy ?? enemy, testGlobalBuffIds ?? globalBuffIds).killed;
 
   results.forEach((r, i) => {
     if (!r) return;
@@ -254,6 +493,35 @@ export function suggest(state, catalog) {
     }
   }
 
+  // P2: 個別バフを1件追加するだけで撃破できる行を提案する（+300%キャップを流用: そのバフ
+  // 自体のpctが300%を超えることは無いが、念のため同じ上限で足切りする）。
+  const buffers = (catalog && catalog.buffers) || [];
+  const individualBuffers = buffers.filter((b) => b.scope.type === "individual");
+  rows.forEach((row, i) => {
+    if (!row.opId) return;
+    const already = new Set(row.buffIds || []);
+    for (const b of individualBuffers) {
+      if (already.has(b.id)) continue;
+      const effort = b.kind === "pct" ? b.value * 100 : b.value;
+      if (b.kind === "pct" && effort > SUGGEST_CAP_BUFF_PCT) continue;
+      const testRows = rows.map((row2, j) => (j === i ? { ...row2, buffIds: [...(row2.buffIds || []), b.id] } : row2));
+      if (killsWith(testRows)) {
+        suggestions.push({ kind: "addIndividualBuff", rowIndex: i, buffId: b.id, buffName: b.name, effort });
+      }
+    }
+  });
+
+  // P2: 条件付きバフを1件ONにするだけで撃破できる場合を提案する。
+  const conditionalBuffers = buffers.filter((b) => b.scope.type === "conditional");
+  for (const b of conditionalBuffers) {
+    if (globalBuffIds.includes(b.id)) continue;
+    const effort = b.kind === "pct" ? b.value * 100 : b.value;
+    if (b.kind === "pct" && effort > SUGGEST_CAP_BUFF_PCT) continue;
+    if (killsWith(rows, enemy, [...globalBuffIds, b.id])) {
+      suggestions.push({ kind: "toggleGlobalBuff", buffId: b.id, buffName: b.name, effort });
+    }
+  }
+
   suggestions.sort((a, b) => a.effort - b.effort);
   return suggestions.slice(0, 4);
 }
@@ -273,6 +541,10 @@ export function describeSuggestion(sug, catalog, rows) {
       return `敵の防御を-${sug.amount}させる`;
     case "enemyResFlat":
       return `敵の術耐性を-${sug.amount}させる`;
+    case "addIndividualBuff":
+      return `${rowOpName(sug.rowIndex)}に個別バフ「${sug.buffName}」を追加する`;
+    case "toggleGlobalBuff":
+      return `条件付きバフ「${sug.buffName}」をONにする`;
     default:
       return "";
   }

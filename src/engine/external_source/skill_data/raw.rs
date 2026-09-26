@@ -17,6 +17,13 @@ pub struct RawSkillLevel {
     /// ヘッダ表示ではPython `str(float)`同様に整数値でも小数点付きで表示する
     /// （`description::python_float_str`を参照）。
     pub duration: f64,
+    /// フレームキル計算機の「弾薬スキル」タグ判定に使う機械フィールド
+    /// （`"NONE"`/`"AMMO"`等。実データ調査済み: `durationType == "AMMO"`のスキルが
+    /// いわゆる弾薬制スキル。例: ホルン(異格)のS2「テンペストオーダー」）。
+    /// 説明文組み立てには使わないが、name/description欠落を避けるため他フィールドと
+    /// 同じ`RawSkillLevel`に同居させる。無い場合は空文字列扱い（`unwrap_or_default`）。
+    #[serde(default, rename = "durationType")]
+    pub duration_type: String,
     pub blackboard: Vec<RawBlackboardItem>,
 }
 

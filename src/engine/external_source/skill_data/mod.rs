@@ -27,6 +27,10 @@ pub struct SkillItem {
     /// `description`の文字列組み立てとは独立に持つ。`IndexMap`はJSON上の元の並び順を
     /// 保持するため（挿入順保持が必要な他ソースとの一貫性。厳密な順序依存は今のところ無い）。
     pub blackboard: IndexMap<String, f64>,
+    /// フレームキル計算機の「弾薬スキル」タグ判定用（machine-only）。
+    /// `durationType == "AMMO"`かどうか（`raw.rs::RawSkillLevel::duration_type`参照）。
+    #[serde(default)]
+    pub is_ammo_skill: bool,
 }
 
 /// スキルID→名前/説明文（Python `SkillIdToName`相当。旧`SkillNames`を統合）。
@@ -49,6 +53,11 @@ impl SkillData {
     /// idから最大レベルのblackboardを解決する。無ければ`None`。
     pub fn get_blackboard(&self, id: &str) -> Option<&IndexMap<String, f64>> {
         self.id_to_item.get(id).map(|item| &item.blackboard)
+    }
+
+    /// idが「弾薬スキル」(`durationType == "AMMO"`)かどうか。無ければfalse。
+    pub fn is_ammo_skill(&self, id: &str) -> bool {
+        self.id_to_item.get(id).map(|item| item.is_ammo_skill).unwrap_or(false)
     }
 
     #[cfg(test)]
@@ -91,12 +100,14 @@ async fn fetch_impl() -> Result<SkillData, FetchError> {
             // `value`が`None`の項目（Python版もduck typingで実質参照しない）は除外する。
             let blackboard: IndexMap<String, f64> =
                 level.blackboard.iter().filter_map(|item| item.value.map(|v| (item.key.clone(), v))).collect();
+            let is_ammo_skill = level.duration_type == "AMMO";
             id_to_item.insert(
                 id.clone(),
                 SkillItem {
                     name: level.name,
                     description,
                     blackboard,
+                    is_ammo_skill,
                 },
             );
         }

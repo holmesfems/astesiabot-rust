@@ -70,6 +70,11 @@ pub struct RawOperatorCombat {
     pub profession: String,
     /// "MELEE"/"RANGED"。
     pub position: String,
+    /// 所属勢力(大陸版`nationId`の生値。例: "laterano")。フレームキル計算機の
+    /// 勢力タグ判定用(machine-only)。現時点で使うのは「ラテラーノ」バフの対象判定のみ
+    /// （`tags.rs::faction_tag_for`）。無ければ空文字列。
+    #[serde(default)]
+    pub nation_id: String,
     /// 昇進2(E2)最大レベルのATK + 信頼度100時点のATK加算（`favorKeyFrames`最終値）。
     pub atk_base: f64,
     /// 潜在(潜能)によるATK加算の合計（`formulaItem == "ADDITION"`のもののみ。
@@ -230,12 +235,15 @@ fn build_characters(
             continue;
         };
 
+        let nation_id = source_value.get("nationId").and_then(Value::as_str).unwrap_or_default().to_string();
+
         let raw = RawOperatorCombat {
             id: key.clone(),
             name: name.clone(),
             cn_name: cn_name.to_string(),
             profession: profession.to_string(),
             position: position.to_string(),
+            nation_id,
             atk_base: parse_atk_base(source_value),
             atk_potential: parse_atk_potential(source_value),
             modules: Vec::new(),
@@ -289,6 +297,7 @@ fn build_patches(
         let (original_name, original_cn_name) = find_original(key).unwrap_or(("", ""));
         let name = format!("{original_name}({job})");
         let cn_name = format!("{original_cn_name}({job})");
+        let nation_id = source_value.get("nationId").and_then(Value::as_str).unwrap_or_default().to_string();
 
         let raw = RawOperatorCombat {
             id: key.clone(),
@@ -296,6 +305,7 @@ fn build_patches(
             cn_name,
             profession: profession.to_string(),
             position: position.to_string(),
+            nation_id,
             atk_base: parse_atk_base(source_value),
             atk_potential: parse_atk_potential(source_value),
             modules: Vec::new(),

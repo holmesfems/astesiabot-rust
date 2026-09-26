@@ -197,6 +197,7 @@ mod tests {
                 sp_cost,
             },
             duration,
+            duration_type: String::new(),
             blackboard: blackboard
                 .iter()
                 .map(|(k, v)| RawBlackboardItem {
@@ -219,6 +220,7 @@ mod tests {
                 sp_cost: 0,
             },
             duration: 0.0,
+            duration_type: String::new(),
             blackboard: vec![],
         };
         assert_eq!(build_description(&lv), "");

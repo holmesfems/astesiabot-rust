@@ -9,11 +9,20 @@
 # スキーマ:
 #   <operator_id>:
 #     "<skill_num>":
-#       - { label: "300%", multiplier: 3.0, self_atk_pct: 0.1, hits: 1, damage_type: physical, note: "備考" }
+#       - { label: "300%", multiplier: 3.0, self_atk_pct: 0.1, hits: 1, damage_type: physical,
+#           special: {
+#             label: "待機ボーナス", description: "…",
+#             requires_module: "uniequip_xxx_yyy", add_self_atk_pct_by_module_level: [0, 0.04, 0.06],
+#             mul_multiplier: { base: 1.0, module: "uniequip_xxx_yyy", by_module_level: [1.0, 1.0, 1.1] },
+#           },
+#           note: "備考" }
 #
 # 各フィールドは全て省略可能。省略したフィールドは機械データ側の自動判定値を採用する
-# (build_catalogが担当)。ここに載せるのはオーナー提供の参照スプレッドシートを出典とする
-# 実測値による補正であり、ゲームデータ更新で機械側の値が変わったら見直すこと。
+# (build_catalogが担当)。`special`(特殊強化トグル)のスキーマの詳細は
+# `src/engine/fk_kill_calc/overrides.rs`冒頭のコメントを参照。ここに載せるのはオーナー
+# 提供の参照スプレッドシート/実ゲームデータ(character_table.json talents、
+# battle_equip_table.json blackboard)を出典とする補正であり、ゲームデータ更新で
+# 機械側の値が変わったら見直すこと。
 
 # Ash(char_456_ash) スキル3「ブリーチング弾」: 直撃/貫通後の爆発/高台への直撃、という
 # 3種類のダメージ判定を1スキルで持つ。blackboardの`atk_scale`(直撃)は機械側の自動判定と
@@ -29,21 +38,98 @@ char_456_ash:
 # ホルン(異格。char_4039_horn) スキル2「テンペストオーダー」: 物理/術の2系統ダメージを
 # 同時に与える。blackboardのキーが`attack@s2.atk_scale`/`attack@s2.magic_atk_scale`と
 # 接頭辞付きのため自動判定(厳密一致の`atk_scale`)には掛からず、2バリアントに分ける。
+# self_atk_pct(0.31)は参照シートの「セルフ加算」列の値(P2で追加。両バリアント共通)。
 char_4039_horn:
   "2":
-    - { label: "物理", multiplier: 2.4, damage_type: physical, hits: 5 }
-    - { label: "術",   multiplier: 0.6, damage_type: arts,     hits: 5 }
+    - { label: "物理", multiplier: 2.4, self_atk_pct: 0.31, damage_type: physical, hits: 5 }
+    - { label: "術",   multiplier: 0.6, self_atk_pct: 0.31, damage_type: arts,     hits: 5 }
 
 # ブレイズ(char_017_huang) スキル3「ボイリングバースト」: blackboardのダメージ倍率キーが
 # `atk_scale`ではなく`damage_by_atk_scale`(値4.0)。この名前は末尾が"atk_scale"のため
 # 自動判定(resolve_multiplier_defaults)の第2順位規則で正しく4.0を拾える。
 # よって`multiplier`のoverrideは不要(自動判定と一致するため書かない)。
-# セルフATKバフ(blackboard上の`atk`=0.8)だけは特殊強化「待機ボーナス」のスタック状況を
-# 考慮した実効値として、オーナー参照シートの0.772を採用する
-# (0.8は素の最大値で、実戦での平均的な効果は0.772程度、という参照シート側の実測)。
+#
+# セルフATKバフ(P2 follow-upでオーナー確定): スキル自体の効果(「技能开启后、攻撃力が
+# 徐々に最大+80%まで上昇する」)だが、既知のバグにより理論値の8/9(0.8×8/9=0.7111…→
+# オーナー実測0.712)しか実際には反映されない。この0.712は特殊強化のON/OFFに関わらず
+# 常に適用される実測値なので、通常のself_atk_pct(Manual)として持つ
+# (blackboardの理論値0.8をAutoで採るのはもう不適切なので、明示的にoverrideする)。
+#
+# 特殊強化「待機ボーナス」: モジュールX(uniequip_002_huang「熱く燃える心臓と武器」)の
+# 素質強化(素質2「厳酷な訓練」)。battle_equip_table.jsonのblackboard
+# `huang_t_2[e_002_atk].atk`が示す通り、モジュールXをLv2で装備時+4%、Lv3で+6%
+# (Lv1では素質強化自体が付かないので対象外=0)。0.712に「加算」される(置き換えではない)
+# 点と、モジュールX(uniequip_002_huang)がLv2以上で装備されている時だけ有効な点が
+# self_atk_pctの単純な置き換えと異なるため、`requires_module`+
+# `add_self_atk_pct_by_module_level`(加算系。フロントengine.jsの`resolveSpecialAddPct`が
+# 都度計算する。行フィールドへスナップショットしないので、モジュールを変更すれば
+# 即座に反映される)で表現する。モジュールXのLv3装備+ONで0.712+0.06=0.772となり、
+# 参照シートの実測値(939×1.772×4=6656)と一致する。
 char_017_huang:
   "3":
     - {
-        self_atk_pct: 0.772,
-        note: "self_atk_pctは特殊強化「待機ボーナス」考慮後の実効値(参照シート実測)。multiplierはblackboardのdamage_by_atk_scale(4.0)を自動判定でそのまま採用。",
+        self_atk_pct: 0.712,
+        special: {
+          label: "待機ボーナス",
+          description: "モジュールXを装備し配置から30秒経過すると、攻撃力がLv2で+4%・Lv3で+6%追加upする(セルフ加算に上乗せ)",
+          requires_module: "uniequip_002_huang",
+          add_self_atk_pct_by_module_level: [0.0, 0.04, 0.06],
+        },
+        note: "self_atk_pct(0.712)はバグにより理論値0.8の8/9しか反映されない実測値(特殊強化の有無に関わらず常に適用)。特殊強化「待機ボーナス」はモジュールX(uniequip_002_huang)をLv2以上で装備している時だけ+4%(Lv2)/+6%(Lv3)を加算する(置き換えでなく加算。出典: battle_equip_table.jsonのuniequip_002_huang、blackboardキー`huang_t_2[e_002_atk].atk`。Lv1は素質強化自体が付かないので0)。multiplierはblackboardのdamage_by_atk_scale(4.0)を自動判定でそのまま採用。",
+      }
+
+# 濁心スカジ(char_1012_skadi2)はFKするオペレーターではなく、味方への鼓舞(インスパイア)を
+# 撒く「バフ側」のオペレーター(オーナー確認済み)。fk_kill_calcのoverride(このファイル)
+# ではなく、P3で対応する鼓舞バフ(バフを出す側自身のATKから算出する仕組み)の一部として
+# 扱う想定なので、ここにはoverrideを追加しない。参照シートの値(P3で使う可能性がある値):
+# S2 multiplier=0.6/self_atk_pct=0.09、S3 multiplier=1.1/self_atk_pct=0.17。
+
+# ファイヤーウォッチ(char_158_milu) スキル2「戦術電台」: blackboardは"atk_scale"=3.0
+# のみで、そのままAutoで採れる(通常時=特殊強化OFFはoverride不要)。
+#
+# 特殊強化「遠距離特効」(P2 follow-up 2回目でオーナー確定): 素質「暗殺者」(E2最大潜在)の
+# 効果「遠隔武器を持つ、または攻撃しない敵への攻撃時、攻撃力が145%になる」が、
+# モジュールY(uniequip_002_milu「野戦用狙撃装備」)装備で更に上がる(素質そのものが
+# 上書きされる)。character_table.jsonのtalents(E2最大潜在)とbattle_equip_table.jsonの
+# uniequip_002_milu(addOrOverrideTalentDataBundle、blackboardキー`atk_scale`、
+# いずれもrequiredPotentialRank=4=E2最大潜在)から実測:
+#   base(モジュール無し)=1.45、Lv1=1.45(Lv1では素質強化自体が付かず素の値のまま)、
+#   Lv2=1.5、Lv3=1.55。
+# `mul_multiplier`(乗算系)で表現する: 行の`multiplier`(スキル自体の倍率3.0)に対して
+# 乗算する係数を、モジュールYをLv1〜3で装備時は`by_module_level`から、それ以外(未装備等)は
+# `base`から都度計算する(`engine.js`の`resolveSpecialMultiplierFactor`)。
+# モジュールYをLv3で装備してONにすると3.0×1.55=4.65となり、参照シートの実測値
+# (1297×2.86×4.65=17249)と一致する。
+char_158_milu:
+  "2":
+    - {
+        special: {
+          label: "遠距離特効",
+          description: "遠隔武器を持つ、または攻撃しない敵を攻撃した時、攻撃力が上昇する(モジュールYでさらに上昇)",
+          mul_multiplier: { base: 1.45, module: "uniequip_002_milu", by_module_level: [1.45, 1.5, 1.55] },
+        },
+        note: "通常時(3.0)はblackboardのatk_scaleをAutoでそのまま採用。特殊強化ON時はmultiplier(3.0)に素質「暗殺者」由来の係数を乗算する: モジュールY(uniequip_002_milu)未装備または他モジュール装備時はbase=1.45、モジュールY装備時はLv1=1.45/Lv2=1.5/Lv3=1.55(出典: character_table.json talents [E2最大潜在] + battle_equip_table.json uniequip_002_milu blackboard`atk_scale` [E2最大潜在])。",
+      }
+
+# ウィーディ(char_400_weedy) スキル3「液体窒素砲」: blackboardは"atk_scale"=3.5のみで、
+# そのままAutoで採れる(通常時=特殊強化OFFはoverride不要。self_atk_pctもblackboardに
+# "atk"キーが無いためAuto=0で正しい)。
+#
+# 特殊強化「蓄水砲配置バフ」(P2 follow-up 2回目でオーナー確定): モジュールX
+# (uniequip_002_weedy「改良型シードラゴン」)の素質強化「蓄水炮強化」。蓄水砲(召喚物)が
+# 温蒂の周囲4マス以内にある時、攻撃力にLv2で+15%・Lv3で+20%を追加する(セルフ加算への
+# 加算。置き換えではない)。battle_equip_table.jsonのuniequip_002_weedy
+# (addOrOverrideTalentDataBundle、blackboardキー`atk`)から実測: Lv1=0(素質強化自体が
+# 付かない)、Lv2=0.15、Lv3=0.20。ブレイズと同じ`requires_module`+
+# `add_self_atk_pct_by_module_level`(加算系)で表現する。
+char_400_weedy:
+  "3":
+    - {
+        special: {
+          label: "蓄水砲配置バフ",
+          description: "蓄水砲(召喚物)が周囲4マス以内にある時、攻撃力がLv2で+15%・Lv3で+20%追加upする(セルフ加算に上乗せ)",
+          requires_module: "uniequip_002_weedy",
+          add_self_atk_pct_by_module_level: [0.0, 0.15, 0.2],
+        },
+        note: "通常時(蓄水砲が周囲に無い/モジュールX未装備)はself_atk_pct=0(Auto)。特殊強化ON時はモジュールX(uniequip_002_weedy)をLv2以上で装備している時だけ+15%(Lv2)/+20%(Lv3)を加算する(置き換えでなく加算。出典: battle_equip_table.jsonのuniequip_002_weedy、素質「蓄水炮強化」のblackboardキー`atk`。Lv1は素質強化自体が付かないので0)。",
       }
