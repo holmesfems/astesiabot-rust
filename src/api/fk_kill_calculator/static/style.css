@@ -1,0 +1,148 @@
+/* フレームキル計算機。PCでゲーム画面の横に置く前提の縦長・高密度レイアウト
+   （目安420px幅、広い画面でも480px中央寄せで頭打ち）。
+   サイト内の他ページ(home/lod_chest_solver)と同じくダーク固定。配色トークンは
+   home_index.htmlの:root（--bg/--panel/--text/--faint/--accent/--gold）をそのまま流用する。 */
+:root{
+  --bg:#161a24;
+  --card-bg:rgba(31,36,48,.55);
+  --card-border:rgba(228,231,240,.10);
+  --text:#e4e7f0;
+  --faint:#9aa2b8;
+  --accent:#4f7cff;
+  --ok:#79e2d0;
+  --ng:#e8748a;
+  --gold:#e8dcb0;
+  --input-bg:rgba(7,10,20,.55);
+  --input-border:rgba(154,162,184,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,
+    system-ui,-apple-system,sans-serif;
+  font-size:14px;
+  line-height:1.5;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+body .toolnav-bar{margin:0 0 0}
+
+.wrap{
+  max-width:480px;margin:0 auto;padding:16px 12px;
+  /* 下端固定の判定セクション(#verdict-section)に本文が隠れないよう余白を確保する */
+  padding-bottom:220px;
+}
+h1{font-size:16px;font-weight:700;margin:0 0 4px;color:var(--text)}
+.sub{margin:0 0 16px;color:var(--faint);font-size:12px}
+
+.card{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:10px;
+  padding:14px;
+  margin-bottom:12px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+.card h2{margin:0 0 10px;font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.02em}
+
+label{display:block;font-size:11.5px;color:var(--faint);margin-bottom:2px}
+input,select{
+  width:100%;font:inherit;font-size:13px;color:var(--text);
+  background:var(--input-bg);border:1px solid var(--input-border);
+  border-radius:5px;padding:7px 8px;margin-top:2px;
+}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.check-label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text);margin-top:18px}
+.check-label input{width:auto;margin:0}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--faint);font-size:12px}
+
+/* ---- オペレーター行 ---- */
+.row-card{
+  border:1px solid var(--card-border);border-radius:8px;
+  padding:8px 10px;margin-bottom:8px;background:rgba(127,127,127,.05);
+}
+.row-summary{display:flex;align-items:center;gap:8px}
+/* [色ドット(棒グラフと同色=凡例兼用)] [名前+短いスキル参照。省略可] … [ダメージ。省略不可・太字] */
+.row-summary-main{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.row-color-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.row-summary-name{font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-summary-damage{flex-shrink:0;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums;margin-left:6px}
+.row-summary-empty{color:var(--faint);font-style:italic}
+.row-actions{display:flex;gap:4px;flex-shrink:0}
+.row-actions button{
+  width:auto;padding:4px 8px;font-size:12px;cursor:pointer;
+  background:transparent;border:1px solid var(--input-border);border-radius:4px;color:var(--text);
+}
+.row-expanded{background:rgba(79,124,255,.06)}
+.row-field{margin-bottom:8px}
+.row-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.row-formula{font-size:11.5px;color:var(--faint);background:rgba(127,127,127,.08);border-radius:5px;padding:6px 8px;margin:8px 0}
+.row-formula b{color:var(--text)}
+.floor-note{color:var(--ng)}
+.row-actions-expanded{text-align:right;margin-top:6px}
+.row-actions-expanded button{width:auto;padding:6px 14px;cursor:pointer;border-radius:5px;border:1px solid var(--input-border);background:transparent;color:var(--text)}
+#add-row-btn{margin-top:4px;padding:10px;cursor:pointer;border:1px dashed var(--input-border);border-radius:6px;background:transparent;color:var(--accent);font-weight:600}
+
+.badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:999px;margin-left:4px;vertical-align:middle}
+.badge-manual{background:rgba(232,220,176,.18);color:var(--gold);border:1px solid rgba(232,220,176,.4)}
+.badge-reset{cursor:pointer;background:transparent;color:var(--accent);border:1px solid var(--accent);width:auto;padding:0 5px;font-size:11px}
+
+.fk-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--faint);margin:6px 0}
+.fk-detail{
+  white-space:pre-wrap;word-break:break-word;font-size:11px;color:var(--faint);
+  background:rgba(0,0,0,.15);border-radius:5px;padding:8px;max-height:220px;overflow:auto;
+  font-family:inherit;
+}
+
+/* ---- 判定セクション(画面下部に固定) ---- */
+#verdict-section{
+  position:fixed;left:0;right:0;bottom:0;z-index:900;
+  max-width:480px;margin:0 auto;
+  background:var(--card-bg);border-top:1px solid var(--card-border);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  box-shadow:0 -6px 20px rgba(0,0,0,.25);
+}
+#verdict-text{font-size:14px;font-weight:700;margin-bottom:8px}
+.verdict-ok{color:var(--ok)}
+.verdict-ng{color:var(--ng)}
+#verdict-bar{margin:14px 0 6px}
+/* HPの目盛り(.hp-line)は.bar-trackの外側(.bar-wrap)に置く。.bar-trackはセグメントの
+   角を丸めるためoverflow:hiddenが要るが、そのままだと上にはみ出す目盛りのラベルまで
+   一緒に切り取られてしまうため、クリップされない兄弟要素として重ねる。 */
+.bar-wrap{position:relative}
+.bar-track{
+  position:relative;display:flex;height:14px;border-radius:7px;overflow:hidden;
+  background:rgba(127,127,127,.18);
+}
+.bar-seg{height:100%}
+.hp-line{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text)}
+.hp-line-label{
+  position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  font-size:9px;color:var(--faint);white-space:nowrap;line-height:1;
+}
+#verdict-suggestions{font-size:11.5px;color:var(--faint);margin:6px 0}
+.suggest-title{margin:0 0 2px;font-weight:600;color:var(--text)}
+#verdict-suggestions ul{margin:0;padding-left:18px}
+.verdict-actions{margin-top:6px}
+#share-url-btn{width:auto;padding:6px 14px;cursor:pointer;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:12px}
+.scope-note{font-size:10px;color:var(--faint);margin:6px 0 0}
+
+/* ---- トースト ---- */
+#toast-container{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:1500;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{
+  background:var(--card-bg);border:1px solid var(--card-border);color:var(--text);
+  padding:8px 14px;border-radius:6px;font-size:12.5px;opacity:0;transform:translateY(-6px);
+  transition:opacity .2s ease, transform .2s ease;box-shadow:0 4px 16px rgba(0,0,0,.3);
+}
+.toast-show{opacity:1;transform:translateY(0)}
+
+footer{margin-top:16px;text-align:center;font-size:10.5px;color:var(--faint)}
+footer a{color:var(--accent)}

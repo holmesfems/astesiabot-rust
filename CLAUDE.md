@@ -63,8 +63,17 @@ src/
 │   │   │                       uniequip_table.json / char_patch_table.json をまとめて1回のfetchで
 │   │   │                       構築する（旧operator_names.rsはこれに統合済み）。
 │   │   │                       SEED_PATH = data/seed/operator_data.json
-│   │   └── skill_data/      … スキルID→表示名+説明文（skill_table.json をfetch）。
-│   │       ├── mod.rs          … SkillData（旧skill_names.rsのSkillNamesを統合）。get_str/get_description。
+│   │   ├── operator_combat.rs … フレームキル計算機用のオペレーター戦闘生データ
+│   │   │                       （元ATK/信頼度込みATK・潜在ATK・モジュールのATK加算値。
+│   │   │                       machine-extractableな数値のみ）。character_table.json /
+│   │   │                       uniequip_table.json / battle_equip_table.json から構築する。
+│   │   │                       operator_data.rs（消費素材ドメイン）とは意図的に別ソース
+│   │   │                       （オーナー方針: 両ドメインを混ぜない。詳細は下記ポイント参照）。
+│   │   │                       SEED_PATH = data/seed/operator_combat.json
+│   │   └── skill_data/      … スキルID→表示名+説明文+blackboard（skill_table.json をfetch）。
+│   │       ├── mod.rs          … SkillData（旧skill_names.rsのSkillNamesを統合）。get_str/
+│   │       │                      get_description/get_blackboard（最大レベルのblackboard。
+│   │       │                      フレームキル計算機のスキル倍率取得に使う）。
 │   │       │                      SEED_PATH = data/seed/skill_data.json
 │   │       ├── raw.rs          … skill_table.jsonの生JSON構造体
 │   │       └── description.rs  … 最大レベルの説明文組み立て（タグ除去・プレースホルダ解決・
@@ -87,13 +96,30 @@ src/
 │   │   ├── calc.rs    … タグ計算エンジン（ピックアップ対応、future オペレーター実装済み）
 │   │   ├── matcher.rs … OCR生テキスト → タグ抽出（fancy-regex、3言語辞書＋誤字補正）
 │   │   └── format.rs  … 出力整形（display_chunks / response_for_ai / make_title / 分割）
-│   └── fk_data_search/ … ★FK情報検索ドメインのDTO+検索ロジック（bot にも api にも依存しない。
-│       │                  Python fkDatabase/fkDataSearch.py 相当）
-│       ├── mod.rs     … FkDataSearchEngine（external_source::fk_data の1時間TTL読み取り駆動更新。
-│       │                daily refresh_allとは別軸）、FkDataView（fk_data+operator_data+skill_data
-│       │                のスナップショットを束ねてsearch/autocompleteを提供）
-│       ├── dto.rs     … FkSearchResult（OperatorNotFound/NeedsSkillSelection/SkillNotFound/Found）
-│       └── search.rs  … resolve（オペレーター名+スキル指定→FkSearchResult）、autocomplete
+│   ├── fk_data_search/ … ★FK情報検索ドメインのDTO+検索ロジック（bot にも api にも依存しない。
+│   │   │                  Python fkDatabase/fkDataSearch.py 相当）
+│   │   ├── mod.rs     … FkDataSearchEngine（external_source::fk_data の1時間TTL読み取り駆動更新。
+│   │   │                daily refresh_allとは別軸）、FkDataView（fk_data+operator_data+skill_data
+│   │   │                のスナップショットを束ねてsearch/autocompleteを提供）
+│   │   ├── dto.rs     … FkSearchResult（OperatorNotFound/NeedsSkillSelection/SkillNotFound/Found）
+│   │   └── search.rs  … resolve（オペレーター名+スキル指定→FkSearchResult）、autocomplete。
+│   │                    skill_id_by_num（skill_num→skillId解決）は`pub(crate)`で
+│   │                    fk_kill_calc からも再利用する（重複させない）
+│   └── fk_kill_calc/  … ★フレームキル計算機の「機械データ+手動補正」マージ層（bot にも api にも
+│       │                  依存しない）。3層構成: 1.機械データ(operator_combat+skill_dataの
+│       │                  blackboard) 2.手動補正(overrides.rs↔data/fk_kill_calc/overrides.yaml)
+│       │                  3.マージ(build_catalog)。詳細は下記ポイント参照
+│       ├── mod.rs     … build_catalog（fk_data起点でoperator_combat/operator_data/skill_data/
+│       │                overridesをマージしCatalogBuildを返す。名前解決できなかった
+│       │                fk_data上のオペレーター名は`skipped`に集約する）、
+│       │                resolve_multiplier_defaults（倍率の自動判定+候補一覧の決定的な並び順）、
+│       │                validate_overrides（overrides.yamlのドリフト検知）
+│       ├── dto.rs     … Catalog/CatalogOperator/FkEntry等（JSONはcamelCase）。
+│       │                Valued<T>{value,source}でAuto/Manualの出所を持つ
+│       ├── tags.rs    … profession/positionからタグ・ダメージ属性の初期値を推測する
+│       └── overrides.rs … data/fk_kill_calc/overrides.yaml（include_str!でビルド時埋め込み。
+│                           実行時ファイルI/Oなし）のロード。`Overrides::global()`でプロセス内
+│                           1回だけパースして使い回す
 ├── api/
 │   ├── mod.rs             … axum。AppState、run_api、base_url()（canonical/hreflang/sitemap用の
 │   │                        絶対URL起点）、/robots.txt・/sitemap.xml。`web_ui_router()`
@@ -130,45 +156,69 @@ src/
 │   │   │                   静的ラベルはmarkupに直書き＋SEOタグ（canonical/hreflang/OG/JSON-LD）
 │   │   └── static/       … engine.js（純粋ソルバー。DOM非依存）/ ui.js（DOM描画。文言は
 │   │                       initUi(strings)で各ページから受け取る）/ style.css（言語共通）
-│   └── test_runner/       … 試験手順ランナー（元は test-procedure/test_runner.html。
-│       │                    手順書のMarkdownを読み込みOK/NGを押すだけで進められる。
-│       │                    CDN参照ゼロ、進捗はサーバーに送らない。アークナイツ外の単発ツール）
-│       ├── mod.rs        … ルーター。"/"=ja / "/en"=en（lod_chest_solverと同じ1URL=1言語）。
-│       │                   "/static"=ServeDir。JS/CSSは全てここから配信する。
-│       │                   "/skill.zip"=test-procedure-formatterスキルの配布zip
-│       │                   （リクエスト毎に組み立てる。詳細は下記ポイント参照）
-│       ├── skill/        … 手順書整形AIエージェント用スキル test-procedure-formatter の正本
-│       │                   （SKILL.md / format.ja.md / format.en.md / validate.mjs の4ファイル。
-│       │                   parser.jsは置かない。理由は下記ポイント参照）。`/TestRunner/skill.zip`
-│       │                   がここ+static/js/core/parser.jsから毎回zipを組み立てて配布する
-│       ├── verify.mjs    … static/js/core/ と constants/ の検証（実モジュールをimportして
-│       │                   実行）。ui/ はDOM依存なので対象外。実行方法は「動作確認手順」参照
-│       ├── e2e.mjs       … 表現層のブラウザ実機テスト（Playwright）。`cargo run --quiet
-│       │                   --bin serve_web` を自分でspawnし、`/health` を待ってから
-│       │                   ja/enの両方を検証して必ず後始末する。verify.mjs と対になる
-│       │                   ものなので、DOM操作が絡む変更（画面遷移・演出・ボタンid等）は
-│       │                   こちらで検証する。実行方法は「動作確認手順」参照
-│       ├── static/
-│       │   ├── lz-string.min.js … 1.5.0, MIT。進捗URL共有 `#state=<圧縮JSON>` の圧縮/解凍用。
-│       │   │                      CDN参照せず同一オリジン配信
-│       │   ├── style.css        … ja/en 共通（言語差は文言だけなのでCSSは1本）
-│       │   └── js/              … ES module。依存の向きは constants ← core ← ui ← main
-│       │       ├── main.js      … boot({strings,phrases,samples}) と init() だけ
-│       │       ├── constants/   … config.js（非文言の定数）/ i18n.js（T・P・S の器と
-│       │       │                  installI18n）/ {strings,phrases,samples}.{ja,en}.js
-│       │       ├── core/        … parser.js（Markdown→手順書データ）/ score.js /
-│       │       │                  state.js（状態と集計）/ io.js（進捗JSON・共有URL・CSV等）。
-│       │       │                  ★DOM非依存。documentを触らせないこと（verify.mjsが落ちる）
-│       │       └── ui/          … dom.js（el/showScreen/toast/clipboard。ui内の最下層）/
-│       │                          renderer.js / modal.js / flow.js /
-│       │                          effects/{confetti,dodge}.js
-│       └── templates/    … tr_index.html（ja）/ tr_index_en.html（en）。
-│                           静的ラベルはmarkupに直書き＋SEOタグ。末尾は
-│                           `<link>` と5行のブートストラップ（言語別constantsをimportして
-│                           boot()を呼ぶ）だけで、ロジックもCSSも持たない。
-                           ツール切り替えバー（templates_shared/toolnav.html）は
-                           業務で使う想定のため意図的に include しない（バー側の
-                           TestRunnerチップは残す）
+│   ├── test_runner/       … 試験手順ランナー（元は test-procedure/test_runner.html。
+│   │   │                    手順書のMarkdownを読み込みOK/NGを押すだけで進められる。
+│   │   │                    CDN参照ゼロ、進捗はサーバーに送らない。アークナイツ外の単発ツール）
+│   │   ├── mod.rs        … ルーター。"/"=ja / "/en"=en（lod_chest_solverと同じ1URL=1言語）。
+│   │   │                   "/static"=ServeDir。JS/CSSは全てここから配信する。
+│   │   │                   "/skill.zip"=test-procedure-formatterスキルの配布zip
+│   │   │                   （リクエスト毎に組み立てる。詳細は下記ポイント参照）
+│   │   ├── skill/        … 手順書整形AIエージェント用スキル test-procedure-formatter の正本
+│   │   │                   （SKILL.md / format.ja.md / format.en.md / validate.mjs の4ファイル。
+│   │   │                   parser.jsは置かない。理由は下記ポイント参照）。`/TestRunner/skill.zip`
+│   │   │                   がここ+static/js/core/parser.jsから毎回zipを組み立てて配布する
+│   │   ├── verify.mjs    … static/js/core/ と constants/ の検証（実モジュールをimportして
+│   │   │                   実行）。ui/ はDOM依存なので対象外。実行方法は「動作確認手順」参照
+│   │   ├── e2e.mjs       … 表現層のブラウザ実機テスト（Playwright）。`cargo run --quiet
+│   │   │                   --bin serve_web` を自分でspawnし、`/health` を待ってから
+│   │   │                   ja/enの両方を検証して必ず後始末する。verify.mjs と対になる
+│   │   │                   ものなので、DOM操作が絡む変更（画面遷移・演出・ボタンid等）は
+│   │   │                   こちらで検証する。実行方法は「動作確認手順」参照
+│   │   ├── static/
+│   │   │   ├── lz-string.min.js … 1.5.0, MIT。進捗URL共有 `#state=<圧縮JSON>` の圧縮/解凍用。
+│   │   │   │                      CDN参照せず同一オリジン配信
+│   │   │   ├── style.css        … ja/en 共通（言語差は文言だけなのでCSSは1本）
+│   │   │   └── js/              … ES module。依存の向きは constants ← core ← ui ← main
+│   │   │       ├── main.js      … boot({strings,phrases,samples}) と init() だけ
+│   │   │       ├── constants/   … config.js（非文言の定数）/ i18n.js（T・P・S の器と
+│   │   │       │                  installI18n）/ {strings,phrases,samples}.{ja,en}.js
+│   │   │       ├── core/        … parser.js（Markdown→手順書データ）/ score.js /
+│   │   │       │                  state.js（状態と集計）/ io.js（進捗JSON・共有URL・CSV等）。
+│   │   │       │                  ★DOM非依存。documentを触らせないこと（verify.mjsが落ちる）
+│   │   │       └── ui/          … dom.js（el/showScreen/toast/clipboard。ui内の最下層）/
+│   │   │                          renderer.js / modal.js / flow.js /
+│   │   │                          effects/{confetti,dodge}.js
+│   │   └── templates/    … tr_index.html（ja）/ tr_index_en.html（en）。
+│   │                       静的ラベルはmarkupに直書き＋SEOタグ。末尾は
+│   │                       `<link>` と5行のブートストラップ（言語別constantsをimportして
+│   │                       boot()を呼ぶ）だけで、ロジックもCSSも持たない。
+│   │                       ツール切り替えバー（templates_shared/toolnav.html）は
+│   │                       業務で使う想定のため意図的に include しない（バー側の
+│   │                       TestRunnerチップは残す）
+│   └── fk_kill_calculator/ … フレームキル計算機（`/FrameKillCalculator`）。日本語専用（/en無し）
+│       ├── mod.rs        … `page_router()`（ページ本体+`/static`=ServeDir。`web_ui_router()`に
+│       │                    足す）と`catalog_router(provider)`（`GET .../catalog.json`）を分離。
+│       │                    catalog.jsonだけ別軸な理由・`run_api`/`serve_web`それぞれの
+│       │                    providerの組み立ては下記ポイント参照
+│       ├── templates/    … fkc_index.html（fkc_ 前置）。toolnav/head_icons/og_square_imageを
+│       │                   include。SEOタグはbase_url()から組み立てる（lodと同じ方式）
+│       ├── verify.mjs    … static/engine.js（DOM非依存）を直接importして検証。
+│       │                   実行方法は「動作確認手順」参照
+│       ├── e2e.mjs       … 表現層のブラウザ実機テスト（Playwright）。test_runner/e2e.mjsと
+│       │                   同じ枠組み（serve_webをspawn、/healthを待つ、後始末は必ず実行）。
+│       │                   実行方法は「動作確認手順」参照
+│       └── static/
+│           ├── engine.js       … 計算層。DOM非依存（`document`/`window`を参照しない）。
+│           │                     atk/final/perHit/rowDamage計算、撃破提案(suggest)、
+│           │                     stale row除去(dropStaleRows)。単位の約束はファイル冒頭コメント参照
+│           ├── ui.js           … 表現層。カタログfetch・状態管理・DOM描画・URL(#state=...)の
+│           │                     読み書き。再描画は状態変更のたびに#app配下を丸ごと作り直す方式
+│           │                     （フォーカス位置は`withPreservedFocus`で復元する）
+│           ├── style.css       … 420px想定の縦長1カラム。他ページ(home/lod_chest_solver)と
+│           │                     同じくダーク固定（配色トークンはhome_index.htmlの:rootを流用）
+│           └── lz-string.min.js … test_runner/static/lz-string.min.jsと同じ1.5.0, MITを
+│                                   ここにも独立してvendoring（ツール間を疎結合に保つため、
+│                                   test_runnerのURLは参照しない）
 └── bot/
     ├── mod.rs     … run_bot(token, state)。setup() で ChannelRouting::from_env()・
     │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn
@@ -209,6 +259,10 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 ├── customOperatorZhToJa.yaml  … オペレーターCN→JA名前フォールバック（JP未実装オペレーター用の仮訳）
 ├── customItemId.yaml          … 理性価値計算で使う特殊アイテムのID補完（例外用の予備ファイル）
 ├── customItemZhToJa.yaml      … アイテムCN→JA名前フォールバック（customOperatorZhToJaのアイテム版）
+├── fk_kill_calc/
+│   └── overrides.yaml     … フレームキル計算機の手動補正データ（operator_id→skill_num→
+│                             バリアント一覧）。`include_str!`でビルド時埋め込み。
+│                             スキーマ・記入例はファイル冒頭コメント参照
 ├── golden/operator_cost_calc/ … Python版charmaterials.pyの出力をゴールデンJSON化したもの。
 │                                 `ref_python/.../dump_charmaterials_golden.py`で生成し、
 │                                 bot/commands/operator_cost_calc の golden_tests が実ネットワーク
@@ -219,6 +273,7 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     ├── operator_names.json    … 旧operator_names.rsが残したSeed。operator_data統合後は
     │                             regen_seedsでは更新しない。名前解決が壊れていないかの
     │                             ゴールデン参照として意図的に残置している
+    ├── operator_combat.json
     ├── skill_data.json
     └── fk_data.json
 ```
@@ -355,6 +410,37 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   Web UI専用サーバー）とその `e2e.mjs` から見えなくなり、dev と本番でルート集合が
   ズレる。UIルート（AppStateに依存しないページ群）を増やすときは必ず `web_ui_router()`
   に足すこと。`run_api` はそれに `/recruitment/` と SwaggerUi を足すだけにする。
+- **operator_combat は operator_data と意図的に別ソース**: `engine/external_source/operator_combat.rs`
+  はフレームキル計算機用の戦闘生データ（元ATK/信頼度込みATK・潜在ATK・モジュールATK加算値）
+  だけを持つ machine-only なソースで、`operator_data.rs`（消費素材ドメイン）には統合しない
+  （オーナー方針: 消費素材ドメインと戦闘ドメインを混ぜない）。CN/JPマージ・名前解決・
+  昇格オペレーターの扱いは`operator_data.rs`と同じ方針を複製している（依存を作らないため
+  意図的な重複。skill_dataのblackboardフィールドも同様にフレームキル計算機専用に追加した）。
+- **fk_kill_calc は3層構成でAuto/Manualの出所を持つ**: `engine/fk_kill_calc`は
+  1.機械データ（operator_combatの数値+skill_dataのblackboard）→2.手動補正
+  （`data/fk_kill_calc/overrides.yaml`。ブラックボードのキー名が`atk_scale`という名前で
+  なかったり、1スキルが物理/術の2系統ダメージを持つ等、機械的に正しく判定できない
+  実データがあるため）→3.マージ（`build_catalog`）の3層。DTOの`Valued<T>{value,source}`が
+  各値の出所（`Auto`=機械判定/`Manual`=手動補正）を持ち、フロントの「補正」バッジ表示に使う。
+  `overrides.yaml`の各キー(operator_id, skill_num)が実データ(fk_data/operator_combat)を
+  指しているかは`cargo test`のドリフト検知テスト（`every_override_key_points_to_existing_operator_and_skill_num`）
+  が保証する。ゲームデータ更新でここが落ちたら`overrides.yaml`を見直すこと。
+  倍率の自動判定は「厳密一致の`atk_scale`→無ければキーが`atk_scale`/`damage_scale`で終わる
+  項目のうちアルファベット順で最初のもの→どちらも無ければ1.0」の順で、候補一覧の並びは
+  常に「選ばれたデフォルトが先頭、残りはキー名のアルファベット順」に正規化する
+  （Seed経由/実fetch経由でblackboardの元の並びが変わっても表示順が揺れないようにするため。
+  `write_seed_file`がJSONキーを再帰的にソートして書き出す影響を吸収する）。
+  fk_dataシート→ゲームデータの名前解決は全角/半角括弧（`（）`↔`()`）と前後空白の表記ゆれを
+  正規化してから行う（`normalize_operator_name`）。
+- **fk_kill_calculator の catalog.json は web_ui_router() に入れない**: `/FrameKillCalculator`の
+  ページ本体+静的ファイル（`page_router()`）は他のWeb UIツールと同じく`web_ui_router()`に
+  足すが、`GET /FrameKillCalculator/catalog.json`（`catalog_router()`）だけは別軸。
+  `run_api`（本番。ExternalSourceRegistryの現在値からリクエスト毎に`build_catalog`する）と
+  `serve_web`（dev。起動時に`data/seed/*.json`から1回だけ組み立てたCatalogを使い回す）とで
+  カタログの取得方法が全く異なり、`web_ui_router()`は状態を持たない汎用ルーターなので
+  ここにAppState依存のロジックを混ぜ込めないため。`CatalogProvider`（クロージャ）を
+  `run_api`/`serve_web`それぞれが個別に組み立てて`catalog_router(provider)`に渡し、
+  両方が個別に`merge`する。
 - **サイトアイコンは元画像から生成して commit する**: 元画像は `assets/icon/`
   （通常版 PNG と simple版 SVG）。差し替えたら
   `& "C:\Program Files\nodejs\node.exe" assets/icon/generate.mjs` を回して
@@ -390,6 +476,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
    - `http://localhost:3000/EFRecipeCalculator`
    - `http://localhost:3000/LodChestSolver`（日本語）/ `/LodChestSolver/en`（英語）
    - `http://localhost:3000/TestRunner`（日本語）/ `/TestRunner/en`（英語）
+   - `http://localhost:3000/FrameKillCalculator`（日本語専用） /
+     `/FrameKillCalculator/catalog.json`
    - `http://localhost:3000/robots.txt` / `/sitemap.xml`
    - `http://localhost:3000/TestRunner/skill.zip` … 手順書整形AIエージェント用スキル
      （test-procedure-formatter）の配布zip。ダウンロードして展開すると
@@ -421,6 +509,8 @@ cargo run --bin serve_web
 & "C:\Program Files\nodejs\node.exe" src/api/lod_chest_solver/verify.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/test_runner/verify.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/test_runner/e2e.mjs
+& "C:\Program Files\nodejs\node.exe" src/api/fk_kill_calculator/verify.mjs
+& "C:\Program Files\nodejs\node.exe" src/api/fk_kill_calculator/e2e.mjs
 ```
 
 `e2e.mjs` は Playwright を使う。このマシンでは `npx playwright install` 経由で

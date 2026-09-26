@@ -1,0 +1,49 @@
+# フレームキル計算機の手動補正データ。
+#
+# 機械データ(character_table.json / skill_table.jsonのblackboard)だけでは正しい
+# スキル倍率・Hit数・ダメージ属性を機械的に判定できないスキルを、オペレーターID +
+# skill_num(fk_dataシートの生値。"1"〜"3"の他"素質1"のような数値以外もありうる)単位で
+# 補正する。読み込み方法や各フィールドの意味は
+# `src/engine/fk_kill_calc/overrides.rs`冒頭のコメントを参照。
+#
+# スキーマ:
+#   <operator_id>:
+#     "<skill_num>":
+#       - { label: "300%", multiplier: 3.0, self_atk_pct: 0.1, hits: 1, damage_type: physical, note: "備考" }
+#
+# 各フィールドは全て省略可能。省略したフィールドは機械データ側の自動判定値を採用する
+# (build_catalogが担当)。ここに載せるのはオーナー提供の参照スプレッドシートを出典とする
+# 実測値による補正であり、ゲームデータ更新で機械側の値が変わったら見直すこと。
+
+# Ash(char_456_ash) スキル3「ブリーチング弾」: 直撃/貫通後の爆発/高台への直撃、という
+# 3種類のダメージ判定を1スキルで持つ。blackboardの`atk_scale`(直撃)は機械側の自動判定と
+# 一致するが、"400%"(貫通後爆発。blackboard上は`not_hitwall_scale`)と
+# "800%"(高台直撃。同`hitwall_scale`)は自動判定の対象外(`atk_scale`という名前ではないため)
+# なので、3バリアントとも明示する。
+char_456_ash:
+  "3":
+    - { label: "300%", multiplier: 3.0 }
+    - { label: "400%", multiplier: 4.0 }
+    - { label: "800%", multiplier: 8.0 }
+
+# ホルン(異格。char_4039_horn) スキル2「テンペストオーダー」: 物理/術の2系統ダメージを
+# 同時に与える。blackboardのキーが`attack@s2.atk_scale`/`attack@s2.magic_atk_scale`と
+# 接頭辞付きのため自動判定(厳密一致の`atk_scale`)には掛からず、2バリアントに分ける。
+char_4039_horn:
+  "2":
+    - { label: "物理", multiplier: 2.4, damage_type: physical, hits: 5 }
+    - { label: "術",   multiplier: 0.6, damage_type: arts,     hits: 5 }
+
+# ブレイズ(char_017_huang) スキル3「ボイリングバースト」: blackboardのダメージ倍率キーが
+# `atk_scale`ではなく`damage_by_atk_scale`(値4.0)。この名前は末尾が"atk_scale"のため
+# 自動判定(resolve_multiplier_defaults)の第2順位規則で正しく4.0を拾える。
+# よって`multiplier`のoverrideは不要(自動判定と一致するため書かない)。
+# セルフATKバフ(blackboard上の`atk`=0.8)だけは特殊強化「待機ボーナス」のスタック状況を
+# 考慮した実効値として、オーナー参照シートの0.772を採用する
+# (0.8は素の最大値で、実戦での平均的な効果は0.772程度、という参照シート側の実測)。
+char_017_huang:
+  "3":
+    - {
+        self_atk_pct: 0.772,
+        note: "self_atk_pctは特殊強化「待機ボーナス」考慮後の実効値(参照シート実測)。multiplierはblackboardのdamage_by_atk_scale(4.0)を自動判定でそのまま採用。",
+      }

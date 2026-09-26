@@ -1,9 +1,17 @@
 use super::dto::{FkSearchResult, FkSkillView, SkillCandidate};
 use crate::engine::external_source::fk_data::FkSheetData;
-use crate::engine::external_source::operator_data::OperatorData;
+use crate::engine::external_source::operator_data::{OperatorData, RawOperatorCost};
 use crate::engine::external_source::skill_data::SkillData;
 use indexmap::IndexMap;
 use std::collections::HashMap;
+
+/// skillNum(1始まりの文字列) -> skillId のマップを構築する（Python
+/// `SkillFKInfo.__init__`の`idDict`相当。`RawOperatorCost.skills`の並び順が
+/// スキル1,2,3...という前提）。`engine::fk_kill_calc`からも同じロジックで
+/// 再利用するため`pub(crate)`にして重複させない。
+pub(crate) fn skill_id_by_num(op: &RawOperatorCost) -> HashMap<String, &str> {
+    op.skills.iter().enumerate().map(|(i, s)| ((i + 1).to_string(), s.skill_id.as_str())).collect()
+}
 
 /// Python `FKInfo.getReply` 相当。オペレーター名・スキル指定からFK情報を解決する。
 pub fn resolve(
@@ -17,17 +25,7 @@ pub fn resolve(
         return FkSearchResult::OperatorNotFound;
     };
 
-    // skillNum(1始まりの文字列) -> skillId（Python `SkillFKInfo.__init__`の`idDict`）。
-    let skill_id_by_num: HashMap<String, &str> = operator_data
-        .get_by_name(operator_name)
-        .map(|op| {
-            op.skills
-                .iter()
-                .enumerate()
-                .map(|(i, s)| ((i + 1).to_string(), s.skill_id.as_str()))
-                .collect()
-        })
-        .unwrap_or_default();
+    let skill_id_by_num: HashMap<String, &str> = operator_data.get_by_name(operator_name).map(skill_id_by_num).unwrap_or_default();
 
     let resolve_name = |num: &str| -> String {
         skill_id_by_num

@@ -1,4 +1,5 @@
 mod ef_recipe_calculator;
+pub mod fk_kill_calculator;
 mod home;
 mod legacy_host_redirect;
 mod lod_chest_solver;
@@ -11,6 +12,7 @@ use crate::bot::services::moderation::ModerationState;
 use crate::bot::services::uranai::UranaiState;
 use crate::engine::fk_data_search::FkDataSearchEngine;
 use crate::engine::external_source::ExternalSourceRegistry;
+use crate::engine::fk_kill_calc::{self, Overrides};
 use crate::engine::recruit::RecruitEngine;
 use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
 use axum::http::{header, HeaderMap, StatusCode};
@@ -130,6 +132,9 @@ async fn sitemap(headers: HeaderMap) -> impl IntoResponse {
   <url>
     <loc>{base}/EFRecipeCalculator</loc>
   </url>
+  <url>
+    <loc>{base}/FrameKillCalculator</loc>
+  </url>
 </urlset>
 "#
     );
@@ -174,10 +179,36 @@ where
             get(|| async { Redirect::permanent("/TestRunner") }),
         )
         .nest("/TestRunner", test_runner::router())
+        .route(
+            "/FrameKillCalculator/",
+            get(|| async { Redirect::permanent("/FrameKillCalculator") }),
+        )
+        .nest("/FrameKillCalculator", fk_kill_calculator::page_router())
+}
+
+/// `state`のExternalSourceRegistry(operator_data/operator_combat/skill_data)+
+/// fk_data_search(1時間TTL。/fksearchと同じ鮮度)から、リクエストの都度カタログを
+/// 組み立てるプロバイダ。カタログ生成自体はJSONを舐めるだけの軽い処理なので、
+/// 現時点ではリクエスト間キャッシュはしない(重くなるようなら`Source`と同じ
+/// 「メモリ保持+TTL」方式に寄せて再検討する)。
+fn catalog_provider_for(state: Arc<AppState>) -> fk_kill_calculator::CatalogProvider {
+    Arc::new(move || {
+        let state = state.clone();
+        Box::pin(async move {
+            let fk = state.fk_data_search.snapshot(&state.external_source).await;
+            let ops = state.external_source.operator_data.get().await;
+            let combat = state.external_source.operator_combat.get().await;
+            let skills = state.external_source.skill_data.get().await;
+            let build = fk_kill_calc::build_catalog(&fk, &ops, &combat, &skills, Overrides::global());
+            Arc::new(build.catalog)
+        })
+    })
 }
 
 pub async fn run_api(state: Arc<AppState>) {
+    let catalog_provider = catalog_provider_for(state.clone());
     let mut app = web_ui_router::<Arc<AppState>>()
+        .merge(fk_kill_calculator::catalog_router::<Arc<AppState>>(catalog_provider))
         .route("/recruitment/", post(recruitment::do_recruitment)) // Python と同じパス
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .fallback(not_found)
@@ -242,6 +273,7 @@ mod tests {
             "/LodChestSolver/en",
             "/TestRunner",
             "/TestRunner/en",
+            "/FrameKillCalculator",
         ] {
             let html = get_html(path).await;
             let head = &html[..html.find("</head>").expect(path)];
@@ -264,6 +296,7 @@ mod tests {
             "/LodChestSolver/en",
             "/TestRunner",
             "/TestRunner/en",
+            "/FrameKillCalculator",
         ] {
             let html = get_html(path).await;
             assert!(
