@@ -109,8 +109,14 @@ export function findEntry(op, entryIdx) {
 }
 
 /** lv3のatkByLevelが最大のモジュールIDを返す（モジュール無しならnull）。 */
-export function defaultModuleId(op) {
+export function defaultModuleId(op, entry) {
   if (!op || !op.modules.length) return null;
+  // overrideの`default_module`(例: ホルンはXの方がFK向き)があればそれを優先する。モジュールは
+  // オペレーター単位なので、選んだエントリに無ければ同じオペレーターの他エントリの指定も使う
+  // (ホルンは最初のエントリがoverride対象外のスキルでも、S2の指定でXを初期値にしたい)。
+  const preferred =
+    (entry && entry.defaultModule) || ((op.fkEntries || []).find((e) => e.defaultModule) || {}).defaultModule;
+  if (preferred && op.modules.some((m) => m.id === preferred)) return preferred;
   let best = op.modules[0];
   for (const m of op.modules) {
     if ((m.atkByLevel[2] ?? 0) > (best.atkByLevel[2] ?? 0)) best = m;
@@ -318,7 +324,7 @@ export function makeDefaultRow(op, entryIdx) {
     level: maxLevelForElite(op, elite),
     trust: 100,
     skillLevel, // P7: スキルLv(1〜10。SLv1〜7+特化1〜3)
-    moduleId: defaultModuleId(op),
+    moduleId: defaultModuleId(op, entry),
     moduleLv: 3,
     multiplier: values.multiplier,
     selfPct: values.selfPct,
@@ -704,6 +710,101 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = [], gl
     appliedConditional,
     notAppliedConditional,
   };
+}
+
+/**
+ * P9: 「FK行との育成設定リンク」。バフの`source.operatorId`と一致するFK行
+ * (`state.rows`内で最初に見つかったもの)を返す。無ければ`null`。
+ * `effectiveBuffLevels`と、UIの「FK行（<name>）の設定を使用」表示の両方から使う
+ * 共通ロジック(計算と表示を同じ判定基準に揃えるため)。
+ */
+export function findLinkedRow(buffer, state) {
+  if (!buffer || !buffer.source) return null;
+  const opId = buffer.source.operatorId;
+  const rows = (state && state.rows) || [];
+  return rows.find((r) => r.opId === opId) ?? null;
+}
+
+/**
+ * P9: バフ1件分の軸選択(`resolveConditionalValue`の`levels`引数)を組み立てる。
+ * 通常は`state.globalBuffLevels[buffer.id]`(未設定分は`source.defaults`)をそのまま使うが、
+ * このバフの`source.operatorId`と同じオペレーターのFK行があれば、
+ * 昇進(elite)/潜在(potential)/モジュール(moduleId・moduleLevel)/スキルLv(skillLevel)は
+ * その行の設定を優先する(「行の育成状況＝バフの育成状況」という前提。例: ホルンの
+ * 「軍事要塞」はホルン自身の昇進/潜在/モジュールで値が決まる)。トグル(`toggleOn`。
+ * 例: 前衛アーミヤの「スキル中は効果2倍」)は行に対応する概念が無いためユーザー操作のまま
+ * (`state.globalBuffLevels`から読む)。
+ * `talent`/`skill`/`scale`のいずれも持たないソース(段階のみ。例: ナスティS3)は
+ * リンクしても差し替わる軸が無いため対象外にする(UIの「FK行の設定を使用」表示も
+ * 同じ判定を使うため、`renderBuffAxisControls`から呼ばれるui.js側のヘルパーも
+ * この関数と同じ条件[`src.talent || src.skill || src.scale`]を使うこと)。
+ * `computeBuffBreakdown`(行/鼓舞ソース双方)・`findSingleTargetConflicts`・`suggest`・
+ * UIのバフカードなど、バフの値を解決する箇所は全てこの関数(または
+ * `computeEffectiveGlobalBuffLevels`が返すmap)経由で軸選択を得ること。
+ */
+export function effectiveBuffLevels(buffer, state, catalog) {
+  const d = (buffer.source && buffer.source.defaults) || {};
+  const stored = (state && state.globalBuffLevels && state.globalBuffLevels[buffer.id]) || {};
+  const base = {
+    elite: d.elite ?? 2,
+    potential: d.potential ?? 5,
+    moduleId: d.moduleId ?? null,
+    moduleLevel: d.moduleLevel ?? 3,
+    skillLevel: d.skillLevel ?? 1,
+    stageIndex: d.stageIndex ?? 1,
+    toggleOn: false,
+    ...stored,
+  };
+  const src = buffer.source;
+  if (!src || !(src.talent || src.skill || src.scale)) return base;
+  const row = findLinkedRow(buffer, state);
+  if (!row) return base;
+  const op = findOperator(catalog, row.opId);
+  return {
+    ...base,
+    elite: row.elite,
+    potential: row.potential,
+    moduleId: effectiveModuleId(op, row),
+    moduleLevel: row.moduleLv,
+    skillLevel: row.skillLevel,
+  };
+}
+
+/**
+ * P9: カタログの全バフに`effectiveBuffLevels`を適用したbuffId→軸選択のmap。
+ * `computeTotal`/`findSingleTargetConflicts`/`suggest`/`computeInspireSource`に渡す
+ * `globalBuffLevels`はこの解決済みmapを使う(呼び出し側がFK行リンクを個別に意識せず
+ * 済むようにするための唯一の差し込み口。ui.jsの`buffLevelsState()`もこれをそのまま使う)。
+ */
+export function computeEffectiveGlobalBuffLevels(catalog, state) {
+  const buffers = (catalog && catalog.buffers) || [];
+  const out = {};
+  for (const b of buffers) out[b.id] = effectiveBuffLevels(b, state, catalog);
+  return out;
+}
+
+/**
+ * P9: 行のオペレーターが確定した瞬間(`opId`が今のidになった瞬間)、その
+ * オペレーターを`source.operatorId`に持つ条件付きバフを一度だけ自動でONにする
+ * (例: ホルンを行に追加すると「軍事要塞」がON。異格エクシア等の他のバフ付き
+ * オペレーターでも同様に働く。意図的な汎用挙動)。既にONのidは変えない(冪等)。
+ * 「一度だけ」という制約自体はこの関数の責務ではなく呼び出し側(ui.jsの
+ * `onOperatorNameChange`。行のオペレーターを選び直した時だけ呼ぶ)が担う
+ * ‐ ユーザーが手動でOFFにした後、行の他フィールドを変更してもこの関数は
+ * 呼ばれないため、OFFのままになる。
+ * @param {object} catalog
+ * @param {string[]} globalBuffIds 現在ONの条件付きバフid一覧
+ * @param {string} opId 今確定した行のオペレーターid
+ * @returns {string[]} 新しいglobalBuffIds(既存の順序を保ち、該当分を末尾に追加する)
+ */
+export function autoEnableSourcedBuffs(catalog, globalBuffIds, opId) {
+  const buffers = (catalog && catalog.buffers) || [];
+  const set = new Set(globalBuffIds || []);
+  for (const b of buffers) {
+    if (b.scope.type !== "conditional" || !b.source || b.source.operatorId !== opId) continue;
+    set.add(b.id);
+  }
+  return Array.from(set);
 }
 
 /**
@@ -1155,7 +1256,9 @@ function minimalIntegerSatisfying(lo, hi, predicate) {
  * pct(%換算)/flat値そのもの（"cheapest first by added pct"の仕様どおり）。
  */
 export function suggest(state, catalog) {
-  const { rows, enemy, globalBuffIds = [], globalBuffLevels = {} } = state;
+  const { rows, enemy, globalBuffIds = [] } = state;
+  // P9: FK行リンク込みの解決値を使う(`state.globalBuffLevels`を直接見ない)。
+  const globalBuffLevels = computeEffectiveGlobalBuffLevels(catalog, state);
   const inspireSourceStates = (state.inspire && state.inspire.sources) || {};
   const { results, killed } = computeTotal(catalog, rows, enemy, globalBuffIds, inspireSourceStates, globalBuffLevels);
   if (killed) return [];

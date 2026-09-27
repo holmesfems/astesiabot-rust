@@ -140,6 +140,11 @@ pub struct OverrideVariant {
     #[serde(default)]
     pub tags: Option<Vec<String>>,
     pub special: Option<OverrideSpecial>,
+    /// このエントリでオペレーターを追加した時の初期モジュール(uniEquipId)。省略時は
+    /// フロントの既定(Lv3のATK加算が最大のモジュール)。ATKだけでなく素質強化の有無で
+    /// FK向きのモジュールが変わるオペレーター用(例: ホルンはYの方がATKは高いが、
+    /// 重装バフ「軍事要塞」を強化するXの方が実効ATKが高い)。
+    pub default_module: Option<String>,
     pub note: Option<String>,
 }
 

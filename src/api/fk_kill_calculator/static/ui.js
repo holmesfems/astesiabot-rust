@@ -48,6 +48,10 @@ import {
   skillUnlockWarning,
   valueAtLevel,
   skillLevelWarning,
+  findLinkedRow,
+  effectiveBuffLevels,
+  computeEffectiveGlobalBuffLevels,
+  autoEnableSourcedBuffs,
 } from "./engine.js";
 
 const ENEMY_PERCENT_FIELDS = new Set(["defPct", "vulnPct"]);
@@ -147,19 +151,22 @@ function sourceCfg(source) {
 // P4/P5: source付きバフ(conditional/individual問わず)の現在の軸選択
 // (state.globalBuffLevels[id] + 未設定分はb.source.defaults)。dropStaleRowsが起動時に
 // 埋めるが、念のためここでもフォールバックする。
+// P9: FK行リンク(そのバフのsource.operatorIdと同じオペレーターのFK行があれば、
+// 昇進/潜在/モジュール/スキルLvはその行の設定を使う)込みの解決は`engine.js`の
+// `effectiveBuffLevels`に一本化した(computeTotal等の計算側と表示側で判定がズレないため)。
 function buffLevels(b) {
-  const d = (b.source && b.source.defaults) || {};
-  const stored = (state.globalBuffLevels && state.globalBuffLevels[b.id]) || {};
-  return {
-    elite: d.elite ?? 2,
-    potential: d.potential ?? 5,
-    moduleId: d.moduleId ?? null,
-    moduleLevel: d.moduleLevel ?? 3,
-    skillLevel: d.skillLevel ?? 1,
-    stageIndex: d.stageIndex ?? 1,
-    toggleOn: false,
-    ...stored,
-  };
+  return effectiveBuffLevels(b, state, catalog);
+}
+
+// P9: バフの`source.operatorId`と一致するFK行が無い(=リンクしない)場合`null`。
+// リンクしている場合、そのオペレーター(カタログのCatalogOperator)を返す
+// (バフカードの「FK行（<name>）の設定を使用」表示に使う)。`effectiveBuffLevels`と同じく
+// talent/skill/scaleのいずれも無い(段階のみ)ソースは対象外にする(表示と計算の判定を揃える)。
+function linkedOperatorFor(b) {
+  const src = b.source;
+  if (!src || !(src.talent || src.skill || src.scale)) return null;
+  const row = findLinkedRow(b, state);
+  return row ? findOperator(catalog, row.opId) : null;
 }
 
 function setBuffLevels(buffId, patch) {
@@ -173,8 +180,9 @@ function inspireStates() {
 }
 
 // P4: computeTotal/computeInspireSource に渡すglobalBuffLevels(buffId→軸選択)。
+// P9: FK行リンクを反映した解決済みmap(`computeEffectiveGlobalBuffLevels`)を返す。
 function buffLevelsState() {
-  return state.globalBuffLevels || {};
+  return computeEffectiveGlobalBuffLevels(catalog, state);
 }
 
 function setSourceCfg(sourceId, patch) {
@@ -1008,8 +1016,21 @@ function skillLevelOptionLabel(skillLevel) {
 // 書式なので、スコープ(conditional/individual)を問わず`onGlobalBuffLevelChange`が処理する。
 // `b.toggle`(例: 前衛アーミヤの「スキル中は効果2倍」、ステインレスS1の「装置2台」)が
 // あればチェックボックスも出す。
-function renderBuffAxisControls(b, levels) {
+// P9: `linkedOp`が渡されている(=このバフがFK行の育成設定にリンクしている)間は、
+// 昇進/潜在/モジュール/スキルLvのセレクトを出さず「FK行（<name>）の設定を使用」の
+// ヒントだけを出す(トグルは引き続きユーザー操作できるので出す)。
+function renderBuffAxisControls(b, levels, linkedOp) {
   const value = resolveConditionalValue(b, levels);
+  if (linkedOp) {
+    const toggle = b.toggle
+      ? `<label class="check-label cond-toggle-label">
+          <input type="checkbox" data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="toggleOn" ${levels.toggleOn ? "checked" : ""}>
+          ${escapeHtml(b.toggle.label)}
+        </label>`
+      : "";
+    const hint = `<p class="special-hint">FK行（${escapeHtml(linkedOp.name)}）の設定を使用</p>`;
+    return { controls: toggle, hint, value };
+  }
   const source = b.source;
   const talent = source.talent;
   const skill = source.skill;
@@ -1111,7 +1132,8 @@ function renderConditionalSourceCard(b) {
   }
 
   const levels = buffLevels(b);
-  const { controls, hint, value } = renderBuffAxisControls(b, levels);
+  const linkedOp = linkedOperatorFor(b);
+  const { controls, hint, value } = renderBuffAxisControls(b, levels, linkedOp);
   const valueLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
 
   return `<div class="cond-source-card cond-source-on" data-buff-id="${escapeHtml(b.id)}">
@@ -1126,7 +1148,8 @@ function renderConditionalSourceCard(b) {
 // トグルチップの代わりに名前をそのまま見出しにする。
 function renderIndividualBuffLevelCard(b) {
   const levels = buffLevels(b);
-  const { controls, hint, value } = renderBuffAxisControls(b, levels);
+  const linkedOp = linkedOperatorFor(b);
+  const { controls, hint, value } = renderBuffAxisControls(b, levels, linkedOp);
   const valueLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
   return `<div class="cond-source-card cond-source-on" data-buff-id="${escapeHtml(b.id)}">
     <div class="cond-source-header"><span class="cond-source-name">${escapeHtml(b.name)}</span><span class="cond-source-value">${valueLabel}</span></div>
@@ -1374,6 +1397,10 @@ function onOperatorNameChange(idx, name) {
     return;
   }
   state.rows[idx] = makeDefaultRow(op, 0);
+  // P9: このオペレーターをsource.operatorIdに持つ条件付きバフ(例: ホルンの「軍事要塞」)を
+  // 一度だけ自動でONにする(以後はユーザー操作でOFFにでき、行の他フィールド変更では
+  // 再ONにならない。呼び出しタイミングをここ[opId確定時]だけに絞ることで実現している)。
+  state.globalBuffIds = autoEnableSourcedBuffs(catalog, state.globalBuffIds || [], op.id);
   render();
 }
 

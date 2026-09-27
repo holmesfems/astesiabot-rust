@@ -1,6 +1,11 @@
 # フレームキル計算機のバフカタログ(P2)。P3で`inspire`(鼓舞ソース)リストを追加。
 # P4でconditionalに`source`(ゲームデータからの動的値解決)を追加。P5でindividualにも
 # `source`を対応させ、talent×scale/base_pct×scale/stageの3種のソース形状を追加した。
+# P9でsource付きバフの「FK行との育成設定リンク」(その`source.operatorId`と同じ
+# オペレーターがFK行にあれば、行を選んだ瞬間に自動でON+育成軸[昇進/潜在/モジュール/
+# スキルLv]を行の設定に追従させる。トグルはユーザー操作のまま)を追加した(例: ホルン)。
+# JS側の実装は`src/api/fk_kill_calculator/static/engine.js`の
+# `findLinkedRow`/`effectiveBuffLevels`/`autoEnableSourcedBuffs`参照。
 #
 # 読み込み方法・スキーマの詳細は`src/engine/fk_kill_calc/buffers.rs`冒頭のコメント、
 # 解決アルゴリズムの詳細は`src/engine/fk_kill_calc/conditional_source.rs`冒頭コメントを参照。
@@ -175,6 +180,19 @@ conditional:
       toggle: { label: "スキル中(効果2倍)", mult: 2.0 },
       note: "素質「愤怒的松弛」E2最大潜在の値。スキル使用中は効果が2倍になる",
     }
+  # ホルン(異格。char_4039_horn)素質「軍事要塞」talent0.atk: E1(.10/潜在3で.13)/
+  # E2(.20/潜在3で.23)。モジュールX(uniequip_002_horn「模範たる人」)Lv2(.25/潜在3で.28)/
+  # Lv3(.28/潜在3で.31)はベースと異なる値なのでmodules軸に残る。「配置中、味方【重装】の
+  # 攻撃力+X%」(ホルン自身も重装なので自分の行にも適用される)。P9で追加。旧
+  # `overrides.yaml`のS2固定self_atk_pct(0.31=E2・潜在3+・モジュールXLv3の値そのもの)を
+  # ここへ移設した(自己バフではなく全体バフとして扱うのが正しいため)。
+  # P9で「FK行との育成設定リンク」機能も追加: このバフの`source.operatorId`
+  # (char_4039_horn)と一致するFK行があれば、行のオペレーターが確定した瞬間に自動でON
+  # (`engine.js::autoEnableSourcedBuffs`)になり、育成軸(昇進/潜在/モジュール)は
+  # `state.globalBuffLevels`ではなくその行の設定を使う(`engine.js::effectiveBuffLevels`。
+  # UIは「FK行（ホルン）の設定を使用」と表示する)。ユーザーが手動でOFFにした後は
+  # 行の他フィールド変更で再ONにはならない(auto-onは行のオペレーターが変わった瞬間だけ)。
+  - { id: horn, name: ホルン, targets: [重装], source: { operator: char_4039_horn, talent: 0, key: atk } }
   # 新約能天使(異格エクシア。char_1041_angel2)talent1.atk: E2のみ(.09/潜在3で.13。
   # それ以上の潜在では候補が無いため.13で頭打ち)。blackboardには"mult"キー(=2.0)も
   # 同居しており、これがラテラーノ勢への2倍ボーナスの出典そのもの

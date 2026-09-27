@@ -31,6 +31,7 @@ import {
   maxEliteFor,
   maxLevelForElite,
   makeDefaultRow,
+  defaultModuleId,
   skillUnlockWarning,
   valueAtLevel,
   resolveMultiplierAtLevel,
@@ -42,6 +43,10 @@ import {
   specialUiState,
   specialMulCanApply,
   resolveSpecialCurrentValue,
+  findLinkedRow,
+  effectiveBuffLevels,
+  computeEffectiveGlobalBuffLevels,
+  autoEnableSourcedBuffs,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -323,9 +328,12 @@ console.log("\n=== P2: 個別バフ/条件付きバフ/特殊強化 ===\n");
   approxEqual(results[0].final, 17249, 1, "FW S2(buffIds経由)");
 }
 {
-  // Horn(X) S2 物理: atk=1136(=1006+30+100)、selfPct=0.31(overrides.yamlのセルフ加算)、
-  // multiplier=2.4。異格エクシア(条件付き。弾薬スキル+13%)をON。
-  // final = 1136×(1+0.31+0.13)×2.4 = 3926.016 ≈ 3926。
+  // Horn(X) S2 物理: atk=1136(=1006+30+100)、multiplier=2.4。P9で固定selfPct(0.31)を
+  // 撤去したので selfPct=0(Auto) になり、代わりにconditionalバフ「horn」(素質「軍事要塞」。
+  // ホルン自身も重装なので自分の行に適用される。E2・潜在6・モジュールXLv3で.31)をONにする。
+  // 異格エクシア(条件付き。弾薬スキル+13%)も併せてON。
+  // final = 1136×(1+0.31+0.13)×2.4 = 3926.016 ≈ 3926 (旧固定selfPctと同じ結果になること
+  // = P9でのリファクタリングが数値を変えていないことの回帰テスト)。
   // 弾薬スキルタグを持たないエントリには適用されない(conditionalPct=0)ことも確認する。
   const exusiaiAlter = {
     id: "exusiai_alter",
@@ -336,13 +344,65 @@ console.log("\n=== P2: 個別バフ/条件付きバフ/特殊強化 ===\n");
     singleTarget: false,
     bonus: { targetTags: ["ラテラーノ"], value: 0.26, note: null },
   };
-  const catalogAmmo = {
-    operators: [{ ...op(1006, 30, 100), id: "horn", fkEntries: [{ tags: ["弾薬スキル"] }] }],
-    buffers: [exusiaiAlter],
+  // ホルン素質「軍事要塞」相当の簡易source(実データはE1=.10/潜在3+.13、E2=.20/潜在3+.23、
+  // モジュールXLv2=.25/潜在3+.28、Lv3=.28/潜在3+.31。cargo testの
+  // conditional_source_default_values_match_verified_gamedataと同じ値)。
+  const hornBuff = {
+    id: "horn",
+    name: "ホルン",
+    kind: "pct",
+    value: 0.31,
+    scope: { type: "conditional", targetTags: ["重装"] },
+    singleTarget: false,
+    bonus: null,
+    exclusiveGroup: null,
+    toggle: null,
+    source: {
+      operatorId: "horn",
+      operatorName: "ホルン",
+      talent: {
+        valuesByEliteAndPotential: [
+          [0, 0, 0, 0, 0, 0],
+          [0.1, 0.1, 0.13, 0.13, 0.13, 0.13],
+          [0.2, 0.2, 0.23, 0.23, 0.23, 0.23],
+        ],
+        eliteVaries: true,
+        potentialVaries: true,
+        modules: [
+          {
+            moduleId: "m",
+            typeName: "X",
+            name: "「模範たる人」",
+            valuesByLevelAndPotential: [
+              [0.2, 0.2, 0.23, 0.23, 0.23, 0.23],
+              [0.25, 0.25, 0.28, 0.28, 0.28, 0.28],
+              [0.28, 0.28, 0.31, 0.31, 0.31, 0.31],
+            ],
+          },
+        ],
+      },
+      skill: null,
+      scale: null,
+      basePct: null,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: "m", moduleLevel: 3, skillLevel: 1, stageIndex: 1 },
+    },
   };
-  const rAmmo = row({ opId: "horn", entryIdx: 0, dmgType: "physical", multiplier: 2.4, selfPct: 0.31, moduleId: "m" });
-  const { results: resultsAmmo } = computeTotal(catalogAmmo, [rAmmo], enemyNeutral, ["exusiai_alter"]);
-  approxEqual(resultsAmmo[0].final, 3926, 1, "Horn(X) S2 物理(異格エクシアの弾薬スキルバフ込み)");
+  const catalogAmmo = {
+    operators: [{ ...op(1006, 30, 100), id: "horn", fkEntries: [{ tags: ["弾薬スキル", "重装"] }] }],
+    buffers: [exusiaiAlter, hornBuff],
+  };
+  const rAmmo = row({ opId: "horn", entryIdx: 0, dmgType: "physical", multiplier: 2.4, selfPct: 0, elite: 2, potential: 5, moduleId: "m", moduleLv: 3, skillLevel: 10 });
+  const stateAmmo = { v: 1, enemy: enemyNeutral, rows: [rAmmo], globalBuffIds: ["exusiai_alter", "horn"] };
+  const globalBuffLevelsAmmo = computeEffectiveGlobalBuffLevels(catalogAmmo, stateAmmo);
+  const { results: resultsAmmo } = computeTotal(catalogAmmo, [rAmmo], enemyNeutral, ["exusiai_alter", "horn"], {}, globalBuffLevelsAmmo);
+  approxEqual(resultsAmmo[0].final, 3926, 1, "Horn(X) S2 物理(異格エクシア+ホルン自身の重装バフ込み)");
+  check(
+    "Hornのconditional内訳は異格エクシア(.13)+ホルンの重装バフ(.31)=.44で二重計上していない",
+    Math.abs(resultsAmmo[0].breakdown.conditionalPct - 0.44) < 1e-9,
+    resultsAmmo[0].breakdown.conditionalPct,
+  );
 
   const catalogNonAmmo = {
     operators: [{ ...op(1006, 30, 100), id: "horn_nonammo", fkEntries: [{ tags: [] }] }],
@@ -1834,6 +1894,152 @@ console.log("\n=== P7: 鼓舞ソースのratioByLevel解決(resolveInspireRatioA
   const resultLv10 = computeInspireSource(sourceLv, cfgLv10, catalogEmpty);
   approxEqual(resultLv1.amount, 1000 * 0.5, 1e-9, "鼓舞ソースSLv1(ratio=0.5)のamount");
   approxEqual(resultLv10.amount, 1000 * 1.1, 1e-9, "鼓舞ソース特化3(ratio=1.1)のamount");
+}
+
+console.log("\n=== P9: バフの育成設定をFK行にリンクする(effectiveBuffLevels/findLinkedRow) ===\n");
+{
+  // ホルン素質「軍事要塞」相当の簡易source(実データの値。上のP2セクションのhornBuffと同じ形)。
+  const hornOp = {
+    id: "horn_op",
+    name: "ホルン",
+    modules: [{ id: "uniequip_002_horn", typeName: "X", name: "「模範たる人」", atkByLevel: [65, 85, 100], unlockPhase: 2, unlockLevel: 60 }],
+  };
+  const hornBuff = {
+    id: "horn",
+    name: "ホルン",
+    kind: "pct",
+    value: 0.31,
+    scope: { type: "conditional", targetTags: ["重装"] },
+    singleTarget: false,
+    bonus: null,
+    exclusiveGroup: null,
+    toggle: null,
+    source: {
+      operatorId: "horn_op",
+      operatorName: "ホルン",
+      talent: {
+        valuesByEliteAndPotential: [
+          [0, 0, 0, 0, 0, 0],
+          [0.1, 0.1, 0.13, 0.13, 0.13, 0.13],
+          [0.2, 0.2, 0.23, 0.23, 0.23, 0.23],
+        ],
+        eliteVaries: true,
+        potentialVaries: true,
+        modules: [
+          {
+            moduleId: "uniequip_002_horn",
+            typeName: "X",
+            name: "「模範たる人」",
+            valuesByLevelAndPotential: [
+              [0.2, 0.2, 0.23, 0.23, 0.23, 0.23],
+              [0.25, 0.25, 0.28, 0.28, 0.28, 0.28],
+              [0.28, 0.28, 0.31, 0.31, 0.31, 0.31],
+            ],
+          },
+        ],
+      },
+      skill: null,
+      scale: null,
+      basePct: null,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: "uniequip_002_horn", moduleLevel: 3, skillLevel: 1, stageIndex: 1 },
+    },
+  };
+  const catalog = { operators: [hornOp], buffers: [hornBuff] };
+  const baseState = { v: 1, enemy: enemyNeutral, globalBuffIds: ["horn"] };
+
+  // E1・潜在1(潜在3未満) → .10
+  const rowE1 = { opId: "horn_op", entryIdx: 0, elite: 1, level: 1, trust: 100, potential: 0, moduleId: null, moduleLv: 3, skillLevel: 10 };
+  const levelsE1 = effectiveBuffLevels(hornBuff, { ...baseState, rows: [rowE1] }, catalog);
+  approxEqual(resolveConditionalValue(hornBuff, levelsE1), 0.1, 1e-9, "リンク: E1・潜在1 → .10");
+
+  // E1・潜在3 → .13
+  const rowE1p3 = { ...rowE1, potential: 2 };
+  const levelsE1p3 = effectiveBuffLevels(hornBuff, { ...baseState, rows: [rowE1p3] }, catalog);
+  approxEqual(resolveConditionalValue(hornBuff, levelsE1p3), 0.13, 1e-9, "リンク: E1・潜在3 → .13");
+
+  // E2・モジュールXLv2・潜在1 → .25
+  const rowE2X2 = { opId: "horn_op", entryIdx: 0, elite: 2, level: 90, trust: 100, potential: 0, moduleId: "uniequip_002_horn", moduleLv: 2, skillLevel: 10 };
+  const levelsE2X2 = effectiveBuffLevels(hornBuff, { ...baseState, rows: [rowE2X2] }, catalog);
+  approxEqual(resolveConditionalValue(hornBuff, levelsE2X2), 0.25, 1e-9, "リンク: E2・モジュールXLv2・潜在1 → .25");
+
+  // モジュールを選んでいても、そのelite/levelでは未装備(unlockLevel=60未満)ならベースE2の値
+  // にフォールバックする(effectiveModuleId経由)。
+  const rowModuleUnusable = {
+    opId: "horn_op",
+    entryIdx: 0,
+    elite: 2,
+    level: 1,
+    trust: 100,
+    potential: 5,
+    moduleId: "uniequip_002_horn",
+    moduleLv: 3,
+    skillLevel: 10,
+  };
+  const levelsUnusable = effectiveBuffLevels(hornBuff, { ...baseState, rows: [rowModuleUnusable] }, catalog);
+  approxEqual(resolveConditionalValue(hornBuff, levelsUnusable), 0.23, 1e-9, "リンク: モジュール未装備(Lv不足)ならベースE2・潜在6の値(.23)");
+
+  // 最大成長(E2・潜在6・モジュールXLv3) → .31(overrides.yamlの旧固定値と一致)
+  const rowMax = { opId: "horn_op", entryIdx: 0, elite: 2, level: 90, trust: 100, potential: 5, moduleId: "uniequip_002_horn", moduleLv: 3, skillLevel: 10 };
+  const levelsMax = effectiveBuffLevels(hornBuff, { ...baseState, rows: [rowMax] }, catalog);
+  approxEqual(resolveConditionalValue(hornBuff, levelsMax), 0.31, 1e-9, "リンク: 最大成長(E2・潜在6・モジュールXLv3) → .31");
+
+  // リンクする行が無ければ従来どおりdefaults(=最大成長)のまま。
+  const levelsNoLink = effectiveBuffLevels(hornBuff, { ...baseState, rows: [] }, catalog);
+  approxEqual(resolveConditionalValue(hornBuff, levelsNoLink), 0.31, 1e-9, "リンク無し: defaults(最大成長)のまま");
+
+  // findLinkedRowは最初に見つかった行を返す。
+  const rowOther = { opId: "other_op", entryIdx: 0 };
+  const linked = findLinkedRow(hornBuff, { rows: [rowOther, rowMax] });
+  check("findLinkedRowは一致する最初の行を返す", linked === rowMax);
+  check("一致する行が無ければnull", findLinkedRow(hornBuff, { rows: [rowOther] }) === null);
+
+  // computeEffectiveGlobalBuffLevels経由でも同じ値が引ける(computeTotal等が使う経路)。
+  const allLevels = computeEffectiveGlobalBuffLevels(catalog, { ...baseState, rows: [rowMax] });
+  approxEqual(resolveConditionalValue(hornBuff, allLevels.horn), 0.31, 1e-9, "computeEffectiveGlobalBuffLevels経由でも最大成長.31");
+}
+
+console.log("\n=== P9: 行のオペレーター確定でsource付き条件付きバフを自動ON(autoEnableSourcedBuffs) ===\n");
+{
+  const catalog = {
+    buffers: [
+      { id: "horn", name: "ホルン", kind: "pct", value: 0.31, scope: { type: "conditional", targetTags: ["重装"] }, source: { operatorId: "horn_op" } },
+      { id: "other", name: "other", kind: "pct", value: 0.1, scope: { type: "conditional", targetTags: ["前衛"] }, source: { operatorId: "other_op" } },
+      { id: "fixed", name: "fixed", kind: "pct", value: 0.1, scope: { type: "conditional", targetTags: ["前衛"] } }, // sourceなし
+      { id: "indiv", name: "indiv", kind: "pct", value: 0.1, scope: { type: "individual" }, source: { operatorId: "horn_op" } }, // conditionalではない
+    ],
+  };
+  const ids1 = autoEnableSourcedBuffs(catalog, [], "horn_op");
+  check("該当オペレーターのconditionalバフだけ自動ONになる(individual/source無しは対象外)", JSON.stringify(ids1) === JSON.stringify(["horn"]), ids1);
+
+  const ids2 = autoEnableSourcedBuffs(catalog, ["horn"], "horn_op");
+  check("既にONなら重複しない(冪等)", JSON.stringify(ids2) === JSON.stringify(["horn"]), ids2);
+
+  const ids3 = autoEnableSourcedBuffs(catalog, ["foo"], "horn_op");
+  check("既存のON状態(無関係なid)は保持したまま追加する", JSON.stringify(ids3) === JSON.stringify(["foo", "horn"]), ids3);
+
+  const ids4 = autoEnableSourcedBuffs(catalog, [], "unrelated_op");
+  check("該当バフが無ければ何も追加しない", ids4.length === 0, ids4);
+  // 「turning the buff off manually sticks(行の他フィールド変更では再ONにならない)」は
+  // この関数の呼び出しタイミング(ui.jsのonOperatorNameChange。行のopId確定時にだけ呼ぶ)側の
+  // 責務であり、この関数自体は冪等な集合演算でしかないことをids2で確認済み。
+}
+
+console.log("\n=== 初期モジュール(overrideのdefault_module) ===\n");
+{
+  const hornLike = {
+    id: "char_4039_horn",
+    modules: [
+      { id: "uniequip_002_horn", atkByLevel: [65, 85, 100] },
+      { id: "uniequip_003_horn", atkByLevel: [92, 108, 120] },
+    ],
+  };
+  check("default_module無しならLv3のATK加算が最大のモジュール(Y)", defaultModuleId(hornLike, {}) === "uniequip_003_horn");
+  check("entry.defaultModuleがあればそれを優先(ホルンはX)", defaultModuleId(hornLike, { defaultModule: "uniequip_002_horn" }) === "uniequip_002_horn");
+  check("存在しないdefaultModuleは無視して既定に戻る", defaultModuleId(hornLike, { defaultModule: "uniequip_999_x" }) === "uniequip_003_horn");
+  const hornWithEntries = { ...hornLike, fkEntries: [{ skillNum: "1" }, { skillNum: "2", defaultModule: "uniequip_002_horn" }] };
+  check("選んだエントリに指定が無くても、同じオペの他エントリのdefaultModuleを使う", defaultModuleId(hornWithEntries, hornWithEntries.fkEntries[0]) === "uniequip_002_horn");
 }
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");

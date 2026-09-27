@@ -739,6 +739,30 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   (`fk_kill_calc::mod`の`every_inspire_source_points_to_existing_operator_skill_and_modules`、
   `buffers.rs`の`inspire_self_part_replaces_points_to_an_existing_part_in_the_same_source`)が
   operator/skill_num/moduleId参照・`replaces`先の実在・id一意性を保証する。
+- **fk_kill_calculatorのホルン「軍事要塞」(P9)は素質由来のconditionalバフで、FK行と
+  育成設定をリンクする**: `buffers.yaml`の`horn`(`source: { operator: char_4039_horn,
+  talent: 0, key: atk }`、`targets: [重装]`)。E1=.10(潜在3+.13)/E2=.20(潜在3+.23)、
+  モジュールX(uniequip_002_horn)Lv2=.25(潜在3+.28)/Lv3=.28(潜在3+.31)。旧
+  `overrides.yaml`のS2固定`self_atk_pct: 0.31`(ホルン自身も重装なので自分の行に
+  適用される)をここへ移設した(self_atk_pctは自動判定でAuto=0になる)。
+  「FK行との育成設定リンク」機能自体は特定バフ専用ではなく、`source`を持つ任意の
+  conditional/individualバフに汎用で効く: そのバフの`source.operatorId`と同じ
+  オペレーターのFK行があれば、育成軸(昇進/潜在/モジュール+モジュールLv/スキルLv)は
+  `state.globalBuffLevels`ではなくその行の設定を使う(`engine.js`の
+  `effectiveBuffLevels`/`findLinkedRow`/`computeEffectiveGlobalBuffLevels`。
+  `computeBuffBreakdown`/`findSingleTargetConflicts`/`suggest`/UIのバフカードは全て
+  これ経由で軸選択を得る。トグルはユーザー操作のまま)。行のオペレーターが確定した瞬間
+  (`ui.js`の`onOperatorNameChange`)、その`source.operatorId`を持つ条件付きバフを
+  一度だけ自動でON(`autoEnableSourcedBuffs`。冪等)にする。ユーザーが手動でOFFにした
+  後は行の他フィールド変更で再ONにならない(呼び出しタイミングをopId確定時だけに
+  絞ることで実現)。UIはリンク中、カードの昇進/潜在/モジュール/スキルLvセレクトの
+  代わりに「FK行（<name>）の設定を使用」ヒントを出す(`renderBuffAxisControls`の
+  `linkedOp`引数)。行を削除すればリンクは自動的に外れ、カードは自分のセレクトに戻る
+  (状態には何も持たせず、`state.rows`から都度計算するため)。
+  ホルンの初期モジュールは`overrides.yaml`の`default_module: uniequip_002_horn`(X)。
+  汎用の既定(`engine.js::defaultModuleId`。Lv3のATK加算が最大=Y)だとこの素質が強化されず
+  実効ATKが下がるため。`default_module`はモジュールがオペレーター単位なので、選んだ
+  エントリに無ければ同じオペレーターの他エントリの指定も使う。
 - **fk_kill_calculatorの個別バフ(P5)もP4と同じ機構でゲームデータから動的に値解決できる**:
   `buffers.yaml`の`individual.*.source`は`conditional.*.source`と同じ`talent`/`skill_num`に
   加えて3種を新設した: `scale_skill_num`/`scale_key`(素質値または`base_pct`に掛け合わせる
