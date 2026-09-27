@@ -14,6 +14,10 @@ import {
   suggest,
   describeSuggestion,
   findSingleTargetConflicts,
+  computeInspireSource,
+  computeInspireSelfParts,
+  computeInspireForRow,
+  defaultInspireSourceCfg,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -511,6 +515,315 @@ console.log("\n=== P2 follow-up: 特殊強化(モジュール依存の加算系/
   const lv3 = computeTotal(catalog, [mk(3)], enemyNeutral, []).results[0];
   check("ブレイズ モジュールX Lv3+ONは+6%", Math.abs(lv3.specialAddPct - 0.06) < 1e-9, lv3.specialAddPct);
   approxEqual(lv3.final, 6656, 1, "ブレイズ S3 モジュールX Lv3+ON (self=0.712+0.06=0.772)");
+}
+
+console.log("\n=== P3: 鼓舞(インスパイア)ソース(濁心スカジ) ===\n");
+// 実データ(character_table.json talents + battle_equip_table.json)の値をそのまま使う。
+// 出典・導出の詳細はdata/fk_kill_calc/buffers.yaml末尾のコメント参照。
+function skadi2Source(overrides) {
+  return {
+    id: "skadi2",
+    operatorId: "char_1012_skadi2",
+    name: "濁心スカジ",
+    tags: ["補助"], // profession=SUPPORT, position=RANGED (近距離タグは無い)
+    atkBase: 418,
+    atkPotential: 27,
+    modules: [
+      { id: "uniequip_002_skadi2", typeName: "X", name: "蜕化的残迹", atkByLevel: [26, 32, 35] },
+      { id: "uniequip_003_skadi2", typeName: "Y", name: "新生代", atkByLevel: [22, 27, 30] },
+    ],
+    skills: [
+      { skillNum: "2", ratio: 0.6 },
+      { skillNum: "3", ratio: 1.1 },
+    ],
+    talentPotentialLabel: "素質凸",
+    selfParts: [
+      {
+        id: "talent",
+        label: "素質「捕食本能」(範囲内に他オペがいる)",
+        shortLabel: "素質",
+        description: null,
+        pct: 0.06,
+        pctPotentialBonus: 0.03,
+        moduleOverride: {
+          module: "uniequip_003_skadi2",
+          pctByLevel: [0.06, 0.08, 0.09],
+          potentialBonusByLevel: [0.03, 0.03, 0.03],
+        },
+        requiresModule: null,
+        pctByModuleLevel: null,
+        replaces: null,
+        alwaysOn: true,
+        defaultOn: false,
+      },
+      {
+        id: "talent_abyssal",
+        label: "攻撃範囲内に【アビサルハンター】がいる",
+        shortLabel: "素質",
+        description: null,
+        pct: 0.15,
+        pctPotentialBonus: 0.03,
+        moduleOverride: {
+          module: "uniequip_003_skadi2",
+          pctByLevel: [0.15, 0.15, 0.2],
+          potentialBonusByLevel: [0.03, 0.03, 0.03],
+        },
+        requiresModule: null,
+        pctByModuleLevel: null,
+        replaces: "talent",
+        alwaysOn: false,
+        defaultOn: false,
+      },
+      {
+        id: "module_x_two_ops",
+        label: "攻撃範囲内に他オペ2名以上(モジュールX)",
+        shortLabel: "X",
+        description: null,
+        pct: 0,
+        pctPotentialBonus: 0,
+        moduleOverride: null,
+        requiresModule: "uniequip_002_skadi2",
+        pctByModuleLevel: [0.08, 0.08, 0.08],
+        replaces: null,
+        alwaysOn: false,
+        defaultOn: true,
+      },
+    ],
+    ...overrides,
+  };
+}
+function skadi2Cfg(overrides) {
+  return {
+    on: true,
+    skillNum: "2",
+    potential: true,
+    talentPotential: false,
+    moduleId: null,
+    moduleLv: 3,
+    buffPct: 0,
+    buffIds: [],
+    parts: {},
+    ...overrides,
+  };
+}
+const podencoBuffer = { id: "podenco", name: "ポデンコ", kind: "pct", value: 0.11, scope: { type: "conditional", targetTags: ["補助"] }, singleTarget: false, bonus: null };
+const plasmaBuffer = { id: "plasma", name: "血漿", kind: "pct", value: 0.9, scope: { type: "individual" }, singleTarget: false, bonus: null };
+const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value: 0.1, scope: { type: "individual" }, singleTarget: true, bonus: null };
+
+{
+  // 参照シート実測値: S2(Xの2名条件OFF, 素質凸ON) → 480×1.09×0.6=313.9≈314
+  const source = skadi2Source();
+  const cfg = skadi2Cfg({ skillNum: "2", talentPotential: true, moduleId: "uniequip_002_skadi2", moduleLv: 3, parts: { module_x_two_ops: false } });
+  const result = computeInspireSource(source, cfg, { buffers: [] }, []);
+  approxEqual(result.amount, 314, 1, "濁心スカジ S2 鼓舞(Xの2名条件OFF)");
+}
+{
+  // 参照シート実測値: S3(Xの2名条件ON, 素質凸ON) → 480×1.17×1.1=617.8≈618
+  const source = skadi2Source();
+  const cfg = skadi2Cfg({ skillNum: "3", talentPotential: true, moduleId: "uniequip_002_skadi2", moduleLv: 3 }); // module_x_two_opsはdefaultOn=trueのまま
+  const result = computeInspireSource(source, cfg, { buffers: [] }, []);
+  approxEqual(result.amount, 618, 1, "濁心スカジ S3 鼓舞(Xの2名条件ON)");
+}
+{
+  // ポデンコ(条件付き。対象=補助)ONで鼓舞量が増える(スカジ自身のtagsが補助のため適用される)。
+  const source = skadi2Source();
+  const cfg = skadi2Cfg({ skillNum: "2", moduleId: null });
+  const catalog = { buffers: [podencoBuffer] };
+  const without = computeInspireSource(source, cfg, catalog, []);
+  const withPodenco = computeInspireSource(source, cfg, catalog, ["podenco"]);
+  check("ポデンコONで鼓舞量が増える", withPodenco.amount > without.amount, `${without.amount} -> ${withPodenco.amount}`);
+  approxEqual(withPodenco.selfPct - without.selfPct, 0.11, 1e-9, "ポデンコ分の差分は+11%");
+}
+{
+  // 個別バフ(血漿+90%)をソースのbuffIdsに追加すると鼓舞量が増える(スペック変更で追加)。
+  // 480×(1+0.09+0.9)×0.6 = 573.12 (talentPotential ON, Xの2名条件OFF)。
+  const source = skadi2Source();
+  const cfg = skadi2Cfg({ skillNum: "2", talentPotential: true, moduleId: "uniequip_002_skadi2", moduleLv: 3, parts: { module_x_two_ops: false }, buffIds: ["plasma"] });
+  const result = computeInspireSource(source, cfg, { buffers: [plasmaBuffer] }, []);
+  approxEqual(result.amount, 573.12, 1, "濁心スカジに血漿(個別バフ)を追加すると鼓舞量が増える");
+}
+{
+  // アビサルハンターONは「素質」の値を置き換える(加算ではない)。moduleId=null(Yなし)。
+  const source = skadi2Source();
+  const withoutAbyssal = computeInspireSelfParts(source, skadi2Cfg({ moduleId: null }));
+  check("通常時はtalentパーツのみ適用される", withoutAbyssal.applied.length === 1 && withoutAbyssal.applied[0].id === "talent", withoutAbyssal.applied);
+  check("通常時のpctは0.06", Math.abs(withoutAbyssal.pct - 0.06) < 1e-9, withoutAbyssal.pct);
+
+  const withAbyssal = computeInspireSelfParts(source, skadi2Cfg({ moduleId: null, parts: { talent_abyssal: true } }));
+  check("アビサルハンターON時はtalent_abyssalのみ適用される(talentは無効化)", withAbyssal.applied.length === 1 && withAbyssal.applied[0].id === "talent_abyssal", withAbyssal.applied);
+  check("アビサルハンターON時のpctは0.15(0.06+0.15の加算ではない)", Math.abs(withAbyssal.pct - 0.15) < 1e-9, withAbyssal.pct);
+}
+{
+  // モジュールY(新生代)装備時のLvごとの素質値(素質凸なし/ありの両方)。
+  const source = skadi2Source();
+  const cases = [
+    [1, false, 0.06], [1, true, 0.09],
+    [2, false, 0.08], [2, true, 0.11],
+    [3, false, 0.09], [3, true, 0.12],
+  ];
+  for (const [lv, talentPotential, expected] of cases) {
+    const { pct } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: "uniequip_003_skadi2", moduleLv: lv, talentPotential }));
+    check(`モジュールY Lv${lv} 素質凸${talentPotential ? "ON" : "OFF"}: talent=${expected}`, Math.abs(pct - expected) < 1e-9, pct);
+  }
+  // アビサルハンター込みのモジュールYレベル別の値も確認する。
+  const abyssalCases = [
+    [1, false, 0.15], [1, true, 0.18],
+    [2, false, 0.15], [2, true, 0.18],
+    [3, false, 0.2], [3, true, 0.23],
+  ];
+  for (const [lv, talentPotential, expected] of abyssalCases) {
+    const { pct } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: "uniequip_003_skadi2", moduleLv: lv, talentPotential, parts: { talent_abyssal: true } }));
+    check(`モジュールY Lv${lv}+アビサルハンター 素質凸${talentPotential ? "ON" : "OFF"}: talent_abyssal=${expected}`, Math.abs(pct - expected) < 1e-9, pct);
+  }
+}
+{
+  // モジュールXの「2名以上」パーツはXを装備している間だけ有効(実データ確認済み: Lv1〜3で同値+8%)。
+  const source = skadi2Source();
+  for (const lv of [1, 2, 3]) {
+    const { pct } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: "uniequip_002_skadi2", moduleLv: lv }));
+    // talent(0.06、素質凸OFF) + module_x_two_ops(0.08) = 0.14
+    check(`モジュールX Lv${lv}: talent(0.06)+X(0.08)=0.14`, Math.abs(pct - 0.14) < 1e-9, pct);
+  }
+  const { pct: withoutX } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: null }));
+  check("モジュールX未装備ではXパーツは適用されない(talentのみ0.06)", Math.abs(withoutX - 0.06) < 1e-9, withoutX);
+  const { pct: yInstead } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: "uniequip_003_skadi2", moduleLv: 3 }));
+  check("モジュールY装備時もXパーツは適用されない(talentのみ0.09)", Math.abs(yInstead - 0.09) < 1e-9, yInstead);
+}
+{
+  // max-not-sum: 2つの鼓舞ソースがONでも、行が受け取るのは最大の1件だけ(合算しない)。
+  const bigSource = { ...skadi2Source(), id: "big", operatorId: "char_big", atkBase: 1000, atkPotential: 0, skills: [{ skillNum: "2", ratio: 1 }], selfParts: [] };
+  const smallSource = { ...skadi2Source(), id: "small", operatorId: "char_small", atkBase: 100, atkPotential: 0, skills: [{ skillNum: "2", ratio: 1 }], selfParts: [] };
+  const catalog = { operators: [], buffers: [], inspireSources: [bigSource, smallSource] };
+  const sourceStates = {
+    big: skadi2Cfg({ skillNum: "2", moduleId: null }),
+    small: skadi2Cfg({ skillNum: "2", moduleId: null }),
+  };
+  const testRow = { opId: "someone_else", entryIdx: 0, inspireOn: true };
+  const applied = computeInspireForRow(catalog, testRow, sourceStates, []);
+  check("2ソースON時は最大(big=1000)だけが適用される(合算しない)", !!applied && Math.abs(applied.amount - 1000) < 1e-9, applied);
+  check("適用されたソースはbig", applied && applied.sourceId === "big", applied);
+}
+{
+  // row.inspireOn=falseの行には鼓舞が適用されない。
+  const source = { ...skadi2Source(), selfParts: [] };
+  const catalog = { operators: [], buffers: [], inspireSources: [source] };
+  const sourceStates = { skadi2: skadi2Cfg({ skillNum: "2", moduleId: null }) };
+  const rowOff = { opId: "someone_else", entryIdx: 0, inspireOn: false };
+  check("row.inspireOn=falseなら鼓舞は適用されない", computeInspireForRow(catalog, rowOff, sourceStates, []) === null);
+  const rowOn = { opId: "someone_else", entryIdx: 0, inspireOn: true };
+  check("row.inspireOn=trueなら鼓舞が適用される", computeInspireForRow(catalog, rowOn, sourceStates, []) !== null);
+}
+{
+  // 鼓舞ソース自身の行にはそのソース自身の鼓舞は乗らない。
+  const source = { ...skadi2Source(), selfParts: [] };
+  const catalog = { operators: [], buffers: [], inspireSources: [source] };
+  const sourceStates = { skadi2: skadi2Cfg({ skillNum: "2", moduleId: null }) };
+  const selfRow = { opId: source.operatorId, entryIdx: 0, inspireOn: true };
+  check("鼓舞ソース自身の行には自分の鼓舞が乗らない", computeInspireForRow(catalog, selfRow, sourceStates, []) === null);
+}
+{
+  // ソース自身のATKは鼓舞(inspireFlat)の影響を受けない(computeInspireSourceはinspireFlatを
+  // 一切足さない=呼び出し元がどんなsourceStatesを渡してもソースの計算結果は変わらない)。
+  const source = skadi2Source();
+  const cfg = skadi2Cfg({ skillNum: "2", moduleId: null });
+  const withoutOtherSources = computeInspireSource(source, cfg, { buffers: [] }, []);
+  const withOtherSourcesIgnored = computeInspireSource(source, cfg, { buffers: [] }, []); // 呼び出し方法自体がinspireFlatを持たない
+  check("鼓舞ソース自身のATK計算はinspireFlatの影響を受けない(関数自体がその引数を取らない)", withoutOtherSources.amount === withOtherSourcesIgnored.amount);
+}
+{
+  // computeTotalに鼓舞ソース込みで通した時、対象行にinspireFlatとして加算されること。
+  const op1000 = { id: "target", name: "target", tags: [], atkBase: 1000, atkPotential: 0, modules: [], fkEntries: [{ tags: [] }] };
+  const source = { ...skadi2Source(), selfParts: [] };
+  const catalog = { operators: [op1000], buffers: [], inspireSources: [source] };
+  const targetRow = { opId: "target", entryIdx: 0, dmgType: "true", potential: true, moduleId: null, moduleLv: 3, multiplier: 1, selfPct: 0, hits: 1, buffPct: 0, dmgMult: 1, ignoreDef: 0, buffIds: [], specialOn: true, inspireOn: true };
+  const sourceStates = { skadi2: skadi2Cfg({ skillNum: "2", moduleId: null }) }; // atk=418+27=445, ratio0.6, self=0 -> amount=267
+  const { results } = computeTotal(catalog, [targetRow], enemyNeutral, [], sourceStates);
+  const inspireAmount = 445 * 0.6;
+  approxEqual(results[0].final, 1000 + inspireAmount, 0.01, "computeTotal経由でも鼓舞がinspireFlatとして加算される");
+  check("results[0].inspireAppliedにソースidが入る", results[0].inspireApplied && results[0].inspireApplied.sourceId === "skadi2", results[0].inspireApplied);
+}
+{
+  // 旧(P2)形のstate(state.inspire無し)もcomputeTotal/suggestにそのまま通せる(後方互換)。
+  const catalog = { operators: [{ id: "old2", name: "old2", tags: [], atkBase: 1000, atkPotential: 0, modules: [], fkEntries: [{ tags: [] }] }], buffers: [], inspireSources: [] };
+  const oldRow = row({ opId: "old2", entryIdx: 0, dmgType: "true", moduleId: null, hits: 1 });
+  const oldState = { v: 1, enemy: { ...enemyNeutral, hp: 500 }, rows: [oldRow], globalBuffIds: [] }; // state.inspire無し
+  const { total, killed } = computeTotal(catalog, oldState.rows, oldState.enemy, oldState.globalBuffIds);
+  check("state.inspire無しでもcomputeTotalが計算できる(撃破)", killed === true, total);
+  const suggestions = suggest(oldState, catalog);
+  check("state.inspire無しでもsuggestが空配列を返す(撃破済みのため)", Array.isArray(suggestions) && suggestions.length === 0, suggestions);
+}
+{
+  // 撃破提案: 鼓舞ソースをONにするだけで撃破できる場合、その提案が出て実際に撃破できる。
+  const op1000 = { id: "target2", name: "target2", tags: [], atkBase: 1000, atkPotential: 0, modules: [], fkEntries: [{ tags: [] }] };
+  const source = { ...skadi2Source(), selfParts: [] };
+  const catalog = { operators: [op1000], buffers: [], inspireSources: [source] };
+  const targetRow = row({ opId: "target2", entryIdx: 0, dmgType: "true", moduleId: null, hits: 1 }); // final=1000
+  const enemy = { ...enemyNeutral, hp: 1200 }; // 鼓舞(スカジ既定cfg、skillNum省略=S2、445×0.6=267)で1267届く
+  const state = { v: 1, enemy, rows: [targetRow], globalBuffIds: [], inspire: { sources: {} } };
+  const suggestions = suggest(state, catalog);
+  const sug = suggestions.find((s) => s.kind === "toggleInspireSource" && s.sourceId === "skadi2");
+  check("鼓舞ソースONの提案が出る", !!sug, sug);
+  if (sug) {
+    const label = describeSuggestion(sug, catalog, state.rows);
+    check("提案に説明文がある(toggleInspireSource)", typeof label === "string" && label.length > 0, label);
+    const testStates = { [sug.sourceId]: { ...defaultInspireSourceCfg(source), on: true } };
+    const after = computeTotal(catalog, state.rows, enemy, [], testStates);
+    check("提案の鼓舞ソースをONにすると撃破できる", after.killed === true, after.total);
+  }
+}
+{
+  // 撃破提案: 行の鼓舞トグルをONにするだけで撃破できる場合。
+  const op1000 = { id: "target3", name: "target3", tags: [], atkBase: 1000, atkPotential: 0, modules: [], fkEntries: [{ tags: [] }] };
+  const source = { ...skadi2Source(), selfParts: [] };
+  const catalog = { operators: [op1000], buffers: [], inspireSources: [source] };
+  const targetRow = row({ opId: "target3", entryIdx: 0, dmgType: "true", moduleId: null, hits: 1, inspireOn: false });
+  const enemy = { ...enemyNeutral, hp: 1200 };
+  const state = { v: 1, enemy, rows: [targetRow], globalBuffIds: [], inspire: { sources: { skadi2: { ...defaultInspireSourceCfg(source), on: true } } } };
+  const suggestions = suggest(state, catalog);
+  const sug = suggestions.find((s) => s.kind === "toggleRowInspire");
+  check("行の鼓舞トグルONの提案が出る", !!sug, sug);
+  if (sug) {
+    const label = describeSuggestion(sug, catalog, state.rows);
+    check("提案に説明文がある(toggleRowInspire)", typeof label === "string" && label.length > 0, label);
+    const testRows = state.rows.map((r2, j) => (j === sug.rowIndex ? { ...r2, inspireOn: true } : r2));
+    const after = computeTotal(catalog, testRows, enemy, state.globalBuffIds, state.inspire.sources);
+    check("提案の行の鼓舞トグルをONにすると撃破できる", after.killed === true, after.total);
+  }
+}
+{
+  // 撃破提案: ONの鼓舞ソースへ個別バフを1件追加するだけで撃破できる場合。
+  const op1000 = { id: "target4", name: "target4", tags: [], atkBase: 1000, atkPotential: 0, modules: [], fkEntries: [{ tags: [] }] };
+  const source = { ...skadi2Source(), selfParts: [] };
+  const catalog = { operators: [op1000], buffers: [plasmaBuffer], inspireSources: [source] };
+  const targetRow = row({ opId: "target4", entryIdx: 0, dmgType: "true", moduleId: null, hits: 1 });
+  const enemy = { ...enemyNeutral, hp: 1300 }; // 鼓舞267では届かないが+血漿90%(445×1.9×0.6=507)で届く
+  const state = {
+    v: 1, enemy, rows: [targetRow], globalBuffIds: [],
+    inspire: { sources: { skadi2: { ...defaultInspireSourceCfg(source), on: true } } },
+  };
+  const suggestions = suggest(state, catalog);
+  const sug = suggestions.find((s) => s.kind === "addSourceIndividualBuff" && s.sourceId === "skadi2");
+  check("鼓舞ソースへの個別バフ追加提案が出る", !!sug, sug);
+  if (sug) {
+    const label = describeSuggestion(sug, catalog, state.rows);
+    check("提案に説明文がある(addSourceIndividualBuff)", typeof label === "string" && label.length > 0, label);
+    const testStates = { skadi2: { ...state.inspire.sources.skadi2, buffIds: [...state.inspire.sources.skadi2.buffIds, sug.buffId] } };
+    const after = computeTotal(catalog, state.rows, enemy, [], testStates);
+    check("提案の個別バフを鼓舞ソースへ追加すると撃破できる", after.killed === true, after.total);
+  }
+}
+{
+  // single_target(エクシア)の⚠は行と鼓舞ソースを跨いで検出される(スペック変更)。
+  const source = { ...skadi2Source(), selfParts: [] };
+  const catalog = { operators: [{ ...op(1000, 0, null), id: "p2", fkEntries: [{ tags: [] }] }], buffers: [exusiaiBuffer], inspireSources: [source] };
+  const rows1 = [row({ opId: "p2", entryIdx: 0, moduleId: null, buffIds: ["exusiai"] })];
+  const sourceStates = { skadi2: { ...defaultInspireSourceCfg(source), on: true, buffIds: ["exusiai"] } };
+  const conflicts = findSingleTargetConflicts(catalog, rows1, sourceStates);
+  check("エクシアを行とソース両方で選ぶと⚠が両方で検出される", conflicts.has("exusiai"), conflicts);
+
+  const sourceStatesOff = { skadi2: { ...defaultInspireSourceCfg(source), on: false, buffIds: ["exusiai"] } };
+  const conflictsSourceOff = findSingleTargetConflicts(catalog, rows1, sourceStatesOff);
+  check("ソースがOFFの間はソース側の選択を数えない(⚠出ない)", !conflictsSourceOff.has("exusiai"), conflictsSourceOff);
 }
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");

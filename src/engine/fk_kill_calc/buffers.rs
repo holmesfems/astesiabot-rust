@@ -20,6 +20,57 @@ use std::sync::OnceLock;
 
 const BUFFERS_YAML: &str = include_str!("../../../data/fk_kill_calc/buffers.yaml");
 
+/// `inspire.*.self_parts.*.module_override`の生データ(P3)。
+/// フィールドの意味は`buffers.yaml`末尾のコメント + `dto::InspireModuleOverride`参照。
+#[derive(Deserialize, Clone, Debug)]
+pub struct RawInspireModuleOverride {
+    pub module: String,
+    pub pct_by_level: [f64; 3],
+    pub potential_bonus_by_level: [f64; 3],
+}
+
+/// `inspire.*.self_parts`の生データ1件分(P3)。
+#[derive(Deserialize, Clone, Debug)]
+pub struct RawInspireSelfPart {
+    pub id: String,
+    pub label: String,
+    /// 省略時は`label`を使う(`build_self_part`で埋める)。
+    pub short_label: Option<String>,
+    pub description: Option<String>,
+    #[serde(default)]
+    pub pct: f64,
+    #[serde(default)]
+    pub pct_potential_bonus: f64,
+    pub module_override: Option<RawInspireModuleOverride>,
+    pub requires_module: Option<String>,
+    pub pct_by_module_level: Option<[f64; 3]>,
+    pub replaces: Option<String>,
+    #[serde(default)]
+    pub always_on: bool,
+    #[serde(default)]
+    pub default_on: bool,
+}
+
+/// `inspire.*.skills`の生データ1件分(P3)。
+#[derive(Deserialize, Clone, Debug)]
+pub struct RawInspireSkill {
+    pub skill_num: String,
+    pub ratio: f64,
+}
+
+/// `inspire`リスト1件分の生データ(P3)。`operator`(operator_combatのid)と
+/// `name`はYAML側の表示用で、実際のatk/tags等は`build_catalog`が
+/// `operator_combat`から引いて合成する(このモジュールは`OperatorCombat`に依存しないため)。
+#[derive(Deserialize, Clone, Debug)]
+pub struct RawInspireSource {
+    pub id: String,
+    pub operator: String,
+    pub name: String,
+    pub skills: Vec<RawInspireSkill>,
+    pub talent_potential_label: String,
+    pub self_parts: Vec<RawInspireSelfPart>,
+}
+
 #[derive(Deserialize, Clone, Debug)]
 struct RawBonus {
     tags: Vec<String>,
@@ -56,6 +107,9 @@ struct BuffersYaml {
     individual: Vec<RawIndividual>,
     #[serde(default)]
     conditional: Vec<RawConditional>,
+    /// 鼓舞ソース一覧(P3)。P1/P2時点では常に空。
+    #[serde(default)]
+    inspire: Vec<RawInspireSource>,
 }
 
 /// `pct`/`flat`のどちらか一方だけが指定されていることを検証し、(種別, 値)を返す。
@@ -118,6 +172,21 @@ pub fn global() -> &'static [Buffer] {
     BUFFERS.get_or_init(build_buffers)
 }
 
+static INSPIRE_RAW: OnceLock<Vec<RawInspireSource>> = OnceLock::new();
+
+fn build_inspire_raw() -> Vec<RawInspireSource> {
+    let parsed: BuffersYaml = serde_yaml::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    parsed.inspire
+}
+
+/// `inspire`リストの生データ(P3)。`build_catalog`(mod.rs)が`operator_combat`と
+/// マージして`dto::InspireSource`を組み立てる材料として使う。プロセス内で1回だけ
+/// パースして使い回す(`global()`と同じ方針。BUFFERS_YAMLを2回パースする無駄はあるが、
+/// P1/P2からの構造(BuffersYaml一枚をserde_yamlでパース)を崩さないための素直な実装)。
+pub fn raw_inspire_sources() -> &'static [RawInspireSource] {
+    INSPIRE_RAW.get_or_init(build_inspire_raw)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,6 +216,35 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for b in buffers {
             assert!(seen.insert(b.id.as_str()), "buffers.yamlのid'{}'が重複している", b.id);
+        }
+        // P3: 鼓舞ソースのidも同じ名前空間で重複しないこと。
+        for s in raw_inspire_sources() {
+            assert!(seen.insert(s.id.as_str()), "buffers.yamlのinspire id'{}'が既存のバフidと重複している", s.id);
+        }
+    }
+
+    /// P3: 鼓舞ソースの`self_parts`が`replaces`で指す先が同じソース内に実在すること。
+    #[test]
+    fn inspire_self_part_replaces_points_to_an_existing_part_in_the_same_source() {
+        for s in raw_inspire_sources() {
+            let ids: std::collections::HashSet<&str> = s.self_parts.iter().map(|p| p.id.as_str()).collect();
+            for p in &s.self_parts {
+                if let Some(target) = &p.replaces {
+                    assert!(ids.contains(target.as_str()), "buffers.yaml: inspire '{}'のパーツ'{}'のreplaces'{target}'が同じソース内に無い", s.id, p.id);
+                }
+            }
+        }
+    }
+
+    /// P3: 鼓舞ソースのskillsが空でないこと・skill_numが空文字でないことの疎通確認
+    /// (実在スキルとの突き合わせは`mod.rs`の`validate_inspire_sources`で行う)。
+    #[test]
+    fn inspire_sources_have_at_least_one_skill() {
+        for s in raw_inspire_sources() {
+            assert!(!s.skills.is_empty(), "buffers.yaml: inspire '{}'にskillsが無い", s.id);
+            for sk in &s.skills {
+                assert!(!sk.skill_num.trim().is_empty(), "buffers.yaml: inspire '{}'のskill_numが空", s.id);
+            }
         }
     }
 

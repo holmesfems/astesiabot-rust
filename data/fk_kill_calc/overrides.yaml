@@ -80,9 +80,9 @@ char_017_huang:
 
 # 濁心スカジ(char_1012_skadi2)はFKするオペレーターではなく、味方への鼓舞(インスパイア)を
 # 撒く「バフ側」のオペレーター(オーナー確認済み)。fk_kill_calcのoverride(このファイル)
-# ではなく、P3で対応する鼓舞バフ(バフを出す側自身のATKから算出する仕組み)の一部として
-# 扱う想定なので、ここにはoverrideを追加しない。参照シートの値(P3で使う可能性がある値):
-# S2 multiplier=0.6/self_atk_pct=0.09、S3 multiplier=1.1/self_atk_pct=0.17。
+# ではなく、P3で追加した鼓舞ソース(バフを出す側自身のATKから算出する仕組み)として
+# 扱うため、ここにはoverrideを追加しない。定義本体は`data/fk_kill_calc/buffers.yaml`の
+# `inspire`リスト、実データ検証の詳細は同ファイル末尾のコメントを参照。
 
 # ファイヤーウォッチ(char_158_milu) スキル2「戦術電台」: blackboardは"atk_scale"=3.0
 # のみで、そのままAutoで採れる(通常時=特殊強化OFFはoverride不要)。

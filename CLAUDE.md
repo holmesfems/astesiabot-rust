@@ -117,10 +117,16 @@ src/
 │       │                overridesをマージしCatalogBuildを返す。名前解決できなかった
 │       │                fk_data上のオペレーター名は`skipped`に集約する）、
 │       │                resolve_multiplier_defaults（倍率の自動判定+候補一覧の決定的な並び順）、
-│       │                validate_overrides（overrides.yamlのドリフト検知）
+│       │                validate_overrides（overrides.yamlのドリフト検知）。
+│       │                build_inspire_sources/validate_inspire_sources（P3。
+│       │                buffers::raw_inspire_sources()+operator_combatをマージして
+│       │                Catalog.inspireSourcesを組み立てる。対象operatorが無ければ
+│       │                `skipped`に"inspire:<id>"として記録し静かに落とす）もここ
 │       ├── dto.rs     … Catalog/CatalogOperator/FkEntry/Buffer等（JSONはcamelCase）。
 │       │                Valued<T>{value,source}でAuto/Manualの出所を持つ。FkEntry.tags
-│       │                (P2)・FkEntry.special(P2。特殊強化トグル)もここ
+│       │                (P2)・FkEntry.special(P2。特殊強化トグル)もここ。
+│       │                InspireSource/InspireSelfPart/InspireModuleOverride/InspireSkillRatio
+│       │                (P3。鼓舞ソースのDTO。詳細は下記ポイント参照)もここ
 │       ├── tags.rs    … profession/position/nationIdからタグ・ダメージ属性の初期値を推測する。
 │       │                tag_vocabulary()(P2。近距離/職業/勢力/弾薬スキルの全タグ語彙。
 │       │                overrides.yamlの手動tags・buffers.yamlのtargets/bonus.tagsの
@@ -139,7 +145,10 @@ src/
 │                         エクシアは弾薬スキル+13%、ラテラーノ勢は基本値の代わりに26%を採用。
 │                         加算ではなく置き換え)。ドリフト検知テスト(unique id・pct/flat
 │                         どちらか一方・targetタグがtag_vocabulary()に存在・値が現実的な
-│                         範囲)は`buffers.rs`の`#[cfg(test)]`
+│                         範囲)は`buffers.rs`の`#[cfg(test)]`。`raw_inspire_sources()`
+│                         (P3。同ファイルの`inspire`リストの生データ。`mod.rs`の
+│                         `build_inspire_sources`が`operator_combat`とマージする)もここ。
+│                         詳細は下記ポイント参照
 ├── api/
 │   ├── mod.rs             … axum。AppState、run_api、base_url()（canonical/hreflang/sitemap用の
 │   │                        絶対URL起点）、/robots.txt・/sitemap.xml。`web_ui_router()`
@@ -230,7 +239,9 @@ src/
 │       └── static/
 │           ├── engine.js       … 計算層。DOM非依存（`document`/`window`を参照しない）。
 │           │                     atk/final/perHit/rowDamage計算、撃破提案(suggest)、
-│           │                     stale row除去(dropStaleRows)。単位の約束はファイル冒頭コメント参照
+│           │                     stale row除去(dropStaleRows)。単位の約束はファイル冒頭コメント参照。
+│           │                     computeInspireSource/computeInspireSelfParts/computeInspireForRow
+│           │                     (P3。鼓舞ソース計算。詳細は下記ポイント参照)もここ
 │           ├── ui.js           … 表現層。カタログfetch・状態管理・DOM描画。状態はlocalStorageに
 │           │                     自動保存し、アドレスバーのURLは書き換えない（ページ自体を共有
 │           │                     しやすくするため）。#state=付きURLは「共有URLをコピー」時だけ
@@ -242,7 +253,11 @@ src/
 │           │                     state.globalBuffIds(P2の個別/条件付きバフ・特殊強化状態)は
 │           │                     チップ/チェックボックス操作なので常にrender（renderLiveでは
 │           │                     扱わない）。dropStaleRowsが未知バフidの除去と旧(P1)形
-│           │                     state(これらのフィールドが無い)の欠損補完を兼ねる
+│           │                     state(これらのフィールドが無い)の欠損補完を兼ねる。
+│           │                     row.inspireOn・state.inspire.sources（P3。鼓舞ソースの
+│           │                     ON/OFF・スキル/モジュール/自己%パーツ/個別バフ/手入力バフ。
+│           │                     手入力バフ+%欄だけrenderLive対応、他はchange→render）も
+│           │                     dropStaleRowsが未知ソースid/パーツidを静かに除去する
 │           ├── style.css       … 420px想定の縦長1カラム。他ページ(home/lod_chest_solver)と
 │           │                     同じくダーク固定（配色トークンはhome_index.htmlの:rootを流用）
 │           └── lz-string.min.js … test_runner/static/lz-string.min.jsと同じ1.5.0, MITを
@@ -293,7 +308,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 │   │                         バリアント一覧）。`include_str!`でビルド時埋め込み。
 │   │                         スキーマ・記入例はファイル冒頭コメント参照
 │   └── buffers.yaml       … フレームキル計算機のバフカタログ（P2で追加。individual/
-│                             conditionalの2種）。同じく`include_str!`でビルド時埋め込み。
+│                             conditionalの2種 + P3で追加した鼓舞ソース一覧`inspire`）。
+│                             同じく`include_str!`でビルド時埋め込み。
 │                             スキーマ・記入例はファイル冒頭コメント参照
 ├── golden/operator_cost_calc/ … Python版charmaterials.pyの出力をゴールデンJSON化したもの。
 │                                 `ref_python/.../dump_charmaterials_golden.py`で生成し、
@@ -518,8 +534,33 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     実際にそのオペレーターのmodulesに存在することを
     `validate_special_requires_module`(`cargo test`)が検証する。
 - fk_kill_calculatorのstate/URLのバックワード互換は`v:1`のまま、`row.buffIds`/
-  `row.specialOn`/`state.globalBuffIds`を省略可能フィールドとして追加し、
-  `dropStaleRows`が旧(P1)形の補完＋未知バフidの静かな除去を兼ねる。
+  `row.specialOn`/`state.globalBuffIds`/`row.inspireOn`/`state.inspire.sources`を
+  省略可能フィールドとして追加し、`dropStaleRows`が旧(P1/P2)形の補完＋未知バフid・
+  未知の鼓舞ソースid/パーツidの静かな除去を兼ねる。
+- **fk_kill_calculatorの鼓舞(インスパイア。P3)は「最大値のみ適用、合算しない」**:
+  `data/fk_kill_calc/buffers.yaml`の`inspire`リスト(現時点では濁心スカジのみ)が
+  鼓舞ソースの定義本体。行(`row.inspireOn`。既定true)がONの間、ONになっている
+  鼓舞ソースのうち**振れ幅が最大の1件だけ**を`inspireFlat`に加算する(合算しない。
+  将来ソースが増えても同じ)。鼓舞ソース自身の行(`row.opId===source.operatorId`)には
+  そのソース自身の鼓舞は乗らない(自分で自分を鼓舞しない)。`鼓舞amount = ソースATK ×
+  (1 + 自己%パーツ合計 + 個別バフ% + 条件付きバフ% + 手入力%) × スキル比率`
+  (`engine.js`の`computeInspireSource`)。個別バフ/条件付きバフの判定は行と同じ
+  `computeBuffBreakdown`をソース自身の`tags`込みでそのまま再利用する(スペック変更で
+  「ソース自身にも個別バフを乗せられる」を追加したため、`findSingleTargetConflicts`は
+  行と鼓舞ソースの選択を同じ名前空間で数える。ソースがOFFの間はその選択を数えない)。
+  `self_parts`(素質等の自己%条件)は特定オペレーターにハードコードしない汎用スキーマ:
+  各パーツは`pct`+`pct_potential_bonus`(素質凸ONで加算)が基本形で、`module_override`
+  (指定モジュールのLv1〜3で`pct`自体を置き換え、置き換え後の値に素質凸ボーナスが乗る。
+  例: 濁心スカジの`talent`/`talent_abyssal`はモジュールYで強化される)と
+  `requires_module`+`pct_by_module_level`(そのモジュール装備時だけ存在する別効果。
+  素質凸とは無関係。例: モジュールXの「2名以上」トレイトは実データ確認の結果Lv1〜3で
+  同値`[0.08,0.08,0.08]`。オーナー想定の「Lv1は0」とは異なった)の2系統は排他
+  (1つのオペレーターは同時に1モジュールしか装備できないため)。`replaces`は他の
+  パーツを**加算ではなく置き換える**(例: 「範囲内にアビサルハンター」ONは基本の
+  「素質」パーツを置き換える。両方の合計にはならない)。`cargo test`のドリフト検知
+  (`fk_kill_calc::mod`の`every_inspire_source_points_to_existing_operator_skill_and_modules`、
+  `buffers.rs`の`inspire_self_part_replaces_points_to_an_existing_part_in_the_same_source`)が
+  operator/skill_num/moduleId参照・`replaces`先の実在・id一意性を保証する。
 - **サイトアイコンは元画像から生成して commit する**: 元画像は `assets/icon/`
   （通常版 PNG と simple版 SVG）。差し替えたら
   `& "C:\Program Files\nodejs\node.exe" assets/icon/generate.mjs` を回して
