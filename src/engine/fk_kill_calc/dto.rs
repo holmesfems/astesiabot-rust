@@ -174,6 +174,9 @@ pub struct FkEntry {
     pub tags: Vec<String>,
     /// 「特殊強化」トグル(P2)。無いスキルはUIにチェックボックスを出さない。
     pub special: Option<Special>,
+    /// overrideの`default_module`(このエントリで追加した行の初期モジュール)。`None`なら
+    /// フロントの既定(`engine.js::defaultModuleId`)。
+    pub default_module: Option<String>,
     pub note: Option<String>,
 }
 

@@ -161,7 +161,7 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                                 None
                             }
                         });
-                        fk_entries.push(build_entry(
+                        let mut entry = build_entry(
                             row,
                             skill_label.clone(),
                             variant.label.clone(),
@@ -177,7 +177,9 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                             tags_for_variant,
                             special,
                             variant.note.clone(),
-                        ));
+                        );
+                        entry.default_module = variant.default_module.clone();
+                        fk_entries.push(entry);
                     }
                 }
                 _ => {
@@ -421,6 +423,7 @@ fn build_entry(
         damage_type,
         tags,
         special,
+        default_module: None,
         note,
     }
 }
@@ -595,14 +598,20 @@ pub fn validate_special_requires_module(overrides: &Overrides, combat: &Operator
     for (op_id, skill_num) in overrides.all_keys() {
         let Some(variants) = overrides.variants_for(op_id, skill_num) else { continue };
         for variant in variants {
-            let Some(special) = &variant.special else { continue };
-            let Some(module_id) = &special.requires_module else { continue };
-            let Some(op) = combat.operators.get(op_id) else {
-                bad.push(format!("{op_id}/{skill_num} (operator idがoperator_combatに無い)"));
-                continue;
-            };
-            if !op.modules.iter().any(|m| m.eq_id == *module_id) {
-                bad.push(format!("{op_id}/{skill_num} (special.requires_module'{module_id}'が'{}'のmodulesに無い)", op.name));
+            // special.requires_moduleと、同じくuniEquipIdを指すdefault_moduleをまとめて検証する。
+            let refs = [
+                ("special.requires_module", variant.special.as_ref().and_then(|s| s.requires_module.as_ref())),
+                ("default_module", variant.default_module.as_ref()),
+            ];
+            for (field, module_id) in refs {
+                let Some(module_id) = module_id else { continue };
+                let Some(op) = combat.operators.get(op_id) else {
+                    bad.push(format!("{op_id}/{skill_num} (operator idがoperator_combatに無い)"));
+                    continue;
+                };
+                if !op.modules.iter().any(|m| m.eq_id == *module_id) {
+                    bad.push(format!("{op_id}/{skill_num} ({field}'{module_id}'が'{}'のmodulesに無い)", op.name));
+                }
             }
         }
     }
@@ -1055,6 +1064,27 @@ mod tests {
             "pepeはモジュールを装備しても値が変わらないのでmodules軸が空のはず"
         );
 
+        // P9: ホルン(異格。char_4039_horn)素質「軍事要塞」。E1(.10/潜在3で.13)/
+        // E2(.20/潜在3で.23)、モジュールX(uniequip_002_horn)Lv2(.25/潜在3で.28)/
+        // Lv3(.28/潜在3で.31)。デフォルト(最大成長)は.31(旧overrides.yamlの固定
+        // self_atk_pctと一致する)。
+        let horn = find("horn");
+        assert!(approx_eq(horn.value, 0.31), "hornのデフォルト値={}", horn.value);
+        match &horn.scope {
+            dto::BufferScope::Conditional { target_tags } => assert_eq!(target_tags, &vec!["重装".to_string()]),
+            _ => panic!("hornはconditionalスコープのはず"),
+        }
+        let horn_talent = horn.source.as_ref().unwrap().talent.as_ref().unwrap();
+        assert!(approx_eq(horn_talent.values_by_elite_and_potential[1][0], 0.10), "hornのE1潜在1={}", horn_talent.values_by_elite_and_potential[1][0]);
+        assert!(approx_eq(horn_talent.values_by_elite_and_potential[1][2], 0.13), "hornのE1潜在3={}", horn_talent.values_by_elite_and_potential[1][2]);
+        assert!(approx_eq(horn_talent.values_by_elite_and_potential[2][0], 0.20), "hornのE2潜在1={}", horn_talent.values_by_elite_and_potential[2][0]);
+        assert!(approx_eq(horn_talent.values_by_elite_and_potential[2][2], 0.23), "hornのE2潜在3={}", horn_talent.values_by_elite_and_potential[2][2]);
+        let horn_module = horn_talent.modules.iter().find(|m| m.module_id == "uniequip_002_horn").expect("hornのモジュールXがあるはず");
+        assert!(approx_eq(horn_module.values_by_level_and_potential[1][0], 0.25), "hornのモジュールXLv2潜在1={}", horn_module.values_by_level_and_potential[1][0]);
+        assert!(approx_eq(horn_module.values_by_level_and_potential[1][2], 0.28), "hornのモジュールXLv2潜在3={}", horn_module.values_by_level_and_potential[1][2]);
+        assert!(approx_eq(horn_module.values_by_level_and_potential[2][0], 0.28), "hornのモジュールXLv3潜在1={}", horn_module.values_by_level_and_potential[2][0]);
+        assert!(approx_eq(horn_module.values_by_level_and_potential[2][2], 0.31), "hornのモジュールXLv3潜在3={}", horn_module.values_by_level_and_potential[2][2]);
+
         let amiya = find("amiya_guard");
         assert!(approx_eq(amiya.value, 0.09), "amiya_guardのデフォルト値={}", amiya.value);
         assert!(amiya.toggle.is_some(), "amiya_guardはtoggle(スキル中2倍)を持つはず");
@@ -1095,21 +1125,31 @@ mod tests {
         assert_eq!(v800.multiplier_by_level.last().copied(), Some(8.0), "800%の特化3");
     }
 
-    /// P7: ホルンS2の物理/術バリアントも`multiplier_key`でスキルLv別に追従し、
-    /// self_atk_pct(0.31)は素質由来のため固定(全レベル同値)のままであること。
+    /// P7: ホルンS2の物理/術バリアントは`multiplier_key`でスキルLv別に追従する。
+    /// P9: 固定self_atk_pct(0.31)はconditionalバフ「horn」(素質「軍事要塞」)へ移設した
+    /// ため、self_atk_pctはAuto=0になる(ホルンS2のskill_table.jsonのblackboardに
+    /// "atk"キーが無いため。実データ確認済み)。旧0.31相当は
+    /// `conditional_source_default_values_match_verified_gamedata`の`horn`バフで検証する。
     #[test]
-    fn horn_s2_multiplier_follows_skill_level_and_self_atk_pct_stays_fixed() {
+    fn horn_s2_multiplier_follows_skill_level_and_self_atk_pct_is_auto_zero() {
         let result = build_from_seeds();
         let horn = result.catalog.operators.iter().find(|op| op.name == "ホルン").expect("ホルンがカタログに存在すること");
         let physical = horn.fk_entries.iter().find(|e| e.skill_num == "2" && e.variant_label.as_deref() == Some("物理")).unwrap();
         assert_eq!(physical.multiplier_by_level.first().copied(), Some(1.3));
         assert_eq!(physical.multiplier_by_level.last().copied(), Some(2.4));
-        assert!(physical.self_atk_pct_fixed, "self_atk_pctは固定値指定のままなのでfixed=trueのはず");
-        assert!(physical.self_atk_pct_by_level.iter().all(|v| (*v - 0.31).abs() < 1e-9), "全レベル同値0.31のはず");
+        // 重装バフ「軍事要塞」を強化するモジュールXを初期モジュールにする(overrideのdefault_module)。
+        for entry in horn.fk_entries.iter().filter(|e| e.skill_num == "2") {
+            assert_eq!(entry.default_module.as_deref(), Some("uniequip_002_horn"));
+        }
+        assert_eq!(physical.self_atk_pct.source, dto::ValueSource::Auto, "self_atk_pctのoverrideは撤去済み(P9でバフ側へ移設)のはずAuto");
+        assert_eq!(physical.self_atk_pct.value, 0.0);
+        assert!(!physical.self_atk_pct_fixed, "Auto(non-override)なのでfixed=falseのはず");
+        assert!(physical.self_atk_pct_by_level.iter().all(|v| *v == 0.0), "atkキーが無いのでスキルLv別配列も全て0のはず");
 
         let arts = horn.fk_entries.iter().find(|e| e.skill_num == "2" && e.variant_label.as_deref() == Some("術")).unwrap();
         assert_eq!(arts.multiplier_by_level.first().copied(), Some(0.3));
         assert_eq!(arts.multiplier_by_level.last().copied(), Some(0.6));
+        assert_eq!(arts.self_atk_pct.source, dto::ValueSource::Auto);
     }
 
     /// P7: ブレイズS3のself_atk_pct_factor(0.89)がAutoのスキルレベル別セルフ%(atk)に

@@ -1536,6 +1536,136 @@ async function runSkillLevelScenario(browser, baseUrl) {
   }
 }
 
+// P9: 「ホルン」を行に追加すると、そのオペレーターをsourceに持つ条件付きバフ「ホルン」
+// (素質「軍事要塞」)が自動でONになり、育成設定(昇進/潜在/モジュール)はカード自身の
+// セレクトではなく行の設定にリンクされることを検証する。手動でOFFにした後は行の他
+// フィールド変更で再ONにならないこと・行を削除するとカードが自分のセレクトに戻ること・
+// リロード後もリンク表示が保たれることも確認する。
+// 注: ホルンのモジュールはX(素質「軍事要塞」を強化。Lv3で+31%)とY(素質は強化しないが
+// ATK自体はXより高い)の2種がある。汎用の既定モジュールはATKが最大の方(Y)だが、ホルンは
+// overrides.yamlの`default_module`でXを初期値にしている(実効ATKはXの方が高い)。そのため
+// リンクの既定値は+31%で、Yへ切り替えると素質が強化されないベースE2の値(+23%)になる
+// (「モジュールを選んでいてもこのバフには影響しない実効値」のケース)ことも確認する。
+async function runLinkedBuffScenario(browser, baseUrl) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+
+    const openGlobalBuffs = async () => {
+      if (!(await page.locator('#global-buffs-details').evaluate((el) => el.open))) {
+        await page.click('#global-buffs-details summary');
+        await page.waitForTimeout(50);
+      }
+    };
+    const selectRowModuleByType = async (typeSuffix) => {
+      const select = page.locator('.row-card select[data-field="moduleId"]');
+      const options = await select.locator('option').all();
+      for (const opt of options) {
+        const label = (await opt.innerText()).trim();
+        if (label.endsWith(`（${typeSuffix}）`)) {
+          await select.selectOption(await opt.getAttribute('value'));
+          return;
+        }
+      }
+      throw new Error(`module option ending with (${typeSuffix}) not found`);
+    };
+
+    // --- ホルンを追加すると「ホルン」バフが自動でONになる(行は追加直後から展開状態) ---
+    await addOperator(page, 'ホルン', null);
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    await page.fill('#enemy-hp', '100');
+    await page.fill('#enemy-def', '0');
+    await page.waitForTimeout(150);
+    await openGlobalBuffs();
+    const hornChip = page.locator('.chip[data-buff-id="horn"]');
+    ok('adding a ホルン row auto-enables the ホルン buff chip',
+      (await hornChip.getAttribute('aria-pressed')) === 'true');
+    const hornCard = page.locator('.cond-source-card[data-buff-id="horn"]');
+    ok('ホルン buff card is visible (ON)', (await hornCard.count()) === 1);
+    const hornHintText = (await hornCard.locator('.special-hint').innerText()).trim();
+    ok('buff card shows "FK行（ホルン）の設定を使用" instead of axis selects',
+      hornHintText.includes('FK行（ホルン）の設定を使用'), hornHintText);
+    ok('linked buff card has no elite/potential/module selects of its own',
+      (await hornCard.locator('select[data-field="elite"]').count()) === 0 &&
+      (await hornCard.locator('select[data-field="potential"]').count()) === 0 &&
+      (await hornCard.locator('select[data-field="moduleId"]').count()) === 0);
+    const hornValueDefault = (await hornCard.locator('.cond-source-value').innerText()).trim();
+    ok('ホルン row defaults to module X (overrides default_module) and the buff resolves to +31%',
+      hornValueDefault === '+31%', hornValueDefault);
+
+    // --- 行のモジュールをYへ切り替えると、素質「軍事要塞」は強化されず+23%になる ---
+    const totalAtModuleX = (await page.locator('#verdict-text').innerText()).trim();
+    await selectRowModuleByType('Y');
+    await page.waitForTimeout(150);
+    await openGlobalBuffs();
+    const hornValueModuleY = (await hornCard.locator('.cond-source-value').innerText()).trim();
+    ok('switching the row module to Y changes the linked buff value to +23%', hornValueModuleY === '+23%', hornValueModuleY);
+    const totalAtModuleY = (await page.locator('#verdict-text').innerText()).trim();
+    ok('switching the row module also changes the overall verdict total',
+      totalAtModuleX !== totalAtModuleY, { totalAtModuleX, totalAtModuleY });
+    await selectRowModuleByType('X');
+    await page.waitForTimeout(150);
+
+    // --- 行の昇進をE1に落とすと、モジュール未装備扱い(昇進2未満)になりベースE1の値(+13%)になる ---
+    await page.locator('.row-card select[data-field="elite"]').selectOption('1'); // E1
+    await page.waitForTimeout(150);
+    await openGlobalBuffs();
+    const hornValueE1 = (await hornCard.locator('.cond-source-value').innerText()).trim();
+    ok('dropping the row elite to E1 changes the linked buff value to +13% (module unusable below E2)',
+      hornValueE1 === '+13%', hornValueE1);
+
+    // --- ユーザーが手動でOFFにした後は、行の他フィールド変更で再ONにならない ---
+    await hornChip.click();
+    await page.waitForTimeout(100);
+    ok('turning the buff off manually works', (await hornChip.getAttribute('aria-pressed')) === 'false');
+    await page.locator('.row-card select[data-field="elite"]').selectOption('2'); // 昇進を戻す
+    await page.waitForTimeout(150);
+    ok('changing a row field again does not re-enable the manually-disabled buff (auto-on fires once)',
+      (await hornChip.getAttribute('aria-pressed')) === 'false');
+
+    // --- 行を削除すると、カードは自分のセレクトに戻る(リンク解除) ---
+    await hornChip.click(); // 再度ON(削除後の比較用)
+    await page.waitForTimeout(100);
+    await page.click('[data-action="collapse-row"]');
+    await page.waitForTimeout(100);
+    await page.locator('[data-action="del-row"]').first().click();
+    await page.waitForTimeout(100);
+    await openGlobalBuffs();
+    const hornCardAfterRemove = page.locator('.cond-source-card[data-buff-id="horn"]');
+    ok('after removing the ホルン row, the card no longer shows the linked hint',
+      (await hornCardAfterRemove.locator('.special-hint').count()) === 0);
+    ok('after removing the ホルン row, the card shows its own elite/potential selects again',
+      (await hornCardAfterRemove.locator('select[data-field="elite"]').count()) === 1 &&
+      (await hornCardAfterRemove.locator('select[data-field="potential"]').count()) === 1);
+
+    // --- 状態はlocalStorageで永続化される(リロード後もリンク表示が保たれる) ---
+    await addOperator(page, 'ホルン', null);
+    await page.waitForTimeout(500); // 保存のデバウンス(300ms)より長く待つ
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(300);
+    await openGlobalBuffs();
+    const hornCardReloaded = page.locator('.cond-source-card[data-buff-id="horn"]');
+    const hornHintReloaded = (await hornCardReloaded.locator('.special-hint').innerText()).trim();
+    ok('after reload, the ホルン row + linked buff are both restored',
+      hornHintReloaded.includes('FK行（ホルン）の設定を使用'), hornHintReloaded);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  linked-buff scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_linked_buff.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
 /* ========================================================================= *
  * main
  * ========================================================================= */
@@ -1583,6 +1713,7 @@ try {
   await runOldShapeLocalStorageScenario(browser, baseUrl);
   await runPotentialScenario(browser, baseUrl);
   await runFwSpecialScenario(browser, baseUrl);
+  await runLinkedBuffScenario(browser, baseUrl);
 } catch (e) {
   fail++;
   console.log('FAIL  fatal -> ' + (e && e.stack ? e.stack : e));
