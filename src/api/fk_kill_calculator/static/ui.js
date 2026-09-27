@@ -32,6 +32,9 @@ import {
   dropStaleRows,
   suggest,
   describeSuggestion,
+  defaultInspireSourceCfg,
+  computeInspireSource,
+  computeInspireSelfParts,
 } from "./engine.js";
 
 const ENEMY_PERCENT_FIELDS = new Set(["defPct", "vulnPct"]);
@@ -49,6 +52,8 @@ let globalBuffsOpen = false;
 // P2 follow-up: 特殊強化のⓘ説明文が展開されている行のインデックス集合。
 // render()は#app丸ごと作り直すため、ここに覚えておいて復元する(globalBuffsOpenと同じ考え方)。
 const specialDescOpenIdx = new Set();
+// P3: 鼓舞ソースのⓘ内訳が展開されているソースid集合(specialDescOpenIdxと同じ考え方)。
+const inspireDescOpenIds = new Set();
 let saveTimer = null;
 
 /* ---------------- ユーティリティ ---------------- */
@@ -112,7 +117,27 @@ function blankRow() {
     ignoreDef: 0,
     buffIds: [], // P2: 個別バフ(行ごとに選ぶ)
     specialOn: true, // P2: 特殊強化トグル(デフォルトON)
+    inspireOn: true, // P3: 鼓舞トグル(デフォルトON)
   };
+}
+
+// P3: 鼓舞ソースの現在の設定(state.inspire.sources[id] + 未設定分はデフォルト値)。
+function sourceCfg(source) {
+  const stored = state.inspire && state.inspire.sources && state.inspire.sources[source.id];
+  return { ...defaultInspireSourceCfg(source), ...(stored || {}) };
+}
+
+// P3: computeTotal/findSingleTargetConflicts に渡す鼓舞ソースstate(id→cfg)。
+function inspireStates() {
+  return (state.inspire && state.inspire.sources) || {};
+}
+
+function setSourceCfg(sourceId, patch) {
+  if (!state.inspire) state.inspire = { sources: {} };
+  if (!state.inspire.sources) state.inspire.sources = {};
+  const source = (catalog.inspireSources || []).find((s) => s.id === sourceId);
+  const current = state.inspire.sources[sourceId] || (source ? defaultInspireSourceCfg(source) : {});
+  state.inspire.sources[sourceId] = { ...current, ...patch };
 }
 
 // 状態の保存先。普段はlocalStorageに自動保存し、アドレスバーのURLは書き換えない
@@ -254,7 +279,7 @@ function rowPlainSummary(row) {
   const op = findOperator(catalog, row.opId);
   if (!op) return "オペレーター未選択";
   const entry = findEntry(op, row.entryIdx);
-  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds);
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates());
   const r = results[0];
   return `${op.name} ${shortSkillRef(entry)}: ${fmtInt(r.perHit)}×${row.hits}Hit → 実ダメ ${fmtInt(r.rowDamage)}`;
 }
@@ -267,6 +292,12 @@ function buffCountBadge(r) {
   return `<span class="badge badge-buffcount" title="適用中のバフ数">バフ${n}</span>`;
 }
 
+// P3: 鼓舞が実際に適用されている(amount>0)行にだけ小さな「鼓舞」バッジを出す。
+function inspireBadge(r) {
+  if (!r || !r.inspireApplied) return "";
+  return `<span class="badge badge-inspire" title="${escapeHtml(r.inspireApplied.sourceName)}の鼓舞+${fmtInt(r.inspireApplied.amount)}が適用中">鼓舞</span>`;
+}
+
 // 折りたたみ行の中身: [色ドット(凡例兼用)] [名前+短いスキル参照。省略可] [バフN。0件なら省略]
 // … [ダメージ。省略不可・太字]。
 // スキルの表示名(entry.skillLabel)は展開ビューにあるのでここには出さない（UIラウンド2）。
@@ -277,11 +308,11 @@ function renderRowSummary(row, idx) {
     return `${dot}<span class="row-summary-name row-summary-empty">オペレーター未選択</span>`;
   }
   const entry = findEntry(op, row.entryIdx);
-  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds);
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates());
   const r = results[0];
   const tooltip = escapeHtml(rowPlainSummary(row));
   const nameRef = escapeHtml(`${op.name} ${shortSkillRef(entry)}`);
-  return `${dot}<span class="row-summary-name" title="${tooltip}">${nameRef}</span>${buffCountBadge(r)}`
+  return `${dot}<span class="row-summary-name" title="${tooltip}">${nameRef}</span>${buffCountBadge(r)}${inspireBadge(r)}`
     + `<span class="row-summary-damage" title="${tooltip}">${fmtInt(r.rowDamage)}</span>`;
 }
 
@@ -426,10 +457,26 @@ function renderSpecialCheckbox(op, entry, row, idx) {
   </div>`;
 }
 
+// P3: 行の鼓舞トグル。鼓舞ソースが1件も無ければ何も出さない(specialのentry.special有無と
+// 同じ考え方)。実際に適用中のソースがあればその名前をtitleで示す。
+function renderRowInspireToggle(r, row, idx) {
+  const sources = catalog.inspireSources || [];
+  if (!sources.length) return "";
+  const applied = r && r.inspireApplied;
+  const amountText = applied ? `+${fmtInt(applied.amount)}` : "±0";
+  const title = applied ? `${escapeHtml(applied.sourceName)}の鼓舞` : "現在ONになっている鼓舞ソースがありません";
+  return `<div class="row-field">
+    <label class="check-label" title="${title}">
+      <input type="checkbox" data-role="row" data-field="inspireOn" data-idx="${idx}" ${row.inspireOn !== false ? "checked" : ""}>
+      鼓舞: ${amountText} をこの行に適用
+    </label>
+  </div>`;
+}
+
 function renderRowExpanded(row, idx, singleConflicts) {
   const op = findOperator(catalog, row.opId);
   const entry = op ? findEntry(op, row.entryIdx) : null;
-  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds);
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates());
   const r = results[0];
 
   let entrySelectHtml = `<select data-role="row" data-field="entryIdx" data-idx="${idx}" ${op ? "" : "disabled"}>`;
@@ -515,6 +562,7 @@ function renderRowExpanded(row, idx, singleConflicts) {
     ${renderIndividualBuffChips(row, idx, singleConflicts)}
     ${renderConditionalStatusLine(r)}
     ${renderSpecialCheckbox(op, entry, row, idx)}
+    ${renderRowInspireToggle(r, row, idx)}
     <div class="row-grid2">
       <label>手入力バフ+%
         <input type="number" step="any" data-role="row" data-field="buffPct" data-idx="${idx}" value="${fmtPct(row.buffPct, 3)}">
@@ -536,32 +584,164 @@ function renderRowExpanded(row, idx, singleConflicts) {
   `;
 }
 
-// フォーミュラ行(P2): `691 ×(1 + セルフ0% + 個別150% + 条件0% + 手入力0%) × 400% = 6,910 /hit`。
-// 鼓舞(flat種バフの合計)は0でない時だけ足す(仕様どおり)。
+// フォーミュラ行(P2/P3): `691 ×(1 + セルフ0% + 個別150% + 条件0% + 手入力0%) × 400% = 6,910 /hit`。
+// 鼓舞(flat種バフ + P3の鼓舞ソースからの加算の合計)は0でない時だけ足す(仕様どおり)。
 function renderFormulaLine(op, row) {
   const entry = findEntry(op, row.entryIdx);
-  const { atk, final, perHit, rowDamage, atFloor, breakdown, specialAddPct, specialMulFactor } = computeTotal(
+  const { atk, final, perHit, rowDamage, atFloor, breakdown, specialAddPct, specialMulFactor, inspireApplied } = computeTotal(
     catalog,
     [row],
     state.enemy,
     state.globalBuffIds,
+    inspireStates(),
   ).results[0];
   const specialLabel = entry && entry.special ? entry.special.label : "";
   const selfPart = specialAddPct > 0 ? `セルフ${fmtPct(row.selfPct)}%+${specialLabel}${fmtPct(specialAddPct)}%` : `セルフ${fmtPct(row.selfPct)}%`;
   const individualPart = `個別${fmtPct(breakdown.individualPct)}%`;
   const conditionalPart = `条件${fmtPct(breakdown.conditionalPct)}%`;
   const manualPart = `手入力${fmtPct(row.buffPct)}%`;
-  const flatTotal = breakdown.individualFlat + breakdown.conditionalFlat;
+  const flatTotal = breakdown.individualFlat + breakdown.conditionalFlat + (inspireApplied ? inspireApplied.amount : 0);
   const inspirePart = flatTotal !== 0 ? ` + 鼓舞${fmtInt(flatTotal)}` : "";
   const multiplierPart =
     specialMulFactor !== 1 ? `${fmtPct(row.multiplier)}% × ×${trimNum(specialMulFactor)}(${specialLabel})` : `${fmtPct(row.multiplier)}%`;
-  const line1 = `${fmtInt(atk)} ×(1 + ${selfPart} + ${individualPart} + ${conditionalPart} + ${manualPart})${inspirePart} × ${multiplierPart} = ${fmtInt(final)} /hit`;
+  // 鼓舞(固定値)は%適用後・倍率の前に足すので、鼓舞がある時は外側を括弧で囲んで
+  // 「鼓舞にだけ倍率が掛かる」ように読めないようにする。
+  const atkPart = `${fmtInt(atk)} ×(1 + ${selfPart} + ${individualPart} + ${conditionalPart} + ${manualPart})`;
+  const beforeMultiplier = inspirePart ? `(${atkPart}${inspirePart})` : atkPart;
+  const line1 = `${beforeMultiplier} × ${multiplierPart} = ${fmtInt(final)} /hit`;
   const floorNote = atFloor ? `<span class="floor-note">（5%floor発動中）</span>` : "";
   const line2 = `→ 実ダメ ${fmtInt(perHit)}/hit × ${row.hits}Hit = <b>${fmtInt(rowDamage)}</b> ${floorNote}`;
   return `${escapeHtml(line1)}<br>${line2}`;
 }
 
-// 「② 全体バフ（条件付き）」セクション。summaryに"N件ON"を出す(仕様どおり)。
+/* ---------------- 描画: 鼓舞(インスパイア)ソース(P3) ---------------- */
+
+// entry.tagsと同様、source.modulesから種別名("X"等)を引く(見つからなければ"?")。
+function moduleTypeNameForSource(source, moduleId) {
+  const m = source && source.modules.find((mm) => mm.id === moduleId);
+  return m ? m.typeName : "?";
+}
+
+// self_partsのうち常時ONでないもの(トグル可能/モジュール条件付き)を並べる。
+// requiresModuleを持つが現在のモジュール選択と一致しない間はP2の特殊強化ヒントと
+// 同じ考え方でヒント文に切り替える(チェックボックスを隠す)。
+function renderInspireSelfPartsControls(source, cfg) {
+  const parts = source.selfParts || [];
+  let html = "";
+  for (const p of parts) {
+    if (p.alwaysOn) continue;
+    const applicable = !p.requiresModule || cfg.moduleId === p.requiresModule;
+    if (!applicable) {
+      const typeName = moduleTypeNameForSource(source, p.requiresModule);
+      html += `<p class="special-hint" title="${escapeHtml(p.description || "")}">「${escapeHtml(p.label)}」はモジュール${escapeHtml(typeName)}装備時のみ有効</p>`;
+      continue;
+    }
+    const stored = cfg.parts && cfg.parts[p.id];
+    const checked = stored !== undefined ? !!stored : !!p.defaultOn;
+    html += `<label class="check-label" title="${escapeHtml(p.description || "")}">
+      <input type="checkbox" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="part:${escapeHtml(p.id)}" ${checked ? "checked" : ""}>
+      ${escapeHtml(p.label)}
+    </label>`;
+  }
+  return html;
+}
+
+// 個別バフチップ(行と同じ一覧を鼓舞ソース用に描く。スペック変更で追加: ソース自身にも
+// 個別バフを乗せられる。行と同じsingle_target⚠判定[singleConflicts]を共有する)。
+function renderSourceIndividualBuffChips(source, cfg, singleConflicts) {
+  const individual = (catalog.buffers || []).filter((b) => b.scope.type === "individual");
+  if (!individual.length) return "";
+  const chips = individual
+    .map((b) => {
+      const on = (cfg.buffIds || []).includes(b.id);
+      const pctLabel = b.kind === "pct" ? `+${fmtPct(b.value)}%` : `+${trimNum(b.value)}`;
+      const conflict = on && singleConflicts.has(b.id);
+      const warn = conflict ? `<span class="chip-warn" title="単体対象のバフです。他でも選ばれています">⚠</span>` : "";
+      return `<button type="button" class="chip" data-action="toggle-source-buff" data-source-id="${escapeHtml(source.id)}" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${warn}${escapeHtml(b.name)} ${pctLabel}</button>`;
+    })
+    .join("");
+  return `<div class="row-field"><label>個別バフ</label><div class="chip-row">${chips}</div></div>`;
+}
+
+// ⓘ内訳の1行: `480 ×(1 + 素質9% + X8% + 個別0% + 条件付き0% + 手入力0%) × 110% = 618`。
+function describeInspireBreakdown(result) {
+  const partsText = result.selfParts.applied.map((p) => `${p.shortLabel}${fmtPct(p.value)}%`).join(" + ") || "素質0%";
+  const individualText = `個別${fmtPct(result.breakdown.individualPct)}%`;
+  const conditionalText = `条件付き${fmtPct(result.breakdown.conditionalPct)}%`;
+  const manualText = `手入力${fmtPct(result.manualPct)}%`;
+  const ratioText = `${fmtPct(result.ratio)}%`;
+  return `${fmtInt(result.atk)} ×(1 + ${partsText} + ${individualText} + ${conditionalText} + ${manualText}) × ${ratioText} = ${fmtInt(result.amount)}`;
+}
+
+// 結果行(→ 鼓舞 +314)+ⓘ展開ブロック。renderLiveが手入力バフ+%の打鍵中に
+// innerHTMLごと差し替えられるよう、常にラッパー(`.inspire-result-wrap`)で包む
+// (row-formulaと同じ考え方)。
+function renderInspireResultBlock(source, cfg, result) {
+  const descOpen = inspireDescOpenIds.has(source.id);
+  const breakdownText = describeInspireBreakdown(result);
+  const infoBtn = `<button type="button" class="special-info-btn" data-action="toggle-inspire-desc" data-source-id="${escapeHtml(source.id)}" aria-expanded="${descOpen}" title="${escapeHtml(breakdownText)}">ⓘ</button>`;
+  const descBlock = descOpen ? `<p class="special-desc">${escapeHtml(breakdownText)}</p>` : "";
+  return `<p class="inspire-result">→ 鼓舞 +${fmtInt(result.amount)}${infoBtn}</p>${descBlock}`;
+}
+
+// 鼓舞ソース1件分のカード。OFFの間はトグルチップだけ。ONになると
+// スキル/攻撃凸/素質凸/モジュール/自己%パーツ/個別バフ/手入力バフ+結果行を表示する。
+function renderInspireSourceCard(source, singleConflicts) {
+  const cfg = sourceCfg(source);
+  const toggleChip = `<button type="button" class="chip" data-action="toggle-inspire-source" data-source-id="${escapeHtml(source.id)}" aria-pressed="${cfg.on}">${escapeHtml(source.name)}</button>`;
+  if (!cfg.on) {
+    return `<div class="inspire-source-card">${toggleChip}</div>`;
+  }
+
+  const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds);
+  const skillOptions = source.skills
+    .map((s) => {
+      const label = /^\d+$/.test(s.skillNum) ? `S${s.skillNum}` : s.skillNum;
+      return `<option value="${escapeHtml(s.skillNum)}"${s.skillNum === cfg.skillNum ? " selected" : ""}>${escapeHtml(label)}</option>`;
+    })
+    .join("");
+
+  return `
+  <div class="inspire-source-card inspire-source-on" data-source-id="${escapeHtml(source.id)}">
+    <div class="inspire-source-header">${toggleChip}</div>
+    <div class="row-grid2">
+      <label>スキル
+        <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="skillNum">${skillOptions}</select>
+      </label>
+      <label class="check-label">
+        <input type="checkbox" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="potential" ${cfg.potential ? "checked" : ""}>
+        攻撃凸
+      </label>
+    </div>
+    <label class="check-label">
+      <input type="checkbox" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="talentPotential" ${cfg.talentPotential ? "checked" : ""}>
+      ${escapeHtml(source.talentPotentialLabel)}
+    </label>
+    <div class="row-grid2">
+      <label>モジュール
+        <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="moduleId">${moduleOptions(source, cfg)}</select>
+      </label>
+      <label>Lv
+        <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="moduleLv" ${cfg.moduleId ? "" : "disabled"}>
+          <option value="1"${cfg.moduleLv === 1 ? " selected" : ""}>1</option>
+          <option value="2"${cfg.moduleLv === 2 ? " selected" : ""}>2</option>
+          <option value="3"${cfg.moduleLv === 3 ? " selected" : ""}>3</option>
+        </select>
+      </label>
+    </div>
+    ${renderInspireSelfPartsControls(source, cfg)}
+    ${renderSourceIndividualBuffChips(source, cfg, singleConflicts)}
+    <div class="row-field">
+      <label>手入力バフ+%
+        <input type="number" step="any" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="buffPct" value="${fmtPct(cfg.buffPct, 3)}">
+      </label>
+    </div>
+    <div class="inspire-result-wrap" data-role="inspire-result" data-source-id="${escapeHtml(source.id)}">${renderInspireResultBlock(source, cfg, result)}</div>
+  </div>`;
+}
+
+// 「② 全体バフ（条件付き）」セクション。summaryに"N件ON"を出す(仕様どおり。P3で
+// 鼓舞ソースのON件数と合計量も合算して出す)。
 function renderGlobalBuffs() {
   const conditional = (catalog.buffers || []).filter((b) => b.scope.type === "conditional");
   const onIds = state.globalBuffIds || [];
@@ -574,18 +754,33 @@ function renderGlobalBuffs() {
       return `<button type="button" class="chip" data-action="toggle-global-buff" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${escapeHtml(b.name)} ${escapeHtml(targetLabel)} ${pctLabel}</button>`;
     })
     .join("");
+
+  const inspireSources = catalog.inspireSources || [];
+  const singleConflicts = findSingleTargetConflicts(catalog, state.rows, inspireStates());
+  const onSourceCfgs = inspireSources.map((s) => sourceCfg(s)).filter((cfg) => cfg.on);
+  const inspireTotal = inspireSources.reduce((sum, s) => {
+    const cfg = sourceCfg(s);
+    return cfg.on ? sum + computeInspireSource(s, cfg, catalog, state.globalBuffIds).amount : sum;
+  }, 0);
+  const summaryCount = onCount + onSourceCfgs.length;
+  const inspireSummarySuffix = onSourceCfgs.length ? `・鼓舞+${fmtInt(inspireTotal)}` : "";
+  const inspireHtml = inspireSources.length
+    ? `<div class="inspire-block"><p class="inspire-heading">── 鼓舞 ──</p>${inspireSources.map((s) => renderInspireSourceCard(s, singleConflicts)).join("")}</div>`
+    : "";
+
   return `
   <section class="card" id="global-buffs-section">
     <h2>② 全体バフ（条件付き）</h2>
     <details id="global-buffs-details"${globalBuffsOpen ? " open" : ""}>
-      <summary>${onCount}件ON</summary>
+      <summary>${summaryCount}件ON${inspireSummarySuffix}</summary>
       <div class="chip-row">${chips}</div>
+      ${inspireHtml}
     </details>
   </section>`;
 }
 
 function renderRows() {
-  const singleConflicts = findSingleTargetConflicts(catalog, state.rows);
+  const singleConflicts = findSingleTargetConflicts(catalog, state.rows, inspireStates());
   let html = `${operatorDatalist()}<section class="card" id="rows-section"><h2>③ FKするオペレーター</h2><div id="rows-list">`;
   state.rows.forEach((row, idx) => {
     const expanded = idx === expandedIdx;
@@ -611,7 +806,7 @@ function renderRows() {
 /* ---------------- 描画: 判定セクション ---------------- */
 
 function renderVerdict() {
-  const { results, total, killed } = computeTotal(catalog, state.rows, state.enemy, state.globalBuffIds);
+  const { results, total, killed } = computeTotal(catalog, state.rows, state.enemy, state.globalBuffIds, inspireStates());
   const hp = state.enemy.hp;
   const scale = Math.max(total, hp, 1);
 
@@ -698,6 +893,15 @@ function renderLive() {
       if (main) main.innerHTML = renderRowSummary(row, idx);
     }
   });
+  // P3: ONになっている鼓舞ソースの結果行(→ 鼓舞 +N)も打鍵のたびに差し替える
+  // (手入力バフ+%はrenderLive経由で更新するため。行の入力欄は他のケースと同じく触らない)。
+  (catalog.inspireSources || []).forEach((source) => {
+    const wrap = document.querySelector(`.inspire-result-wrap[data-source-id="${source.id}"]`);
+    if (!wrap) return;
+    const cfg = sourceCfg(source);
+    const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds);
+    wrap.innerHTML = renderInspireResultBlock(source, cfg, result);
+  });
   $("verdict-section").outerHTML = renderVerdict();
   saveState();
 }
@@ -768,6 +972,11 @@ function onRowFieldChange(el) {
     render();
     return;
   }
+  if (field === "inspireOn") {
+    row.inspireOn = el.checked;
+    render();
+    return;
+  }
   if (field === "multiplierCandidate") {
     if (el.value !== "") row.multiplier = Number(el.value);
     render();
@@ -830,6 +1039,72 @@ function toggleGlobalBuff(buffId) {
   render();
 }
 
+/* ---------------- イベント処理: 鼓舞ソース(P3) ---------------- */
+
+function toggleInspireSource(sourceId) {
+  const source = (catalog.inspireSources || []).find((s) => s.id === sourceId);
+  if (!source) return;
+  const cfg = sourceCfg(source);
+  setSourceCfg(sourceId, { on: !cfg.on });
+  globalBuffsOpen = true; // チップを操作した=開いて見ている最中なので、再描画後も開いたままにする
+  render();
+}
+
+function toggleSourceBuff(sourceId, buffId) {
+  const source = (catalog.inspireSources || []).find((s) => s.id === sourceId);
+  if (!source) return;
+  const cfg = sourceCfg(source);
+  const set = new Set(cfg.buffIds || []);
+  if (set.has(buffId)) set.delete(buffId);
+  else set.add(buffId);
+  setSourceCfg(sourceId, { buffIds: Array.from(set) });
+  render();
+}
+
+// select/checkbox(スキル・攻撃凸・素質凸・モジュール・モジュールLv・自己%パーツ)は
+// 常にrenderで確定させる(row側のonRowFieldChangeと同じ方針。構造が変わるため)。
+// 手入力バフ+%(数値input)だけはrenderLive経由でカーソル位置を保つ。
+function onInspireFieldChange(el) {
+  const sourceId = el.dataset.sourceId;
+  const field = el.dataset.field;
+  const source = (catalog.inspireSources || []).find((s) => s.id === sourceId);
+  if (!source) return;
+  const cfg = sourceCfg(source);
+
+  if (field.startsWith("part:")) {
+    const partId = field.slice("part:".length);
+    setSourceCfg(sourceId, { parts: { ...(cfg.parts || {}), [partId]: el.checked } });
+    render();
+    return;
+  }
+  if (field === "skillNum") {
+    setSourceCfg(sourceId, { skillNum: el.value });
+    render();
+    return;
+  }
+  if (field === "potential" || field === "talentPotential") {
+    setSourceCfg(sourceId, { [field]: el.checked });
+    render();
+    return;
+  }
+  if (field === "moduleId") {
+    setSourceCfg(sourceId, { moduleId: el.value || null });
+    render();
+    return;
+  }
+  if (field === "moduleLv") {
+    setSourceCfg(sourceId, { moduleLv: Number(el.value) });
+    render();
+    return;
+  }
+  if (field === "buffPct") {
+    const value = readFieldValue(el, true);
+    if (valuesEqual(cfg.buffPct, value)) return;
+    setSourceCfg(sourceId, { buffPct: value });
+    renderLive();
+  }
+}
+
 function addRow() {
   state.rows.push(blankRow());
   expandedIdx = state.rows.length - 1;
@@ -877,6 +1152,7 @@ function onAppInput(ev) {
   if (el.dataset.field === "opName") return;
   if (el.dataset.role === "enemy") onEnemyFieldChange(el);
   else if (el.dataset.role === "row" && el.tagName === "INPUT" && el.type !== "checkbox") onRowFieldChange(el);
+  else if (el.dataset.role === "inspire" && el.tagName === "INPUT" && el.type !== "checkbox") onInspireFieldChange(el);
 }
 
 function onAppChange(ev) {
@@ -884,6 +1160,7 @@ function onAppChange(ev) {
   if (!el.dataset) return;
   if (el.dataset.role === "enemy") onEnemyFieldChange(el);
   else if (el.dataset.role === "row") onRowFieldChange(el);
+  else if (el.dataset.role === "inspire") onInspireFieldChange(el);
 }
 
 function onAppClick(ev) {
@@ -924,6 +1201,19 @@ function onAppClick(ev) {
       else specialDescOpenIdx.add(idx);
       render();
       break;
+    case "toggle-inspire-source":
+      toggleInspireSource(btn.dataset.sourceId);
+      break;
+    case "toggle-source-buff":
+      toggleSourceBuff(btn.dataset.sourceId, btn.dataset.buffId);
+      break;
+    case "toggle-inspire-desc": {
+      const sourceId = btn.dataset.sourceId;
+      if (inspireDescOpenIds.has(sourceId)) inspireDescOpenIds.delete(sourceId);
+      else inspireDescOpenIds.add(sourceId);
+      render();
+      break;
+    }
     default:
       break;
   }
@@ -934,7 +1224,7 @@ function onAppClick(ev) {
 export async function initUi() {
   catalog = await fetchCatalog();
   const shared = takeStateFromSharedUrl();
-  state = shared ?? loadSavedState() ?? { v: 1, enemy: defaultEnemy(), rows: [], globalBuffIds: [] };
+  state = shared ?? loadSavedState() ?? { v: 1, enemy: defaultEnemy(), rows: [], globalBuffIds: [], inspire: { sources: {} } };
   if (shared) {
     showToast("共有URLの内容を読み込みました");
     saveState();

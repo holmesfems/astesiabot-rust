@@ -228,6 +228,80 @@ pub struct Buffer {
     pub note: Option<String>,
 }
 
+/// 鼓舞ソースの「モジュールによる素質強化」(P3)。指定モジュールを指定Lvで装備している間、
+/// `pct`の代わりに`pct_by_level`の対応要素を採用する(置き換え。加算ではない)。
+/// `potential_bonus_by_level`は`talentPotential`(素質凸)がONの時だけ追加加算する
+/// (置き換え後の値に対する加算。詳細は`buffers.rs`冒頭コメント参照)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct InspireModuleOverride {
+    pub module: String,
+    pub pct_by_level: [f64; 3],
+    pub potential_bonus_by_level: [f64; 3],
+}
+
+/// 鼓舞ソースの「自己%条件パーツ」1件分(P3)。素質・モジュール由来の自己ATK%条件を
+/// 汎用的に表現する(特定オペレーターにハードコードしない。詳細はbuffers.rs冒頭コメント参照)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct InspireSelfPart {
+    pub id: String,
+    /// チェックボックス/ヒントに出す説明的なラベル。
+    pub label: String,
+    /// 計算式(内訳)表示用の短いラベル(例: "素質"、"X")。省略時は`label`を使う。
+    pub short_label: String,
+    /// 内訳ⓘに表示する補足説明(省略可)。
+    pub description: Option<String>,
+    /// 基礎値(モジュール条件が無い/満たさない時の値)。
+    pub pct: f64,
+    /// `talentPotential`(素質凸)ONの時に`pct`へ加算する値。
+    pub pct_potential_bonus: f64,
+    /// モジュールによる置き換え強化(省略可。`talent`/`talent_abyssal`のような
+    /// 「常にある効果をモジュールで底上げする」パーツ用)。
+    pub module_override: Option<InspireModuleOverride>,
+    /// このパーツ自体の発動にモジュール装備を必須とする場合のuniEquipId(省略可。
+    /// `module_x_two_ops`のような「モジュール無しでは存在しない効果」パーツ用。
+    /// `module_override`と両方指定することは無い)。
+    pub requires_module: Option<String>,
+    /// `requires_module`使用時のLv1〜3ごとの値(要素数3必須)。
+    pub pct_by_module_level: Option<[f64; 3]>,
+    /// 他のパーツidを「置き換える」(加算ではない)。このパーツがON+適用可能な間、
+    /// `replaces`が指すパーツの寄与は無効化される。
+    pub replaces: Option<String>,
+    /// 常時有効(チェックボックスを出さない)。`replaces`で無効化され得る。
+    pub always_on: bool,
+    /// トグル可能なパーツの初期状態(ユーザーが未設定の時に使う既定値)。
+    pub default_on: bool,
+}
+
+/// 鼓舞ソースの「このスキルなら鼓舞倍率はいくつか」(P3)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct InspireSkillRatio {
+    pub skill_num: String,
+    pub ratio: f64,
+}
+
+/// 鼓舞(インスパイア)ソース1件分(P3)。fk_dataシート起点ではなく`buffers.yaml`の`inspire`
+/// リスト起点で組み立てる(鼓舞役はFKする側ではないためfk_dataに載らない)。
+/// `atkBase`/`atkPotential`/`modules`/`tags`は`operator_combat`由来（`CatalogOperator`と
+/// 同じ構築方針。エンジン側は`resolveAtk`をそのまま再利用できるようフィールド名を揃えている）。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct InspireSource {
+    pub id: String,
+    pub operator_id: String,
+    pub name: String,
+    pub tags: Vec<String>,
+    pub atk_base: f64,
+    pub atk_potential: f64,
+    pub modules: Vec<CatalogModule>,
+    pub skills: Vec<InspireSkillRatio>,
+    /// 「素質凸」チェックボックスの表示ラベル(オペレーターごとに文言が違い得るため)。
+    pub talent_potential_label: String,
+    pub self_parts: Vec<InspireSelfPart>,
+}
+
 /// カタログ全体。`/FrameKillCalculator/catalog.json`のレスポンス本体。
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -235,4 +309,6 @@ pub struct Catalog {
     pub operators: Vec<CatalogOperator>,
     /// P1では常に空(P2で中身を持たせる)。
     pub buffers: Vec<Buffer>,
+    /// 鼓舞ソース一覧(P3)。P1/P2では常に空。
+    pub inspire_sources: Vec<InspireSource>,
 }

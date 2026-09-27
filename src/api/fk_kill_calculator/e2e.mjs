@@ -554,6 +554,187 @@ async function runBuffScenario(browser, baseUrl) {
   }
 }
 
+// P3: 鼓舞(インスパイア)ソース(濁心スカジ)の表現層テスト。ONにすると鼓舞量が表示され
+// 判定が変わること、スキル切替、モジュール条件によるチェックボックス/ヒントの出し分け、
+// 行の鼓舞トグル、折りたたみバッジ、手入力バフ+%欄のキー入力、single_target⚠が
+// 行と鼓舞ソースを跨いで検出されること、リロード/共有URLでの永続化を検証する。
+async function runInspireScenario(browser, baseUrl) {
+  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+
+    // --- Ashを追加してS3/400%、敵HPを設定(鼓舞ONで撃破に変わる値にする) ---
+    await addOperator(page, 'Ash', '400%');
+    await page.click('[data-action="collapse-row"]');
+    await page.fill('#enemy-hp', '7000');
+    await page.fill('#enemy-def', '0');
+    await page.waitForTimeout(150);
+    const verdictBeforeInspire = await page.locator('#verdict-text').innerText();
+    ok('verdict before enabling inspire is "足りない" (7000 > Ash単体の6910)', verdictBeforeInspire.includes('足りない'), verdictBeforeInspire);
+
+    // --- ②全体バフを開き、鼓舞ソース(濁心スカジ)のトグルチップをON ---
+    await page.click('#global-buffs-details summary');
+    await page.waitForTimeout(50);
+    const skadiChip = page.locator('.chip[data-source-id="skadi2"]');
+    ok('inspire source toggle chip (濁心スカジ) exists', (await skadiChip.count()) === 1);
+    await skadiChip.click();
+    await page.waitForTimeout(100);
+    ok('inspire source card expands after enabling (skill select appears)',
+      (await page.locator('select[data-source-id="skadi2"][data-field="skillNum"]').count()) === 1);
+
+    // --- 鼓舞量が表示され、判定が変わる ---
+    const resultLineOn = await page.locator('.inspire-result').innerText();
+    ok('inspire result line shows a positive amount', /→\s*鼓舞\s*\+\d/.test(resultLineOn), resultLineOn);
+    await page.waitForTimeout(150);
+    const verdictAfterInspire = await page.locator('#verdict-text').innerText();
+    ok('verdict changes after enabling inspire (still shown, value differs)', verdictAfterInspire !== verdictBeforeInspire, `${verdictBeforeInspire} -> ${verdictAfterInspire}`);
+
+    // --- 折りたたみ行に「鼓舞」バッジが出る ---
+    const inspireBadge = page.locator('.badge-inspire');
+    ok('collapsed row shows a "鼓舞" badge once inspire applies', (await inspireBadge.count()) >= 1);
+
+    // --- スキル切替(S2/S3)で鼓舞量が変わる ---
+    const skillSelect = page.locator('select[data-source-id="skadi2"][data-field="skillNum"]');
+    await skillSelect.selectOption('2');
+    await page.waitForTimeout(100);
+    const amountS2 = await page.locator('.inspire-result').innerText();
+    await skillSelect.selectOption('3');
+    await page.waitForTimeout(100);
+    const amountS3 = await page.locator('.inspire-result').innerText();
+    ok('switching skill S2 -> S3 changes the inspire amount', amountS2 !== amountS3, `${amountS2} / ${amountS3}`);
+
+    // --- モジュール条件: X未選択では「範囲に他オペ2名以上」はヒント表示、X選択でチェックボックスに変わる ---
+    const moduleSelect = page.locator('select[data-source-id="skadi2"][data-field="moduleId"]');
+    const moduleLabels = await moduleSelect.locator('option').allTextContents();
+    const xIdx = moduleLabels.findIndex((l) => l.includes('（X）'));
+    const yIdx = moduleLabels.findIndex((l) => l.includes('（Y）'));
+    ok('module select has both X and Y options for 濁心スカジ', xIdx >= 0 && yIdx >= 0, moduleLabels);
+    ok('condition part (module_x_two_ops) shows a hint before X is selected',
+      (await page.locator('.inspire-source-card .special-hint').count()) >= 1);
+    await moduleSelect.selectOption({ index: xIdx });
+    await page.waitForTimeout(100);
+    ok('selecting module X reveals the condition checkbox instead of the hint',
+      (await page.locator('input[data-source-id="skadi2"][data-field^="part:"]').count()) >= 1);
+
+    // --- 行の鼓舞トグル: OFFにするとその行だけ鼓舞が外れる ---
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const rowInspireCheckbox = page.locator('input[data-field="inspireOn"]');
+    ok('row inspire toggle checkbox is present and checked by default', await rowInspireCheckbox.isChecked());
+    const formulaWithInspire = await page.locator('.row-formula').innerText();
+    ok('row formula line includes 鼓舞 while row inspire toggle is ON', formulaWithInspire.includes('鼓舞'), formulaWithInspire);
+    // 鼓舞は倍率の前に足すので「(ATK×(1+…) + 鼓舞N) × 倍率」と外側を括弧で囲む
+    ok('row formula wraps "ATK×(…) + 鼓舞" in parentheses before the multiplier',
+      /^\(\d[\d,]* ×\(1 \+ .*\) \+ 鼓舞[\d,]+\) × /.test(formulaWithInspire), formulaWithInspire);
+    await rowInspireCheckbox.uncheck();
+    await page.waitForTimeout(100);
+    const formulaWithoutInspire = await page.locator('.row-formula').innerText();
+    ok('row formula line drops 鼓舞 once the row toggle is OFF', !formulaWithoutInspire.includes('鼓舞'), formulaWithoutInspire);
+    await rowInspireCheckbox.check();
+    await page.waitForTimeout(100);
+    await page.click('[data-action="collapse-row"]');
+
+    // --- 手入力バフ+%欄: 1打鍵ずつ打っても桁順が保たれる(renderLive経由)。
+    //     ②全体バフは既にON操作で開いたままのはず(globalBuffsOpenはrender()を跨いで保持される)
+    //     なので、閉じている場合だけ開く(summaryクリックはトグルなので誤って閉じないようにする)。 ---
+    const globalBuffsDetails = page.locator('#global-buffs-details');
+    if (!(await globalBuffsDetails.evaluate((el) => el.open))) {
+      await page.click('#global-buffs-details summary');
+      await page.waitForTimeout(50);
+    }
+    const sourceBuffPctInput = page.locator('input[data-source-id="skadi2"][data-field="buffPct"]');
+    await sourceBuffPctInput.fill('');
+    await sourceBuffPctInput.pressSequentially('10');
+    ok('typing "10" key by key into the source manual buff field yields 10', (await sourceBuffPctInput.inputValue()) === '10',
+      await sourceBuffPctInput.inputValue());
+    const resultAfterTyping = await page.locator('.inspire-result').innerText();
+    ok('inspire result updates live while typing the manual buff field', /→\s*鼓舞\s*\+\d/.test(resultAfterTyping), resultAfterTyping);
+    await sourceBuffPctInput.fill('0');
+    await page.waitForTimeout(100);
+
+    // --- ⓘ内訳の展開 ---
+    const infoBtn = page.locator('.inspire-result-wrap .special-info-btn');
+    ok('ⓘ breakdown button is present on the inspire result line', (await infoBtn.count()) === 1);
+    await infoBtn.click();
+    await page.waitForTimeout(100);
+    const breakdownText = await page.locator('.inspire-result-wrap .special-desc').innerText();
+    ok('breakdown text mentions the skill ratio formula', breakdownText.includes('×') && breakdownText.includes('='), breakdownText);
+
+    // --- 個別バフ(血漿)を鼓舞ソースへ追加すると量が増える ---
+    const beforePlasma = await page.locator('.inspire-result').innerText();
+    const plasmaChip = page.locator('.inspire-source-card .chip[data-buff-id="plasma"]');
+    ok('individual buff chip (血漿) exists on the inspire source card', (await plasmaChip.count()) === 1);
+    await plasmaChip.click();
+    await page.waitForTimeout(100);
+    const afterPlasma = await page.locator('.inspire-result').innerText();
+    ok('adding 血漿(individual buff) to the inspire source raises the amount', afterPlasma !== beforePlasma, `${beforePlasma} -> ${afterPlasma}`);
+    await plasmaChip.click(); // 元に戻す(後続シナリオへの影響を避ける)
+    await page.waitForTimeout(100);
+
+    // --- single_target(エクシア)⚠: 鼓舞ソースと行の両方で選ぶと両方に⚠が出る ---
+    const sourceExusiaiChip = page.locator('.inspire-source-card .chip[data-buff-id="exusiai"]');
+    await sourceExusiaiChip.click();
+    await page.waitForTimeout(100);
+    ok('no ⚠ yet (エクシア selected only on the inspire source)', (await sourceExusiaiChip.locator('.chip-warn').count()) === 0);
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const rowExusiaiChip = page.locator('.row-expanded .chip[data-buff-id="exusiai"]');
+    await rowExusiaiChip.click();
+    await page.waitForTimeout(100);
+    ok('⚠ appears on the row once the same single_target buff is also selected on the inspire source',
+      (await page.locator('.row-expanded .chip-warn').count()) === 1);
+    ok('⚠ also appears on the inspire source chip', (await sourceExusiaiChip.locator('.chip-warn').count()) === 1);
+    await rowExusiaiChip.click(); // 元に戻す
+    await page.waitForTimeout(100);
+    await sourceExusiaiChip.click();
+    await page.waitForTimeout(100);
+    await page.click('[data-action="collapse-row"]');
+
+    // --- リロードで鼓舞の設定が保持される(localStorage) ---
+    await page.waitForTimeout(500);
+    const summaryBeforeReload = await page.locator('#global-buffs-details summary').innerText();
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(300);
+    const summaryAfterReload = await page.locator('#global-buffs-details summary').innerText();
+    ok('inspire ON state survives reload (localStorage)', summaryAfterReload === summaryBeforeReload, `${summaryBeforeReload} / ${summaryAfterReload}`);
+    ok('inspire source card is still expanded after reload',
+      (await page.locator('select[data-source-id="skadi2"][data-field="skillNum"]').count()) === 1);
+
+    // --- 共有URLにも鼓舞の設定が含まれる ---
+    await page.click('[data-action="share"]');
+    await page.waitForTimeout(150);
+    const sharedUrl = await page.evaluate(() => navigator.clipboard.readText());
+    const otherContext = await browser.newContext();
+    try {
+      const other = await otherContext.newPage();
+      await other.setViewportSize({ width: 420, height: 900 });
+      await other.goto(sharedUrl, { waitUntil: 'networkidle' });
+      await other.waitForTimeout(300);
+      const otherSummary = await other.locator('#global-buffs-details summary').innerText();
+      ok('shared URL restores the inspire ON state', otherSummary.includes('鼓舞'), otherSummary);
+      ok('shared URL restores the expanded inspire source card',
+        (await other.locator('select[data-source-id="skadi2"][data-field="skillNum"]').count()) === 1);
+    } finally {
+      await otherContext.close();
+    }
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  inspire scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_inspire.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
 // P1形(buffIds/specialOn/globalBuffIds無し)のlocalStorage stateがそのまま読み込めること。
 async function runOldShapeLocalStorageScenario(browser, baseUrl) {
   const context = await browser.newContext();
@@ -625,6 +806,7 @@ try {
   await runMainScenario(browser, baseUrl);
   await runStaleRowScenario(browser, baseUrl);
   await runBuffScenario(browser, baseUrl);
+  await runInspireScenario(browser, baseUrl);
   await runOldShapeLocalStorageScenario(browser, baseUrl);
 } catch (e) {
   fail++;

@@ -47,6 +47,20 @@
      - 乗算系(`mulMultiplier`): `multiplier`に乗算する係数(`resolveSpecialMultiplierFactor`)。
        モジュール未装備でも`mulMultiplier.base`が常に効く(「常に適用可能」＝UIは
        チェックボックスを隠さない)。例: ファイヤーウォッチ
+
+   P3で追加した「鼓舞(インスパイア)」(`catalog.inspireSources`。詳細は各関数のコメント参照)。
+   鼓舞ソース(現時点では濁心スカジのみ。FKする側ではなく味方に鼓舞を撒く側)は
+   fk_dataシートに載らないため、行(row)とは別に`state.inspire.sources[id]`で
+   独立に設定を持つ。行との対応関係:
+     - ソースのATK/自己%は行と同じ`resolveAtk`/個別バフ・条件付きバフ判定
+       (`computeBuffBreakdown`)をそのまま再利用する(`computeInspireSource`)。
+     - `鼓舞amount = ソースATK ×(1 + 素質等の自己%パーツ合計 + 個別バフ% + 条件付きバフ%
+       + 手入力%) × スキル比率`。
+     - 各行は`row.inspireOn`(既定true)がtrueの間、ONになっている鼓舞ソースのうち
+       **最大の1件だけ**を`inspireFlat`に加算する(合算しない。複数ソースが将来増えても
+       「一番効果の高い鼓舞1つを受ける」という前提)。
+     - 鼓舞ソース自身の行(`row.opId === source.operatorId`)には、そのソース自身の
+       鼓舞は乗らない(自分で自分を鼓舞しない。他ソースがあれば対象になり得る)。
    ============================================================ */
 
 /**
@@ -207,6 +221,7 @@ export function makeDefaultRow(op, entryIdx) {
     ignoreDef: 0,
     buffIds: [], // P2: 個別バフ(行ごとに選ぶ)
     specialOn: true, // P2: 特殊強化トグル(デフォルトON。entry.specialが無ければ意味を持たない)
+    inspireOn: true, // P3: 鼓舞トグル(デフォルトON。鼓舞ソースが無ければ意味を持たない)
   };
 }
 
@@ -295,22 +310,152 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = []) {
 /**
  * `single_target`(単体対象)バフが2行以上で選ばれているかを検出する。
  * UIが⚠警告を出すためのデータ(「本当に両方に乗るのか？」の注意喚起。計算自体は
- * 単純合算のままで、警告を出すだけに留める)。
- * @returns {Set<string>} 複数行で選ばれているバフidの集合
+ * 単純合算のままで、警告を出すだけに留める)。P3: 鼓舞ソース(`inspireSourceStates`。
+ * ON中のソースの`buffIds`のみを数える。OFF中は効果自体が無いため対象外)側の選択も
+ * 行と同じ名前空間で数える(例: エクシアを行とソース両方で選ぶと両方に⚠が出る)。
+ * @returns {Set<string>} 複数箇所(行/鼓舞ソース跨ぎ含む)で選ばれているバフidの集合
  */
-export function findSingleTargetConflicts(catalog, rows) {
+export function findSingleTargetConflicts(catalog, rows, inspireSourceStates = {}) {
   const buffers = (catalog && catalog.buffers) || [];
   const singleIds = new Set(buffers.filter((b) => b.singleTarget).map((b) => b.id));
   const countById = new Map();
-  for (const row of rows) {
-    for (const id of row.buffIds || []) {
+  const count = (ids) => {
+    for (const id of ids || []) {
       if (!singleIds.has(id)) continue;
       countById.set(id, (countById.get(id) || 0) + 1);
     }
+  };
+  for (const row of rows) count(row.buffIds);
+  for (const cfg of Object.values(inspireSourceStates || {})) {
+    if (!cfg || !cfg.on) continue;
+    count(cfg.buffIds);
   }
   const conflicts = new Set();
   for (const [id, count] of countById) if (count > 1) conflicts.add(id);
   return conflicts;
+}
+
+/* ============================================================
+   P3: 鼓舞(インスパイア)ソース
+   ============================================================ */
+
+/** 鼓舞ソースの設定の初期値(state未設定時のフォールバック)。 */
+export function defaultInspireSourceCfg(source) {
+  return {
+    on: false,
+    skillNum: source.skills && source.skills[0] ? source.skills[0].skillNum : "",
+    potential: true,
+    // 攻撃凸(potential)と揃えて既定ON（参考シートの濁心スカジS2のセルフ9%=6%+素質凸3%もON前提）。
+    talentPotential: true,
+    moduleId: null,
+    moduleLv: 3,
+    buffPct: 0,
+    buffIds: [],
+    parts: {},
+  };
+}
+
+/**
+ * `self_parts`(素質等の自己%条件パーツ)の適用結果を計算する。`replaces`で指定された
+ * パーツがON+適用可能な間、置き換え先(`replaces`の値が指すid)の寄与は無効化される
+ * (加算ではなく置き換え。例: 「アビサルハンターがいる」がONなら基本の「素質」は
+ * 数えない)。`requiresModule`を持つパーツは`cfg.moduleId`がそれと一致する間だけ
+ * 「適用可能」になる(一致しなければUIはヒントを出し、常にOFF扱い)。
+ * @returns {{pct:number, applied:Array<{id:string,label:string,shortLabel:string,value:number}>}}
+ */
+export function computeInspireSelfParts(source, cfg) {
+  const parts = (source && source.selfParts) || [];
+  const partCfg = (cfg && cfg.parts) || {};
+
+  const isApplicable = (p) => !p.requiresModule || cfg.moduleId === p.requiresModule;
+  const isOn = (p) => {
+    if (!isApplicable(p)) return false;
+    if (p.alwaysOn) return true;
+    const stored = partCfg[p.id];
+    return stored !== undefined ? !!stored : !!p.defaultOn;
+  };
+  const valueFor = (p) => {
+    if (p.moduleOverride && cfg.moduleId === p.moduleOverride.module) {
+      const lv = cfg.moduleLv - 1;
+      const base = p.moduleOverride.pctByLevel[lv] ?? 0;
+      const bonus = cfg.talentPotential ? p.moduleOverride.potentialBonusByLevel[lv] ?? 0 : 0;
+      return base + bonus;
+    }
+    if (p.requiresModule && p.pctByModuleLevel) {
+      return p.pctByModuleLevel[cfg.moduleLv - 1] ?? 0;
+    }
+    return (p.pct || 0) + (cfg.talentPotential ? p.pctPotentialBonus || 0 : 0);
+  };
+
+  const suppressed = new Set();
+  for (const p of parts) {
+    if (p.replaces && isOn(p)) suppressed.add(p.replaces);
+  }
+
+  const applied = [];
+  let pct = 0;
+  for (const p of parts) {
+    if (suppressed.has(p.id)) continue;
+    if (!isOn(p)) continue;
+    const value = valueFor(p);
+    pct += value;
+    applied.push({ id: p.id, label: p.label, shortLabel: p.shortLabel || p.label, value });
+  }
+  return { pct, applied };
+}
+
+/**
+ * 鼓舞ソースのATK。行と同じ`resolveAtk`をそのまま再利用する(`cfg`を行と同じ形状
+ * {potential, moduleId, moduleLv} に正規化して渡すだけで済む)。
+ */
+export function resolveInspireSourceAtk(source, cfg) {
+  return resolveAtk(source, { potential: cfg.potential, moduleId: cfg.moduleId, moduleLv: cfg.moduleLv });
+}
+
+/**
+ * 鼓舞ソース1件分の計算。個別バフ(`cfg.buffIds`)/条件付きバフ(`globalBuffIds`、
+ * ソース自身の`tags`との一致で判定)は行と同じ`computeBuffBreakdown`をそのまま
+ * 再利用する(行/entryの形状に正規化して渡す)。
+ * `amount = atk ×(1 + 素質等の自己%パーツ合計 + 個別% + 条件付き% + 手入力%) × ratio`。
+ * ソース自身のATKには鼓舞(inspireFlat)を足さない(鼓舞ソースは他の鼓舞から
+ * ブーストされない。呼び出し側=`computeInspireForRow`が自己適用も除外する)。
+ * @returns {{amount:number, atk:number, ratio:number, skillNum:string, selfPct:number,
+ *            selfParts:{pct:number, applied:Array}, breakdown:object, manualPct:number}}
+ */
+export function computeInspireSource(source, cfg, catalog, globalBuffIds = []) {
+  const skills = (source && source.skills) || [];
+  const skillEntry = skills.find((s) => s.skillNum === cfg.skillNum) || skills[0] || { skillNum: "", ratio: 0 };
+  const atk = resolveInspireSourceAtk(source, cfg);
+  const selfParts = computeInspireSelfParts(source, cfg);
+  const pseudoRow = { buffIds: cfg.buffIds || [] };
+  const pseudoEntry = { tags: (source && source.tags) || [] };
+  const breakdown = computeBuffBreakdown(pseudoRow, pseudoEntry, catalog, globalBuffIds);
+  const manualPct = cfg.buffPct || 0;
+  const selfPct = selfParts.pct + breakdown.extraPct + manualPct;
+  const amount = atk * (1 + selfPct) * skillEntry.ratio;
+  return { amount, atk, ratio: skillEntry.ratio, skillNum: skillEntry.skillNum, selfPct, selfParts, breakdown, manualPct };
+}
+
+/**
+ * 行が受け取る鼓舞を決める。ONになっている鼓舞ソースのうち`amount`が最大の1件だけを
+ * 採用する(合算しない)。`row.inspireOn`がfalseの間は常に`null`。鼓舞ソース自身の行
+ * (`row.opId === source.operatorId`)にはそのソース自身の鼓舞は乗らない。
+ * @returns {null|{sourceId:string, sourceName:string, amount:number}}
+ */
+export function computeInspireForRow(catalog, row, inspireSourceStates, globalBuffIds = []) {
+  if (!row || row.inspireOn === false) return null;
+  const sources = (catalog && catalog.inspireSources) || [];
+  const states = inspireSourceStates || {};
+  let best = null;
+  for (const source of sources) {
+    const cfg = states[source.id];
+    if (!cfg || !cfg.on) continue;
+    if (row.opId && row.opId === source.operatorId) continue;
+    const result = computeInspireSource(source, cfg, catalog, globalBuffIds);
+    if (result.amount <= 0) continue;
+    if (!best || result.amount > best.amount) best = { sourceId: source.id, sourceName: source.name, amount: result.amount };
+  }
+  return best;
 }
 
 /**
@@ -353,10 +498,12 @@ export function computeRowDamage(op, row, enemy, inspireFlat = 0, extraPct = 0, 
  * `results`に`null`を置き、合計には含めない。呼び出し側は事前に`dropStaleRows`で
  * 弾いておくのが基本だが、ここでも二重に安全策を取る。
  * `globalBuffIds`(P2。省略時は`[]`=P1互換)は条件付きバフの判定に使う。
- * @returns {{results:(Array<null|{row:RowState, op:object, breakdown:object}&ReturnType<typeof computeRowDamage>>),
+ * `inspireSourceStates`(P3。省略時は`{}`=P1/P2互換)は`state.inspire.sources`
+ * (id→設定)をそのまま渡す想定で、`computeInspireForRow`が各行の鼓舞(最大1件)を決める。
+ * @returns {{results:(Array<null|{row:RowState, op:object, breakdown:object, inspireApplied:object}&ReturnType<typeof computeRowDamage>>),
  *            total:number, killed:boolean}}
  */
-export function computeTotal(catalog, rows, enemy, globalBuffIds = []) {
+export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSourceStates = {}) {
   const results = rows.map((row) => {
     const op = findOperator(catalog, row.opId);
     if (!op) return null;
@@ -364,8 +511,10 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = []) {
     const breakdown = computeBuffBreakdown(row, entry, catalog, globalBuffIds);
     const specialAddPct = resolveSpecialAddPct(entry, row);
     const specialMulFactor = resolveSpecialMultiplierFactor(entry, row);
-    const dmg = computeRowDamage(op, row, enemy, breakdown.extraFlat, breakdown.extraPct + specialAddPct, specialMulFactor);
-    return { row, op, breakdown, specialAddPct, specialMulFactor, ...dmg };
+    const inspireApplied = computeInspireForRow(catalog, row, inspireSourceStates, globalBuffIds);
+    const inspireFlat = breakdown.extraFlat + (inspireApplied ? inspireApplied.amount : 0);
+    const dmg = computeRowDamage(op, row, enemy, inspireFlat, breakdown.extraPct + specialAddPct, specialMulFactor);
+    return { row, op, breakdown, specialAddPct, specialMulFactor, inspireApplied, ...dmg };
   });
   const total = results.reduce((sum, r) => sum + (r ? r.rowDamage : 0), 0);
   return { results, total, killed: total >= enemy.hp };
@@ -377,11 +526,14 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = []) {
  * ついでに(P2) カタログに存在しないバフidを`row.buffIds`/`state.globalBuffIds`から
  * 静かに(トースト無し)取り除き、`specialOn`の省略時デフォルト(true)も補う
  * （古い形(P1)のstate/共有URLにはこれらのフィールドが無いため、そのまま読めるようにする）。
+ * P3: `row.inspireOn`の省略時デフォルト(true)も補い、`state.inspire.sources`から
+ * カタログに存在しないソースid/パーツid・バフidを同じく静かに取り除く。
  * @returns {{state:object, dropped:number}}
  */
 export function dropStaleRows(state, catalog) {
   const opById = new Map(catalog.operators.map((o) => [o.id, o]));
   const validBuffIds = new Set((catalog.buffers || []).map((b) => b.id));
+  const inspireSources = (catalog.inspireSources || []);
   let dropped = 0;
   const rows = state.rows
     .filter((row) => {
@@ -394,9 +546,29 @@ export function dropStaleRows(state, catalog) {
       ...row,
       buffIds: (row.buffIds || []).filter((id) => validBuffIds.has(id)),
       specialOn: row.specialOn !== false,
+      inspireOn: row.inspireOn !== false,
     }));
   const globalBuffIds = (state.globalBuffIds || []).filter((id) => validBuffIds.has(id));
-  return { state: { ...state, rows, globalBuffIds }, dropped };
+
+  const sourceById = new Map(inspireSources.map((s) => [s.id, s]));
+  const rawInspireSources = (state.inspire && state.inspire.sources) || {};
+  const cleanedSources = {};
+  for (const [sourceId, cfg] of Object.entries(rawInspireSources)) {
+    const source = sourceById.get(sourceId);
+    if (!source || !cfg) continue; // 未知のソースidは静かに除去
+    const knownPartIds = new Set((source.selfParts || []).map((p) => p.id));
+    const parts = {};
+    for (const [partId, on] of Object.entries(cfg.parts || {})) {
+      if (knownPartIds.has(partId)) parts[partId] = on;
+    }
+    cleanedSources[sourceId] = {
+      ...cfg,
+      buffIds: (cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
+      parts,
+    };
+  }
+
+  return { state: { ...state, rows, globalBuffIds, inspire: { sources: cleanedSources } }, dropped };
 }
 
 /* ============================================================
@@ -444,12 +616,14 @@ function minimalIntegerSatisfying(lo, hi, predicate) {
  */
 export function suggest(state, catalog) {
   const { rows, enemy, globalBuffIds = [] } = state;
-  const { results, killed } = computeTotal(catalog, rows, enemy, globalBuffIds);
+  const inspireSourceStates = (state.inspire && state.inspire.sources) || {};
+  const { results, killed } = computeTotal(catalog, rows, enemy, globalBuffIds, inspireSourceStates);
   if (killed) return [];
 
   const suggestions = [];
-  const killsWith = (testRows, testEnemy, testGlobalBuffIds) =>
-    computeTotal(catalog, testRows, testEnemy ?? enemy, testGlobalBuffIds ?? globalBuffIds).killed;
+  const killsWith = (testRows, testEnemy, testGlobalBuffIds, testInspireSourceStates) =>
+    computeTotal(catalog, testRows, testEnemy ?? enemy, testGlobalBuffIds ?? globalBuffIds, testInspireSourceStates ?? inspireSourceStates)
+      .killed;
 
   results.forEach((r, i) => {
     if (!r) return;
@@ -522,6 +696,45 @@ export function suggest(state, catalog) {
     }
   }
 
+  // P3: 鼓舞ソースをONにするだけで撃破できる場合を提案する(effort=0固定。「ONにする/
+  // しない」の2択でしかなく、%やHit数のような度合いが無いため)。既に設定済みのcfgが
+  // あればそれを流用し(スキル/モジュール等はそのまま)、無ければ既定値でONにして試す。
+  const inspireSources = (catalog && catalog.inspireSources) || [];
+  for (const source of inspireSources) {
+    const cur = inspireSourceStates[source.id] || defaultInspireSourceCfg(source);
+    if (cur.on) continue;
+    const testStates = { ...inspireSourceStates, [source.id]: { ...cur, on: true } };
+    if (killsWith(rows, enemy, globalBuffIds, testStates)) {
+      suggestions.push({ kind: "toggleInspireSource", sourceId: source.id, sourceName: source.name, effort: 0 });
+    }
+  }
+
+  // P3: 行の鼓舞トグルをONにするだけで撃破できる場合を提案する(effort=0固定。理由は上と同じ)。
+  rows.forEach((r, i) => {
+    if (!r.opId || r.inspireOn !== false) return;
+    const testRows = rows.map((r2, j) => (j === i ? { ...r2, inspireOn: true } : r2));
+    if (killsWith(testRows)) {
+      suggestions.push({ kind: "toggleRowInspire", rowIndex: i, effort: 0 });
+    }
+  });
+
+  // P3: ONになっている鼓舞ソースに個別バフを1件追加するだけで撃破できる場合を提案する
+  // (OFFのソースへ追加しても効果が測れないため対象外)。
+  for (const source of inspireSources) {
+    const cur = inspireSourceStates[source.id];
+    if (!cur || !cur.on) continue;
+    const already = new Set(cur.buffIds || []);
+    for (const b of individualBuffers) {
+      if (already.has(b.id)) continue;
+      const effort = b.kind === "pct" ? b.value * 100 : b.value;
+      if (b.kind === "pct" && effort > SUGGEST_CAP_BUFF_PCT) continue;
+      const testStates = { ...inspireSourceStates, [source.id]: { ...cur, buffIds: [...(cur.buffIds || []), b.id] } };
+      if (killsWith(rows, enemy, globalBuffIds, testStates)) {
+        suggestions.push({ kind: "addSourceIndividualBuff", sourceId: source.id, sourceName: source.name, buffId: b.id, buffName: b.name, effort });
+      }
+    }
+  }
+
   suggestions.sort((a, b) => a.effort - b.effort);
   return suggestions.slice(0, 4);
 }
@@ -545,6 +758,12 @@ export function describeSuggestion(sug, catalog, rows) {
       return `${rowOpName(sug.rowIndex)}に個別バフ「${sug.buffName}」を追加する`;
     case "toggleGlobalBuff":
       return `条件付きバフ「${sug.buffName}」をONにする`;
+    case "toggleInspireSource":
+      return `${sug.sourceName}の鼓舞をONにする`;
+    case "toggleRowInspire":
+      return `${rowOpName(sug.rowIndex)}に鼓舞を適用する`;
+    case "addSourceIndividualBuff":
+      return `${sug.sourceName}に個別バフ「${sug.buffName}」を追加する`;
     default:
       return "";
   }

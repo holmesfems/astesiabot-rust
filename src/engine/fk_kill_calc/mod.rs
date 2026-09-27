@@ -21,7 +21,11 @@ use crate::engine::external_source::operator_combat::OperatorCombat;
 use crate::engine::external_source::operator_data::OperatorData;
 use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::fk_data_search::search::skill_id_by_num;
-use dto::{CatalogModule, CatalogOperator, DamageType, FkEntry, MulMultiplier, Special, Valued};
+use buffers::RawInspireSource;
+use dto::{
+    CatalogModule, CatalogOperator, DamageType, FkEntry, InspireModuleOverride, InspireSelfPart, InspireSkillRatio, InspireSource,
+    MulMultiplier, Special, Valued,
+};
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
@@ -160,10 +164,113 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
         });
     }
 
+    let inspire_sources = build_inspire_sources(combat, &mut skipped);
+
     CatalogBuild {
-        catalog: Catalog { operators, buffers: buffers::global().to_vec() },
+        catalog: Catalog { operators, buffers: buffers::global().to_vec(), inspire_sources },
         skipped,
     }
+}
+
+/// `buffers.yaml`の`inspire`リスト(生データ)と`operator_combat`をマージして
+/// `dto::InspireSource`一覧を組み立てる。対象オペレーターがoperator_combatに
+/// 存在しない場合(ゲームデータ更新でid変更等)は`skipped`に`"inspire:<id>"`として
+/// 記録し、そのソースをカタログから静かに落とす(fk_dataのskippedと同じ方針。
+/// ドリフト自体は`cargo test`の`validate_inspire_sources`で検知する)。
+fn build_inspire_sources(combat: &OperatorCombat, skipped: &mut Vec<String>) -> Vec<InspireSource> {
+    let mut sources = Vec::new();
+    for raw in buffers::raw_inspire_sources() {
+        let Some(op) = combat.operators.get(&raw.operator) else {
+            skipped.push(format!("inspire:{}", raw.id));
+            continue;
+        };
+        let tags = tags::tags_for(&op.profession, &op.position, &op.nation_id);
+        sources.push(InspireSource {
+            id: raw.id.clone(),
+            operator_id: raw.operator.clone(),
+            name: raw.name.clone(),
+            tags,
+            atk_base: op.atk_base,
+            atk_potential: op.atk_potential,
+            modules: op
+                .modules
+                .iter()
+                .map(|m| CatalogModule {
+                    id: m.eq_id.clone(),
+                    type_name: m.eq_type.clone(),
+                    name: m.name.clone(),
+                    atk_by_level: m.atk_by_level.clone(),
+                })
+                .collect(),
+            skills: raw.skills.iter().map(|s| InspireSkillRatio { skill_num: s.skill_num.clone(), ratio: s.ratio }).collect(),
+            talent_potential_label: raw.talent_potential_label.clone(),
+            self_parts: raw.self_parts.iter().map(to_inspire_self_part_dto).collect(),
+        });
+    }
+    sources
+}
+
+/// `buffers::RawInspireSelfPart`をそのままDTO(`dto::InspireSelfPart`)へ変換する。
+/// `short_label`省略時は`label`をそのまま使う。
+fn to_inspire_self_part_dto(part: &buffers::RawInspireSelfPart) -> InspireSelfPart {
+    InspireSelfPart {
+        id: part.id.clone(),
+        label: part.label.clone(),
+        short_label: part.short_label.clone().unwrap_or_else(|| part.label.clone()),
+        description: part.description.clone(),
+        pct: part.pct,
+        pct_potential_bonus: part.pct_potential_bonus,
+        module_override: part.module_override.as_ref().map(|m| InspireModuleOverride {
+            module: m.module.clone(),
+            pct_by_level: m.pct_by_level,
+            potential_bonus_by_level: m.potential_bonus_by_level,
+        }),
+        requires_module: part.requires_module.clone(),
+        pct_by_module_level: part.pct_by_module_level,
+        replaces: part.replaces.clone(),
+        always_on: part.always_on,
+        default_on: part.default_on,
+    }
+}
+
+/// `buffers.yaml`の`inspire`リストが実データ(operator_combat+operator_data)と
+/// 整合しているかを検証する。不一致の一覧を返す(空ならOK)。ゲームデータ更新で
+/// オペレーターID・skill_num・モジュールIDが変わった際のドリフト検知用
+/// (`cargo test`で実行する)。
+pub fn validate_inspire_sources(sources: &[RawInspireSource], combat: &OperatorCombat, ops: &OperatorData) -> Vec<String> {
+    let mut bad = Vec::new();
+    for s in sources {
+        let Some(combat_op) = combat.operators.get(&s.operator) else {
+            bad.push(format!("inspire:{} (operator id'{}'がoperator_combatに無い)", s.id, s.operator));
+            continue;
+        };
+        match ops.operators.get(&s.operator) {
+            Some(cost_op) => {
+                let skill_ids = skill_id_by_num(cost_op);
+                for sk in &s.skills {
+                    if !skill_ids.contains_key(sk.skill_num.as_str()) {
+                        bad.push(format!("inspire:{} (skill_num'{}'が'{}'の実スキルに無い)", s.id, sk.skill_num, s.operator));
+                    }
+                }
+            }
+            None => bad.push(format!("inspire:{} (operator id'{}'がoperator_dataに無い)", s.id, s.operator)),
+        }
+
+        let check_module = |module_id: &str, field: &str, bad: &mut Vec<String>| {
+            if !combat_op.modules.iter().any(|m| m.eq_id == module_id) {
+                bad.push(format!("inspire:{} ({field}'{module_id}'が'{}'のmodulesに無い)", s.id, s.operator));
+            }
+        };
+        for part in &s.self_parts {
+            if let Some(module_override) = &part.module_override {
+                check_module(&module_override.module, &format!("self_parts.{}.module_override.module", part.id), &mut bad);
+            }
+            if let Some(module_id) = &part.requires_module {
+                check_module(module_id, &format!("self_parts.{}.requires_module", part.id), &mut bad);
+            }
+        }
+    }
+    bad
 }
 
 /// `overrides.yaml`の`special`(手動データ)をそのままDTO(`dto::Special`)へ変換する。
@@ -512,6 +619,43 @@ mod tests {
         for e in &fiammetta.fk_entries {
             assert!(e.tags.contains(&"ラテラーノ".to_string()), "フィアメッタのFkEntryタグにラテラーノが無い: {:?}", e.tags);
         }
+    }
+
+    /// P3: 濁心スカジの鼓舞ソースがカタログに載り、スキル比率・素質パーツが期待通りであること。
+    #[test]
+    fn skadi2_inspire_source_has_expected_skills_and_self_parts() {
+        let result = build_from_seeds();
+        let skadi2 = result.catalog.inspire_sources.iter().find(|s| s.id == "skadi2").expect("skadi2がinspire_sourcesに存在すること");
+        assert_eq!(skadi2.operator_id, "char_1012_skadi2");
+        let ratios: Vec<(String, f64)> = skadi2.skills.iter().map(|s| (s.skill_num.clone(), s.ratio)).collect();
+        assert_eq!(ratios, vec![("2".to_string(), 0.6), ("3".to_string(), 1.1)]);
+
+        let talent = skadi2.self_parts.iter().find(|p| p.id == "talent").expect("talentパーツがあるはず");
+        assert!(talent.always_on);
+        assert_eq!(talent.pct, 0.06);
+        assert_eq!(talent.pct_potential_bonus, 0.03);
+        let module_override = talent.module_override.as_ref().expect("talentにmodule_overrideがあるはず");
+        assert_eq!(module_override.pct_by_level, [0.06, 0.08, 0.09]);
+        assert_eq!(module_override.potential_bonus_by_level, [0.03, 0.03, 0.03]);
+
+        let abyssal = skadi2.self_parts.iter().find(|p| p.id == "talent_abyssal").expect("talent_abyssalパーツがあるはず");
+        assert_eq!(abyssal.replaces.as_deref(), Some("talent"));
+        assert_eq!(abyssal.pct, 0.15);
+
+        let module_x = skadi2.self_parts.iter().find(|p| p.id == "module_x_two_ops").expect("module_x_two_opsパーツがあるはず");
+        assert_eq!(module_x.requires_module.as_deref(), Some("uniequip_002_skadi2"));
+        assert_eq!(module_x.pct_by_module_level, Some([0.08, 0.08, 0.08]));
+    }
+
+    /// buffers.yamlのinspireリストが実データ(operator_combat+operator_data)と
+    /// 整合していることのドリフト検知。ゲームデータ更新でオペレーターID・skill_num・
+    /// モジュールIDが変わった場合、このテストが不一致キーを列挙して落ちる。
+    #[test]
+    fn every_inspire_source_points_to_existing_operator_skill_and_modules() {
+        let combat: OperatorCombat = load_seed(operator_combat::SEED_PATH);
+        let ops: OperatorData = load_seed(operator_data::SEED_PATH);
+        let bad = validate_inspire_sources(buffers::raw_inspire_sources(), &combat, &ops);
+        assert!(bad.is_empty(), "buffers.yamlのinspireリストに実データと不一致な参照がある:\n{}", bad.join("\n"));
     }
 
     /// カバレッジ確認用(fk_dataの何件がカタログに解決できたか)。`--nocapture`で確認する。

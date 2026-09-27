@@ -1,4 +1,4 @@
-# フレームキル計算機のバフカタログ(P2)。
+# フレームキル計算機のバフカタログ(P2)。P3で`inspire`(鼓舞ソース)リストを追加。
 #
 # 読み込み方法・スキーマの詳細は`src/engine/fk_kill_calc/buffers.rs`冒頭のコメントを参照。
 # 簡単には:
@@ -8,6 +8,10 @@
 #     - { id, name, pct: 0.xx (または flat: 数値), targets: [タグ,...],
 #         bonus: { tags: [タグ,...], pct/flat: 数値, note } (省略可。targetsに加えて
 #         bonus.tagsのいずれかも持つ行には基本値の代わりにbonus側の値を使う), note }
+#   inspire(P3): 鼓舞(インスパイア)ソース。FKする側ではなく「味方に鼓舞バフを撒く側」の
+#     オペレーターを表す(fk_dataシートには載らないため、operatorはoperator_combat側の
+#     idを直接指す)。スキーマ・値の出典は`src/engine/fk_kill_calc/mod.rs`の
+#     `build_inspire_sources`冒頭コメント、および本ファイル末尾の濁心スカジのコメント参照。
 #
 # targets/bonus.tagsに書けるタグ名は`tags.rs::tag_vocabulary()`の語彙のみ
 # (`cargo test`のドリフト検知テスト`buffers.rs::every_target_tag_is_in_the_known_vocabulary`
@@ -52,3 +56,77 @@ conditional:
       bonus: { tags: [ラテラーノ], pct: 0.26, note: "素質「铳弹协约」: ラテラーノ勢は効果2倍" },
       note: "新約能天使(char_1041_angel2)素質「铳弹协约」E2最大潜在の値",
     }
+
+# 鼓舞(インスパイア)ソース(P3)。濁心スカジ(char_1012_skadi2)が現時点で唯一の対象
+# (オーナー確認済み: 彼女はFKする側ではなく、味方に鼓舞を撒く側のオペレーター)。
+#
+# 実データ検証結果(character_table.json talents + battle_equip_table.json。2026-09時点):
+#   - スキル: skill_table.jsonのblackboardは"atk_scale"ではなく"atk"キーに倍率が入っている
+#     (S2=skchr_skadi2_2: atk=0.6。S3=skchr_skadi2_3: atk_scale=0.7という別キーもあるが
+#     これは無関係な値で、鼓舞倍率に対応するのは"atk"=1.1の方)。オーナー提供の参照値
+#     (S2=0.6, S3=1.1)と一致することを確認済み。
+#   - 素質「捕食本能」(talentIndex=1): 素質凸(requiredPotentialRank=4。実際には
+#     potentialRanks配列上は潜在5で解放される。潜在6ではない=「素質凸」は凸5の意味な
+#     ので注意): 通常時+6%(凸+3%=9%)、範囲内に【アビサルハンター】がいる時は
+#     +15%(凸+3%=18%、加算ではなく置き換え)。
+#   - モジュールY(新生代、uniequip_003_skadi2)は上記の素質を装備Lvごとに上書きする
+#     (置き換え。素質凸による+3%は全Lv共通で乗る):
+#       Lv1(素質はまだ強化されない。基礎値のまま): 通常6%(凸9%) / アビサル15%(凸18%)
+#       Lv2: 通常8%(凸11%) / アビサル15%(凸18%、素質未強化時と同値=Lv2はアビサル側を
+#            強化しない)
+#       Lv3: 通常9%(凸12%) / アビサル20%(凸23%)
+#   - モジュールX(蜕化的残迹、uniequip_002_skadi2)はこの素質とは無関係の別トレイト
+#     (overrideTraitDataBundle)を追加する:「攻撃範囲内に自身以外のオペレーターが2名
+#     以上いる時、攻撃力+8%(スキルの影響を受けない)」。この値はLv1/Lv2/Lv3で全く同じ
+#     テキスト・同じ効果(+8%固定)であり、**オーナー想定の「Lv1は0、Lv毎に増える」は
+#     実データと異なる**(battle_equip_table.jsonのoverrideTraitDataBundleがLv1〜3とも
+#     同一の"+8%"を返す。blackboardに数値キーは無く、説明文にのみ+8%と書かれている)。
+#     このためpct_by_module_levelは[0.08, 0.08, 0.08]で統一する(配列の形自体は
+#     汎用スキーマに合わせて3要素のまま残す)。
+#   - 参照シート実測値との突き合わせ: atk=480(418+27潜在+35モジュールXのLv3)、
+#     S2 self=0.09(=6%+3%。Xの2名条件はOFF) → 480×1.09×0.6=313.9≈314、
+#     S3 self=0.17(=9%+8%。Xの2名条件はON) → 480×1.17×1.1=617.8≈618
+#     (どちらもverify.mjsで再現する)。
+#
+# self_partsのモジュール条件(module_override/requires_module)が指すuniEquipIdが実際に
+# そのオペレーターのmodulesに存在すること、skillsのskill_numが実在のスキルを指すことは
+# `cargo test`のドリフト検知(`fk_kill_calc::mod::tests`)で検証する。
+inspire:
+  - id: skadi2
+    operator: char_1012_skadi2
+    name: 濁心スカジ
+    skills:
+      - { skill_num: "2", ratio: 0.6 }
+      - { skill_num: "3", ratio: 1.1 }
+    talent_potential_label: 素質凸
+    self_parts:
+      - id: talent
+        label: 素質「捕食本能」(範囲内に他オペがいる)
+        short_label: 素質
+        description: "自身やシーボーンの攻撃範囲内に他のオペレーターがいる時、攻撃力+6%(素質凸で+3%)。モジュールYを装備すると更に上昇する(Lv2で8%/Lv3で9%。凸込みはLv2で11%/Lv3で12%)。"
+        pct: 0.06
+        pct_potential_bonus: 0.03
+        module_override:
+          module: uniequip_003_skadi2
+          pct_by_level: [0.06, 0.08, 0.09]
+          potential_bonus_by_level: [0.03, 0.03, 0.03]
+        always_on: true
+      - id: talent_abyssal
+        label: 攻撃範囲内に【アビサルハンター】がいる
+        short_label: 素質
+        replaces: talent
+        description: "上記の条件に加え、攻撃範囲内に味方【アビサルハンター】がいる時、攻撃力上昇が+15%(素質凸で+18%)に置き換わる(加算ではない)。モジュールYのLv3で+20%(凸+23%)まで上昇する(Lv2は素質未強化時と同値の15%/18%)。"
+        pct: 0.15
+        pct_potential_bonus: 0.03
+        module_override:
+          module: uniequip_003_skadi2
+          pct_by_level: [0.15, 0.15, 0.20]
+          potential_bonus_by_level: [0.03, 0.03, 0.03]
+        default_on: false
+      - id: module_x_two_ops
+        label: 攻撃範囲内に他オペ2名以上(モジュールX)
+        short_label: X
+        description: "モジュールXの特性強化: 攻撃範囲内に自身以外のオペレーターが2名以上いる時、攻撃力+8%(スキルの影響を受けない)。Lv1〜3で値は変わらない(実データ確認済み)。"
+        requires_module: uniequip_002_skadi2
+        pct_by_module_level: [0.08, 0.08, 0.08]
+        default_on: true
