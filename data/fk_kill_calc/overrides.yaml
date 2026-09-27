@@ -28,32 +28,43 @@
 # 3種類のダメージ判定を1スキルで持つ。blackboardの`atk_scale`(直撃)は機械側の自動判定と
 # 一致するが、"400%"(貫通後爆発。blackboard上は`not_hitwall_scale`)と
 # "800%"(高台直撃。同`hitwall_scale`)は自動判定の対象外(`atk_scale`という名前ではないため)
-# なので、3バリアントとも明示する。
+# なので、3バリアントとも明示する。P7でスキルLv対応: 固定`multiplier`(特化3のみの値)の
+# 代わりに`multiplier_key`でそのままキー名を指定し、スキルLv1〜10の値をそのまま機械抽出する
+# (300%=atk_scale[L1=2.0〜L10=3.0]、400%=not_hitwall_scale[L1=3.0〜L10=4.0]、
+# 800%=hitwall_scale[L1=6.0〜L10=8.0]。実データ確認済み)。
 char_456_ash:
   "3":
-    - { label: "300%", multiplier: 3.0 }
-    - { label: "400%", multiplier: 4.0 }
-    - { label: "800%", multiplier: 8.0 }
+    - { label: "300%", multiplier_key: atk_scale }
+    - { label: "400%", multiplier_key: not_hitwall_scale }
+    - { label: "800%", multiplier_key: hitwall_scale }
 
 # ホルン(異格。char_4039_horn) スキル2「テンペストオーダー」: 物理/術の2系統ダメージを
 # 同時に与える。blackboardのキーが`attack@s2.atk_scale`/`attack@s2.magic_atk_scale`と
 # 接頭辞付きのため自動判定(厳密一致の`atk_scale`)には掛からず、2バリアントに分ける。
-# self_atk_pct(0.31)は参照シートの「セルフ加算」列の値(P2で追加。両バリアント共通)。
+# P7でスキルLv対応: `multiplier_key`でキー名を指定し、スキルLv1〜10の値をそのまま機械抽出
+# する(物理=attack@s2.atk_scale[L1=1.3〜L10=2.4]、術=attack@s2.magic_atk_scale
+# [L1=0.3〜L10=0.6]。実データ確認済み)。
+# self_atk_pct(0.31)は参照シートの「セルフ加算」列の値(P2で追加。両バリアント共通)で、
+# 素質由来のためスキルLvには追従しない(固定値のまま。将来的にはバフ側へ移設予定
+# ‐ P7ではスコープ外なのでここでは触らない)。
 char_4039_horn:
   "2":
-    - { label: "物理", multiplier: 2.4, self_atk_pct: 0.31, damage_type: physical, hits: 5 }
-    - { label: "術",   multiplier: 0.6, self_atk_pct: 0.31, damage_type: arts,     hits: 5 }
+    - { label: "物理", multiplier_key: "attack@s2.atk_scale", self_atk_pct: 0.31, damage_type: physical, hits: 5 }
+    - { label: "術",   multiplier_key: "attack@s2.magic_atk_scale", self_atk_pct: 0.31, damage_type: arts,     hits: 5 }
 
 # ブレイズ(char_017_huang) スキル3「ボイリングバースト」: blackboardのダメージ倍率キーが
 # `atk_scale`ではなく`damage_by_atk_scale`(値4.0)。この名前は末尾が"atk_scale"のため
 # 自動判定(resolve_multiplier_defaults)の第2順位規則で正しく4.0を拾える。
 # よって`multiplier`のoverrideは不要(自動判定と一致するため書かない)。
 #
-# セルフATKバフ(P2 follow-upでオーナー確定): スキル自体の効果(「技能开启后、攻撃力が
-# 徐々に最大+80%まで上昇する」)だが、既知のバグにより理論値の8/9(0.8×8/9=0.7111…→
-# オーナー実測0.712)しか実際には反映されない。この0.712は特殊強化のON/OFFに関わらず
-# 常に適用される実測値なので、通常のself_atk_pct(Manual)として持つ
-# (blackboardの理論値0.8をAutoで採るのはもう不適切なので、明示的にoverrideする)。
+# セルフATKバフ(P2 follow-upでオーナー確定、P7でスキルLv対応): スキル自体の効果
+# (「技能开启后、攻撃力が徐々に最大+80%まで上昇する」)だが、既知のバグにより理論値の
+# 8/9(0.8×8/9=0.7111…→オーナー実測0.712)しか実際には反映されない。この8/9という比率は
+# スキルLvに関わらず一定のバグなので、固定値ではなく`self_atk_pct_factor: 0.89`
+# (Autoのスキルレベル別セルフ%[atk。L1=.30〜L10=.80]に掛ける係数)として持つ
+# (blackboardの理論値そのままをAutoで採るのは不適切なので、明示的にoverrideする)。
+# 各レベルの値は小数第4位に丸める(`build_catalog`が担当)。L10=0.8×0.89=0.712、
+# L7=0.6×0.89=0.534(実データ確認済み)。
 #
 # 特殊強化「待機ボーナス」: モジュールX(uniequip_002_huang「熱く燃える心臓と武器」)の
 # 素質強化(素質2「厳酷な訓練」)。battle_equip_table.jsonのblackboard
@@ -68,14 +79,14 @@ char_4039_horn:
 char_017_huang:
   "3":
     - {
-        self_atk_pct: 0.712,
+        self_atk_pct_factor: 0.89,
         special: {
           label: "待機ボーナス",
           description: "モジュールXを装備し配置から30秒経過すると、攻撃力がLv2で+4%・Lv3で+6%追加upする(セルフ加算に上乗せ)",
           requires_module: "uniequip_002_huang",
           add_self_atk_pct_by_module_level: [0.0, 0.04, 0.06],
         },
-        note: "self_atk_pct(0.712)はバグにより理論値0.8の8/9しか反映されない実測値(特殊強化の有無に関わらず常に適用)。特殊強化「待機ボーナス」はモジュールX(uniequip_002_huang)をLv2以上で装備している時だけ+4%(Lv2)/+6%(Lv3)を加算する(置き換えでなく加算。出典: battle_equip_table.jsonのuniequip_002_huang、blackboardキー`huang_t_2[e_002_atk].atk`。Lv1は素質強化自体が付かないので0)。multiplierはblackboardのdamage_by_atk_scale(4.0)を自動判定でそのまま採用。",
+        note: "self_atk_pct_factor(0.89)はバグにより理論値の8/9しか反映されない実測値の係数(特殊強化の有無に関わらず常に適用)。Autoのスキルレベル別セルフ%(atk)に掛ける: 特化3(L10)=0.8×0.89=0.712、SLv7(L7)=0.6×0.89=0.534。特殊強化「待機ボーナス」はモジュールX(uniequip_002_huang)をLv2以上で装備している時だけ+4%(Lv2)/+6%(Lv3)を加算する(置き換えでなく加算。出典: battle_equip_table.jsonのuniequip_002_huang、blackboardキー`huang_t_2[e_002_atk].atk`。Lv1は素質強化自体が付かないので0)。multiplierはblackboardのdamage_by_atk_scale(スキルLv別。L10=4.0)を自動判定でそのまま採用。",
       }
 
 # 濁心スカジ(char_1012_skadi2)はFKするオペレーターではなく、味方への鼓舞(インスパイア)を
@@ -84,8 +95,9 @@ char_017_huang:
 # 扱うため、ここにはoverrideを追加しない。定義本体は`data/fk_kill_calc/buffers.yaml`の
 # `inspire`リスト、実データ検証の詳細は同ファイル末尾のコメントを参照。
 
-# ファイヤーウォッチ(char_158_milu) スキル2「戦術電台」: blackboardは"atk_scale"=3.0
-# のみで、そのままAutoで採れる(通常時=特殊強化OFFはoverride不要)。
+# ファイヤーウォッチ(char_158_milu) スキル2「戦術電台」: blackboardの"atk_scale"は
+# スキルLv1〜10でL1=1.8〜L10=3.0まで変化する(P7でスキルLv対応。Autoでそのまま採れるので
+# override不要。通常時=特殊強化OFF)。
 #
 # 特殊強化「遠距離特効」(P2 follow-up 2回目でオーナー確定): 素質「暗殺者」(E2最大潜在)の
 # 効果「遠隔武器を持つ、または攻撃しない敵への攻撃時、攻撃力が145%になる」が、

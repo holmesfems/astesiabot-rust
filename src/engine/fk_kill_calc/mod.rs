@@ -25,7 +25,7 @@ use crate::engine::fk_data_search::search::skill_id_by_num;
 use buffers::RawInspireSource;
 use dto::{
     CatalogModule, CatalogOperator, DamageType, FkEntry, InspireModuleOverride, InspireSelfPart, InspireSkillRatio, InspireSource,
-    MulMultiplier, PhaseAtk, Special, Valued,
+    MulMultiplier, MultiplierCandidate, PhaseAtk, Special, Valued,
 };
 use indexmap::IndexMap;
 use std::collections::HashMap;
@@ -108,14 +108,21 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
         for row in rows {
             let skill_id = skill_ids.get(row.skill_num.as_str()).copied();
             let blackboard = skill_id.and_then(|id| skills.get_blackboard(id));
+            // P7: スキルLv別blackboard(空Vecなら「無い」扱いに正規化する。levels.rsが
+            // deserialize失敗時に空Mapを積むことがあるため、要素はあっても値が全部0の
+            // ケースまでは弾かない=`values_by_level_for_key`が0.0フォールバックで処理する)。
+            let blackboard_by_level = skill_id.and_then(|id| skills.get_blackboard_by_level(id)).filter(|v| !v.is_empty()).map(Vec::as_slice);
             let skill_label = skill_id
                 .map(|id| skills.get_str(id))
                 .filter(|s| !s.is_empty() && *s != "Missing")
                 .map(str::to_string)
                 .unwrap_or_else(|| row.skill_num.clone());
 
-            let (default_multiplier, multiplier_candidates) = resolve_multiplier_defaults(blackboard);
-            let default_self_atk_pct = blackboard.and_then(|bb| bb.get("atk")).copied().unwrap_or(0.0);
+            let (default_multiplier, default_multiplier_by_level, multiplier_candidates) =
+                resolve_multiplier_defaults(blackboard, blackboard_by_level);
+            let num_levels = default_multiplier_by_level.len();
+            let default_self_atk_pct_by_level = values_by_level_for_key(blackboard_by_level, "atk", num_levels);
+            let default_self_atk_pct = default_self_atk_pct_by_level.last().copied().unwrap_or(0.0);
             let default_hits: u32 = 1;
 
             // このエントリ(スキル単位)のタグ = オペレーター機械タグ + 弾薬スキル機械タグ
@@ -134,13 +141,26 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                         if let Some(extra) = &variant.tags {
                             tags_for_variant.extend(extra.iter().cloned());
                         }
+                        let (multiplier, multiplier_by_level, multiplier_fixed) = resolve_variant_multiplier(
+                            variant,
+                            &default_multiplier_by_level,
+                            default_multiplier,
+                            blackboard_by_level,
+                            num_levels,
+                        );
+                        let (self_atk_pct, self_atk_pct_by_level, self_atk_pct_fixed) =
+                            resolve_variant_self_atk_pct(variant, &default_self_atk_pct_by_level, default_self_atk_pct, num_levels);
                         fk_entries.push(build_entry(
                             row,
                             skill_label.clone(),
                             variant.label.clone(),
-                            Valued::from_override(variant.multiplier, default_multiplier),
+                            multiplier,
+                            multiplier_by_level,
+                            multiplier_fixed,
                             multiplier_candidates.clone(),
-                            Valued::from_override(variant.self_atk_pct, default_self_atk_pct),
+                            self_atk_pct,
+                            self_atk_pct_by_level,
+                            self_atk_pct_fixed,
                             Valued::from_override(variant.hits, default_hits),
                             Valued::from_override(variant.damage_type, default_damage_type),
                             tags_for_variant,
@@ -155,8 +175,12 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                         skill_label.clone(),
                         None,
                         Valued::auto(default_multiplier),
+                        default_multiplier_by_level,
+                        false,
                         multiplier_candidates,
                         Valued::auto(default_self_atk_pct),
+                        default_self_atk_pct_by_level,
+                        false,
                         Valued::auto(default_hits),
                         Valued::auto(default_damage_type),
                         entry_tags,
@@ -181,7 +205,7 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
         });
     }
 
-    let inspire_sources = build_inspire_sources(combat, &mut skipped);
+    let inspire_sources = build_inspire_sources(combat, ops, skills, &mut skipped);
 
     // P4/P5: 固定pct/flatのバフ(individual + 一部conditional)に、ゲームデータから動的解決した
     // conditional/individual(`source`付き)を続けて足す。fk_dataのskipped/inspireのskippedと
@@ -200,7 +224,7 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
 /// 存在しない場合(ゲームデータ更新でid変更等)は`skipped`に`"inspire:<id>"`として
 /// 記録し、そのソースをカタログから静かに落とす(fk_dataのskippedと同じ方針。
 /// ドリフト自体は`cargo test`の`validate_inspire_sources`で検知する)。
-fn build_inspire_sources(combat: &OperatorCombat, skipped: &mut Vec<String>) -> Vec<InspireSource> {
+fn build_inspire_sources(combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData, skipped: &mut Vec<String>) -> Vec<InspireSource> {
     let mut sources = Vec::new();
     for raw in buffers::raw_inspire_sources() {
         let Some(op) = combat.operators.get(&raw.operator) else {
@@ -208,6 +232,8 @@ fn build_inspire_sources(combat: &OperatorCombat, skipped: &mut Vec<String>) -> 
             continue;
         };
         let tags = tags::tags_for(&op.profession, &op.position, &op.nation_id);
+        let skill_ratios: Vec<InspireSkillRatio> =
+            raw.skills.iter().map(|s| build_inspire_skill_ratio(&raw.operator, s, ops, skills)).collect();
         sources.push(InspireSource {
             id: raw.id.clone(),
             operator_id: raw.operator.clone(),
@@ -216,7 +242,7 @@ fn build_inspire_sources(combat: &OperatorCombat, skipped: &mut Vec<String>) -> 
             atk_base: op.atk_base,
             atk_potential: op.atk_potential,
             modules: to_catalog_modules(&op.modules),
-            skills: raw.skills.iter().map(|s| InspireSkillRatio { skill_num: s.skill_num.clone(), ratio: s.ratio }).collect(),
+            skills: skill_ratios,
             talent_potential_label: raw.talent_potential_label.clone(),
             self_parts: raw.self_parts.iter().map(to_inspire_self_part_dto).collect(),
             phases: to_phase_atk_dtos(&op.phases),
@@ -225,6 +251,28 @@ fn build_inspire_sources(combat: &OperatorCombat, skipped: &mut Vec<String>) -> 
         });
     }
     sources
+}
+
+/// `RawInspireSkill`(固定`ratio` or スキルLv別追従`ratio_key`。P7)から
+/// `dto::InspireSkillRatio`を組み立てる。`ratio_key`が実スキルのblackboardに解決できない
+/// 場合は固定`ratio`(未指定なら0.0)にフォールバックする(ドリフト自体は
+/// `validate_inspire_sources`が検知する)。
+fn build_inspire_skill_ratio(operator_id: &str, raw: &buffers::RawInspireSkill, ops: &OperatorData, skills: &SkillData) -> InspireSkillRatio {
+    if let Some(key) = &raw.ratio_key {
+        if let Some(by_level) = ops
+            .operators
+            .get(operator_id)
+            .and_then(|cost_op| skill_id_by_num(cost_op).get(raw.skill_num.as_str()).copied())
+            .and_then(|skill_id| skills.get_blackboard_by_level(skill_id))
+            .filter(|v| !v.is_empty())
+        {
+            let values_by_level: Vec<f64> = by_level.iter().map(|bb| bb.get(key).copied().unwrap_or(0.0)).collect();
+            let ratio = values_by_level.last().copied().unwrap_or(0.0);
+            return InspireSkillRatio { skill_num: raw.skill_num.clone(), ratio, ratio_by_level: values_by_level, ratio_fixed: false };
+        }
+    }
+    let ratio = raw.ratio.unwrap_or(0.0);
+    InspireSkillRatio { skill_num: raw.skill_num.clone(), ratio, ratio_by_level: vec![ratio], ratio_fixed: true }
 }
 
 /// `buffers::RawInspireSelfPart`をそのままDTO(`dto::InspireSelfPart`)へ変換する。
@@ -254,7 +302,7 @@ fn to_inspire_self_part_dto(part: &buffers::RawInspireSelfPart) -> InspireSelfPa
 /// 整合しているかを検証する。不一致の一覧を返す(空ならOK)。ゲームデータ更新で
 /// オペレーターID・skill_num・モジュールIDが変わった際のドリフト検知用
 /// (`cargo test`で実行する)。
-pub fn validate_inspire_sources(sources: &[RawInspireSource], combat: &OperatorCombat, ops: &OperatorData) -> Vec<String> {
+pub fn validate_inspire_sources(sources: &[RawInspireSource], combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData) -> Vec<String> {
     let mut bad = Vec::new();
     for s in sources {
         let Some(combat_op) = combat.operators.get(&s.operator) else {
@@ -265,8 +313,24 @@ pub fn validate_inspire_sources(sources: &[RawInspireSource], combat: &OperatorC
             Some(cost_op) => {
                 let skill_ids = skill_id_by_num(cost_op);
                 for sk in &s.skills {
-                    if !skill_ids.contains_key(sk.skill_num.as_str()) {
+                    let Some(skill_id) = skill_ids.get(sk.skill_num.as_str()) else {
                         bad.push(format!("inspire:{} (skill_num'{}'が'{}'の実スキルに無い)", s.id, sk.skill_num, s.operator));
+                        continue;
+                    };
+                    // P7: ratio(固定)/ratio_key(スキルLv別追従)はどちらか一方が必須。
+                    match (sk.ratio, &sk.ratio_key) {
+                        (None, None) => bad.push(format!("inspire:{} (skill_num'{}'はratioかratio_keyのどちらかが必要)", s.id, sk.skill_num)),
+                        (Some(_), Some(_)) => bad.push(format!("inspire:{} (skill_num'{}'のratioとratio_keyを同時指定できない)", s.id, sk.skill_num)),
+                        _ => {}
+                    }
+                    if let Some(key) = &sk.ratio_key {
+                        let has_key = skills
+                            .get_blackboard_by_level(skill_id)
+                            .map(|levels| levels.iter().any(|lv| lv.contains_key(key)))
+                            .unwrap_or(false);
+                        if !has_key {
+                            bad.push(format!("inspire:{} (skill_num'{}'のratio_key'{key}'がblackboardに無い)", s.id, sk.skill_num));
+                        }
                     }
                 }
             }
@@ -311,8 +375,12 @@ fn build_entry(
     skill_label: String,
     variant_label: Option<String>,
     multiplier: Valued<f64>,
-    multiplier_candidates: Vec<(String, f64)>,
+    multiplier_by_level: Vec<f64>,
+    multiplier_fixed: bool,
+    multiplier_candidates: Vec<MultiplierCandidate>,
     self_atk_pct: Valued<f64>,
+    self_atk_pct_by_level: Vec<f64>,
+    self_atk_pct_fixed: bool,
     hits: Valued<u32>,
     damage_type: Valued<DamageType>,
     tags: Vec<String>,
@@ -328,8 +396,12 @@ fn build_entry(
         detail: row.detail.clone(),
         last_edited: row.last_edited.clone(),
         multiplier,
+        multiplier_by_level,
+        multiplier_fixed,
         multiplier_candidates,
         self_atk_pct,
+        self_atk_pct_by_level,
+        self_atk_pct_fixed,
         hits,
         damage_type,
         tags,
@@ -355,38 +427,119 @@ fn build_entry(
 /// (`write_seed_file`がJSONキーを再帰的にソートして書き出す影響で、Seed読み込み時と
 /// 実fetch時とでIndexMapの挿入順が食い違うため。この関数の出力を常に決定的にすることで
 /// フロント側の表示順がSeed/本番のどちらでも変わらないようにする)。
-fn resolve_multiplier_defaults(blackboard: Option<&IndexMap<String, f64>>) -> (f64, Vec<(String, f64)>) {
+/// P7: `blackboard_by_level`の各レベルから`key`の値を取り出した配列を作る(無ければ0.0で
+/// 埋める)。`blackboard_by_level`自体が無ければ`num_levels`個(0なら1個)の0.0配列を返す
+/// (「スキルLv別データが無い＝単一値のフォールバック」を1箇所に集約する)。
+fn values_by_level_for_key(blackboard_by_level: Option<&[IndexMap<String, f64>]>, key: &str, num_levels: usize) -> Vec<f64> {
+    match blackboard_by_level {
+        Some(levels) => levels.iter().map(|lv| lv.get(key).copied().unwrap_or(0.0)).collect(),
+        None => vec![0.0; num_levels.max(1)],
+    }
+}
+
+/// 小数第4位に丸める(P7。`self_atk_pct_factor`計算時の浮動小数ドリフト対策。
+/// 例: `0.8 × 0.89`が`0.7119999999999999`のような値になっても`0.712`に正規化する)。
+fn round4(v: f64) -> f64 {
+    (v * 10000.0).round() / 10000.0
+}
+
+/// バリアントの倍率(Valued値・スキルLv別配列・固定フラグ)を解決する(P7)。
+/// `multiplier`(固定)/`multiplier_key`(そのスキルのblackboardキー名でスキルLvに追従)は
+/// どちらか一方のみが指定されている前提(両方/どちらも無い場合の整合性は
+/// `validate_override_level_fields`が検証し、ここではAutoへ安全にフォールバックする)。
+fn resolve_variant_multiplier(
+    variant: &OverrideVariant,
+    default_by_level: &[f64],
+    default_value: f64,
+    blackboard_by_level: Option<&[IndexMap<String, f64>]>,
+    num_levels: usize,
+) -> (Valued<f64>, Vec<f64>, bool) {
+    if let Some(fixed) = variant.multiplier {
+        return (Valued::manual(fixed), vec![fixed; num_levels.max(1)], true);
+    }
+    if let Some(key) = &variant.multiplier_key {
+        let by_level = values_by_level_for_key(blackboard_by_level, key, num_levels);
+        let value = by_level.last().copied().unwrap_or(default_value);
+        return (Valued::manual(value), by_level, false);
+    }
+    (Valued::auto(default_value), default_by_level.to_vec(), false)
+}
+
+/// バリアントのセルフATK%(Valued値・スキルLv別配列・固定フラグ)を解決する(P7)。
+/// `self_atk_pct`(固定)/`self_atk_pct_factor`(Autoのスキルレベル別セルフ%に係数を掛けて
+/// 追従させる)はどちらか一方のみが指定されている前提。
+fn resolve_variant_self_atk_pct(
+    variant: &OverrideVariant,
+    default_by_level: &[f64],
+    default_value: f64,
+    num_levels: usize,
+) -> (Valued<f64>, Vec<f64>, bool) {
+    if let Some(fixed) = variant.self_atk_pct {
+        return (Valued::manual(fixed), vec![fixed; num_levels.max(1)], true);
+    }
+    if let Some(factor) = variant.self_atk_pct_factor {
+        let by_level: Vec<f64> = default_by_level.iter().map(|v| round4(v * factor)).collect();
+        let value = by_level.last().copied().unwrap_or(round4(default_value * factor));
+        return (Valued::manual(value), by_level, false);
+    }
+    (Valued::auto(default_value), default_by_level.to_vec(), false)
+}
+
+fn resolve_multiplier_defaults(
+    blackboard: Option<&IndexMap<String, f64>>,
+    blackboard_by_level: Option<&[IndexMap<String, f64>]>,
+) -> (f64, Vec<f64>, Vec<MultiplierCandidate>) {
+    let num_levels = blackboard_by_level.map(|levels| levels.len()).unwrap_or(1).max(1);
     let Some(blackboard) = blackboard else {
-        return (1.0, Vec::new());
+        return (1.0, vec![1.0; num_levels], Vec::new());
     };
     let mut candidates: Vec<(String, f64)> =
         blackboard.iter().filter(|(k, _)| k.contains("scale")).map(|(k, v)| (k.clone(), *v)).collect();
     candidates.sort_by(|(a, _), (b, _)| a.cmp(b));
 
-    let chosen_key: Option<&str> = if blackboard.contains_key("atk_scale") {
-        Some("atk_scale")
+    // P7: `candidates`をこの後mutate(先頭への並び替え)するため、chosen_keyは所有権付き
+    // (`String`)にしてcandidatesへの借用を早めに切る(借用したままmutateしようとすると
+    // 借用チェッカに弾かれる)。
+    let chosen_key: Option<String> = if blackboard.contains_key("atk_scale") {
+        Some("atk_scale".to_string())
     } else {
         candidates
             .iter()
             .map(|(k, _)| k.as_str())
             .find(|k| k.ends_with("atk_scale") || k.ends_with("damage_scale"))
+            .map(str::to_string)
     };
 
-    let default_multiplier = match chosen_key {
-        Some(key) => blackboard.get(key).copied().unwrap_or(1.0),
+    let default_multiplier = match &chosen_key {
+        Some(key) => blackboard.get(key.as_str()).copied().unwrap_or(1.0),
         None => 1.0,
     };
 
     // 選ばれたキーを候補一覧の先頭へ動かす(既にアルファベット順ソート済みなので、
     // それ以外の並びは変えない = 「選ばれたもの優先、残りはアルファベット順」)。
-    if let Some(key) = chosen_key {
+    if let Some(key) = &chosen_key {
         if let Some(pos) = candidates.iter().position(|(k, _)| k == key) {
             let picked = candidates.remove(pos);
             candidates.insert(0, picked);
         }
     }
 
-    (default_multiplier, candidates)
+    // P7: 選ばれたキーのスキルLv別配列がデフォルト倍率(`multiplierByLevel`)、
+    // 候補一覧の各キーもそれぞれスキルLv別配列を持たせる(倍率候補ドロップダウンが
+    // 現在のスキルLvでの値を表示できるようにする)。
+    let default_multiplier_by_level = match &chosen_key {
+        Some(key) => values_by_level_for_key(blackboard_by_level, key, num_levels),
+        None => vec![1.0; num_levels],
+    };
+    let multiplier_candidates: Vec<MultiplierCandidate> = candidates
+        .into_iter()
+        .map(|(key, _)| {
+            let values_by_level = values_by_level_for_key(blackboard_by_level, &key, num_levels);
+            MultiplierCandidate { key, values_by_level }
+        })
+        .collect();
+
+    (default_multiplier, default_multiplier_by_level, multiplier_candidates)
 }
 
 /// overrides.yamlの各キー(operator_id, skill_num)が実際に`operator_combat`+`fk_data`に
@@ -444,6 +597,35 @@ pub fn validate_special_requires_module(overrides: &Overrides, combat: &Operator
             if let Some(mul) = &special.mul_multiplier {
                 if let Some(module_id) = &mul.module {
                     check_module_id(op_id, skill_num, module_id, "special.mul_multiplier.module", &mut bad);
+                }
+            }
+        }
+    }
+    bad
+}
+
+/// overrides.yamlの`multiplier_key`/`self_atk_pct_factor`(P7)が実データと整合しているかを
+/// 検証する。固定値との同時指定・存在しないキー参照の一覧を返す(空ならOK)。ゲームデータ
+/// 更新でblackboardのキー名が変わった際のドリフト検知用(`cargo test`で実行する)。
+pub fn validate_override_level_fields(overrides: &Overrides, ops: &OperatorData, skills: &SkillData) -> Vec<String> {
+    let mut bad = Vec::new();
+    for (op_id, skill_num) in overrides.all_keys() {
+        let Some(variants) = overrides.variants_for(op_id, skill_num) else { continue };
+        let skill_id = ops.operators.get(op_id).and_then(|cost_op| skill_id_by_num(cost_op).get(skill_num).copied());
+        for variant in variants {
+            if variant.multiplier.is_some() && variant.multiplier_key.is_some() {
+                bad.push(format!("{op_id}/{skill_num} (multiplierとmultiplier_keyを同時指定できない)"));
+            }
+            if variant.self_atk_pct.is_some() && variant.self_atk_pct_factor.is_some() {
+                bad.push(format!("{op_id}/{skill_num} (self_atk_pctとself_atk_pct_factorを同時指定できない)"));
+            }
+            if let Some(key) = &variant.multiplier_key {
+                let has_key = skill_id
+                    .and_then(|id| skills.get_blackboard_by_level(id))
+                    .map(|levels| levels.iter().any(|lv| lv.contains_key(key)))
+                    .unwrap_or(false);
+                if !has_key {
+                    bad.push(format!("{op_id}/{skill_num} (multiplier_key'{key}'がblackboardに無い)"));
                 }
             }
         }
@@ -609,7 +791,7 @@ mod tests {
         let result = build_from_seeds();
         let horn = result.catalog.operators.iter().find(|op| op.name == "ホルン").expect("ホルンがカタログに存在すること");
         let s2 = horn.fk_entries.iter().find(|e| e.skill_num == "2").expect("ホルンのskill_num=2が存在すること");
-        let keys: Vec<&str> = s2.multiplier_candidates.iter().map(|(k, _)| k.as_str()).collect();
+        let keys: Vec<&str> = s2.multiplier_candidates.iter().map(|c| c.key.as_str()).collect();
         assert_eq!(keys, vec!["attack@s2.atk_scale", "attack@s2.magic_atk_scale"]);
     }
 
@@ -671,7 +853,8 @@ mod tests {
     fn every_inspire_source_points_to_existing_operator_skill_and_modules() {
         let combat: OperatorCombat = load_seed(operator_combat::SEED_PATH);
         let ops: OperatorData = load_seed(operator_data::SEED_PATH);
-        let bad = validate_inspire_sources(buffers::raw_inspire_sources(), &combat, &ops);
+        let skills: SkillData = load_seed(skill_data::SEED_PATH);
+        let bad = validate_inspire_sources(buffers::raw_inspire_sources(), &combat, &ops, &skills);
         assert!(bad.is_empty(), "buffers.yamlのinspireリストに実データと不一致な参照がある:\n{}", bad.join("\n"));
     }
 
@@ -811,6 +994,104 @@ mod tests {
         assert_eq!(bonus.mult, Some(2.0));
         // bonus値自体(基本値×倍率)はフロント側(engine.js)の責務なので、ここではmultの
         // 存在と基本値.13だけを確認する(.13×2=.26になることはJS側のverify.mjsで検証する)。
+    }
+
+    /// P7: Ashの300/400/800%は`multiplier_key`でスキルLv別に追従すること
+    /// (SLv1[index0]〜特化3[index9]、L1/L10の実データ値を確認する)。
+    #[test]
+    fn ash_s3_multiplier_follows_skill_level_via_multiplier_key() {
+        let result = build_from_seeds();
+        let ash = result.catalog.operators.iter().find(|op| op.name == "Ash").expect("Ashがカタログに存在すること");
+        let by_label = |label: &str| ash.fk_entries.iter().find(|e| e.skill_num == "3" && e.variant_label.as_deref() == Some(label)).unwrap();
+
+        let v300 = by_label("300%");
+        assert_eq!(v300.multiplier.source, dto::ValueSource::Manual);
+        assert!(!v300.multiplier_fixed, "multiplier_key指定はスキルLvに追従するのでfixed=falseのはず");
+        assert_eq!(v300.multiplier_by_level.first().copied(), Some(2.0), "300%のSLv1");
+        assert_eq!(v300.multiplier_by_level.last().copied(), Some(3.0), "300%の特化3");
+        assert_eq!(v300.multiplier.value, 3.0, "後方互換のmultiplier.valueは特化3の値のはず");
+
+        let v400 = by_label("400%");
+        assert_eq!(v400.multiplier_by_level.first().copied(), Some(3.0), "400%のSLv1");
+        assert_eq!(v400.multiplier_by_level.last().copied(), Some(4.0), "400%の特化3");
+
+        let v800 = by_label("800%");
+        assert_eq!(v800.multiplier_by_level.first().copied(), Some(6.0), "800%のSLv1");
+        assert_eq!(v800.multiplier_by_level.last().copied(), Some(8.0), "800%の特化3");
+    }
+
+    /// P7: ホルンS2の物理/術バリアントも`multiplier_key`でスキルLv別に追従し、
+    /// self_atk_pct(0.31)は素質由来のため固定(全レベル同値)のままであること。
+    #[test]
+    fn horn_s2_multiplier_follows_skill_level_and_self_atk_pct_stays_fixed() {
+        let result = build_from_seeds();
+        let horn = result.catalog.operators.iter().find(|op| op.name == "ホルン").expect("ホルンがカタログに存在すること");
+        let physical = horn.fk_entries.iter().find(|e| e.skill_num == "2" && e.variant_label.as_deref() == Some("物理")).unwrap();
+        assert_eq!(physical.multiplier_by_level.first().copied(), Some(1.3));
+        assert_eq!(physical.multiplier_by_level.last().copied(), Some(2.4));
+        assert!(physical.self_atk_pct_fixed, "self_atk_pctは固定値指定のままなのでfixed=trueのはず");
+        assert!(physical.self_atk_pct_by_level.iter().all(|v| (*v - 0.31).abs() < 1e-9), "全レベル同値0.31のはず");
+
+        let arts = horn.fk_entries.iter().find(|e| e.skill_num == "2" && e.variant_label.as_deref() == Some("術")).unwrap();
+        assert_eq!(arts.multiplier_by_level.first().copied(), Some(0.3));
+        assert_eq!(arts.multiplier_by_level.last().copied(), Some(0.6));
+    }
+
+    /// P7: ブレイズS3のself_atk_pct_factor(0.89)がAutoのスキルレベル別セルフ%(atk)に
+    /// 掛かり、SLv7(L7)=0.534・特化3(L10)=0.712になること(浮動小数ドリフトは
+    /// round4で吸収する)。
+    #[test]
+    fn blaze_s3_self_atk_pct_factor_follows_skill_level() {
+        let result = build_from_seeds();
+        let blaze = result.catalog.operators.iter().find(|op| op.name == "ブレイズ").expect("ブレイズがカタログに存在すること");
+        let s3 = blaze.fk_entries.iter().find(|e| e.skill_num == "3").expect("ブレイズのS3が存在すること");
+        assert!(!s3.self_atk_pct_fixed, "self_atk_pct_factor指定はスキルLvに追従するのでfixed=falseのはず");
+        assert_eq!(s3.self_atk_pct_by_level.len(), 10);
+        assert_eq!(s3.self_atk_pct_by_level[6], 0.534, "SLv7(index6)=0.6×0.89=0.534のはず");
+        assert_eq!(s3.self_atk_pct_by_level[9], 0.712, "特化3(index9)=0.8×0.89=0.712のはず");
+        assert_eq!(s3.self_atk_pct.value, 0.712, "後方互換のself_atk_pct.valueは特化3の値のはず");
+    }
+
+    /// P7: ファイヤーウォッチS2はAuto(override無し)のままだが、blackboardのatk_scaleが
+    /// スキルLv別(SLv1=1.8〜特化3=3.0)に追従すること。
+    #[test]
+    fn fw_s2_multiplier_by_level_is_auto_and_follows_skill_level() {
+        let result = build_from_seeds();
+        let fw = result.catalog.operators.iter().find(|op| op.name == "ファイヤーウォッチ").expect("ファイヤーウォッチがカタログに存在すること");
+        let s2 = fw.fk_entries.iter().find(|e| e.skill_num == "2").expect("ファイヤーウォッチのS2が存在すること");
+        assert_eq!(s2.multiplier.source, dto::ValueSource::Auto);
+        assert_eq!(s2.multiplier_by_level.first().copied(), Some(1.8), "SLv1");
+        assert_eq!(s2.multiplier_by_level.last().copied(), Some(3.0), "特化3");
+    }
+
+    /// P7: 濁心スカジの鼓舞ソースはratio_keyでスキルLv別に追従し、特化3(L10)の値が
+    /// P3時点の実測値(S2=0.6/S3=1.1)と一致すること(後方互換のratioフィールド)。
+    #[test]
+    fn skadi2_inspire_ratio_follows_skill_level() {
+        let result = build_from_seeds();
+        let skadi2 = result.catalog.inspire_sources.iter().find(|s| s.id == "skadi2").expect("skadi2がinspire_sourcesに存在すること");
+        let s2 = skadi2.skills.iter().find(|s| s.skill_num == "2").unwrap();
+        assert!(!s2.ratio_fixed);
+        assert_eq!(s2.ratio_by_level.first().copied(), Some(0.15));
+        assert_eq!(s2.ratio_by_level.last().copied(), Some(0.6));
+        assert_eq!(s2.ratio, 0.6);
+
+        let s3 = skadi2.skills.iter().find(|s| s.skill_num == "3").unwrap();
+        assert!(!s3.ratio_fixed);
+        assert_eq!(s3.ratio_by_level.first().copied(), Some(0.5));
+        assert_eq!(s3.ratio_by_level.last().copied(), Some(1.1));
+        assert_eq!(s3.ratio, 1.1);
+    }
+
+    /// P7: overrides.yamlの`multiplier_key`/`self_atk_pct_factor`が実データ(blackboard)と
+    /// 整合していることのドリフト検知。ゲームデータ更新でキー名が変わった場合、
+    /// このテストが不一致キーを列挙して落ちる。
+    #[test]
+    fn every_override_level_field_points_to_an_existing_blackboard_key() {
+        let ops: OperatorData = load_seed(operator_data::SEED_PATH);
+        let skills: SkillData = load_seed(skill_data::SEED_PATH);
+        let bad = validate_override_level_fields(Overrides::global(), &ops, &skills);
+        assert!(bad.is_empty(), "overrides.yamlのmultiplier_key/self_atk_pct_factorが実データと不一致:\n{}", bad.join("\n"));
     }
 
     /// カバレッジ確認用(fk_dataの何件がカタログに解決できたか)。`--nocapture`で確認する。

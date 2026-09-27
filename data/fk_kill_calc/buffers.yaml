@@ -49,7 +49,9 @@
 #     `resolveConditionalValue`(engine.js)で読むだけ。
 #   inspire(P3): 鼓舞(インスパイア)ソース。FKする側ではなく「味方に鼓舞バフを撒く側」の
 #     オペレーターを表す(fk_dataシートには載らないため、operatorはoperator_combat側の
-#     idを直接指す)。スキーマ・値の出典は`src/engine/fk_kill_calc/mod.rs`の
+#     idを直接指す)。`skills`の各要素は`{ skill_num, ratio: 数値 }`(固定値)または
+#     `{ skill_num, ratio_key: <blackboardキー名> }`(P7。スキルLv別に機械抽出する。
+#     どちらか一方必須)。スキーマ・値の出典は`src/engine/fk_kill_calc/mod.rs`の
 #     `build_inspire_sources`冒頭コメント、および本ファイル末尾の濁心スカジのコメント参照。
 #
 # targets/bonus.tagsに書けるタグ名は`tags.rs::tag_vocabulary()`の語彙のみ
@@ -221,9 +223,13 @@ inspire:
   - id: skadi2
     operator: char_1012_skadi2
     name: 濁心スカジ
+    # P7でスキルLv対応: 固定ratioの代わりにratio_key(blackboardキー名)を指定し、
+    # スキルLv1〜10の値をそのまま機械抽出する(S2=skchr_skadi2_2のatk[L1=0.15〜L10=0.6]、
+    # S3=skchr_skadi2_3のatk[L1=0.5〜L10=1.1]。実データ確認済み。S3にはatk_scale[0.7@L10]
+    # という無関係な別キーも存在するが、鼓舞倍率に対応するのは"atk"の方)。
     skills:
-      - { skill_num: "2", ratio: 0.6 }
-      - { skill_num: "3", ratio: 1.1 }
+      - { skill_num: "2", ratio_key: atk }
+      - { skill_num: "3", ratio_key: atk }
     talent_potential_label: 素質凸
     self_parts:
       - id: talent

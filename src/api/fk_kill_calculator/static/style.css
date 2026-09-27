@@ -82,6 +82,10 @@ summary{cursor:pointer;color:var(--faint);font-size:12px}
 }
 .row-expanded{background:rgba(79,124,255,.06)}
 .row-field{margin-bottom:8px}
+/* ---- FK対象+スキルLv(P7。スキルLvは狭めに右側) ---- */
+.entry-with-skill-level{display:flex;gap:8px;align-items:flex-end}
+.entry-with-skill-level .entry-field{flex:1;min-width:0}
+.entry-with-skill-level .skill-level-field{flex:0 0 92px}
 .row-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .row-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
 /* ---- 昇進/レベル/信頼度(P6) ---- */

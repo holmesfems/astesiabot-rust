@@ -43,6 +43,8 @@ import {
   moduleUsable,
   effectiveModuleId,
   skillUnlockWarning,
+  valueAtLevel,
+  skillLevelWarning,
 } from "./engine.js";
 
 const ENEMY_PERCENT_FIELDS = new Set(["defPct", "vulnPct"]);
@@ -118,6 +120,7 @@ function blankRow() {
     elite: 2, // P6: オペレーター未選択の間は意味を持たない仮値(選択時にmakeDefaultRowが上書きする)
     level: 90,
     trust: 100,
+    skillLevel: 10, // P7: スキルLv(1〜10。SLv1〜7+特化1〜3。既定は特化3)
     moduleId: null,
     moduleLv: 3,
     multiplier: 1,
@@ -337,9 +340,11 @@ function rowPlainSummary(row) {
 }
 
 // P6: "E2 Lv90"(信頼度100%は省略。それ以外は"信頼60%"のように付け足す)。
+// P7: スキルLvが既定(特化3=10)でない場合だけ末尾に付け足す(例: "E2 Lv90 SLv7")。
 function eliteLevelLabel(row) {
   let s = `E${row.elite} Lv${row.level}`;
   if (row.trust !== 100) s += ` 信頼${row.trust}%`;
+  if ((row.skillLevel ?? 10) !== 10) s += ` ${skillLevelOptionLabel(row.skillLevel)}`;
   return s;
 }
 
@@ -391,32 +396,45 @@ function moduleOptions(op, row) {
   return html;
 }
 
-function multiplierCandidateOptions(entry) {
+// P7: entry.multiplierCandidatesは{key, valuesByLevel}の配列(valuesByLevelはスキルLv別)。
+// 現在のスキルLvでの値をvalueAtLevelで引いて表示する。
+function multiplierCandidateOptions(entry, skillLevel) {
   let html = `<option value="">候補から選ぶ…</option>`;
-  for (const [key, value] of entry.multiplierCandidates) {
-    html += `<option value="${value}">${escapeHtml(key)} (${value})</option>`;
+  for (const { key, valuesByLevel } of entry.multiplierCandidates) {
+    const value = valueAtLevel(valuesByLevel, skillLevel);
+    html += `<option value="${value}">${escapeHtml(key)} (${trimNum(value)})</option>`;
   }
   return html;
 }
 
-// カタログ側の既定値(entry由来)。行のフィールドがユーザー操作でこの値から
-// 変わっていれば「↺」リセットボタンを出す。entryが無ければ全てnull。
+// カタログ側の既定値(entry由来。P7: 現在のスキルLvでの値)。行のフィールドがユーザー操作で
+// この値から変わっていれば「↺」リセットボタンを出す。entryが無ければ全てnull。
 // P2 follow-up: 特殊強化はもう置き換え系を持たない(加算系/乗算系は都度計算する
 // 別枠なので、ここでの既定値には影響しない)ため`specialOn`は見なくなった。
-function catalogDefaults(entry) {
+function catalogDefaults(entry, skillLevel) {
   if (!entry) return { multiplier: null, selfPct: null, hits: null, dmgType: null };
-  const values = resolveEntryValues(entry);
+  const values = resolveEntryValues(entry, skillLevel);
   return { multiplier: values.multiplier, selfPct: values.selfPct, hits: values.hits, dmgType: values.dmgType };
 }
 
-function fieldBadges(entry, field, currentValue, idx) {
+// P7: 「補正」バッジの文言。固定(Manualかつスキルレベルに追従しない)なら「補正(特化3固定)」、
+// スキルLvに追従するManual(multiplier_key/self_atk_pct_factor経由)ならただの「補正」。
+function manualBadgeLabel(field, entry) {
+  const fixedMap = { multiplier: entry.multiplierFixed, selfPct: entry.selfAtkPctFixed };
+  return fixedMap[field] ? "補正(特化3固定)" : "補正";
+}
+
+function fieldBadges(entry, field, currentValue, idx, skillLevel) {
   if (!entry) return "";
   const sourceMap = { multiplier: entry.multiplier, selfPct: entry.selfAtkPct, hits: entry.hits, dmgType: entry.damageType };
   const src = sourceMap[field];
   // renderLiveが入力欄を作り直さずにバッジだけ差し替えられるよう、常にラッパーで包む。
   let html = `<span class="field-badges" data-badges-for="${field}" data-idx="${idx}">`;
-  if (src && src.source === "manual") html += `<span class="badge badge-manual" title="オーナーによる手動補正値">補正</span>`;
-  const defaults = catalogDefaults(entry);
+  if (src && src.source === "manual") {
+    const label = manualBadgeLabel(field, entry);
+    html += `<span class="badge badge-manual" title="オーナーによる手動補正値">${escapeHtml(label)}</span>`;
+  }
+  const defaults = catalogDefaults(entry, skillLevel);
   const def = defaults[field];
   if (def !== null && def !== undefined && !valuesEqual(def, currentValue)) {
     html += `<button type="button" class="badge badge-reset" data-action="reset-field" data-field="${field}" data-idx="${idx}" title="カタログ既定値に戻す" aria-label="カタログ既定値に戻す">↺</button>`;
@@ -581,6 +599,36 @@ function renderSkillUnlockWarning(op, entry, row) {
   return `<p class="special-hint">${escapeHtml(warning)}（計算は続行されます）</p>`;
 }
 
+// P7: スキルLv(1〜n)のセレクト選択肢。nは`entry.multiplierByLevel`の長さ(データが
+// 10未満のスキルにも対応)。
+function skillLevelOptionsN(n, current) {
+  // Lv数の少ないスキル(例: 7段階)では、計算側のクランプと同じく最大Lvを選択表示にする。
+  current = Math.min(Math.max(current, 1), n);
+  let html = "";
+  for (let lv = 1; lv <= n; lv++) {
+    html += `<option value="${lv}"${current === lv ? " selected" : ""}>${skillLevelOptionLabel(lv)}</option>`;
+  }
+  return html;
+}
+
+// P7: `elite`/`skillLevel`の組み合わせから、まだ解放されていないスキルLvを選んでいる
+// 場合の警告(「特化は昇進2で解放」/「SLv5以上は昇進1で解放」)。計算は続行する
+// (skillUnlockWarningと同じ方針)。`cfgLike`は`{elite, skillLevel}`を持つrow/inspireのcfg。
+function renderSkillLevelWarning(cfgLike) {
+  const warning = skillLevelWarning(cfgLike.elite, cfgLike.skillLevel ?? 10);
+  if (!warning) return "";
+  return `<p class="special-hint">${escapeHtml(warning)}（計算は続行されます）</p>`;
+}
+
+// P7: 行のスキルLvセレクト(FK対象と同じ行の右側に狭めに置く)。選択肢の数は
+// entry.multiplierByLevelの長さに合わせる(無ければ10=SLv1〜特化3のフルセットにフォールバック)。
+function renderSkillLevelSelect(entry, row, idx) {
+  const n = (entry.multiplierByLevel && entry.multiplierByLevel.length) || 10;
+  return `<label class="skill-level-field">スキルLv
+      <select data-role="row" data-field="skillLevel" data-idx="${idx}">${skillLevelOptionsN(n, row.skillLevel ?? 10)}</select>
+    </label>`;
+}
+
 // P6: 選択中のモジュールが現在の昇進/レベルでは装備できない場合のヒント
 // (実データのunlockPhase/unlockLevelから組み立てる。ATKには加算されない)。
 function renderModuleUnusableHint(op, row) {
@@ -626,8 +674,12 @@ function renderRowExpanded(row, idx, singleConflicts) {
       </label>
     </div>
     <div class="row-field">
-      <label>FK対象 ${entrySelectHtml}</label>
+      <div class="entry-with-skill-level">
+        <label class="entry-field">FK対象 ${entrySelectHtml}</label>
+        ${entry ? renderSkillLevelSelect(entry, row, idx) : ""}
+      </div>
       ${renderSkillUnlockWarning(op, entry, row)}
+      ${entry ? renderSkillLevelWarning(row) : ""}
     </div>
     ${op ? renderEliteLevelTrustControls(op, row, idx) : ""}
     <div class="row-grid2">
@@ -637,7 +689,7 @@ function renderRowExpanded(row, idx, singleConflicts) {
           <option value="arts"${row.dmgType === "arts" ? " selected" : ""}>術</option>
           <option value="true"${row.dmgType === "true" ? " selected" : ""}>真</option>
         </select>
-        ${fieldBadges(entry, "dmgType", row.dmgType, idx)}
+        ${fieldBadges(entry, "dmgType", row.dmgType, idx, row.skillLevel)}
       </label>
       <label class="check-label">
         <input type="checkbox" data-role="row" data-field="potential" data-idx="${idx}" ${row.potential ? "checked" : ""}>
@@ -661,22 +713,22 @@ function renderRowExpanded(row, idx, singleConflicts) {
     <div class="row-grid2">
       <label>倍率
         <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}" value="${trimNum(row.multiplier)}">
-        ${fieldBadges(entry, "multiplier", row.multiplier, idx)}
+        ${fieldBadges(entry, "multiplier", row.multiplier, idx, row.skillLevel)}
       </label>
       <label>倍率候補
         <select data-role="row" data-field="multiplierCandidate" data-idx="${idx}" ${entry && entry.multiplierCandidates.length ? "" : "disabled"}>
-          ${entry ? multiplierCandidateOptions(entry) : '<option value="">候補から選ぶ…</option>'}
+          ${entry ? multiplierCandidateOptions(entry, row.skillLevel) : '<option value="">候補から選ぶ…</option>'}
         </select>
       </label>
     </div>
     <div class="row-grid2">
       <label>セルフ%
         <input type="number" step="any" data-role="row" data-field="selfPct" data-idx="${idx}" value="${fmtPct(row.selfPct, 3)}">
-        ${fieldBadges(entry, "selfPct", row.selfPct, idx)}
+        ${fieldBadges(entry, "selfPct", row.selfPct, idx, row.skillLevel)}
       </label>
       <label>Hit数
         <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
-        ${fieldBadges(entry, "hits", row.hits, idx)}
+        ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
       </label>
     </div>
     ${renderIndividualBuffChips(row, idx, singleConflicts)}
@@ -825,19 +877,26 @@ function renderInspireSourceCard(source, singleConflicts) {
       return `<option value="${escapeHtml(s.skillNum)}"${s.skillNum === cfg.skillNum ? " selected" : ""}>${escapeHtml(label)}</option>`;
     })
     .join("");
+  // P7: 現在選択中のスキルのratioByLevelの長さでスキルLvの選択肢数を決める。
+  const currentSkill = source.skills.find((s) => s.skillNum === cfg.skillNum) || source.skills[0];
+  const skillLevelN = (currentSkill && currentSkill.ratioByLevel && currentSkill.ratioByLevel.length) || 10;
 
   return `
   <div class="inspire-source-card inspire-source-on" data-source-id="${escapeHtml(source.id)}">
     <div class="inspire-source-header">${toggleChip}</div>
-    <div class="row-grid2">
+    <div class="row-grid3">
       <label>スキル
         <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="skillNum">${skillOptions}</select>
+      </label>
+      <label>スキルLv
+        <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="skillLevel">${skillLevelOptionsN(skillLevelN, cfg.skillLevel ?? 10)}</select>
       </label>
       <label class="check-label">
         <input type="checkbox" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="potential" ${cfg.potential ? "checked" : ""}>
         攻撃凸
       </label>
     </div>
+    ${renderSkillLevelWarning(cfg)}
     <label class="check-label">
       <input type="checkbox" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="talentPotential" ${cfg.talentPotential ? "checked" : ""}>
       ${escapeHtml(source.talentPotentialLabel)}
@@ -1207,7 +1266,7 @@ function renderLive() {
       if (formula) formula.innerHTML = op && entry ? renderFormulaLine(op, row) : "";
       card.querySelectorAll(".field-badges").forEach((badges) => {
         const field = badges.dataset.badgesFor;
-        badges.outerHTML = fieldBadges(entry, field, row[field], idx);
+        badges.outerHTML = fieldBadges(entry, field, row[field], idx, row.skillLevel);
       });
       // P6: レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するよう
       // 差し替える(elite/moduleIdの変更は既にrender()で全体を作り直す)。
@@ -1282,8 +1341,27 @@ function onRowFieldChange(el) {
     const newIdx = Number(el.value);
     const entry = op ? findEntry(op, newIdx) : null;
     row.entryIdx = newIdx;
+    // P7: FK対象を選び直しても、選んでいたスキルLvはそのまま保つ(育成状況はスキル間で
+    // 揃っていることが多いため)。Lv数の少ないスキルでは値の解決時にクランプされる。
     if (entry) {
-      const values = resolveEntryValues(entry);
+      const values = resolveEntryValues(entry, row.skillLevel);
+      row.multiplier = values.multiplier;
+      row.selfPct = values.selfPct;
+      row.hits = values.hits;
+      row.dmgType = values.dmgType;
+      row.dmgMult = values.dmgMult;
+    }
+    render();
+    return;
+  }
+  if (field === "skillLevel") {
+    // P7: スキルLvを変えたら、その時点のカタログ既定値(倍率/セルフ%)へ行フィールドを
+    // 再スナップする(entryIdx変更と同じ扱い。ユーザーはそこから更に手動で上書きできる)。
+    const op = findOperator(catalog, row.opId);
+    const entry = op ? findEntry(op, row.entryIdx) : null;
+    row.skillLevel = Number(el.value);
+    if (entry) {
+      const values = resolveEntryValues(entry, row.skillLevel);
       row.multiplier = values.multiplier;
       row.selfPct = values.selfPct;
       row.hits = values.hits;
@@ -1350,7 +1428,7 @@ function onResetField(idx, field) {
   const row = state.rows[idx];
   const op = findOperator(catalog, row.opId);
   const entry = op ? findEntry(op, row.entryIdx) : null;
-  const defaults = catalogDefaults(entry);
+  const defaults = catalogDefaults(entry, row.skillLevel);
   if (defaults[field] === null || defaults[field] === undefined) return;
   row[field] = defaults[field];
   render();
@@ -1442,7 +1520,13 @@ function onInspireFieldChange(el) {
     return;
   }
   if (field === "skillNum") {
+    // P7: スキルを選び直しても、選んでいたスキルLvはそのまま保つ(FK行のentryIdx変更と同じ扱い)。
     setSourceCfg(sourceId, { skillNum: el.value });
+    render();
+    return;
+  }
+  if (field === "skillLevel") {
+    setSourceCfg(sourceId, { skillLevel: Number(el.value) });
     render();
     return;
   }

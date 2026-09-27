@@ -75,6 +75,18 @@
        「一番効果の高い鼓舞1つを受ける」という前提)。
      - 鼓舞ソース自身の行(`row.opId === source.operatorId`)には、そのソース自身の
        鼓舞は乗らない(自分で自分を鼓舞しない。他ソースがあれば対象になり得る)。
+
+   P7で追加した「スキルLv」(`row.skillLevel`/鼓舞ソースの`cfg.skillLevel`。1〜10。
+   SLv1〜7+特化1〜3。既定10=特化3で旧デフォルトと完全互換)。カタログ側は
+   `FkEntry.multiplierByLevel`/`selfAtkPctByLevel`/`multiplierCandidates[].valuesByLevel`
+   （倍率候補）、鼓舞ソースの`skills[].ratioByLevel`としてスキルLv別の配列を持つ
+   （`valueAtLevel`/`resolveMultiplierAtLevel`/`resolveSelfAtkPctAtLevel`/
+   `resolveInspireRatioAtLevel`がこれを引く）。`skillLevel`を変えると
+   `resolveEntryValues(entry, skillLevel)`が行フィールド(倍率/セルフ%)を
+   その時点のカタログ既定値へ再スナップする(entryIdx変更時と同じ扱い。ユーザーは
+   そこから更に手動で上書きできる)。`maxSkillLevelForElite`/`skillLevelWarning`が
+   「E0はSLv4まで、E1はSLv7まで、特化1〜3は昇進2が必要」というゲーム側の一般ルールを
+   判定する(既存のskillUnlockWarningと同じく、警告を出しても計算自体は続行する)。
    ============================================================ */
 
 /**
@@ -107,6 +119,31 @@ export function defaultModuleId(op) {
 }
 
 /**
+ * P7: 配列`arr`(スキルLv1〜(データ数)ごとの値)から、スキルLv`skillLevel`(1始まり)の値を
+ * 引く。`skillLevel`は配列の長さにクランプする(データが10未満のスキルでも安全に動く)。
+ * `arr`が空/無ければ0を返す。
+ */
+export function valueAtLevel(arr, skillLevel) {
+  if (!arr || !arr.length) return 0;
+  const idx = Math.min(Math.max(skillLevel, 1), arr.length) - 1;
+  return arr[idx];
+}
+
+/** P7: `entry.multiplierByLevel`から現在のスキルLvの倍率を引く。配列が無ければ`entry.multiplier.value`。 */
+export function resolveMultiplierAtLevel(entry, skillLevel) {
+  const arr = entry.multiplierByLevel;
+  if (!arr || !arr.length) return entry.multiplier.value;
+  return valueAtLevel(arr, skillLevel);
+}
+
+/** P7: `entry.selfAtkPctByLevel`から現在のスキルLvのセルフ%を引く。配列が無ければ`entry.selfAtkPct.value`。 */
+export function resolveSelfAtkPctAtLevel(entry, skillLevel) {
+  const arr = entry.selfAtkPctByLevel;
+  if (!arr || !arr.length) return entry.selfAtkPct.value;
+  return valueAtLevel(arr, skillLevel);
+}
+
+/**
  * FkEntryが持つ機械/手動の値をそのまま行フィールドへ写した実効値を組み立てる
  * (multiplier/selfPct/hits/dmgType。dmgMultは特殊強化が持たない限り常に1)。
  * `entryIdx`変更時にこれを使い、行フィールドを新しいエントリの値へ再スナップする
@@ -114,11 +151,15 @@ export function defaultModuleId(op) {
  * P2 follow-upで「置き換え系」特殊強化(FW/Weedy等)を撤去したため、`entry.special`は
  * もう見ない(加算系/乗算系は`resolveSpecialAddPct`/`resolveSpecialMultiplierFactor`が
  * 都度計算する。行フィールドへのスナップショットが不要になった)。
+ * P7: `skillLevel`(既定10=特化3。旧デフォルトと同じ結果になる)で倍率/セルフ%を
+ * スキルLv別に解決する。`skillLevel`を変える(entryIdxはそのまま)場合もこの関数を
+ * 呼び直して行フィールドを再スナップする(倍率入力欄が常に「現在のスキルLvでの
+ * カタログ既定値」を表示するようにするため。ユーザーの手動編集はそこから更に上書きできる)。
  */
-export function resolveEntryValues(entry) {
+export function resolveEntryValues(entry, skillLevel = 10) {
   return {
-    multiplier: entry.multiplier.value,
-    selfPct: entry.selfAtkPct.value,
+    multiplier: resolveMultiplierAtLevel(entry, skillLevel),
+    selfPct: resolveSelfAtkPctAtLevel(entry, skillLevel),
     hits: entry.hits.value,
     dmgType: entry.damageType.value,
     dmgMult: 1,
@@ -226,7 +267,8 @@ export function resolveSpecialCurrentValue(op, entry, row) {
  */
 export function makeDefaultRow(op, entryIdx) {
   const entry = op.fkEntries[entryIdx];
-  const values = resolveEntryValues(entry);
+  const skillLevel = 10; // P7: 既定は特化3(旧デフォルトと同じ結果になる)。
+  const values = resolveEntryValues(entry, skillLevel);
   const elite = maxEliteFor(op);
   return {
     opId: op.id,
@@ -236,6 +278,7 @@ export function makeDefaultRow(op, entryIdx) {
     elite,
     level: maxLevelForElite(op, elite),
     trust: 100,
+    skillLevel, // P7: スキルLv(1〜10。SLv1〜7+特化1〜3)
     moduleId: defaultModuleId(op),
     moduleLv: 3,
     multiplier: values.multiplier,
@@ -359,6 +402,28 @@ export function skillUnlockWarning(op, entry, row) {
   if (elite >= required) return null;
   const prefix = /^\d+$/.test(entry.skillNum) ? `S${entry.skillNum}` : entry.skillNum;
   return `${prefix}は昇進${required}で解放`;
+}
+
+/**
+ * P7: 昇進(elite)ごとに実際に到達できるスキルLvの上限(ゲームの一般ルール。オペレーター/
+ * スキルには依らない): E0はSLv4まで、E1はSLv7まで、特化1〜3(SLv8〜10)は昇進2が必要。
+ */
+export function maxSkillLevelForElite(elite) {
+  if (elite >= 2) return 10;
+  if (elite === 1) return 7;
+  return 4;
+}
+
+/**
+ * 現在の`elite`では`skillLevel`がまだ解放されていない場合の警告文(例:
+ * "特化は昇進2で解放"/"SLv5以上は昇進1で解放")。解放済みならnull。
+ * `skillUnlockWarning`(そのスキル自体の解放昇進)とは独立の判定で、両方出ることもある
+ * (計算自体はどちらの警告が出ていても続行する。オーナー方針)。
+ */
+export function skillLevelWarning(elite, skillLevel) {
+  if (skillLevel >= 8) return elite >= 2 ? null : "特化は昇進2で解放";
+  if (skillLevel >= 5) return elite >= 1 ? null : "SLv5以上は昇進1で解放";
+  return null;
 }
 
 /** atk = ベースATK(昇進/レベル/信頼度) + (潜在) + (モジュール。装備可能な場合のみ)。 */
@@ -594,6 +659,7 @@ export function defaultInspireSourceCfg(source) {
   return {
     on: false,
     skillNum: source.skills && source.skills[0] ? source.skills[0].skillNum : "",
+    skillLevel: 10, // P7: スキルLv(既定は特化3。旧デフォルトと同じ結果になる)
     potential: true,
     // 攻撃凸(potential)と揃えて既定ON（参考シートの濁心スカジS2のセルフ9%=6%+素質凸3%もON前提）。
     talentPotential: true,
@@ -685,9 +751,21 @@ export function resolveInspireSourceAtk(source, cfg) {
  * @returns {{amount:number, atk:number, ratio:number, skillNum:string, selfPct:number,
  *            selfParts:{pct:number, applied:Array}, breakdown:object, manualPct:number}}
  */
+/**
+ * P7: `skillEntry.ratioByLevel`から`skillLevel`(既定10=特化3)の鼓舞倍率を引く。
+ * 配列が無ければ`skillEntry.ratio`(固定値)にフォールバックする。
+ */
+export function resolveInspireRatioAtLevel(skillEntry, skillLevel) {
+  if (!skillEntry) return 0;
+  const arr = skillEntry.ratioByLevel;
+  if (!arr || !arr.length) return skillEntry.ratio || 0;
+  return valueAtLevel(arr, skillLevel);
+}
+
 export function computeInspireSource(source, cfg, catalog, globalBuffIds = [], globalBuffLevels = {}) {
   const skills = (source && source.skills) || [];
   const skillEntry = skills.find((s) => s.skillNum === cfg.skillNum) || skills[0] || { skillNum: "", ratio: 0 };
+  const ratio = resolveInspireRatioAtLevel(skillEntry, cfg.skillLevel ?? 10);
   const atk = resolveInspireSourceAtk(source, cfg);
   const selfParts = computeInspireSelfParts(source, cfg);
   const pseudoRow = { buffIds: cfg.buffIds || [] };
@@ -695,8 +773,8 @@ export function computeInspireSource(source, cfg, catalog, globalBuffIds = [], g
   const breakdown = computeBuffBreakdown(pseudoRow, pseudoEntry, catalog, globalBuffIds, globalBuffLevels);
   const manualPct = cfg.buffPct || 0;
   const selfPct = selfParts.pct + breakdown.extraPct + manualPct;
-  const amount = atk * (1 + selfPct) * skillEntry.ratio;
-  return { amount, atk, ratio: skillEntry.ratio, skillNum: skillEntry.skillNum, selfPct, selfParts, breakdown, manualPct };
+  const amount = atk * (1 + selfPct) * ratio;
+  return { amount, atk, ratio, skillNum: skillEntry.skillNum, selfPct, selfParts, breakdown, manualPct };
 }
 
 /**
@@ -845,6 +923,7 @@ export function dropStaleRows(state, catalog) {
         elite,
         level,
         trust: row.trust != null ? row.trust : 100,
+        skillLevel: row.skillLevel != null ? row.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
         buffIds: migrateStainlessIds(row.buffIds || []).filter((id) => validBuffIds.has(id)),
         specialOn: row.specialOn !== false,
         inspireOn: row.inspireOn !== false,
@@ -906,6 +985,7 @@ export function dropStaleRows(state, catalog) {
       elite,
       level,
       trust: cfg.trust != null ? cfg.trust : 100,
+      skillLevel: cfg.skillLevel != null ? cfg.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
       buffIds: migrateStainlessIds(cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
       parts,
     };

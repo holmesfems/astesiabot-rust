@@ -1240,6 +1240,137 @@ async function runEliteLevelTrustScenario(browser, baseUrl) {
   }
 }
 
+// P7: スキルLv(SLv1〜7+特化1〜3)コントロール。
+// row-formula の2行目("→ 実ダメ ... = <b>合計</b> ...")から合計ダメージを取り出す。
+// テキスト中に"="が複数回出る(1行目のfinal算出にも"="がある)ので、最後の"="の後の数値を使う。
+function lastEqualsNumber(text) {
+  const matches = [...text.matchAll(/=\s*([\d,]+)/g)];
+  return Number(matches[matches.length - 1][1].replace(/,/g, ''));
+}
+
+async function runSkillLevelScenario(browser, baseUrl) {
+  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
+  const page = await context.newPage();
+  try {
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+
+    await addOperator(page, 'Ash', '400%');
+    const skillLevelSelect = page.locator('.row-expanded select[data-field="skillLevel"]');
+    const eliteSelect = page.locator('.row-expanded select[data-field="elite"]');
+
+    // --- 既定値: 特化3(10) ---
+    ok('skill level select appears on the expanded row', (await skillLevelSelect.count()) === 1);
+    ok('default skill level is 特化3 (value 10)', (await skillLevelSelect.inputValue()) === '10', await skillLevelSelect.inputValue());
+    const selectedLabel = await skillLevelSelect.locator('option:checked').innerText();
+    ok('default skill level label reads 特化3', selectedLabel === '特化3', selectedLabel);
+
+    const formulaAtLv10 = await page.locator('.row-formula').innerText();
+    const totalAtLv10 = lastEqualsNumber(formulaAtLv10);
+
+    // --- スキルLvを下げると倍率(400%バリアントのnot_hitwall_scale)が下がり、合計も下がる ---
+    await skillLevelSelect.selectOption('1');
+    await page.waitForTimeout(100);
+    const multiplierInput = page.locator('.row-expanded input[data-field="multiplier"]');
+    ok('lowering skill level to SLv1 re-snaps the multiplier input to 3 (400% variant at L1)',
+      (await multiplierInput.inputValue()) === '3', await multiplierInput.inputValue());
+    const formulaAtLv1 = await page.locator('.row-formula').innerText();
+    const totalAtLv1 = lastEqualsNumber(formulaAtLv1);
+    ok('total damage decreases when skill level is lowered (lower multiplier)', totalAtLv1 < totalAtLv10, `${totalAtLv10} -> ${totalAtLv1}`);
+
+    // --- FK対象を切り替えてもスキルLvは保たれる(バリアント違い400%→800%。別スキルへの
+    //     切り替えは末尾のウァン(S2→S3)で確認する) ---
+    await selectEntryByLabel(page, '800%');
+    await page.waitForTimeout(100);
+    ok('switching to another variant of the same skill keeps the skill level (SLv1)',
+      (await skillLevelSelect.inputValue()) === '1', await skillLevelSelect.inputValue());
+    ok('the 800% variant at SLv1 re-snaps the multiplier to 6 (hitwall_scale L1)',
+      (await multiplierInput.inputValue()) === '6', await multiplierInput.inputValue());
+    await selectEntryByLabel(page, '400%');
+    await page.waitForTimeout(100);
+
+    // --- 昇進不足で特化を選ぶと警告が出る(計算は続行される) ---
+    await eliteSelect.selectOption('0');
+    await page.waitForTimeout(100);
+    await skillLevelSelect.selectOption('8');
+    await page.waitForTimeout(100);
+    const warningText = (await page.locator('.row-expanded .special-hint').allInnerTexts()).join(' / ');
+    ok('warning shown when 特化1 is selected at E0 (特化 needs E2)', warningText.includes('特化は昇進2で解放'), warningText);
+
+    await eliteSelect.selectOption('2');
+    await page.waitForTimeout(100);
+    await skillLevelSelect.selectOption('7');
+    await page.waitForTimeout(100);
+
+    // --- 折りたたみ時のサマリーに非既定のスキルLvが付け足される ---
+    await page.click('[data-action="collapse-row"]');
+    await page.waitForTimeout(100);
+    const eliteBadgeText = (await page.locator('.badge-elite').first().innerText()).trim();
+    ok('collapsed row summary appends skill level when not 特化3 (e.g. "SLv7")', eliteBadgeText.endsWith('SLv7'), eliteBadgeText);
+
+    // --- リロードしてもスキルLvが保持される ---
+    await page.waitForTimeout(500);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(300);
+    const eliteBadgeReloaded = (await page.locator('.badge-elite').first().innerText()).trim();
+    ok('skill level survives reload', eliteBadgeReloaded.endsWith('SLv7'), eliteBadgeReloaded);
+
+    // --- 共有URLでも同じ状態が復元される ---
+    await page.click('[data-action="share"]');
+    await page.waitForTimeout(100);
+    const shareUrl = await page.evaluate(() => navigator.clipboard.readText());
+    const page2 = await context.newPage();
+    await page2.goto(shareUrl, { waitUntil: 'networkidle' });
+    await page2.waitForTimeout(300);
+    const eliteBadgeShared = (await page2.locator('.badge-elite').first().innerText()).trim();
+    ok('shared URL restores skill level', eliteBadgeShared.endsWith('SLv7'), eliteBadgeShared);
+    await page2.close();
+
+    // --- 鼓舞ソース(濁心スカジ)にもスキルLvセレクトがある ---
+    await page.locator('#global-buffs-details summary').click();
+    await page.waitForTimeout(100);
+    await page.locator('.chip[data-action="toggle-inspire-source"][data-source-id="skadi2"]').click();
+    await page.waitForTimeout(100);
+    const sourceCard = page.locator('.inspire-source-card[data-source-id="skadi2"]');
+    const sourceSkillLevelSelect = sourceCard.locator('select[data-field="skillLevel"]');
+    ok('inspire source card has its own skill level select', (await sourceSkillLevelSelect.count()) === 1);
+    ok('inspire source default skill level is 特化3 (value 10)', (await sourceSkillLevelSelect.inputValue()) === '10');
+
+    const resultAtLv10 = (await sourceCard.locator('.inspire-result').innerText()).trim();
+    await sourceSkillLevelSelect.selectOption('1');
+    await page.waitForTimeout(100);
+    const resultAtLv1 = (await sourceCard.locator('.inspire-result').innerText()).trim();
+    ok('changing the inspire source skill level changes its result', resultAtLv1 !== resultAtLv10, `${resultAtLv10} -> ${resultAtLv1}`);
+    // 鼓舞ソースのスキルを切り替えてもスキルLvは保たれる
+    await sourceCard.locator('select[data-field="skillNum"]').selectOption('3');
+    await page.waitForTimeout(100);
+    ok('switching the inspire source skill keeps its skill level (SLv1)',
+      (await page.locator('.inspire-source-card[data-source-id="skadi2"] select[data-field="skillLevel"]').inputValue()) === '1');
+
+    // --- 別スキルのFK対象へ切り替えてもスキルLvは保たれる(ウァン S2→S3。オーナー実機報告) ---
+    await addOperator(page, 'ウァン', 'S2');
+    const wanSkillLevel = page.locator('.row-expanded select[data-field="skillLevel"]');
+    await wanSkillLevel.selectOption('7');
+    await page.waitForTimeout(100);
+    await selectEntryByLabel(page, 'S3');
+    await page.waitForTimeout(100);
+    ok('switching the FK target to a different skill (ウァン S2→S3) keeps the skill level (SLv7)',
+      (await wanSkillLevel.inputValue()) === '7', await wanSkillLevel.inputValue());
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  skill level scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_skill_level.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
 /* ========================================================================= *
  * main
  * ========================================================================= */
@@ -1283,6 +1414,7 @@ try {
   await runIndividualBuffLevelsScenario(browser, baseUrl);
   await runInspireScenario(browser, baseUrl);
   await runEliteLevelTrustScenario(browser, baseUrl);
+  await runSkillLevelScenario(browser, baseUrl);
   await runOldShapeLocalStorageScenario(browser, baseUrl);
 } catch (e) {
   fail++;

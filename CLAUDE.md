@@ -586,7 +586,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 - fk_kill_calculatorのstate/URLのバックワード互換は`v:1`のまま、`row.buffIds`/
   `row.specialOn`/`state.globalBuffIds`/`row.inspireOn`/`state.inspire.sources`/
   `state.globalBuffLevels`(P4)/`row.elite`・`row.level`・`row.trust`・鼓舞ソースcfgの
-  同名フィールド(P6)を省略可能フィールドとして追加し、`dropStaleRows`が
+  同名フィールド(P6)/`row.skillLevel`・鼓舞ソースcfgの同名フィールド(P7)を
+  省略可能フィールドとして追加し、`dropStaleRows`が
   旧(P1/P2)形の補完＋未知バフid・未知の鼓舞ソースid/パーツidの静かな除去、および
   旧(P2)形前衛アーミヤ2エントリ(`amiya_guard_normal`/`amiya_guard_skill`。
   exclusive_group)→新1エントリ(`amiya_guard`+toggle)への移行を兼ねる
@@ -614,6 +615,26 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   UIは行の展開ビュー/鼓舞ソースカードそれぞれに`[E▾] Lv[__]/max 信頼度[__]%`の
   3列コントロールを持つ(昇進を変えるとレベルはその昇進の最大値へリセットする)。
   折りたたみ行のサマリーには`E2 Lv90`(信頼度100%は省略)を付け足す。
+- **fk_kill_calculatorは行/鼓舞ソースごとにスキルLv(SLv1〜7+特化1〜3。1〜10)を
+  指定できる(P7)**: 従来固定していた「特化3(Lv10)」をユーザーが変更できるようにした。
+  `FkEntry`は`multiplierByLevel`/`selfAtkPctByLevel`(スキルLv別配列。Autoは
+  `skill_data::get_blackboard_by_level`の該当キー、Manualは`overrides.yaml`の
+  `multiplier_key`/`self_atk_pct_factor`経由で追従する)を持ち、`multiplier`/
+  `self_atk_pct`(Valued)は後方互換のため最終レベル(特化3。データが10未満のスキルは
+  その末尾)の値を保持する。`multiplier_key`は固定`multiplier`と、`self_atk_pct_factor`
+  (Autoのスキルレベル別セルフ%に係数を掛ける。値は`round4`で小数第4位に丸めて浮動小数の
+  ドリフトを吸収する。例: ブレイズS3の0.89倍)は固定`self_atk_pct`とそれぞれ排他
+  (`validate_override_level_fields`がドリフト検知)。`multiplierCandidates`(倍率候補)も
+  各キーごとにスキルLv別配列を持つ。鼓舞ソース(`buffers.yaml`の`inspire[].skills[]`)も
+  固定`ratio`の代わりに`ratio_key`(blackboardキー名)でスキルLv別に追従できる
+  (`validate_inspire_sources`がキー存在を検証)。JS側は`row.skillLevel`/鼓舞ソースの
+  `cfg.skillLevel`(既定10=特化3)を`resolveEntryValues`/`resolveInspireRatioAtLevel`
+  経由で解決し、スキルLvを変えると倍率/セルフ%入力欄をその時点のカタログ既定値へ
+  再スナップする(entryIdx変更と同じ扱い。ユーザーはそこから更に手動で上書きできる)。
+  `maxSkillLevelForElite`/`skillLevelWarning`が「E0はSLv4まで、E1はSLv7まで、
+  特化1〜3は昇進2が必要」という一般ルールの警告を出すが、計算自体は続行する
+  (`skillUnlockWarning`と同じ方針。昇進を変えてもスキルLvの選択は自動変更しない)。
+  折りたたみ行のサマリーには特化3以外の時だけスキルLvを付け足す(例: `E2 Lv90 SLv7`)。
 - **fk_kill_calculatorの条件付きバフ(P4)はゲームデータから動的に値解決できる**:
   `data/fk_kill_calc/buffers.yaml`の`conditional.*`は固定`pct`/`flat`の代わりに
   `source: { operator: <charId>, talent: <talentIndex> または skill_num: "<fk_dataの
