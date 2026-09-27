@@ -153,8 +153,7 @@ mod tests {
 
     // --- 要件4: 疑似入力でfunction callingの出力を検証する統合テスト ---
     // 実ネットワーク(outer_source起動時fetch/RiseiCalculatorEngine構築)に依存するため
-    // `#[ignore]`。`cargo test -- --ignored`で明示実行する
-    // (`bot/commands/operator_cost_calc/mod.rs`のgolden_testsと同じ方針・同じ構築手順)。
+    // `#[ignore]`。`cargo test -- --ignored`で明示実行する。
     use crate::bot::services::moderation::ModerationState;
     use crate::engine;
 
