@@ -744,6 +744,22 @@ async function runInspireScenario(browser, baseUrl) {
     ok('selecting module X reveals the condition checkbox instead of the hint',
       (await page.locator('input[data-source-id="skadi2"][data-field^="part:"]').count()) >= 1);
 
+    // --- P8: 潜在セレクト(旧「攻撃凸」+「素質凸」チェックボックスの統合)。濁心スカジは
+    //     ATK潜在(潜在4)と素質凸(潜在5)の2つの境目を持つため潜在1-3/潜在4/潜在5-6の3択 ---
+    const potentialSelect = page.locator('select[data-source-id="skadi2"][data-field="potential"]');
+    ok('inspire source card has a potential select', (await potentialSelect.count()) === 1);
+    const potentialOpts = await potentialSelect.locator('option').allInnerTexts();
+    ok('potential options are grouped to 潜在1-3/潜在4/潜在5-6', JSON.stringify(potentialOpts) === JSON.stringify(['潜在1-3', '潜在4', '潜在5-6']), JSON.stringify(potentialOpts));
+    ok('potential defaults to 潜在5-6 (rank5=潜在6)', (await potentialSelect.inputValue()) === '5', await potentialSelect.inputValue());
+    const amountBeforePotential = await page.locator('.inspire-result').innerText();
+    await potentialSelect.selectOption('3'); // 潜在4: ATK潜在は乗るが素質凸(潜在5)は未解放
+    await page.waitForTimeout(100);
+    const amountAfterPotential = await page.locator('.inspire-result').innerText();
+    ok('changing potential to 潜在4 changes the inspire amount (talent bonus drops)',
+      amountAfterPotential !== amountBeforePotential, `${amountBeforePotential} -> ${amountAfterPotential}`);
+    await potentialSelect.selectOption('5'); // 元に戻す
+    await page.waitForTimeout(100);
+
     // --- 行の鼓舞トグル: OFFにするとその行だけ鼓舞が外れる ---
     await page.locator('[data-action="edit-row"]').first().click();
     await page.waitForSelector('.row-expanded', { timeout: 5000 });
@@ -1102,9 +1118,158 @@ async function runOldShapeLocalStorageScenario(browser, baseUrl) {
     const verdictText = await page.locator('#verdict-text').innerText();
     ok('old P1-shaped localStorage state computes a verdict',
       verdictText.includes('撃破できる') || verdictText.includes('足りない'), verdictText);
+
+    // --- P8: 旧boolean形式のpotential(true)は丁寧な移行をせず既定値(5=潜在6)へ
+    //     リセットされる(オーナー指示。詳細はengine.jsのdropStaleRowsコメント参照) ---
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const potentialSelect = page.locator('select[data-field="potential"][data-idx="0"]');
+    ok('old boolean potential falls back to the default 潜在6(rank5)', (await potentialSelect.inputValue()) === '5', await potentialSelect.inputValue());
   } catch (e) {
     fail++;
     console.log(`FAIL  old-shape localStorage scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+  } finally {
+    await context.close();
+  }
+}
+
+// P8: 行/鼓舞ソースの潜在セレクト(旧「攻撃凸」/「攻撃凸+素質凸」チェックボックスの後継)。
+async function runPotentialScenario(browser, baseUrl) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+
+    // --- ATK潜在を持つオペレーター(Ash。潜在4で+27の1段階のみ)は潜在セレクトが出て、
+    //     値が変わる境目だけが選択肢になる(潜在1-3/潜在4-6) ---
+    await addOperator(page, 'Ash', '400%');
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const potentialSelect = page.locator('select[data-field="potential"][data-idx="0"]');
+    ok('row potential select is present for an operator with ATK potential (Ash)', (await potentialSelect.count()) === 1);
+    const potentialOpts = await potentialSelect.locator('option').allInnerTexts();
+    ok('Ash potential options are grouped to 潜在1-3/潜在4-6', JSON.stringify(potentialOpts) === JSON.stringify(['潜在1-3', '潜在4-6']), JSON.stringify(potentialOpts));
+    ok('Ash potential defaults to 潜在4-6 (rank5=潜在6)', (await potentialSelect.inputValue()) === '5', await potentialSelect.inputValue());
+
+    const formulaBefore = await page.locator('.row-formula').innerText();
+    await potentialSelect.selectOption('2'); // 潜在1-3(ATK潜在が乗らない)
+    await page.waitForTimeout(100);
+    const formulaAfter = await page.locator('.row-formula').innerText();
+    ok('changing the potential select updates the row damage total', formulaAfter !== formulaBefore, `${formulaBefore} -> ${formulaAfter}`);
+    await potentialSelect.selectOption('5'); // 元に戻す
+    await page.waitForTimeout(100);
+    await page.click('[data-action="collapse-row"]');
+
+    // --- ATK潜在を持たないオペレーター(Fuze)は潜在セレクト自体が出ない(隠す仕様) ---
+    await addOperator(page, 'Fuze', null);
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const noPotentialSelect = page.locator('select[data-field="potential"][data-idx="1"]');
+    ok('row potential select is hidden for an operator without ATK potential (Fuze)', (await noPotentialSelect.count()) === 0);
+    await page.click('[data-action="collapse-row"]');
+
+    // --- リロード/共有URLでも選択が保持される ---
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    await page.locator('select[data-field="potential"][data-idx="0"]').selectOption('2');
+    await page.waitForTimeout(500);
+    await page.click('[data-action="collapse-row"]');
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(300);
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    ok('potential selection survives reload (localStorage)',
+      (await page.locator('select[data-field="potential"][data-idx="0"]').inputValue()) === '2');
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  potential scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_potential.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
+// P8 follow-up: 特殊強化(乗算系mulMultiplier)が固定値ではなく行自身の昇進/潜在に
+// 追従すること(ファイヤーウォッチS2「遠距離特効」)。verify.mjsの計算結果(潜在4は×1.5、
+// E2/潜在6/モジュールYLv3は×1.55、E0は素質未解放で×1[ヒント])を表現層で確認する。
+async function runFwSpecialScenario(browser, baseUrl) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+
+    await addOperator(page, 'ファイヤーウォッチ', null);
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+
+    // --- 既定(E2・潜在6・モジュールYLv3)ではチェックボックスが出て、ⓘ現在値は×1.55 ---
+    const specialCheckbox = page.locator('[data-field="specialOn"]');
+    ok('special checkbox (遠距離特効) is present at E2/潜在6', (await specialCheckbox.count()) === 1);
+    const infoBtn = page.locator('.special-info-btn');
+    await infoBtn.click();
+    await page.waitForTimeout(100);
+    const descAtDefault = await page.locator('.special-desc').innerText();
+    ok('special description shows the default current value (現在: ×1.55)', descAtDefault.includes('現在: ×1.55'), descAtDefault);
+    await infoBtn.click();
+    await page.waitForTimeout(100);
+
+    // --- 潜在セレクトの選択肢は「潜在1-3/潜在4/潜在5-6」の3択(ATK潜在境目+素質境目の和) ---
+    const potentialSelect = page.locator('select[data-field="potential"][data-idx="0"]');
+    const potentialOpts = await potentialSelect.locator('option').allInnerTexts();
+    ok(
+      'FW potential options are grouped to 潜在1-3/潜在4/潜在5-6',
+      JSON.stringify(potentialOpts) === JSON.stringify(['潜在1-3', '潜在4', '潜在5-6']),
+      JSON.stringify(potentialOpts),
+    );
+
+    // --- 潜在4へ変えるとⓘ現在値が×1.5になり、合計ダメージも変わる ---
+    const formulaBefore = await page.locator('.row-formula').innerText();
+    await potentialSelect.selectOption('3'); // 潜在4
+    await page.waitForTimeout(100);
+    await page.locator('.special-info-btn').click();
+    await page.waitForTimeout(100);
+    const descAtPot4 = await page.locator('.special-desc').innerText();
+    ok(
+      'changing potential to 潜在4 changes the ⓘ current value to ×1.5',
+      descAtPot4.includes('現在: ×1.5') && !descAtPot4.includes('現在: ×1.55'),
+      descAtPot4,
+    );
+    const formulaAfter = await page.locator('.row-formula').innerText();
+    ok('changing potential to 潜在4 changes the row total', formulaAfter !== formulaBefore, `${formulaBefore} -> ${formulaAfter}`);
+    await page.locator('.special-info-btn').click();
+    await page.waitForTimeout(100);
+    await potentialSelect.selectOption('5'); // 元(潜在6)へ戻す
+    await page.waitForTimeout(100);
+
+    // --- 昇進をE0まで下げると素質未解放になり、チェックボックスの代わりにヒントが出る ---
+    const eliteSelect = page.locator('select[data-field="elite"][data-idx="0"]');
+    await eliteSelect.selectOption('0');
+    await page.waitForTimeout(100);
+    ok('at E0 the special checkbox disappears (talent not unlocked)', (await page.locator('[data-field="specialOn"]').count()) === 0);
+    // E0では他の警告(スキル解放/モジュール装備可否)も.special-hintを共有するため、
+    // 複数件から目的のテキストを含むものを探す(elite/level/trustシナリオと同じ手法)。
+    const hintTexts = await page.locator('.row-expanded .special-hint').allInnerTexts();
+    ok('E0 shows the talent-unlock hint (素質が昇進1で解放)', hintTexts.some((t) => t.includes('素質が昇進1で解放')), hintTexts);
+    await eliteSelect.selectOption('2');
+    await page.waitForTimeout(100);
+    ok('switching back to E2 restores the checkbox', (await page.locator('[data-field="specialOn"]').count()) === 1);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  FW special scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_fw_special.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
   } finally {
     await context.close();
   }
@@ -1416,6 +1581,8 @@ try {
   await runEliteLevelTrustScenario(browser, baseUrl);
   await runSkillLevelScenario(browser, baseUrl);
   await runOldShapeLocalStorageScenario(browser, baseUrl);
+  await runPotentialScenario(browser, baseUrl);
+  await runFwSpecialScenario(browser, baseUrl);
 } catch (e) {
   fail++;
   console.log('FAIL  fatal -> ' + (e && e.stack ? e.stack : e));

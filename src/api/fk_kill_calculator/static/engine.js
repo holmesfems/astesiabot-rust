@@ -196,45 +196,90 @@ export function resolveSpecialAddPct(op, entry, row) {
 }
 
 /**
- * 特殊強化の「乗算系」(`entry.special.mulMultiplier`)が`row.multiplier`に掛ける係数。
- * `mulMultiplier.module`を`row.moduleId`がそのLvで実際に装備できていれば(P6:
- * `effectiveModuleId`。elite/level条件込み)`byModuleLevel`の対応要素、そうでなければ
- * 常に`base`を使う(モジュール未装備でも`base`は必ず効く＝「適用不可」という状態が無い)。
- * 乗算系を持たない特殊強化には常に1(影響なし)を返す。`row.specialOn`がfalseなら常に1。
+ * P8 follow-up: 素質由来の値テーブル(`ConditionalTalentSource`)から、指定の昇進/
+ * (装備可能なら)モジュールLvに対応する「潜在ごとの値配列」(長さ6)を取り出す。
+ * モジュールは昇進2でしか装備できないので`elite < 2`の間は`moduleId`を無視する
+ * (呼び出し側は既に`effectiveElite`/`effectiveModuleId`で解決済みの値を渡す)。
+ * `talent`が無ければ`null`。`resolveConditionalValue`(条件付きバフ)と
+ * `mulMultiplier`(特殊強化の乗算系)の両方が同じ「素質値テーブルを引く」ロジックを
+ * 使うため、ここに共通化する。
  */
-export function resolveSpecialMultiplierFactor(op, entry, row) {
-  if (!row.specialOn || !entry || !entry.special || !entry.special.mulMultiplier) return 1;
-  const mm = entry.special.mulMultiplier;
-  if (mm.module && effectiveModuleId(op, row) === mm.module) {
-    const arr = mm.byModuleLevel || [];
-    const v = arr[row.moduleLv - 1];
-    if (v != null) return v;
-  }
-  return mm.base;
+function talentTableRowFor(talent, elite, moduleId, moduleLevel) {
+  if (!talent) return null;
+  const module = moduleId && elite >= 2 ? talent.modules.find((m) => m.moduleId === moduleId) : null;
+  if (module) return module.valuesByLevelAndPotential[moduleLevel - 1] ?? null;
+  return talent.valuesByEliteAndPotential[elite] ?? null;
+}
+
+/** `talentTableRowFor`の結果からさらに`potential`(0〜5)の1値を引く。無ければ0。 */
+function resolveTalentTableValue(talent, { elite, potential, moduleId, moduleLevel }) {
+  const row = talentTableRowFor(talent, elite, moduleId, moduleLevel);
+  return row ? row[potential] ?? 0 : 0;
 }
 
 /**
- * UIが特殊強化のチェックボックス/ヒントのどちらを出すべきかを判定する(P2 follow-up)。
- * 加算系(`requiresModule`付き)はモジュール条件を満たさない間「適用不可」になり得るため
- * ヒントに切り替える。乗算系(`mulMultiplier`。モジュール無しでも`base`が常に効く)や
- * 特殊強化そのものが無い場合は常にチェックボックス側(「無い」場合は呼び出し側で
- * `entry.special`自体の有無を見て描画をスキップする)。
+ * 特殊強化の「乗算系」(`entry.special.mulMultiplier`。P8 follow-upで固定`base`/`module`/
+ * `byModuleLevel`から素質値テーブル参照へ置き換えた)を、行自身の昇進/潜在/実効モジュール
+ * (`effectiveElite`/`effectiveModuleId`。elite/level条件込み)で解決した生の値。値0は
+ * 「その昇進/潜在では素質が未解放」を意味する(例: E0)。`row.specialOn`は見ない
+ * (`resolveSpecialMultiplierFactor`/`resolveSpecialCurrentValue`/`specialMulCanApply`の
+ * 3箇所で共有する)。
+ */
+function resolveSpecialMulRawValue(op, entry, row) {
+  const table = entry.special.mulMultiplier;
+  const elite = effectiveElite(op, row);
+  const potential = row.potential ?? 5;
+  const moduleId = effectiveModuleId(op, row);
+  return resolveTalentTableValue(table, { elite, potential, moduleId, moduleLevel: row.moduleLv });
+}
+
+/**
+ * 特殊強化の「乗算系」が`row.multiplier`に掛ける係数。素質値テーブルから行自身の
+ * 昇進/潜在/実効モジュールで解決した値をそのまま使う。値が0(素質未解放)なら
+ * 乗算せず1(影響なし)を返す。乗算系を持たない特殊強化には常に1を返す。
+ * `row.specialOn`がfalseなら常に1。
+ */
+export function resolveSpecialMultiplierFactor(op, entry, row) {
+  if (!row.specialOn || !entry || !entry.special || !entry.special.mulMultiplier) return 1;
+  const value = resolveSpecialMulRawValue(op, entry, row);
+  return value > 0 ? value : 1;
+}
+
+/**
+ * 特殊強化の「乗算系」(素質値テーブル)が、現在の行の昇進/潜在/モジュールの組み合わせで
+ * 有効になり得るか(値>0=その昇進/潜在で素質が解放済み)どうか。**`row.specialOn`は
+ * 見ない**(`specialAddCanApply`と同じく、UIのチェックボックス/ヒント出し分け専用の
+ * 「素質が解放されているか」判定。ONかどうかは別途`resolveSpecialMultiplierFactor`が見る)。
+ */
+export function specialMulCanApply(op, entry, row) {
+  if (!entry || !entry.special || !entry.special.mulMultiplier) return false;
+  return resolveSpecialMulRawValue(op, entry, row) > 0;
+}
+
+/**
+ * UIが特殊強化のチェックボックス/ヒントのどちらを出すべきかを判定する(P2 follow-up。
+ * P8 follow-upで乗算系[素質値テーブル]も「適用不可」になり得るようになったため対応)。
+ * 加算系(`requiresModule`付き)はモジュール条件を満たさない間、乗算系(`mulMultiplier`)は
+ * 素質が未解放の間、それぞれ「適用不可」になり得るためヒントに切り替える。
+ * 特殊強化そのものが無い場合は`"none"`(呼び出し側で描画をスキップする)。
  * @returns {"checkbox"|"hint"|"none"}
  */
 export function specialUiState(op, entry, row) {
   if (!entry || !entry.special) return "none";
-  if (entry.special.requiresModule) {
-    return specialAddCanApply(op, entry, row) ? "checkbox" : "hint";
-  }
+  const sp = entry.special;
+  if (sp.requiresModule && !specialAddCanApply(op, entry, row)) return "hint";
+  if (sp.mulMultiplier && !specialMulCanApply(op, entry, row)) return "hint";
   return "checkbox";
 }
 
 /**
  * 特殊強化のⓘ説明文に付け足す「現在の効果値」(P2 follow-up)。`row.specialOn`に
- * 関わらず、今のモジュール/Lv(P6: elite/levelで実際に装備できている場合のみ)なら
- * 発動時にどんな値になるかを返す(プレビュー用途)。
+ * 関わらず、今の昇進/潜在/モジュール/Lv(P6: elite/levelで実際に装備できている場合のみ)
+ * なら発動時にどんな値になるかを返す(プレビュー用途)。
  * 加算系(`requiresModule`)は`{kind:"add", value}`、乗算系(`mulMultiplier`)は
  * `{kind:"mul", value}`を返す。特殊強化が無い/どちらの系統も無ければ`null`。
+ * 乗算系は素質値テーブルの解決値(0=素質未解放)を、`resolveSpecialMultiplierFactor`と
+ * 同じく1(影響なし)へフォールバックしてプレビューする(P8 follow-up)。
  * @returns {null|{kind:"add"|"mul", value:number}}
  */
 export function resolveSpecialCurrentValue(op, entry, row) {
@@ -242,14 +287,8 @@ export function resolveSpecialCurrentValue(op, entry, row) {
   const sp = entry.special;
   const moduleId = effectiveModuleId(op, row);
   if (sp.mulMultiplier) {
-    const mm = sp.mulMultiplier;
-    let value = mm.base;
-    if (mm.module && moduleId === mm.module) {
-      const arr = mm.byModuleLevel || [];
-      const v = arr[row.moduleLv - 1];
-      if (v != null) value = v;
-    }
-    return { kind: "mul", value };
+    const raw = resolveSpecialMulRawValue(op, entry, row);
+    return { kind: "mul", value: raw > 0 ? raw : 1 };
   }
   if (sp.requiresModule && sp.addSelfAtkPctByModuleLevel) {
     const idx = moduleId === sp.requiresModule ? row.moduleLv - 1 : -1;
@@ -274,7 +313,7 @@ export function makeDefaultRow(op, entryIdx) {
     opId: op.id,
     entryIdx,
     dmgType: values.dmgType,
-    potential: true,
+    potential: 5, // P8: 潜在ランク(0始まり。既定は潜在6=フル。旧来の攻撃凸チェックボックスと同じ結果になる)
     elite,
     level: maxLevelForElite(op, elite),
     trust: 100,
@@ -426,6 +465,28 @@ export function skillLevelWarning(elite, skillLevel) {
   return null;
 }
 
+/**
+ * P8: 潜在ランク(0始まり。0=潜在1〜5=潜在6)からATK加算値を引く。範囲外はクランプする。
+ * `op.atkPotentialByRank`(カタログ由来。長さ6の累積配列)があればそれをそのまま引く。
+ * 無い(verify.mjs等の簡易opオブジェクト)場合は`op.atkPotential`(合計値)を
+ * 「潜在0(潜在1)だけ+0、それ以外は全額」という単純な表として扱う後方互換フォールバック。
+ */
+export function resolveAtkPotential(op, potentialRank) {
+  const rank = Math.min(Math.max(potentialRank ?? 5, 0), 5);
+  if (!op) return 0;
+  if (op.atkPotentialByRank) return op.atkPotentialByRank[rank] ?? 0;
+  return rank > 0 ? op.atkPotential || 0 : 0;
+}
+
+/**
+ * P8: 潜在ランク(`row.potential`/鼓舞ソースcfgの`potential`)の値を検証する。0〜5の数値なら
+ * そのまま、そうでなければ(旧boolean形式・欠損値)既定値(5=潜在6)にリセットする
+ * (`dropStaleRows`が使う。丁寧な移行はしない方針の詳細は同関数のコメント参照)。
+ */
+function normalizePotentialRank(v) {
+  return typeof v === "number" && v >= 0 && v <= 5 ? v : 5;
+}
+
 /** atk = ベースATK(昇進/レベル/信頼度) + (潜在) + (モジュール。装備可能な場合のみ)。 */
 export function resolveAtk(op, row) {
   const elite = effectiveElite(op, row);
@@ -434,7 +495,7 @@ export function resolveAtk(op, row) {
   const moduleId = effectiveModuleId(op, { moduleId: row.moduleId, elite, level });
   const module = findModule(op, moduleId);
   const moduleAtk = module ? module.atkByLevel[row.moduleLv - 1] ?? 0 : 0;
-  return computeBaseAtk(op, elite, level, trust) + (row.potential ? op.atkPotential : 0) + moduleAtk;
+  return computeBaseAtk(op, elite, level, trust) + resolveAtkPotential(op, row.potential) + moduleAtk;
 }
 
 /**
@@ -473,15 +534,14 @@ export const ALL_TAG = "全員";
  * @param {{elite?:number, potential?:number, moduleId?:(string|null), moduleLevel?:number,
  *           skillLevel?:number, toggleOn?:boolean}} levels
  */
-// 素質ソースの潜在(0〜5=潜在1〜6)を「値が変わる境目」でまとめる。昇進×潜在と各モジュールの
-// Lv×潜在の全テーブルで値の組が同じ潜在は1つの選択肢にする(例: エイヤは潜在1-5/潜在6)。
+// 潜在(0〜5=潜在1〜6)を「値が変わる境目」でまとめる汎用ヘルパー(P4で素質ソース向けに
+// 追加、P8で行/鼓舞ソースのATK潜在・鼓舞ソースの素質凸境目にも使えるよう汎用化した)。
+// `tables`は各要素が`table[p]`(潜在p=0〜5の値)を持つ配列(長さ6)の配列で、
+// どれか1つでも値の組が変われば境目にする(例: 素質×モジュールの全テーブルで揃って
+// 同じ潜在はまとめる。エイヤは潜在1-5/潜在6)。
 // 戻り値: [{ from, to }](0-indexed、昇順)。
-export function potentialGroups(talent) {
-  const tables = [
-    ...((talent && talent.valuesByEliteAndPotential) || []),
-    ...((talent && talent.modules) || []).flatMap((m) => m.valuesByLevelAndPotential || []),
-  ];
-  const keyOf = (p) => tables.map((byPot) => byPot[p] ?? 0).join(",");
+export function potentialGroups(tables) {
+  const keyOf = (p) => tables.map((t) => t[p] ?? 0).join(",");
   const groups = [];
   for (let p = 0; p < 6; p++) {
     const last = groups[groups.length - 1];
@@ -489,6 +549,50 @@ export function potentialGroups(talent) {
     else groups.push({ from: p, to: p });
   }
   return groups;
+}
+
+// P8: 素質ソース(talent)向けの全テーブル(昇進×潜在 + 各モジュールのLv×潜在)を集めて
+// potentialGroupsに渡す。旧`potentialGroups(talent)`呼び出しの置き換え。
+export function talentPotentialGroups(talent) {
+  const tables = [
+    ...((talent && talent.valuesByEliteAndPotential) || []),
+    ...((talent && talent.modules) || []).flatMap((m) => m.valuesByLevelAndPotential || []),
+  ];
+  return potentialGroups(tables);
+}
+
+// P8: 行/鼓舞ソースのATK潜在(単一テーブル)を「値が変わる境目」でグルーピングする。
+// `op.atkPotentialByRank`が無い(簡易オブジェクト)場合は境目無し(潜在1-6の1グループ)扱い。
+// P8 follow-up: `entry`/`row`を渡すと、`entry.special.mulMultiplier`(乗算系特殊強化の
+// 素質値テーブル)がある場合にATK潜在テーブルと合成する(境目の和集合)。テーブルは行自身の
+// 現在の昇進/実効モジュール(`effectiveElite`/`effectiveModuleId`)に対応する「潜在ごとの
+// 値配列」を使う(`talentTableRowFor`。elite/moduleIdを変えれば選ぶ配列も変わるが、
+// この関数自体はrenderの度に呼ばれるので都度追従する)。
+// 例: ファイヤーウォッチはATK潜在境目(潜在1-3/4-6)と素質「暗殺者」の境目(潜在1-4/5-6)の
+// 和で「潜在1-3/潜在4/潜在5-6」の3択になる。
+export function atkPotentialGroups(op, entry, row) {
+  const tables = [];
+  if (op && op.atkPotentialByRank) tables.push(op.atkPotentialByRank);
+  const mulTable = entry && entry.special && entry.special.mulMultiplier;
+  if (mulTable && row) {
+    const elite = effectiveElite(op, row);
+    const moduleId = effectiveModuleId(op, row);
+    const rowVec = talentTableRowFor(mulTable, elite, moduleId, row.moduleLv);
+    if (rowVec) tables.push(rowVec);
+  }
+  if (!tables.length) return [{ from: 0, to: 5 }];
+  return potentialGroups(tables);
+}
+
+// P8: 鼓舞ソースの潜在セレクトの境目。ATK加算の変化点 ∪ 素質凸(pctPotentialBonus)が
+// 解放される境目(`source.talentPotentialRank`。0始まり)。素質凸境目は「そのrank以上なら1、
+// 未満なら0」という仮想テーブルとしてpotentialGroupsに一緒に渡すことで、ATK/素質凸どちらの
+// 境目でも自然にグループが分かれる(例: 濁心スカジは潜在1-3/潜在4/潜在5-6)。
+export function inspirePotentialGroups(source) {
+  const tables = [(source && source.atkPotentialByRank) || [0, 0, 0, 0, 0, 0]];
+  const rank = source && source.talentPotentialRank;
+  if (rank != null) tables.push([0, 1, 2, 3, 4, 5].map((p) => (p >= rank ? 1 : 0)));
+  return potentialGroups(tables);
 }
 
 export function resolveConditionalValue(b, levels = {}) {
@@ -513,14 +617,11 @@ export function resolveConditionalValue(b, levels = {}) {
       const elite = levels.elite ?? defaults.elite ?? 2;
       const potential = levels.potential ?? defaults.potential ?? 5;
       const moduleId = levels.moduleId !== undefined ? levels.moduleId : (defaults.moduleId ?? null);
-      // モジュールは昇進2でしか装備できないので、E0/E1ではモジュール選択を無視する。
-      const module = moduleId && elite >= 2 ? source.talent.modules.find((m) => m.moduleId === moduleId) : null;
-      if (module) {
-        const moduleLevel = levels.moduleLevel ?? defaults.moduleLevel ?? 3;
-        primary = module.valuesByLevelAndPotential[moduleLevel - 1][potential] ?? 0;
-      } else {
-        primary = source.talent.valuesByEliteAndPotential[elite][potential] ?? 0;
-      }
+      const moduleLevel = levels.moduleLevel ?? defaults.moduleLevel ?? 3;
+      // P8 follow-up: 素質値テーブルの解決自体は特殊強化の乗算系(mulMultiplier)と
+      // 共通の`resolveTalentTableValue`に切り出した(モジュールは昇進2でしか装備
+      // できないのでE0/E1ではモジュール選択を無視する、という判定も含めて同じロジック)。
+      primary = resolveTalentTableValue(source.talent, { elite, potential, moduleId, moduleLevel });
     } else {
       primary = source.basePct ?? 0;
     }
@@ -660,9 +761,7 @@ export function defaultInspireSourceCfg(source) {
     on: false,
     skillNum: source.skills && source.skills[0] ? source.skills[0].skillNum : "",
     skillLevel: 10, // P7: スキルLv(既定は特化3。旧デフォルトと同じ結果になる)
-    potential: true,
-    // 攻撃凸(potential)と揃えて既定ON（参考シートの濁心スカジS2のセルフ9%=6%+素質凸3%もON前提）。
-    talentPotential: true,
+    potential: 5, // P8: 潜在ランク(0始まり。既定は潜在6=フル。旧来の攻撃凸+素質凸を統合)
     moduleId: null,
     moduleLv: 3,
     elite,
@@ -688,6 +787,10 @@ export function computeInspireSelfParts(source, cfg) {
   // P6: モジュール条件は`effectiveModuleId`(elite/level込みの装備可否)経由で判定する
   // (未装備/装備不可の間はモジュール由来の効果を含めない)。
   const moduleId = effectiveModuleId(source, cfg);
+  // P8: 旧来の「素質凸」チェックボックス(cfg.talentPotential)は潜在セレクト(cfg.potential)へ
+  // 統合したため、`source.talentPotentialRank`(0始まり。素質凸ボーナスが解放される潜在)
+  // 以上を選んでいる間だけ適用する(rankが無いソースは素質凸ボーナスの概念が無いのでfalse)。
+  const talentPotentialOn = source && source.talentPotentialRank != null && (cfg.potential ?? 5) >= source.talentPotentialRank;
 
   const isApplicable = (p) => !p.requiresModule || moduleId === p.requiresModule;
   const isOn = (p) => {
@@ -700,13 +803,13 @@ export function computeInspireSelfParts(source, cfg) {
     if (p.moduleOverride && moduleId === p.moduleOverride.module) {
       const lv = cfg.moduleLv - 1;
       const base = p.moduleOverride.pctByLevel[lv] ?? 0;
-      const bonus = cfg.talentPotential ? p.moduleOverride.potentialBonusByLevel[lv] ?? 0 : 0;
+      const bonus = talentPotentialOn ? p.moduleOverride.potentialBonusByLevel[lv] ?? 0 : 0;
       return base + bonus;
     }
     if (p.requiresModule && p.pctByModuleLevel) {
       return p.pctByModuleLevel[cfg.moduleLv - 1] ?? 0;
     }
-    return (p.pct || 0) + (cfg.talentPotential ? p.pctPotentialBonus || 0 : 0);
+    return (p.pct || 0) + (talentPotentialOn ? p.pctPotentialBonus || 0 : 0);
   };
 
   const suppressed = new Set();
@@ -882,6 +985,12 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSo
  * `row.buffIds`/鼓舞ソースの`buffIds`に残っていれば`stainless_s1`へ移行する
  * (`stainless_2`だった箇所が1つでもあれば共有toggleをONにする。toggleはバフ単位で
  * 共有する状態[`globalBuffLevels`]なので、どの行/ソース由来でも1回ONにすれば良い)。
+ * P8: `row.potential`/鼓舞ソースcfgの`potential`は旧来のboolean(攻撃凸チェックボックス)から
+ * 潜在ランク(0〜5の数値)へ仕様変更した。このツールはまだプロトタイプ段階のため丁寧な
+ * 移行(旧攻撃凸/素質凸の組み合わせから最も近いランクを推測する等)はせず、数値でなければ
+ * 単純に既定値(5=潜在6)へリセットする(オーナー指示)。旧`talentPotential`フィールドは
+ * 素質凸境目をデータ駆動化(`talentPotentialRank`)したため`potential`に統合し、cfgから
+ * 削除する。
  * @returns {{state:object, dropped:number}}
  */
 export function dropStaleRows(state, catalog) {
@@ -924,6 +1033,10 @@ export function dropStaleRows(state, catalog) {
         level,
         trust: row.trust != null ? row.trust : 100,
         skillLevel: row.skillLevel != null ? row.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
+        // P8: `potential`は旧来のboolean(攻撃凸チェックボックス)から潜在ランク(0〜5の数値)へ
+        // 仕様変更した。プロトタイプ段階のため丁寧な移行はせず、数値でなければ単純に
+        // 既定値(5=潜在6)へリセットする(オーナー指示)。
+        potential: normalizePotentialRank(row.potential),
         buffIds: migrateStainlessIds(row.buffIds || []).filter((id) => validBuffIds.has(id)),
         specialOn: row.specialOn !== false,
         inspireOn: row.inspireOn !== false,
@@ -980,12 +1093,16 @@ export function dropStaleRows(state, catalog) {
     // P6: 昇進/レベル/信頼度が無い古い形を補完する(行と同じ既定値)。
     const elite = cfg.elite != null ? cfg.elite : maxEliteFor(source);
     const level = cfg.level != null ? cfg.level : maxLevelForElite(source, elite);
+    // P8: 旧`talentPotential`(素質凸チェックボックス)は`potential`(潜在ランク)へ統合したため、
+    // spread元から取り除いて捨てる(restCfgには残さない)。
+    const { talentPotential, ...restCfg } = cfg;
     cleanedSources[sourceId] = {
-      ...cfg,
+      ...restCfg,
       elite,
       level,
       trust: cfg.trust != null ? cfg.trust : 100,
       skillLevel: cfg.skillLevel != null ? cfg.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
+      potential: normalizePotentialRank(cfg.potential), // P8: 旧形式は既定値(5)へリセット
       buffIds: migrateStainlessIds(cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
       parts,
     };

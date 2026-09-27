@@ -27,6 +27,7 @@ import {
   makeDefaultRow,
   resolveEntryValues,
   specialUiState,
+  specialAddCanApply,
   resolveSpecialCurrentValue,
   computeTotal,
   findSingleTargetConflicts,
@@ -37,7 +38,9 @@ import {
   computeInspireSource,
   computeInspireSelfParts,
   resolveConditionalValue,
-  potentialGroups,
+  talentPotentialGroups,
+  atkPotentialGroups,
+  inspirePotentialGroups,
   maxEliteFor,
   maxLevelForElite,
   moduleUsable,
@@ -116,7 +119,7 @@ function blankRow() {
     opId: "",
     entryIdx: 0,
     dmgType: "physical",
-    potential: true,
+    potential: 5, // P8: 潜在ランク(0始まり。既定は潜在6=フル)
     elite: 2, // P6: オペレーター未選択の間は意味を持たない仮値(選択時にmakeDefaultRowが上書きする)
     level: 90,
     trust: 100,
@@ -492,22 +495,41 @@ function moduleTypeNameFor(op, moduleId) {
   return m ? m.typeName : "X";
 }
 
-// 「特殊強化「<label>」はモジュール<X> Lv<N>以上で有効」ヒント文(加算系専用)。
+// P8 follow-up: mulMultiplier(素質値テーブル)が現在の行の昇進で未解放(全潜在0)な間の
+// 最小昇進を求める("素質は昇進<N>で解放"ヒント用)。見つからない(理論上起きない)場合は
+// テーブルの行数(=最大昇進+1)を返す。
+function minEliteForMulMultiplier(table) {
+  const rows = (table && table.valuesByEliteAndPotential) || [];
+  const idx = rows.findIndex((r) => r.some((v) => v > 0));
+  return idx >= 0 ? idx : rows.length;
+}
+
+// 特殊強化のヒント文。加算系(requiresModule)がモジュール条件を満たさない間は
+// 「特殊強化「<label>」はモジュール<X> Lv<N>以上で有効」、乗算系(mulMultiplier。P8
+// follow-upで素質値テーブル参照になった)が素質未解放の間は「特殊強化「<label>」は
+// 素質が昇進<N>で解放」を出す(`specialUiState`と同じ優先順位: requiresModuleを先に
+// 判定する)。
 // P6: モジュール自体が現在の昇進/レベルで装備できない間は、実データ(unlockPhase/
 // unlockLevel)から「昇進<X> Lv<Y>以上で装備可能」を示す。装備はできているが
 // モジュールLv側の条件(addSelfAtkPctByModuleLevelの最初の非ゼロ要素)を
 // 満たさない間は従来どおり「モジュール<X> Lv<N>以上で有効」を示す。
 function specialHintText(op, entry, row) {
   const sp = entry.special;
-  const module = findModule(op, sp.requiresModule);
-  const typeName = module ? module.typeName : moduleTypeNameFor(op, sp.requiresModule);
-  if (module && !moduleUsable(module, row.elite, row.level)) {
-    return `特殊強化「${sp.label}」はモジュール${typeName}（昇進${module.unlockPhase} Lv${module.unlockLevel}以上で装備可能）が必要`;
+  if (sp.requiresModule && !specialAddCanApply(op, entry, row)) {
+    const module = findModule(op, sp.requiresModule);
+    const typeName = module ? module.typeName : moduleTypeNameFor(op, sp.requiresModule);
+    if (module && !moduleUsable(module, row.elite, row.level)) {
+      return `特殊強化「${sp.label}」はモジュール${typeName}（昇進${module.unlockPhase} Lv${module.unlockLevel}以上で装備可能）が必要`;
+    }
+    const arr = sp.addSelfAtkPctByModuleLevel || [];
+    const nonZeroIdx = arr.findIndex((v) => v > 0);
+    const minLv = nonZeroIdx >= 0 ? nonZeroIdx + 1 : 1;
+    return `特殊強化「${sp.label}」はモジュール${typeName} Lv${minLv}以上で有効`;
   }
-  const arr = sp.addSelfAtkPctByModuleLevel || [];
-  const nonZeroIdx = arr.findIndex((v) => v > 0);
-  const minLv = nonZeroIdx >= 0 ? nonZeroIdx + 1 : 1;
-  return `特殊強化「${sp.label}」はモジュール${typeName} Lv${minLv}以上で有効`;
+  if (sp.mulMultiplier) {
+    return `特殊強化「${sp.label}」は素質が昇進${minEliteForMulMultiplier(sp.mulMultiplier)}で解放`;
+  }
+  return "";
 }
 
 // ⓘ説明文の末尾に付ける「現在: +N%」/「現在: ×N」(P2 follow-up)。
@@ -519,8 +541,9 @@ function specialCurrentValueText(op, entry, row) {
 
 // 「特殊強化: <label>」チェックボックス + ⓘ説明文トグル(P2/P2 follow-up)。
 // entry.specialが無いスキルは何も出さない。加算系(requiresModule)でモジュール条件を
-// 満たさない間はチェックボックスの代わりにヒントを出す(乗算系はmulMultiplier.baseが
-// 常に効くので出し分けしない。`specialUiState`が判定する)。
+// 満たさない間、乗算系(mulMultiplier。P8 follow-upで素質値テーブル参照になった)で
+// 素質が未解放の間は、それぞれチェックボックスの代わりにヒントを出す
+// (`specialUiState`が判定する)。
 function renderSpecialCheckbox(op, entry, row, idx) {
   if (!entry || !entry.special) return "";
   const sp = entry.special;
@@ -691,10 +714,7 @@ function renderRowExpanded(row, idx, singleConflicts) {
         </select>
         ${fieldBadges(entry, "dmgType", row.dmgType, idx, row.skillLevel)}
       </label>
-      <label class="check-label">
-        <input type="checkbox" data-role="row" data-field="potential" data-idx="${idx}" ${row.potential ? "checked" : ""}>
-        攻撃凸
-      </label>
+      ${op ? renderRowPotentialSelect(op, entry, row, idx) : ""}
     </div>
     ${renderTagsChips(entry)}
     <div class="row-grid2">
@@ -862,7 +882,8 @@ function renderInspireResultBlock(source, cfg, result) {
 }
 
 // 鼓舞ソース1件分のカード。OFFの間はトグルチップだけ。ONになると
-// スキル/攻撃凸/素質凸/モジュール/自己%パーツ/個別バフ/手入力バフ+結果行を表示する。
+// スキル/潜在(P8。旧攻撃凸+素質凸を統合)/モジュール/自己%パーツ/個別バフ/手入力バフ
+// +結果行を表示する。
 function renderInspireSourceCard(source, singleConflicts) {
   const cfg = sourceCfg(source);
   const toggleChip = `<button type="button" class="chip" data-action="toggle-inspire-source" data-source-id="${escapeHtml(source.id)}" aria-pressed="${cfg.on}">${escapeHtml(source.name)}</button>`;
@@ -891,16 +912,9 @@ function renderInspireSourceCard(source, singleConflicts) {
       <label>スキルLv
         <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="skillLevel">${skillLevelOptionsN(skillLevelN, cfg.skillLevel ?? 10)}</select>
       </label>
-      <label class="check-label">
-        <input type="checkbox" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="potential" ${cfg.potential ? "checked" : ""}>
-        攻撃凸
-      </label>
+      ${renderInspirePotentialSelect(source, cfg)}
     </div>
     ${renderSkillLevelWarning(cfg)}
-    <label class="check-label">
-      <input type="checkbox" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="talentPotential" ${cfg.talentPotential ? "checked" : ""}>
-      ${escapeHtml(source.talentPotentialLabel)}
-    </label>
     <div class="row-grid3">
       <label>昇進
         <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="elite">${eliteOptions(source, cfg)}</select>
@@ -944,6 +958,43 @@ function potentialOptionLabel(group) {
   return group.from === group.to ? `潜在${group.from + 1}` : `潜在${group.from + 1}-${group.to + 1}`;
 }
 
+// P8: 行のATK潜在セレクト(旧「攻撃凸」チェックボックスの後継)。値が変わる境目だけを
+// 選択肢にする(`atkPotentialGroups`。バフカードの潜在セレクトと同じUX)。ATK潜在を
+// 持たないオペレーターは境目が無い(選択肢が「潜在1-6」の1つだけ)ため、セレクト自体を
+// 隠す(オーナー承認の仕様)。P8 follow-up: `entry`も渡し、`entry.special.mulMultiplier`
+// (乗算系特殊強化の素質値テーブル)があればATK潜在境目と合成する(例: ファイヤーウォッチは
+// 潜在1-3/潜在4/潜在5-6の3択になる)。
+function renderRowPotentialSelect(op, entry, row, idx) {
+  const groups = atkPotentialGroups(op, entry, row);
+  if (groups.length <= 1) return "";
+  const opts = groups
+    .map((g) => {
+      const selected = row.potential >= g.from && row.potential <= g.to;
+      return `<option value="${g.to}"${selected ? " selected" : ""}>${potentialOptionLabel(g)}</option>`;
+    })
+    .join("");
+  return `<label>潜在
+    <select data-role="row" data-field="potential" data-idx="${idx}">${opts}</select>
+  </label>`;
+}
+
+// P8: 鼓舞ソースの潜在セレクト(旧「攻撃凸」+「素質凸」チェックボックスの後継。1つに統合)。
+// 境目はATK潜在の変化点 ∪ 素質凸(自己%パーツの`pctPotentialBonus`)の解放境目
+// (`inspirePotentialGroups`。詳細はengine.jsのコメント参照)。
+function renderInspirePotentialSelect(source, cfg) {
+  const groups = inspirePotentialGroups(source);
+  if (groups.length <= 1) return "";
+  const opts = groups
+    .map((g) => {
+      const selected = cfg.potential >= g.from && cfg.potential <= g.to;
+      return `<option value="${g.to}"${selected ? " selected" : ""}>${potentialOptionLabel(g)}</option>`;
+    })
+    .join("");
+  return `<label>潜在
+    <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="potential">${opts}</select>
+  </label>`;
+}
+
 // P4: スキルLvラベル("1"〜"7" + "特化1"〜"特化3")。Lv1始まりのskillLevelをそのままindexに使う。
 function skillLevelOptionLabel(skillLevel) {
   return skillLevel <= 7 ? `SLv${skillLevel}` : `特化${skillLevel - 7}`;
@@ -976,7 +1027,7 @@ function renderBuffAxisControls(b, levels) {
     }
     if (talent.potentialVaries) {
       // 値が変わる境目だけを選択肢にする(例: 潜在1-5/潜在6)。option値はグループ内の最大潜在。
-      const opts = potentialGroups(talent)
+      const opts = talentPotentialGroups(talent)
         .map((g) => {
           const selected = levels.potential >= g.from && levels.potential <= g.to;
           return `<option value="${g.to}"${selected ? " selected" : ""}>${potentialOptionLabel(g)}</option>`;
@@ -1389,7 +1440,8 @@ function onRowFieldChange(el) {
     return;
   }
   if (field === "potential") {
-    row.potential = el.checked;
+    // P8: 潜在セレクト(0〜5の数値。旧「攻撃凸」チェックボックスの後継)。
+    row.potential = Number(el.value);
     render();
     return;
   }
@@ -1503,7 +1555,7 @@ function toggleSourceBuff(sourceId, buffId) {
   render();
 }
 
-// select/checkbox(スキル・攻撃凸・素質凸・モジュール・モジュールLv・自己%パーツ)は
+// select/checkbox(スキル・潜在・モジュール・モジュールLv・自己%パーツ)は
 // 常にrenderで確定させる(row側のonRowFieldChangeと同じ方針。構造が変わるため)。
 // 手入力バフ+%(数値input)だけはrenderLive経由でカーソル位置を保つ。
 function onInspireFieldChange(el) {
@@ -1530,8 +1582,9 @@ function onInspireFieldChange(el) {
     render();
     return;
   }
-  if (field === "potential" || field === "talentPotential") {
-    setSourceCfg(sourceId, { [field]: el.checked });
+  if (field === "potential") {
+    // P8: 潜在セレクト(0〜5の数値。旧「攻撃凸」+「素質凸」チェックボックスの後継)。
+    setSourceCfg(sourceId, { potential: Number(el.value) });
     render();
     return;
   }

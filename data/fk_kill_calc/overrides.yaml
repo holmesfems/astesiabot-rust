@@ -99,28 +99,32 @@ char_017_huang:
 # スキルLv1〜10でL1=1.8〜L10=3.0まで変化する(P7でスキルLv対応。Autoでそのまま採れるので
 # override不要。通常時=特殊強化OFF)。
 #
-# 特殊強化「遠距離特効」(P2 follow-up 2回目でオーナー確定): 素質「暗殺者」(E2最大潜在)の
-# 効果「遠隔武器を持つ、または攻撃しない敵への攻撃時、攻撃力が145%になる」が、
-# モジュールY(uniequip_002_milu「野戦用狙撃装備」)装備で更に上がる(素質そのものが
-# 上書きされる)。character_table.jsonのtalents(E2最大潜在)とbattle_equip_table.jsonの
-# uniequip_002_milu(addOrOverrideTalentDataBundle、blackboardキー`atk_scale`、
-# いずれもrequiredPotentialRank=4=E2最大潜在)から実測:
-#   base(モジュール無し)=1.45、Lv1=1.45(Lv1では素質強化自体が付かず素の値のまま)、
-#   Lv2=1.5、Lv3=1.55。
-# `mul_multiplier`(乗算系)で表現する: 行の`multiplier`(スキル自体の倍率3.0)に対して
-# 乗算する係数を、モジュールYをLv1〜3で装備時は`by_module_level`から、それ以外(未装備等)は
-# `base`から都度計算する(`engine.js`の`resolveSpecialMultiplierFactor`)。
-# モジュールYをLv3で装備してONにすると3.0×1.55=4.65となり、参照シートの実測値
-# (1297×2.86×4.65=17249)と一致する。
+# 特殊強化「遠距離特効」(P2 follow-up 2回目でオーナー確定、P8 follow-upで固定値
+# [base/module/by_module_level]から素質値テーブル参照[talent/key]へ置き換え): 素質
+# 「暗殺者」(talent index 0、blackboardキー`atk_scale`)の効果「遠隔武器を持つ、または
+# 攻撃しない敵への攻撃時、攻撃力が上昇する」が、行の昇進/潜在で変わり、更にモジュールY
+# (uniequip_002_milu「野戦用狙撃装備」)装備で上書きされる。character_table.jsonの
+# talents(candidates: phase×potentialRank)とbattle_equip_table.jsonのuniequip_002_milu
+# (addOrOverrideTalentDataBundle、blackboardキー`atk_scale`)から実測:
+#   E1: 潜在1〜4=1.2、潜在5〜6=1.25。E2: 潜在1〜4=1.4、潜在5〜6=1.45(E0は素質未解放で0)。
+#   モジュールY: Lv1=E2基礎値のまま(Lv1では素質強化自体が付かない)、
+#   Lv2=1.45(潜在1〜4)/1.5(潜在5〜6)、Lv3=1.5(潜在1〜4)/1.55(潜在5〜6)。
+# (説明文は「条件を満たした敵に攻撃した時」とぼかしている: モジュールYの有無で有効対象が
+# 変わり、「攻撃しない敵」はモジュールYのLv2以降のみ有効なため。オーナー指定)
+# `mul_multiplier: { talent, key }`(乗算系)で表現する: 行の`multiplier`(スキル自体の
+# 倍率3.0)に対して乗算する係数を、行自身の昇進/潜在/実効モジュールでこの値テーブルを
+# 引いて都度計算する(`engine.js`の`resolveSpecialMultiplierFactor`。値0[素質未解放]なら
+# ×1)。E2・潜在6・モジュールYのLv3でONにすると3.0×1.55=4.65となり、参照シートの
+# 実測値(1297×2.86×4.65=17249)と一致する。
 char_158_milu:
   "2":
     - {
         special: {
           label: "遠距離特効",
-          description: "遠隔武器を持つ、または攻撃しない敵を攻撃した時、攻撃力が上昇する(モジュールYでさらに上昇)",
-          mul_multiplier: { base: 1.45, module: "uniequip_002_milu", by_module_level: [1.45, 1.5, 1.55] },
+          description: "条件を満たした敵に攻撃した時、攻撃力が上昇する(モジュールYでさらに上昇)",
+          mul_multiplier: { talent: 0, key: "atk_scale" },
         },
-        note: "通常時(3.0)はblackboardのatk_scaleをAutoでそのまま採用。特殊強化ON時はmultiplier(3.0)に素質「暗殺者」由来の係数を乗算する: モジュールY(uniequip_002_milu)未装備または他モジュール装備時はbase=1.45、モジュールY装備時はLv1=1.45/Lv2=1.5/Lv3=1.55(出典: character_table.json talents [E2最大潜在] + battle_equip_table.json uniequip_002_milu blackboard`atk_scale` [E2最大潜在])。",
+        note: "通常時(3.0)はblackboardのatk_scaleをAutoでそのまま採用。特殊強化ON時はmultiplier(3.0)に素質「暗殺者」由来の係数(行自身の昇進/潜在/実効モジュールで解決)を乗算する: E1=1.2/1.25、E2=1.4/1.45(いずれも潜在1〜4/5〜6)、モジュールY(uniequip_002_milu)装備時はLv1=E2基礎値のまま/Lv2=1.45,1.5/Lv3=1.5,1.55(出典: character_table.json talents + battle_equip_table.json uniequip_002_milu blackboard`atk_scale`)。E0は素質自体が未解放なので係数は常に×1。",
       }
 
 # ウィーディ(char_400_weedy) スキル3「液体窒素砲」: blackboardは"atk_scale"=3.5のみで、

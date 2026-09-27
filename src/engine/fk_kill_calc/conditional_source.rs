@@ -124,7 +124,9 @@ fn resolve_module_override(module: &RawModuleCombat, talent_index: usize, key: &
 
 /// 素質由来の`ConditionalTalentSource`を組み立てる。`talent_index`が範囲外なら`None`
 /// (ドリフト検知は`validate_conditional_sources`/`validate_individual_sources`が担当する)。
-fn build_talent_source(op: &RawOperatorCombat, talent_index: usize, key: &str) -> Option<ConditionalTalentSource> {
+/// `mod.rs`の`to_special_dto`(P8 follow-up。特殊強化の乗算系`mul_multiplier`)からも
+/// 同じビルダーを再利用するため`pub(super)`にしている。
+pub(super) fn build_talent_source(op: &RawOperatorCombat, talent_index: usize, key: &str) -> Option<ConditionalTalentSource> {
     let talent = op.talents.get(talent_index)?;
 
     let mut values = [[0.0_f64; NUM_POTENTIAL]; NUM_ELITE];

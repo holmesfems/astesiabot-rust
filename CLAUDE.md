@@ -74,7 +74,10 @@ src/
 │   │   │                       モジュールのtalent_overrides_by_level(P4。モジュール装備時の
 │   │   │                       素質上書き候補)・phases/atk_trust_max/skill_unlock_phase・
 │   │   │                       モジュールのunlock_phase/unlock_level(P6で追加。昇進/レベル/
-│   │   │                       信頼度指定でのATK計算・モジュール装備可否判定に使う)。
+│   │   │                       信頼度指定でのATK計算・モジュール装備可否判定に使う)・
+│   │   │                       atk_potential_by_rank(P8で追加。潜在ランク別[0始まり。
+│   │   │                       0=潜在1〜5=潜在6]の累積ATK加算値。フレームキル計算機の
+│   │   │                       「潜在セレクト」用。atk_potentialは`[5]`と同値で後方互換のため残す)。
 │   │   │                       machine-extractableな数値のみ）。
 │   │   │                       character_table.json / uniequip_table.json /
 │   │   │                       battle_equip_table.json から構築する。
@@ -565,24 +568,37 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     以上で有効」)を出す(`specialUiState`が判定)。例: ブレイズS3「待機ボーナス」
     (モジュールX Lv1=0/Lv2=0.04/Lv3=0.06)、ウィーディS3「蓄水砲配置バフ」
     (モジュールX Lv1=0/Lv2=0.15/Lv3=0.20)
-  - 乗算系(`mul_multiplier`。`base`+`module`(省略可)+`by_module_level`):
-    `row.multiplier`に乗算する係数。指定モジュール装備時は`by_module_level`の対応要素、
-    未装備/条件不一致時は常に`base`(＝「適用不可」という状態が無いので、UIは常時
-    チェックボックスを出す)。`engine.js`の`resolveSpecialMultiplierFactor`が計算。
-    例: ファイヤーウォッチS2「遠距離特効」(素質「暗殺者」E2最大潜在がbase=1.45、
-    モジュールY Lv1=1.45/Lv2=1.5/Lv3=1.55)
+  - 乗算系(`mul_multiplier`。P8 follow-upで固定値[`base`+`module`+`by_module_level`]から
+    素質値テーブル参照へ置き換えた: `{ talent: <talentIndex>, key: <blackboardキー> }`)。
+    P4の条件付きバフ`source.talent`と同じビルダー(`conditional_source::build_talent_source`。
+    昇進×潜在+モジュールLv×潜在の値テーブル)を再利用し、`Special.mul_multiplier`に
+    `dto::ConditionalTalentSource`として持たせる。`row.multiplier`に乗算する係数は、
+    固定値ではなく**行自身の`elite`/`potential`/実効モジュール(`effectiveModuleId`)**
+    でこのテーブルを引いて都度決まる(`engine.js`の`resolveSpecialMultiplierFactor`。
+    共有ヘルパー`resolveTalentTableValue`をP4の`resolveConditionalValue`と共通化した)。
+    値が0(その昇進/潜在では素質未解放。例: E0)なら乗算せず×1として扱い、UIはチェック
+    ボックスの代わりに「特殊強化「<label>」は素質が昇進<N>で解放」ヒントを出す
+    (`specialUiState`/`specialMulCanApply`が判定。`requires_module`のヒントと同じ
+    位置付け)。例: ファイヤーウォッチS2「遠距離特効」(`talent: 0, key: "atk_scale"`。
+    素質「暗殺者」。E1=1.2/1.25、E2=1.4/1.45[いずれも潜在1〜4/5〜6]、モジュールY
+    Lv1=E2基礎値のまま/Lv2=1.45,1.5/Lv3=1.5,1.55)。行の潜在セレクトの境目
+    (`atkPotentialGroups(op, entry, row)`。下記の潜在セレクトの項参照)もこのテーブルを
+    合成対象に含めるため、FWは「潜在1-3/潜在4/潜在5-6」の3択になる。
   - 各`special`は`description`(短い説明文)を持てる。UIはⓘボタン(`aria-expanded`で
     開閉、titleでもホバー表示)をチェックボックス/ヒントの隣に出し、クリックで
     説明文+「現在: +N%」/「現在: ×N」(`resolveSpecialCurrentValue`が計算する
-    prospectiveな値。`specialOn`の状態に関わらず「今ONにしたら/今の設定なら」を示す)
-    を展開する。
+    prospectiveな値。`specialOn`の状態に関わらず「今ONにしたら/今の設定なら」を示す。
+    乗算系は素質値テーブルの解決値[0=未解放]を1[影響なし]へフォールバックして
+    プレビューする)を展開する。
   - モジュール依存の値は必ず`battle_equip_table.json`の該当uniEquipIdの
     `addOrOverrideTalentDataBundle`(通常E2最大潜在=`requiredPotentialRank`最大)を
     実データから読み、Lvごとに違う値を確認してから入れること(Lv1は素質強化自体が
     付かず0になることが多い。1つの定数を全Lvに当てはめない)。
-  - Rustのドリフト検知: `requires_module`/`mul_multiplier.module`が指すuniEquipIdが
-    実際にそのオペレーターのmodulesに存在することを
-    `validate_special_requires_module`(`cargo test`)が検証する。
+  - Rustのドリフト検知: `requires_module`が指すuniEquipIdが実際にそのオペレーターの
+    modulesに存在することを`validate_special_requires_module`が、
+    `mul_multiplier.talent`/`key`が実データ(`operator_combat`のtalents)に存在し
+    最大成長(E2・潜在6)でも0より大きい値を持つことを`validate_special_mul_multiplier`
+    が(いずれも`cargo test`)検証する。
 - fk_kill_calculatorのstate/URLのバックワード互換は`v:1`のまま、`row.buffIds`/
   `row.specialOn`/`state.globalBuffIds`/`row.inspireOn`/`state.inspire.sources`/
   `state.globalBuffLevels`(P4)/`row.elite`・`row.level`・`row.trust`・鼓舞ソースcfgの
@@ -591,7 +607,9 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   旧(P1/P2)形の補完＋未知バフid・未知の鼓舞ソースid/パーツidの静かな除去、および
   旧(P2)形前衛アーミヤ2エントリ(`amiya_guard_normal`/`amiya_guard_skill`。
   exclusive_group)→新1エントリ(`amiya_guard`+toggle)への移行を兼ねる
-  (`amiya_guard_skill`だった場合は`toggleOn: true`へ移行)。
+  (`amiya_guard_skill`だった場合は`toggleOn: true`へ移行)。ただし`row.potential`/
+  鼓舞ソースcfgの`potential`(P8で旧booleanから潜在ランク[0〜5]へ仕様変更)だけは例外で、
+  丁寧な移行はせず数値でなければ単純に既定値5へリセットする(詳細は上記P8の項目参照)。
 - **fk_kill_calculatorは行/鼓舞ソースごとに昇進(elite)・レベル(level)・信頼度(trust)を
   指定できる(P6)**: 従来固定していた「E2最大Lv+信頼度100」をユーザーが変更できるようにした。
   データ層(`engine/external_source/operator_combat.rs`)は`character_table.json`の
@@ -635,6 +653,34 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   特化1〜3は昇進2が必要」という一般ルールの警告を出すが、計算自体は続行する
   (`skillUnlockWarning`と同じ方針。昇進を変えてもスキルLvの選択は自動変更しない)。
   折りたたみ行のサマリーには特化3以外の時だけスキルLvを付け足す(例: `E2 Lv90 SLv7`)。
+- **fk_kill_calculatorの行/鼓舞ソースは「攻撃凸」「素質凸」の個別チェックボックスの代わりに
+  1つの「潜在セレクト」(潜在1〜6)を持つ(P8)**: `operator_combat::RawOperatorCombat`が
+  `atk_potential_by_rank: [f64; 6]`(0始まり。0=潜在1〜5=潜在6。累積ATK加算値。
+  `potentialRanks[i]`は0始まりpotential_rank=`i+1`で解放される)を持ち、`CatalogOperator`/
+  `InspireSource`にそのままDTO化される。`row.potential`(0〜5の数値。既定5=潜在6)は
+  旧`op.atkPotential`固定加算の代わりに`resolveAtkPotential(op, row.potential)`
+  (`op.atkPotentialByRank[rank]`を引くだけ。無い簡易オブジェクトへは
+  `rank>0`で全額返す後方互換フォールバックあり)を使う。潜在セレクトの選択肢は
+  `atkPotentialGroups(op, entry, row)`(値が変わる境目のみ。境目が無い=ATK潜在を持たない
+  オペレーターは`groups.length<=1`になるため**セレクト自体を隠す**)。P8 follow-upで
+  `entry`/`row`引数を追加し、`entry.special.mulMultiplier`(乗算系特殊強化の素質値
+  テーブル。上記の特殊強化の項参照)がある場合、ATK潜在テーブルとこの素質テーブル
+  (行の現在の`elite`/実効モジュールに対応する潜在別配列)を合成する(境目の和集合。
+  `talentPotentialGroups`と同じ`potentialGroups`ヘルパーを共有)。例: ファイヤーウォッチは
+  ATK潜在境目(潜在1-3/4-6)と素質「暗殺者」の境目(潜在1-4/5-6)の和で
+  「潜在1-3/潜在4/潜在5-6」の3択になる。鼓舞ソースは旧`potential`(攻撃凸)+
+  `talentPotential`(素質凸)の2チェックボックスを同じく1つの`potential`へ統合し、
+  自己%パーツの`pct_potential_bonus`(素質凸ボーナス)は`InspireSource.talent_potential_rank`
+  (`buffers.yaml`の`inspire[].talent_potential_rank`。0始まり。手動データ。実データの
+  `talents[].candidates[].requiredPotentialRank`を写す)以上を選んでいる間だけ適用する
+  (`every_inspire_source_with_potential_bonus_has_talent_potential_rank`が
+  記入漏れを検知)。鼓舞ソースの潜在セレクトの境目は`inspirePotentialGroups(source)`
+  (ATK加算の変化点 ∪ 素質凸解放境目を仮想0/1テーブルとして`potentialGroups`へ渡す。
+  濁心スカジは潜在1-3/潜在4/潜在5-6の3択)。旧`talent_potential_label`(表示文言)は
+  不要になったため削除した。**このツールはまだプロトタイプ段階のため、旧booleanの
+  `potential`/`talentPotential`から丁寧な移行(最も近いランクを推測する等)はせず、
+  `dropStaleRows`が数値(0〜5)でなければ単純に既定値5へリセットする**(オーナー指示。
+  行/鼓舞ソースどちらも同じ方針)。
 - **fk_kill_calculatorの条件付きバフ(P4)はゲームデータから動的に値解決できる**:
   `data/fk_kill_calc/buffers.yaml`の`conditional.*`は固定`pct`/`flat`の代わりに
   `source: { operator: <charId>, talent: <talentIndex> または skill_num: "<fk_dataの
@@ -656,7 +702,9 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   値テーブルを引くだけで、判定ロジック自体はJS側で再実装しない)。モジュールは昇進2で
   しか装備できないので、E0/E1ではモジュール選択を無視し(engine.js)、UIもモジュール欄を
   隠して「素質は昇進Nで解放」等のヒントを出す。潜在の選択肢は値が変わる境目だけに
-  まとめる(`engine.js`の`potentialGroups`。例: エイヤは「潜在1-5/潜在6」)。`toggle: { label, mult }`
+  まとめる(`engine.js`の`talentPotentialGroups`。P8で汎用化した`potentialGroups`
+  [複数の潜在別テーブルを渡すと境目を合成する]の薄いラッパー。例: エイヤは
+  「潜在1-5/潜在6」)。`toggle: { label, mult }`
   (P4)はON/OFFで解決値に倍率を掛ける単純な仕組み(前衛アーミヤ「スキル中は効果2倍」用に
   導入。旧`amiya_guard_normal`/`amiya_guard_skill`の2エントリ+exclusive_groupを1エントリに
   統合した)。`bonus.mult`(P4。`bonus.value`の代わりに使える)は基本値への倍率で、

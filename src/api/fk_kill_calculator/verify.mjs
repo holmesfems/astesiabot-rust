@@ -20,9 +20,12 @@ import {
   defaultInspireSourceCfg,
   computeBuffBreakdown,
   resolveConditionalValue,
-  potentialGroups,
+  talentPotentialGroups,
+  atkPotentialGroups,
+  inspirePotentialGroups,
   computeBaseAtk,
   resolveAtk,
+  resolveAtkPotential,
   moduleUsable,
   effectiveModuleId,
   maxEliteFor,
@@ -36,6 +39,9 @@ import {
   maxSkillLevelForElite,
   skillLevelWarning,
   resolveInspireRatioAtLevel,
+  specialUiState,
+  specialMulCanApply,
+  resolveSpecialCurrentValue,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -68,7 +74,10 @@ function row(overrides) {
     opId: "op",
     entryIdx: 0,
     dmgType: "true",
-    potential: true,
+    // P8: 潜在ランク(0始まり)。op()はatkPotentialByRankを持たないため、
+    // resolveAtkPotentialのフォールバック(rank>0で全額)が効くようにrank5(潜在6)にする
+    // (旧`potential: true`と同じ結果)。
+    potential: 5,
     moduleId: "m",
     moduleLv: 3,
     multiplier: 1,
@@ -441,32 +450,65 @@ console.log("\n=== P2: 個別バフ/条件付きバフ/特殊強化 ===\n");
     Array.isArray(cleaned.rows[0].buffIds) && cleaned.rows[0].specialOn === true && Array.isArray(cleaned.globalBuffIds),
     cleaned,
   );
+  // P8: 旧`potential`(boolean)は丁寧な移行をせず既定値(5=潜在6)へリセットする(オーナー指示)。
+  check("旧形のboolean potentialは既定値5へリセットされる", cleaned.rows[0].potential === 5, cleaned.rows[0].potential);
   const { total, killed } = computeTotal(catalog, cleaned.rows, cleaned.enemy, cleaned.globalBuffIds);
   check("旧形のstateでも計算できる(撃破)", killed === true, total);
 }
 
 console.log("\n=== P2 follow-up: 特殊強化(モジュール依存の加算系/乗算系) ===\n");
 {
-  // ファイヤーウォッチS2「遠距離特効」: 乗算系(mul_multiplier)。
-  // モジュールY(実データではuniequip_002_milu。ここではダミーid"m")装備時は
-  // Lv1=1.45/Lv2=1.5/Lv3=1.55、未装備はbase=1.45(素質「暗殺者」E2最大潜在)。
+  // ファイヤーウォッチS2「遠距離特効」: 乗算系(mul_multiplier)。P8 follow-upで固定値
+  // (base/module/byModuleLevel)から素質「暗殺者」の値テーブル参照へ置き換えた。実データ
+  // (character_table.json talents + battle_equip_table.json uniequip_002_milu。
+  // ここではダミーモジュールid"m")を写した値: E0=素質未解放(0)、E1=1.2(潜在1〜4)/
+  // 1.25(潜在5〜6)、E2=1.4/1.45、モジュールY Lv1=E2基礎値のまま(素質強化が付かない)/
+  // Lv2=1.45,1.5/Lv3=1.5,1.55。
+  const fwMulTable = {
+    valuesByEliteAndPotential: [
+      [0, 0, 0, 0, 0, 0],
+      [1.2, 1.2, 1.2, 1.2, 1.25, 1.25],
+      [1.4, 1.4, 1.4, 1.4, 1.45, 1.45],
+    ],
+    eliteVaries: true,
+    potentialVaries: true,
+    modules: [
+      {
+        moduleId: "m",
+        typeName: "Y",
+        name: "モジュールY",
+        valuesByLevelAndPotential: [
+          [1.4, 1.4, 1.4, 1.4, 1.45, 1.45],
+          [1.45, 1.45, 1.45, 1.45, 1.5, 1.5],
+          [1.5, 1.5, 1.5, 1.5, 1.55, 1.55],
+        ],
+      },
+    ],
+  };
   const fwSpecial = {
     label: "遠距離特効",
-    description: "遠隔武器を持つ、または攻撃しない敵を攻撃した時、攻撃力が上昇する",
+    description: "条件を満たした敵に攻撃した時、攻撃力が上昇する",
     requiresModule: null,
     addSelfAtkPctByModuleLevel: null,
-    mulMultiplier: { base: 1.45, module: "m", byModuleLevel: [1.45, 1.5, 1.55] },
+    mulMultiplier: fwMulTable,
   };
+  const fwEntry = { tags: [], special: fwSpecial };
+  // atkPotentialByRank([0,0,0,35,35,35]。実データと同じ「潜在4で+35」の境目)を明示的に
+  // 持たせ、素質境目(潜在1-4/5-6)との合成(atkPotentialGroups)を検証できるようにする。
+  const fwOp = { ...op(1175, 35, 87), atkPotentialByRank: [0, 0, 0, 35, 35, 35], id: "fw", fkEntries: [fwEntry] };
   const catalog = {
-    operators: [{ ...op(1175, 35, 87), id: "fw", fkEntries: [{ tags: [], special: fwSpecial }] }],
+    operators: [fwOp],
     buffers: [
       { id: "plasma", name: "血漿", kind: "pct", value: 0.9, scope: { type: "individual" }, singleTarget: false, bonus: null },
       { id: "stainless_2", name: "ステインレス(2)", kind: "pct", value: 0.96, scope: { type: "individual" }, singleTarget: false, bonus: null },
     ],
   };
-  const rLv3On = row({ opId: "fw", entryIdx: 0, multiplier: 3.0, buffIds: ["plasma", "stainless_2"], moduleId: "m", moduleLv: 3, specialOn: true });
+  const rLv3On = row({
+    opId: "fw", entryIdx: 0, multiplier: 3.0, buffIds: ["plasma", "stainless_2"],
+    moduleId: "m", moduleLv: 3, specialOn: true, elite: 2, potential: 5,
+  });
   const lv3On = computeTotal(catalog, [rLv3On], enemyNeutral, []).results[0];
-  check("FW S2 モジュールYのLv3+特殊強化ONでmul係数1.55", lv3On.specialMulFactor === 1.55, lv3On.specialMulFactor);
+  check("FW S2 E2・潜在6・モジュールYのLv3+特殊強化ONでmul係数1.55", lv3On.specialMulFactor === 1.55, lv3On.specialMulFactor);
   approxEqual(lv3On.final, 17249, 1, "FW S2 モジュールYのLv3+特殊強化ON (3.0×1.55=4.65)");
 
   const off = computeTotal(catalog, [{ ...rLv3On, specialOn: false, buffIds: [] }], enemyNeutral, []).results[0];
@@ -474,13 +516,47 @@ console.log("\n=== P2 follow-up: 特殊強化(モジュール依存の加算系/
   approxEqual(off.final, 1297 * 3.0, 1, "FW S2 特殊強化OFF final(atk1297×multiplier3.0)");
 
   const noModule = computeTotal(catalog, [{ ...rLv3On, moduleId: null, buffIds: [] }], enemyNeutral, []).results[0];
-  check("FW S2 モジュール未装備はbase(1.45)を使う", noModule.specialMulFactor === 1.45, noModule.specialMulFactor);
+  check("FW S2 E2・潜在6・モジュール未装備は素質値そのまま(1.45)", noModule.specialMulFactor === 1.45, noModule.specialMulFactor);
 
   const lv1 = computeTotal(catalog, [{ ...rLv3On, moduleLv: 1, buffIds: [] }], enemyNeutral, []).results[0];
-  check("FW S2 モジュールYのLv1はbaseと同値1.45(Lv1では素質強化が付かない)", lv1.specialMulFactor === 1.45, lv1.specialMulFactor);
+  check("FW S2 モジュールYのLv1は素質値と同値1.45(Lv1では素質強化が付かない)", lv1.specialMulFactor === 1.45, lv1.specialMulFactor);
 
   const lv2 = computeTotal(catalog, [{ ...rLv3On, moduleLv: 2, buffIds: [] }], enemyNeutral, []).results[0];
   check("FW S2 モジュールYのLv2は1.5", lv2.specialMulFactor === 1.5, lv2.specialMulFactor);
+
+  // --- P8 follow-up: 固定値ではなく行自身の昇進/潜在に素直に追従する ---
+  const pot4 = computeTotal(catalog, [{ ...rLv3On, potential: 3, buffIds: [] }], enemyNeutral, []).results[0];
+  check("FW S2 潜在4・モジュールYLv3は1.5(潜在5境目未満)", pot4.specialMulFactor === 1.5, pot4.specialMulFactor);
+
+  const e1 = computeTotal(catalog, [{ ...rLv3On, elite: 1, buffIds: [] }], enemyNeutral, []).results[0];
+  check("FW S2 E1・潜在6は1.25(モジュールは昇進2未満なので無視される)", e1.specialMulFactor === 1.25, e1.specialMulFactor);
+
+  const e0 = computeTotal(catalog, [{ ...rLv3On, elite: 0, buffIds: [] }], enemyNeutral, []).results[0];
+  check("FW S2 E0は素質未解放なのでmul係数1(影響なし)", e0.specialMulFactor === 1, e0.specialMulFactor);
+
+  // --- P8 follow-up: E0では特殊強化がヒント状態になり、ⓘ現在値は×1のプレビューになる ---
+  const e0Row = { ...rLv3On, elite: 0 };
+  check("FW S2 E0はspecialMulCanApply=false(素質未解放)", specialMulCanApply(fwOp, fwEntry, e0Row) === false);
+  check("FW S2 E0はspecialUiStateがhint", specialUiState(fwOp, fwEntry, e0Row) === "hint", specialUiState(fwOp, fwEntry, e0Row));
+  check(
+    "FW S2 E0のresolveSpecialCurrentValueは×1のプレビュー",
+    JSON.stringify(resolveSpecialCurrentValue(fwOp, fwEntry, e0Row)) === JSON.stringify({ kind: "mul", value: 1 }),
+    JSON.stringify(resolveSpecialCurrentValue(fwOp, fwEntry, e0Row)),
+  );
+  check("FW S2 E2はspecialUiStateがcheckbox(素質解放済み)", specialUiState(fwOp, fwEntry, rLv3On) === "checkbox", specialUiState(fwOp, fwEntry, rLv3On));
+  check(
+    "FW S2 E2・潜在6・モジュールYLv3のresolveSpecialCurrentValueは×1.55",
+    JSON.stringify(resolveSpecialCurrentValue(fwOp, fwEntry, rLv3On)) === JSON.stringify({ kind: "mul", value: 1.55 }),
+    JSON.stringify(resolveSpecialCurrentValue(fwOp, fwEntry, rLv3On)),
+  );
+
+  // --- P8 follow-up: 行の潜在セレクトの境目はATK潜在(潜在1-3/4-6)と素質境目
+  //     (潜在1-4/5-6)の和になり、「潜在1-3/潜在4/潜在5-6」の3択になる ---
+  check(
+    "atkPotentialGroups(FW,entry,row) = 潜在1-3/潜在4/潜在5-6の3グループ",
+    JSON.stringify(atkPotentialGroups(fwOp, fwEntry, rLv3On)) === JSON.stringify([{ from: 0, to: 2 }, { from: 3, to: 3 }, { from: 4, to: 5 }]),
+    JSON.stringify(atkPotentialGroups(fwOp, fwEntry, rLv3On)),
+  );
 }
 {
   // ウィーディS3「蓄水砲配置バフ」: 加算系(requires_module)。実データでは
@@ -546,6 +622,9 @@ function skadi2Source(overrides) {
     tags: ["補助"], // profession=SUPPORT, position=RANGED (近距離タグは無い)
     atkBase: 418,
     atkPotential: 27,
+    // P8: 潜在4(rank3)で+27(実データに即した単純な all-or-nothing テーブル。
+    // シー/夜刀のような複数段階のケースは別途専用フィクスチャで検証する)。
+    atkPotentialByRank: [0, 0, 0, 27, 27, 27],
     modules: [
       { id: "uniequip_002_skadi2", typeName: "X", name: "蜕化的残迹", atkByLevel: [26, 32, 35] },
       { id: "uniequip_003_skadi2", typeName: "Y", name: "新生代", atkByLevel: [22, 27, 30] },
@@ -554,7 +633,9 @@ function skadi2Source(overrides) {
       { skillNum: "2", ratio: 0.6 },
       { skillNum: "3", ratio: 1.1 },
     ],
-    talentPotentialLabel: "素質凸",
+    // P8: 素質「捕食本能」のrequiredPotentialRank(0始まり)=4(潜在5)。旧「素質凸」
+    // チェックボックスは潜在セレクトへ統合したため、cfg.potential>=4で素質凸ボーナスが乗る。
+    talentPotentialRank: 4,
     selfParts: [
       {
         id: "talent",
@@ -614,8 +695,9 @@ function skadi2Cfg(overrides) {
   return {
     on: true,
     skillNum: "2",
-    potential: true,
-    talentPotential: false,
+    // P8: 潜在ランク(0始まり)。既定はrank3(潜在4=ATK潜在は含むが素質凸[rank4]未満)。
+    // 旧来の「攻撃凸ON・素質凸OFF」と同じ状態になる。
+    potential: 3,
     moduleId: null,
     moduleLv: 3,
     buffPct: 0,
@@ -629,16 +711,16 @@ const plasmaBuffer = { id: "plasma", name: "血漿", kind: "pct", value: 0.9, sc
 const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value: 0.1, scope: { type: "individual" }, singleTarget: true, bonus: null };
 
 {
-  // 参照シート実測値: S2(Xの2名条件OFF, 素質凸ON) → 480×1.09×0.6=313.9≈314
+  // 参照シート実測値: S2(Xの2名条件OFF, 素質凸ON[潜在5=rank4]) → 480×1.09×0.6=313.9≈314
   const source = skadi2Source();
-  const cfg = skadi2Cfg({ skillNum: "2", talentPotential: true, moduleId: "uniequip_002_skadi2", moduleLv: 3, parts: { module_x_two_ops: false } });
+  const cfg = skadi2Cfg({ skillNum: "2", potential: 4, moduleId: "uniequip_002_skadi2", moduleLv: 3, parts: { module_x_two_ops: false } });
   const result = computeInspireSource(source, cfg, { buffers: [] }, []);
   approxEqual(result.amount, 314, 1, "濁心スカジ S2 鼓舞(Xの2名条件OFF)");
 }
 {
-  // 参照シート実測値: S3(Xの2名条件ON, 素質凸ON) → 480×1.17×1.1=617.8≈618
+  // 参照シート実測値: S3(Xの2名条件ON, 素質凸ON[潜在5=rank4]) → 480×1.17×1.1=617.8≈618
   const source = skadi2Source();
-  const cfg = skadi2Cfg({ skillNum: "3", talentPotential: true, moduleId: "uniequip_002_skadi2", moduleLv: 3 }); // module_x_two_opsはdefaultOn=trueのまま
+  const cfg = skadi2Cfg({ skillNum: "3", potential: 4, moduleId: "uniequip_002_skadi2", moduleLv: 3 }); // module_x_two_opsはdefaultOn=trueのまま
   const result = computeInspireSource(source, cfg, { buffers: [] }, []);
   approxEqual(result.amount, 618, 1, "濁心スカジ S3 鼓舞(Xの2名条件ON)");
 }
@@ -654,9 +736,9 @@ const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value:
 }
 {
   // 個別バフ(血漿+90%)をソースのbuffIdsに追加すると鼓舞量が増える(スペック変更で追加)。
-  // 480×(1+0.09+0.9)×0.6 = 573.12 (talentPotential ON, Xの2名条件OFF)。
+  // 480×(1+0.09+0.9)×0.6 = 573.12 (素質凸ON[潜在5=rank4], Xの2名条件OFF)。
   const source = skadi2Source();
-  const cfg = skadi2Cfg({ skillNum: "2", talentPotential: true, moduleId: "uniequip_002_skadi2", moduleLv: 3, parts: { module_x_two_ops: false }, buffIds: ["plasma"] });
+  const cfg = skadi2Cfg({ skillNum: "2", potential: 4, moduleId: "uniequip_002_skadi2", moduleLv: 3, parts: { module_x_two_ops: false }, buffIds: ["plasma"] });
   const result = computeInspireSource(source, cfg, { buffers: [plasmaBuffer] }, []);
   approxEqual(result.amount, 573.12, 1, "濁心スカジに血漿(個別バフ)を追加すると鼓舞量が増える");
 }
@@ -672,26 +754,26 @@ const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value:
   check("アビサルハンターON時のpctは0.15(0.06+0.15の加算ではない)", Math.abs(withAbyssal.pct - 0.15) < 1e-9, withAbyssal.pct);
 }
 {
-  // モジュールY(新生代)装備時のLvごとの素質値(素質凸なし/ありの両方)。
+  // モジュールY(新生代)装備時のLvごとの素質値(素質凸なし[潜在4=rank3]/あり[潜在5=rank4]の両方)。
   const source = skadi2Source();
   const cases = [
-    [1, false, 0.06], [1, true, 0.09],
-    [2, false, 0.08], [2, true, 0.11],
-    [3, false, 0.09], [3, true, 0.12],
+    [1, 3, 0.06], [1, 4, 0.09],
+    [2, 3, 0.08], [2, 4, 0.11],
+    [3, 3, 0.09], [3, 4, 0.12],
   ];
-  for (const [lv, talentPotential, expected] of cases) {
-    const { pct } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: "uniequip_003_skadi2", moduleLv: lv, talentPotential }));
-    check(`モジュールY Lv${lv} 素質凸${talentPotential ? "ON" : "OFF"}: talent=${expected}`, Math.abs(pct - expected) < 1e-9, pct);
+  for (const [lv, potential, expected] of cases) {
+    const { pct } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: "uniequip_003_skadi2", moduleLv: lv, potential }));
+    check(`モジュールY Lv${lv} 素質凸${potential >= 4 ? "ON" : "OFF"}(潜在${potential + 1}): talent=${expected}`, Math.abs(pct - expected) < 1e-9, pct);
   }
   // アビサルハンター込みのモジュールYレベル別の値も確認する。
   const abyssalCases = [
-    [1, false, 0.15], [1, true, 0.18],
-    [2, false, 0.15], [2, true, 0.18],
-    [3, false, 0.2], [3, true, 0.23],
+    [1, 3, 0.15], [1, 4, 0.18],
+    [2, 3, 0.15], [2, 4, 0.18],
+    [3, 3, 0.2], [3, 4, 0.23],
   ];
-  for (const [lv, talentPotential, expected] of abyssalCases) {
-    const { pct } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: "uniequip_003_skadi2", moduleLv: lv, talentPotential, parts: { talent_abyssal: true } }));
-    check(`モジュールY Lv${lv}+アビサルハンター 素質凸${talentPotential ? "ON" : "OFF"}: talent_abyssal=${expected}`, Math.abs(pct - expected) < 1e-9, pct);
+  for (const [lv, potential, expected] of abyssalCases) {
+    const { pct } = computeInspireSelfParts(source, skadi2Cfg({ moduleId: "uniequip_003_skadi2", moduleLv: lv, potential, parts: { talent_abyssal: true } }));
+    check(`モジュールY Lv${lv}+アビサルハンター 素質凸${potential >= 4 ? "ON" : "OFF"}(潜在${potential + 1}): talent_abyssal=${expected}`, Math.abs(pct - expected) < 1e-9, pct);
   }
 }
 {
@@ -708,9 +790,27 @@ const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value:
   check("モジュールY装備時もXパーツは適用されない(talentのみ0.09)", Math.abs(yInstead - 0.09) < 1e-9, yInstead);
 }
 {
+  // P8: 鼓舞ソースの潜在セレクトの境目はATK加算の変化点(潜在4)∪素質凸の解放境目(潜在5)。
+  // 濁心スカジは潜在1-3/潜在4/潜在5-6の3グループになるはず。
+  const source = skadi2Source();
+  const groups = inspirePotentialGroups(source);
+  check(
+    "濁心スカジのinspirePotentialGroupsは潜在1-3/潜在4/潜在5-6の3グループ",
+    JSON.stringify(groups) === JSON.stringify([{ from: 0, to: 2 }, { from: 3, to: 3 }, { from: 4, to: 5 }]),
+    JSON.stringify(groups),
+  );
+  // 潜在4(rank3)はATK潜在(+27)は乗るが素質凸(rank4未満)は乗らないので、S2のセルフは
+  // 6%のまま(9%にならない)。
+  const cfgP4 = skadi2Cfg({ skillNum: "2", potential: 3, moduleId: null });
+  const { pct } = computeInspireSelfParts(source, cfgP4);
+  check("濁心スカジ 潜在4(rank3): 素質凸未解放なのでセルフ6%のまま(9%にならない)", Math.abs(pct - 0.06) < 1e-9, pct);
+  const resultP4 = computeInspireSource(source, cfgP4, { buffers: [] }, []);
+  approxEqual(resultP4.selfPct, 0.06, 1e-9, "濁心スカジ 潜在4のS2 selfPct");
+}
+{
   // max-not-sum: 2つの鼓舞ソースがONでも、行が受け取るのは最大の1件だけ(合算しない)。
-  const bigSource = { ...skadi2Source(), id: "big", operatorId: "char_big", atkBase: 1000, atkPotential: 0, skills: [{ skillNum: "2", ratio: 1 }], selfParts: [] };
-  const smallSource = { ...skadi2Source(), id: "small", operatorId: "char_small", atkBase: 100, atkPotential: 0, skills: [{ skillNum: "2", ratio: 1 }], selfParts: [] };
+  const bigSource = { ...skadi2Source(), id: "big", operatorId: "char_big", atkBase: 1000, atkPotential: 0, atkPotentialByRank: [0, 0, 0, 0, 0, 0], skills: [{ skillNum: "2", ratio: 1 }], selfParts: [] };
+  const smallSource = { ...skadi2Source(), id: "small", operatorId: "char_small", atkBase: 100, atkPotential: 0, atkPotentialByRank: [0, 0, 0, 0, 0, 0], skills: [{ skillNum: "2", ratio: 1 }], selfParts: [] };
   const catalog = { operators: [], buffers: [], inspireSources: [bigSource, smallSource] };
   const sourceStates = {
     big: skadi2Cfg({ skillNum: "2", moduleId: null }),
@@ -753,7 +853,7 @@ const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value:
   const op1000 = { id: "target", name: "target", tags: [], atkBase: 1000, atkPotential: 0, modules: [], fkEntries: [{ tags: [] }] };
   const source = { ...skadi2Source(), selfParts: [] };
   const catalog = { operators: [op1000], buffers: [], inspireSources: [source] };
-  const targetRow = { opId: "target", entryIdx: 0, dmgType: "true", potential: true, moduleId: null, moduleLv: 3, multiplier: 1, selfPct: 0, hits: 1, buffPct: 0, dmgMult: 1, ignoreDef: 0, buffIds: [], specialOn: true, inspireOn: true };
+  const targetRow = { opId: "target", entryIdx: 0, dmgType: "true", potential: 5, moduleId: null, moduleLv: 3, multiplier: 1, selfPct: 0, hits: 1, buffPct: 0, dmgMult: 1, ignoreDef: 0, buffIds: [], specialOn: true, inspireOn: true };
   const sourceStates = { skadi2: skadi2Cfg({ skillNum: "2", moduleId: null }) }; // atk=418+27=445, ratio0.6, self=0 -> amount=267
   const { results } = computeTotal(catalog, [targetRow], enemyNeutral, [], sourceStates);
   const inspireAmount = 445 * 0.6;
@@ -910,7 +1010,7 @@ console.log("\n=== P4: 条件付きバフの動的値解決(resolveConditionalVa
   check("エイヤ: E1/潜在6/モジュール無しで+9%", Math.abs(resolveConditionalValue(aya, { elite: 1, potential: 5, moduleId: null }) - 0.09) < 1e-9);
   check("エイヤ: E2/潜在1(0-indexed)/モジュール無しで+14%", Math.abs(resolveConditionalValue(aya, { elite: 2, potential: 0, moduleId: null }) - 0.14) < 1e-9);
   check("エイヤ: モジュールXのLv2/潜在1で+18%", Math.abs(resolveConditionalValue(aya, { moduleId: "uniequip_002_amgoat", moduleLevel: 2, potential: 0 }) - 0.18) < 1e-9);
-  check("エイヤ: 潜在の選択肢は潜在1-5/潜在6の2つ", JSON.stringify(potentialGroups(aya.source.talent)) === JSON.stringify([{ from: 0, to: 4 }, { from: 5, to: 5 }]), JSON.stringify(potentialGroups(aya.source.talent)));
+  check("エイヤ: 潜在の選択肢は潜在1-5/潜在6の2つ", JSON.stringify(talentPotentialGroups(aya.source.talent)) === JSON.stringify([{ from: 0, to: 4 }, { from: 5, to: 5 }]), JSON.stringify(talentPotentialGroups(aya.source.talent)));
   check("エイヤ: E1ではモジュールX Lv3を選んでいても無視される(+9%)", Math.abs(resolveConditionalValue(aya, { elite: 1, potential: 5, moduleId: "uniequip_002_amgoat", moduleLevel: 3 }) - 0.09) < 1e-9, resolveConditionalValue(aya, { elite: 1, potential: 5, moduleId: "uniequip_002_amgoat", moduleLevel: 3 }));
   check("エイヤ: モジュールXのLv1は素質未強化(E2/潜在6で+16%)", Math.abs(resolveConditionalValue(aya, { moduleId: "uniequip_002_amgoat", moduleLevel: 1, potential: 5 }) - 0.16) < 1e-9, resolveConditionalValue(aya, { moduleId: "uniequip_002_amgoat", moduleLevel: 1, potential: 5 }));
 }
@@ -942,8 +1042,8 @@ console.log("\n=== P4: 条件付きバフの動的値解決(resolveConditionalVa
       defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 1 },
     },
   };
-  check("ポデンコ: 潜在の選択肢は潜在1-4/潜在5-6の2つ", JSON.stringify(potentialGroups(podenco.source.talent)) === JSON.stringify([{ from: 0, to: 3 }, { from: 4, to: 5 }]), JSON.stringify(potentialGroups(podenco.source.talent)));
-  check("潜在グループ: 全潜在で値が違えば6つ(Castle型)", potentialGroups({ valuesByEliteAndPotential: [[0.1, 0.12, 0.14, 0.16, 0.18, 0.2]], modules: [] }).length === 6);
+  check("ポデンコ: 潜在の選択肢は潜在1-4/潜在5-6の2つ", JSON.stringify(talentPotentialGroups(podenco.source.talent)) === JSON.stringify([{ from: 0, to: 3 }, { from: 4, to: 5 }]), JSON.stringify(talentPotentialGroups(podenco.source.talent)));
+  check("潜在グループ: 全潜在で値が違えば6つ(Castle型)", talentPotentialGroups({ valuesByEliteAndPotential: [[0.1, 0.12, 0.14, 0.16, 0.18, 0.2]], modules: [] }).length === 6);
   check("ポデンコ: modules軸が空(dedupeで隠れる)", podenco.source.talent.modules.length === 0);
   check("ポデンコ: デフォルトで+11%", Math.abs(resolveConditionalValue(podenco, {}) - 0.11) < 1e-9, resolveConditionalValue(podenco, {}));
 }
@@ -1435,7 +1535,6 @@ console.log("\n=== P5: state移行(旧stainless_1/stainless_2の2エントリ→
     atkPotential: 0,
     modules: [],
     skills: [{ skillNum: "1", ratio: 1 }],
-    talentPotentialLabel: "素質凸",
     selfParts: [],
   };
   const catalogWithSource = { ...catalog, inspireSources: [sourceForMigration] };
@@ -1495,6 +1594,9 @@ console.log("\n=== P6: 昇進/レベル/信頼度からのベースATK計算(com
     tags: [],
     atkBase: 1028,
     atkPotential: 34,
+    // P8: 実データ(seed_has_expected_atk_potential_by_rankで検証済み)。潜在4(rank3)で+34、
+    // 潜在1〜3(rank0〜2)は+0。
+    atkPotentialByRank: [0, 0, 0, 34, 34, 34],
     modules: [],
     fkEntries: [],
     phases: [
@@ -1504,9 +1606,9 @@ console.log("\n=== P6: 昇進/レベル/信頼度からのベースATK計算(com
     ],
     atkTrustMax: 110,
   };
-  const duskRow = { elite: 2, level: 71, trust: 100, potential: true, moduleId: null, moduleLv: 3 };
+  const duskRow = { elite: 2, level: 71, trust: 100, potential: 5, moduleId: null, moduleLv: 3 };
   check(
-    "シー E2 Lv71・信頼度100%・潜在ON・モジュール無し → resolveAtk=1031(オーナー実機確認値)",
+    "シー E2 Lv71・信頼度100%・潜在6・モジュール無し → resolveAtk=1031(オーナー実機確認値)",
     resolveAtk(dusk, duskRow) === 1031,
     resolveAtk(dusk, duskRow),
   );
@@ -1514,6 +1616,27 @@ console.log("\n=== P6: 昇進/レベル/信頼度からのベースATK計算(com
     "上と同じ内訳: 補間部分だけ抜き出すと887(切り捨てなら886。信頼度0で分離して確認)",
     computeBaseAtk(dusk, 2, 71, 0) === 887,
     computeBaseAtk(dusk, 2, 71, 0),
+  );
+  // P8: 潜在4(rank3)でも同じ+34が乗る(実機確認値「潜在4 +34」の元)ので1031のまま。
+  // 潜在3(rank2)以下は+0になるので997(1031-34)まで下がる。
+  check(
+    "シー 潜在4(rank3)でも1031のまま(ATK潜在は潜在4で解放済み)",
+    resolveAtk(dusk, { ...duskRow, potential: 3 }) === 1031,
+    resolveAtk(dusk, { ...duskRow, potential: 3 }),
+  );
+  check(
+    "シー 潜在3(rank2)は997(潜在4未満でATK潜在+34が乗らない)",
+    resolveAtk(dusk, { ...duskRow, potential: 2 }) === 997,
+    resolveAtk(dusk, { ...duskRow, potential: 2 }),
+  );
+  check(
+    "atkPotentialGroups(シー) = 潜在1-3/潜在4-6の2グループ",
+    JSON.stringify(atkPotentialGroups(dusk)) === JSON.stringify([{ from: 0, to: 2 }, { from: 3, to: 5 }]),
+    JSON.stringify(atkPotentialGroups(dusk)),
+  );
+  check(
+    "atkPotentialGroups: ATK潜在を持たないopは1グループ(潜在1-6)のみ→UIは非表示にする",
+    atkPotentialGroups({ atkPotentialByRank: [0, 0, 0, 0, 0, 0] }).length === 1,
   );
 
   // phasesが無い(旧来の簡易opオブジェクト)場合はatkBaseへフォールバックする(後方互換)。
@@ -1539,8 +1662,8 @@ console.log("\n=== P6: モジュール装備可否(moduleUsable/effectiveModuleI
     "装備不可の組み合わせ(Lv59)ではeffectiveModuleIdがnullになる",
     effectiveModuleId(opWithModule, { moduleId: "m", elite: 2, level: 59 }) === null,
   );
-  const atkUsable = resolveAtk(opWithModule, { elite: 2, level: 60, trust: 100, potential: false, moduleId: "m", moduleLv: 3 });
-  const atkUnusable = resolveAtk(opWithModule, { elite: 2, level: 59, trust: 100, potential: false, moduleId: "m", moduleLv: 3 });
+  const atkUsable = resolveAtk(opWithModule, { elite: 2, level: 60, trust: 100, potential: 0, moduleId: "m", moduleLv: 3 });
+  const atkUnusable = resolveAtk(opWithModule, { elite: 2, level: 59, trust: 100, potential: 0, moduleId: "m", moduleLv: 3 });
   check("装備不可の間はモジュールATKがresolveAtkに加算されない", atkUnusable < atkUsable, { atkUsable, atkUnusable });
 
   // モジュールにunlockPhase/unlockLevelが無い(既存の簡易テストオブジェクト)場合は常に装備可能
@@ -1668,17 +1791,20 @@ console.log("\n=== P7: dropStaleRowsが旧形にskillLevel既定値(10)を補完
     atkTrustMax: 0,
     skillUnlockPhase: [],
   };
-  const sourceForMigration = { id: "srcMig", operatorId: "opMig", name: "srcMig", tags: [], atkBase: 1000, atkPotential: 0, modules: [], skills: [{ skillNum: "1", ratio: 1, ratioByLevel: [1], ratioFixed: true }], talentPotentialLabel: "凸", selfParts: [] };
+  const sourceForMigration = { id: "srcMig", operatorId: "opMig", name: "srcMig", tags: [], atkBase: 1000, atkPotential: 0, modules: [], skills: [{ skillNum: "1", ratio: 1, ratioByLevel: [1], ratioFixed: true }], selfParts: [] };
   const catalogForMigration = { operators: [opForMigration], buffers: [], inspireSources: [sourceForMigration] };
   const oldState = {
     v: 1,
     enemy: enemyNeutral,
+    // potential: true(旧boolean形式)は数値でないので、dropStaleRows後は既定値5へリセットされるはず(P8)。
     rows: [{ opId: "opMig", entryIdx: 0, dmgType: "physical", potential: true, moduleId: null, moduleLv: 3, multiplier: 1, selfPct: 0, hits: 1, buffPct: 0, dmgMult: 1, ignoreDef: 0 }],
+    // 鼓舞ソースcfg側もpotential未設定(旧形)なので同じく既定値5へ。
     inspire: { sources: { srcMig: { on: true, skillNum: "1" } } },
   };
   const { state: cleaned } = dropStaleRows(oldState, catalogForMigration);
   check("旧形の行にskillLevel=10(特化3)が補完される", cleaned.rows[0].skillLevel === 10, cleaned.rows[0].skillLevel);
   check("旧形の鼓舞ソースcfgにもskillLevel=10が補完される", cleaned.inspire.sources.srcMig.skillLevel === 10, cleaned.inspire.sources.srcMig.skillLevel);
+  check("旧形(boolean/欠損)のpotentialは行・鼓舞ソースcfgともに既定値5へリセットされる", cleaned.rows[0].potential === 5 && cleaned.inspire.sources.srcMig.potential === 5, [cleaned.rows[0].potential, cleaned.inspire.sources.srcMig.potential]);
 }
 
 console.log("\n=== P7: 鼓舞ソースのratioByLevel解決(resolveInspireRatioAtLevel/computeInspireSource) ===\n");
@@ -1699,10 +1825,9 @@ console.log("\n=== P7: 鼓舞ソースのratioByLevel解決(resolveInspireRatioA
     atkPotential: 0,
     modules: [],
     skills: [skillEntryLv],
-    talentPotentialLabel: "凸",
     selfParts: [],
   };
-  const cfgLv1 = { on: true, skillNum: "3", skillLevel: 1, potential: false, talentPotential: false, moduleId: null, moduleLv: 3, buffPct: 0, buffIds: [], parts: {} };
+  const cfgLv1 = { on: true, skillNum: "3", skillLevel: 1, potential: 0, moduleId: null, moduleLv: 3, buffPct: 0, buffIds: [], parts: {} };
   const cfgLv10 = { ...cfgLv1, skillLevel: 10 };
   const catalogEmpty = { buffers: [] };
   const resultLv1 = computeInspireSource(sourceLv, cfgLv1, catalogEmpty);
