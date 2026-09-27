@@ -334,8 +334,7 @@ src/
     │   ├── risei/                … 理性価値計算コマンド群（riseimaterials等）
     │   └── operator_cost_calc/    … オペレーター消費素材コマンド群（Python charmaterials.py相当）
     │       ├── mod.rs             … build_context（AllOperatorsInfo+ValueSet構築）、
-    │       │                        send_reply、fmt_item_block等の整形共通部。
-    │       │                        golden_tests（下記参照）もここ
+    │       │                        send_reply、fmt_item_block等の整形共通部
     │       ├── operatormastercost.rs … スキル特化消費素材（skillMasterCost）
     │       ├── operatorelitecost.rs  … 昇進消費素材（operatorEliteCost）
     │       ├── operatormodulecost.rs … モジュール消費素材（operatorModuleCost）
@@ -366,10 +365,6 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 │                             conditionalの2種 + P3で追加した鼓舞ソース一覧`inspire`）。
 │                             同じく`include_str!`でビルド時埋め込み。
 │                             スキーマ・記入例はファイル冒頭コメント参照
-├── golden/operator_cost_calc/ … Python版charmaterials.pyの出力をゴールデンJSON化したもの。
-│                                 `ref_python/.../dump_charmaterials_golden.py`で生成し、
-│                                 bot/commands/operator_cost_calc の golden_tests が実ネットワーク
-│                                 テスト(#[ignore])で突き合わせる。詳細は下記ポイント参照
 └── seed/                      … external_source の Seed（`cargo run --bin regen_seeds` で
                                    生成し、git commitして含めておく。詳細は下記ポイント参照）
     ├── operator_data.json
@@ -439,14 +434,6 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   1時間経過していれば再fetch）でTTL管理する（Python `FKInfo.getInfoFromName`のポーリング方式を踏襲）。
   オートコンプリート（`bot/commands/fkdatasearch.rs`の`autocomplete_operator_name`）はこのTTL
   チェックを経由せず`external_source.fk_data`を直接読む（Python `FKInfo.autoComplete`と同じ非対称性）。
-- **operator_cost_calc のゴールデンテストは理性価値に許容誤差を持つ**: risei_calculator_engine
-  の基準マップ選定は乱数を使うため（近接タイの複数カテゴリが実行毎に異なる基準ステージへ
-  収束し得る。Python版も`random.choice`で同様）、理性価値はPython版と実行毎に僅かに
-  （観測上0.02未満）ズレる。`bot/commands/operator_cost_calc/mod.rs`の`golden_tests`は
-  数値のみ許容誤差付きで比較し、近接タイによる隣接2件の順序入れ替えも許容する
-  （`lines_match_with_adjacent_swap_tolerance`）。ゲームデータ更新でランキング内容自体が
-  変わった場合は`ref_python/RiseiCalculatorBot-main/dump_charmaterials_golden.py`を再実行して
-  `data/golden/operator_cost_calc/*.json`を更新すること（`regen_seeds`もセットで実行）。
 - **askama.toml の dirs はフラットに解決される**: テンプレートは登録済みディレクトリ横断で
   ファイル名だけで引かれるため、名前が衝突すると解決が曖昧になる。モジュールごとに
   前置する（`ef_*` / `lod_*` / `tr_*`）。`index.html` のような素の名前は wl_battery_simulator の
