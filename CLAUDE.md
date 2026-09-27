@@ -320,7 +320,11 @@ src/
 │           │                     デフォルト補完+旧(P2)形前衛アーミヤ2エントリの移行を兼ねる。
 │           │                     詳細は下記ポイント参照）もここ
 │           ├── style.css       … 420px想定の縦長1カラム。他ページ(home/lod_chest_solver)と
-│           │                     同じくダーク固定（配色トークンはhome_index.htmlの:rootを流用）
+│           │                     同じくダーク固定（配色トークンはhome_index.htmlの:rootを流用）。
+│           │                     判定欄(#verdict-section)は上部にsticky。サイト共通の
+│           │                     ツール切り替えバーも上端stickyなので、その高さ(ui.jsが実測し
+│           │                     --toolnav-hに入れる)だけ下に貼り付ける。撃破提案は折りたたみ、
+│           │                     共有ボタン・注記はページ末尾(#page-footer-actions)
 │           └── lz-string.min.js … test_runner/static/lz-string.min.jsと同じ1.5.0, MITを
 │                                   ここにも独立してvendoring（ツール間を疎結合に保つため、
 │                                   test_runnerのURLは参照しない）
