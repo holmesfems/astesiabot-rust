@@ -3,35 +3,49 @@
 //! `overrides.rs`と同じく`include_str!`でビルド時埋め込みにする(実行時ファイルI/Oなし)。
 //! スキーマは2種類:
 //!   - `individual`: 行ごとにチップで選ぶバフ(自己バフ等)。`FkEntry`側の条件は見ない。
+//!     値は`pct`/`flat`の固定値、または`source`(P5)によるゲームデータからの動的解決。
 //!   - `conditional`: 全体で1回ON/OFFし、`targets`のタグを持つ行にだけ自動で効くバフ。
 //!     値は`pct`/`flat`の固定値、または`source`(P4)によるゲームデータからの動的解決の
 //!     どちらかを持つ。`bonus`(省略可)は「`bonus.tags`のいずれかをエントリが持つ場合、
 //!     基本値の代わりにこちらを採用する(置き換え。加算ではない)」という汎用のタグ限定
 //!     ボーナス(特定バフIDにハードコードしない。例: 異格エクシアの
 //!     「弾薬スキル+13%、ラテラーノ勢は2倍(26%)」)。`bonus.value`(固定値)/`bonus.mult`
-//!     (基本値への倍率。P4)はどちらか一方。
+//!     (基本値への倍率。P4)はどちらか一方(`individual`は`bonus`を持てない。タグ判定を
+//!     しないスコープのため)。
 //!
-//! **P4で追加した`source`(動的値解決)**: `pct`/`flat`の代わりに
+//! **P4で追加、P5で個別バフにも対応させた`source`(動的値解決)**: `pct`/`flat`の代わりに
 //! `source: { operator: <charId>, talent: <talentIndex>, key: <blackboardキー> }`
 //! (素質由来)または`source: { operator, skill_num: "<fk_dataのskill_num>", key }`
-//! (スキルLv別blackboard由来)を指定すると、値をゲームデータ(`operator_combat`の
+//! (スキルLv別blackboard由来。値そのもの)を指定すると、値をゲームデータ(`operator_combat`の
 //! `talents`/モジュール素質上書き、または`skill_data`の`blackboard_by_level`)から
-//! 機械抽出する(3層構成のうち1層目)。この解決自体は`build_buffers`(YAMLパースのみで
-//! ゲームデータへ依存しない)ではなく、`mod.rs`の`build_conditional_sourced_buffers`
+//! 機械抽出する(3層構成のうち1層目)。P5では更に3種類を追加した(スワイヤー/ステインレス/
+//! ナスティ実装時に必要になった。詳細・実データ検証結果は`conditional_source.rs`冒頭
+//! コメント参照):
+//!   - `scale_skill_num`/`scale_key`: `talent`または`base_pct`に掛け合わせる2軸目の
+//!     スキルLv別倍率(素質×スキル倍率。例: スワイヤーS1/S2)
+//!   - `base_pct`: ゲームデータから機械抽出できない固定基礎値(トークン由来等。`talent`の
+//!     代わりに使い、`scale_skill_num`と組み合わせる。例: ステインレスS1)
+//!   - `stage_skill_id`+`stage_keys`+`stage_labels`: スキルLvではなく同一skillの
+//!     blackboard上の複数キーを離散的な「段階」として使う(例: ナスティS3)
+//!
+//! この解決自体は`build_buffers`(YAMLパースのみでゲームデータへ依存しない)ではなく、
+//! `mod.rs`の`build_conditional_sourced_buffers`/`build_individual_sourced_buffers`
 //! (`OperatorCombat`/`SkillData`/`OperatorData`を受け取れる`build_catalog`経由)が担当する
 //! (`build_inspire_sources`と同じ2段構え: このファイルはYAMLの生データだけを
-//! `raw_conditional_sourced()`で公開し、実際のマージは`mod.rs`側)。
-//! 解決アルゴリズムの詳細(昇進/潜在/モジュールの優先順位、値が変わらない軸を隠す
-//! dedupe等)は`conditional_source.rs`冒頭コメント参照。
-//! `toggle: { label, mult }`(P4)はON/OFFで解決値に`mult`を掛ける単純なトグル
-//! (例: 前衛アーミヤの「スキル中は効果2倍」)。
+//! `raw_conditional_sourced()`/`raw_individual_sourced()`で公開し、実際のマージは
+//! `mod.rs`側)。解決アルゴリズムの詳細(昇進/潜在/モジュールの優先順位、値が変わらない軸を
+//! 隠すdedupe等)は`conditional_source.rs`冒頭コメント参照。
+//! `toggle: { label, mult }`(P4。P5で個別バフにも対応)はON/OFFで解決値に`mult`を掛ける
+//! 単純なトグル(例: 前衛アーミヤの「スキル中は効果2倍」、ステインレスS1の「装置2台」)。
+//! `max_targets_by_module`(P5。個別バフ専用)は値の解決には関与せず、特定モジュールLv
+//! 以上を装備している間だけ`single_target`警告の上限を緩和する(例: エクシア)。
 //!
 //! 各バフは`pct`(ATKへの割合)/`flat`(定額。P1の`inspireFlat`と同じ差し込み口に足す想定)/
-//! `source`のいずれか1つを必ず指定する(`conditional`のみ`source`を選べる。`individual`は
-//! 今のところ`pct`/`flat`のみ。0個/2個以上の指定は`build_buffers`がpanicする。
-//! ビルド時埋め込みなので実データ側の誤りとして即座に気付ける)。`bonus`を指定する場合、
-//! `bonus.value`を使うなら親と同じ種別(pct/flat)を使うこと(親がpctなのにbonus.flatを
-//! 指定する、等は不可)。`bonus.mult`は`source`付きバフ専用。
+//! `source`のいずれか1つを必ず指定する(`individual`/`conditional`どちらも`source`を
+//! 選べる。0個/2個以上の指定は`build_buffers`がpanicする。ビルド時埋め込みなので実データ側の
+//! 誤りとして即座に気付ける)。`bonus`を指定する場合、`bonus.value`を使うなら親と同じ種別
+//! (pct/flat)を使うこと(親がpctなのにbonus.flatを指定する、等は不可)。`bonus.mult`は
+//! `source`付きバフ専用。
 
 use super::dto::{Buffer, BufferBonus, BufferKind, BufferScope};
 use serde::Deserialize;
@@ -102,14 +116,50 @@ pub(crate) struct RawBonus {
     pub(crate) note: Option<String>,
 }
 
-/// `conditional.*.source`の生データ(P4)。`talent`/`skill_num`のどちらか一方を持つ
-/// (`build_conditional_sourced_buffers`が検証する)。
+/// `source.max_targets_by_module`の生データ(P5)。指定モジュールを`min_level`以上で
+/// 装備している間、このバフの対象人数が`count`人になる(例: エクシア。モジュールX
+/// Lv2以上で2名)。値の解決には関与しない(`single_target`警告の上限を緩和するためだけ)。
+#[derive(Deserialize, Clone, Debug)]
+pub(crate) struct RawMaxTargetsByModule {
+    pub(crate) module: String,
+    pub(crate) min_level: u8,
+    pub(crate) count: u8,
+}
+
+/// `individual`/`conditional`の`source`の生データ(P4で条件付き向けに追加、P5で個別バフにも
+/// 対応させ以下を追加)。以下の組み合わせのみを許容する(`conditional_source.rs`の
+/// `resolve_source`が検証する):
+///   - `talent`のみ(`skill_num`/`base_pct`/`stage_skill_id`は無し)
+///   - `skill_num`のみ(値そのもの。`talent`/`base_pct`/`stage_skill_id`は無し)
+///   - `talent` + `scale_skill_num`(素質×スキルLv別スケール。スワイヤーS1/S2)
+///   - `base_pct` + `scale_skill_num`(固定基礎値×スキルLv別スケール。ステインレスS1)
+///   - `stage_skill_id`のみ(離散段階。ナスティS3。`stage_keys`/`stage_labels`必須)
 #[derive(Deserialize, Clone, Debug)]
 pub(crate) struct RawConditionalSource {
     pub(crate) operator: String,
     pub(crate) talent: Option<usize>,
     pub(crate) skill_num: Option<String>,
-    pub(crate) key: String,
+    /// `talent`/`skill_num`と併用するblackboardキー名。両方が無い(stage/base_pct単体)
+    /// 場合は不要。
+    pub(crate) key: Option<String>,
+    /// P5: `talent`の代わりに使う固定基礎値(ゲームデータに存在しないトークン等由来)。
+    #[serde(default)]
+    pub(crate) base_pct: Option<f64>,
+    /// P5: 2軸目の乗算スケール(スキルLv別blackboard)。`talent`または`base_pct`と組み合わせる。
+    #[serde(default)]
+    pub(crate) scale_skill_num: Option<String>,
+    #[serde(default)]
+    pub(crate) scale_key: Option<String>,
+    /// P5: 離散段階ソース(スキルLvではなく同一blackboard上の複数キーを段階として使う)。
+    #[serde(default)]
+    pub(crate) stage_skill_id: Option<String>,
+    #[serde(default)]
+    pub(crate) stage_keys: Option<Vec<String>>,
+    #[serde(default)]
+    pub(crate) stage_labels: Option<Vec<String>>,
+    /// P5: 対象人数を増やすモジュール条件(個別バフ専用。値の解決には関与しない)。
+    #[serde(default)]
+    pub(crate) max_targets_by_module: Option<RawMaxTargetsByModule>,
 }
 
 /// `conditional.*.toggle`の生データ(P4)。
@@ -120,14 +170,22 @@ pub(crate) struct RawToggle {
 }
 
 #[derive(Deserialize, Clone, Debug)]
-struct RawIndividual {
-    id: String,
-    name: String,
-    pct: Option<f64>,
-    flat: Option<f64>,
+pub(crate) struct RawIndividual {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) pct: Option<f64>,
+    pub(crate) flat: Option<f64>,
     #[serde(default)]
-    single_target: bool,
-    note: Option<String>,
+    pub(crate) single_target: bool,
+    /// P5: ゲームデータからの動的値解決。`Some`なら`pct`/`flat`は指定しない
+    /// (`conditional`の`source`と同じ方針。`raw_individual_sourced()`経由で
+    /// `mod.rs`側に解決を委ねる)。
+    #[serde(default)]
+    pub(crate) source: Option<RawConditionalSource>,
+    /// P5: ON/OFFで解決値に倍率を掛けるトグル(例: ステインレスS1の「装置2台」)。
+    #[serde(default)]
+    pub(crate) toggle: Option<RawToggle>,
+    pub(crate) note: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -184,7 +242,13 @@ fn build_buffers() -> Vec<Buffer> {
     let parsed: BuffersYaml = serde_yaml::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
     let mut buffers = Vec::new();
 
+    // P5: `source`付きのindividualはconditionalと同じく、値をゲームデータから解決する
+    // 必要があるためここでは組み立てず`raw_individual_sourced()`経由で
+    // `mod.rs::build_individual_sourced_buffers`に任せる。
     for ind in parsed.individual {
+        if ind.source.is_some() {
+            continue;
+        }
         let (kind, value) = kind_and_value(ind.pct, ind.flat, &format!("individual {}", ind.id));
         buffers.push(Buffer {
             id: ind.id,
@@ -252,6 +316,18 @@ pub(crate) fn raw_conditional_sourced() -> &'static [RawConditional] {
     CONDITIONAL_SOURCED_RAW.get_or_init(build_conditional_sourced_raw)
 }
 
+static INDIVIDUAL_SOURCED_RAW: OnceLock<Vec<RawIndividual>> = OnceLock::new();
+
+fn build_individual_sourced_raw() -> Vec<RawIndividual> {
+    let parsed: BuffersYaml = serde_yaml::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    parsed.individual.into_iter().filter(|i| i.source.is_some()).collect()
+}
+
+/// `source`付きindividualの生データ(P5。`raw_conditional_sourced()`の個別バフ版)。
+pub(crate) fn raw_individual_sourced() -> &'static [RawIndividual] {
+    INDIVIDUAL_SOURCED_RAW.get_or_init(build_individual_sourced_raw)
+}
+
 /// [`build_bonus`]のsource付き版を`mod.rs`から呼べるように公開する
 /// (固定値bonus(`pct`/`flat`)は`source`付きバフでも使えるため。`mult`のみのbonusは
 /// `mod.rs`側で直接組み立てる)。
@@ -293,8 +369,11 @@ mod tests {
 
     #[test]
     fn buffers_yaml_parses_and_is_not_empty() {
-        let buffers = global();
-        assert!(!buffers.is_empty());
+        // P5時点で固定値(pct/flat)のバフはconditionalの一部(前衛アーミヤのtoggle等を除く
+        // 全部がsource化済み)しか残っていないため、`global()`(非source)単体が空でも
+        // おかしくない。source付き一覧を含めた合計が空でないことを確認する。
+        let total = global().len() + raw_conditional_sourced().len() + raw_individual_sourced().len();
+        assert!(total > 0);
     }
 
     #[test]
@@ -307,6 +386,10 @@ mod tests {
         // P4: source付きconditionalのidも同じ名前空間で重複しないこと(global()には含まれない)。
         for c in raw_conditional_sourced() {
             assert!(seen.insert(c.id.as_str()), "buffers.yamlのconditional(source付き) id'{}'が既存のバフidと重複している", c.id);
+        }
+        // P5: source付きindividualのidも同じ名前空間で重複しないこと(global()には含まれない)。
+        for i in raw_individual_sourced() {
+            assert!(seen.insert(i.id.as_str()), "buffers.yamlのindividual(source付き) id'{}'が既存のバフidと重複している", i.id);
         }
         // P3: 鼓舞ソースのidも同じ名前空間で重複しないこと。
         for s in raw_inspire_sources() {
@@ -395,17 +478,45 @@ mod tests {
         }
     }
 
-    /// P4: `source`の`talent`/`skill_num`はどちらか一方だけを持つこと(0個/2個はNG)。
+    /// `source`の主軸(`talent`/`skill_num`/`base_pct`)は、`stage_skill_id`を使わない限り
+    /// ちょうど1つだけを持つこと(0個/2個以上はNG)。P5でスワイヤー(talent+scale)/
+    /// ステインレス(base_pct+scale)/ナスティ(stage)を追加した後もこの制約は変わらない。
+    fn assert_source_has_exactly_one_primary(id: &str, source: &RawConditionalSource) {
+        if source.stage_skill_id.is_some() {
+            assert!(
+                source.talent.is_none() && source.skill_num.is_none() && source.base_pct.is_none(),
+                "buffers.yaml: '{id}'のsourceはstage_skill_idとtalent/skill_num/base_pctを併用できない"
+            );
+            assert!(source.stage_keys.as_ref().is_some_and(|k| !k.is_empty()), "buffers.yaml: '{id}'のsourceはstage_keysが必要");
+            assert_eq!(
+                source.stage_keys.as_ref().map(|k| k.len()),
+                source.stage_labels.as_ref().map(|l| l.len()),
+                "buffers.yaml: '{id}'のstage_keysとstage_labelsは同じ要素数にすること"
+            );
+            return;
+        }
+        let primaries = [source.talent.is_some(), source.skill_num.is_some(), source.base_pct.is_some()];
+        assert_eq!(
+            primaries.iter().filter(|p| **p).count(),
+            1,
+            "buffers.yaml: '{id}'のsourceはtalent/skill_num/base_pctのうちちょうど1つを指定すること"
+        );
+    }
+
     #[test]
-    fn every_conditional_source_has_exactly_one_of_talent_or_skill_num() {
+    fn every_conditional_source_has_exactly_one_primary() {
         for c in raw_conditional_sourced() {
             let source = c.source.as_ref().expect("raw_conditional_sourced()はsourceを持つはず");
-            assert_ne!(
-                source.talent.is_some(),
-                source.skill_num.is_some(),
-                "buffers.yaml: '{}'のsourceはtalent/skill_numのどちらか一方だけを指定すること",
-                c.id
-            );
+            assert_source_has_exactly_one_primary(&c.id, source);
+        }
+    }
+
+    /// P5: source付きindividualも同じ制約を持つこと。
+    #[test]
+    fn every_individual_source_has_exactly_one_primary() {
+        for i in raw_individual_sourced() {
+            let source = i.source.as_ref().expect("raw_individual_sourced()はsourceを持つはず");
+            assert_source_has_exactly_one_primary(&i.id, source);
         }
     }
 

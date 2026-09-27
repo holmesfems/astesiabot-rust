@@ -1086,6 +1086,359 @@ console.log("\n=== P4: state移行(前衛アーミヤの旧2エントリ→新1�
   );
 }
 
+console.log("\n=== P5: 個別バフの動的値解決(talent×scale/base_pct×scale/stage/max_targets_by_module) ===\n");
+// 実データ(character_table.json talents + skill_table.json blackboard_by_level。2026-09時点)の
+// 値をそのまま使う。出典・導出の詳細はdata/fk_kill_calc/buffers.yamlのindividual各行のnote参照。
+{
+  // ワルファリンS2(skill_num=2のblackboard"atk"そのもの。旧固定.90→P5でスキルLv解決)。
+  const plasma = {
+    id: "plasma",
+    name: "ワルファリンS2",
+    kind: "pct",
+    value: 0.9,
+    scope: { type: "individual" },
+    singleTarget: true,
+    bonus: null,
+    source: {
+      operatorId: "char_171_bldsk",
+      operatorName: "ワルファリン",
+      talent: null,
+      skill: { skillNum: "2", skillLabel: "不安定血漿", valuesByLevel: [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9], varies: true },
+      scale: null,
+      basePct: null,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 10, stageIndex: 1 },
+    },
+  };
+  check("ワルファリンS2: デフォルト(特化3=Lv10)で+90%", Math.abs(resolveConditionalValue(plasma, {}) - 0.9) < 1e-9, resolveConditionalValue(plasma, {}));
+  check("ワルファリンS2: Lv1で+30%", Math.abs(resolveConditionalValue(plasma, { skillLevel: 1 }) - 0.3) < 1e-9);
+  check("ワルファリンS2はsingleTarget=true", plasma.singleTarget === true);
+}
+{
+  // アS3(skill_num=3のblackboard"atk"そのもの。旧固定.50→P5でスキルLv解決)。
+  const durian = {
+    id: "durian",
+    name: "アS3",
+    kind: "pct",
+    value: 0.5,
+    scope: { type: "individual" },
+    singleTarget: true,
+    bonus: null,
+    source: {
+      operatorId: "char_225_haak",
+      operatorName: "ア",
+      talent: null,
+      skill: { skillNum: "3", skillLabel: "劇性増強剤・ドリアン", valuesByLevel: [0.25, 0.25, 0.25, 0.3, 0.3, 0.3, 0.35, 0.4, 0.45, 0.5], varies: true },
+      scale: null,
+      basePct: null,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 10, stageIndex: 1 },
+    },
+  };
+  check("アS3: デフォルト(特化3=Lv10)で+50%", Math.abs(resolveConditionalValue(durian, {}) - 0.5) < 1e-9, resolveConditionalValue(durian, {}));
+  check("アS3: Lv1で+25%", Math.abs(resolveConditionalValue(durian, { skillLevel: 1 }) - 0.25) < 1e-9);
+  check("アS3はsingleTarget=true", durian.singleTarget === true);
+}
+{
+  // スプリアS2(旧固定.20→P5でスキルLv解決。single_targetは既存どおり維持)。
+  const sprria = {
+    id: "sprria_s2",
+    name: "スプリアS2",
+    kind: "pct",
+    value: 0.3,
+    scope: { type: "individual" },
+    singleTarget: true,
+    bonus: null,
+    source: {
+      operatorId: "char_4015_spuria",
+      operatorName: "スプリア",
+      talent: null,
+      skill: { skillNum: "2", skillLabel: "インスタントカスタム", valuesByLevel: [0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.2, 0.2, 0.25, 0.3], varies: true },
+      scale: null,
+      basePct: null,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 10, stageIndex: 1 },
+    },
+  };
+  check("スプリアS2: デフォルト(特化3=Lv10)で+30%(旧固定20%から変更)", Math.abs(resolveConditionalValue(sprria, {}) - 0.3) < 1e-9, resolveConditionalValue(sprria, {}));
+}
+{
+  // スワイヤーS1: talent0.atk(E0.03/E1.06/E2.10、潜在1〜5と潜在6の2段)×スキル1の
+  // talent_scale(全レベル2.0固定。varies=falseなのでスキル軸は非表示)。
+  const swireTalent = {
+    valuesByEliteAndPotential: [
+      [0.03, 0.03, 0.03, 0.03, 0.03, 0.05],
+      [0.06, 0.06, 0.06, 0.06, 0.06, 0.08],
+      [0.1, 0.1, 0.1, 0.1, 0.1, 0.12],
+    ],
+    eliteVaries: true,
+    potentialVaries: true,
+    modules: [],
+  };
+  const swireS1 = {
+    id: "swire_s1",
+    name: "スワイヤーS1",
+    kind: "pct",
+    value: 0.24,
+    scope: { type: "individual" },
+    singleTarget: false,
+    bonus: null,
+    source: {
+      operatorId: "char_308_swire",
+      operatorName: "スワイヤー",
+      talent: swireTalent,
+      skill: null,
+      scale: { skillNum: "1", skillLabel: "統括指揮", valuesByLevel: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2], varies: false },
+      basePct: null,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 1, stageIndex: 1 },
+    },
+  };
+  check("スワイヤーS1: デフォルト(E2/潜在6)で0.12×2=+24%", Math.abs(resolveConditionalValue(swireS1, {}) - 0.24) < 1e-9, resolveConditionalValue(swireS1, {}));
+  check("スワイヤーS1: E2/潜在1(0-indexed)で0.10×2=+20%", Math.abs(resolveConditionalValue(swireS1, { elite: 2, potential: 0 }) - 0.2) < 1e-9, resolveConditionalValue(swireS1, { elite: 2, potential: 0 }));
+  check("スワイヤーS1: scaleのvaries=falseなのでスキル軸は非表示想定", swireS1.source.scale.varies === false);
+
+  // スワイヤーS2: 同じtalentにスキル2のtalent_scale(2.1〜3.0、varies=true)を掛ける。
+  const swireS2 = {
+    ...swireS1,
+    id: "swire_s2",
+    name: "スワイヤーS2",
+    value: 0.36,
+    source: {
+      ...swireS1.source,
+      scale: { skillNum: "2", skillLabel: "協同作戦", valuesByLevel: [2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0], varies: true },
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 10, stageIndex: 1 },
+    },
+  };
+  check("スワイヤーS2: デフォルト(E2/潜在6/Lv10)で0.12×3.0=+36%", Math.abs(resolveConditionalValue(swireS2, {}) - 0.36) < 1e-9, resolveConditionalValue(swireS2, {}));
+  check("スワイヤーS2: Lv1で0.12×2.1=+25.2%", Math.abs(resolveConditionalValue(swireS2, { skillLevel: 1 }) - 0.252) < 1e-9, resolveConditionalValue(swireS2, { skillLevel: 1 }));
+  check("スワイヤーS2: scaleのvaries=trueなのでスキル軸は表示想定", swireS2.source.scale.varies === true);
+}
+{
+  // ステインレスS1: base_pct(0.12。トークンのため素質値ではない)×スキル1のfake_scale
+  // (2〜4)。トグル「装置2台」でON時は解決値に×2。
+  const stainless = {
+    id: "stainless_s1",
+    name: "ステインレスS1",
+    kind: "pct",
+    value: 0.48,
+    scope: { type: "individual" },
+    singleTarget: false,
+    bonus: null,
+    toggle: { label: "装置2台（×2）", mult: 2 },
+    source: {
+      operatorId: "char_4072_ironmn",
+      operatorName: "ステインレス",
+      talent: null,
+      skill: null,
+      scale: { skillNum: "1", skillLabel: "ハイパーブースト", valuesByLevel: [2, 2, 2, 2.5, 2.5, 2.5, 3, 3.5, 3.5, 4], varies: true },
+      basePct: 0.12,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 10, stageIndex: 1 },
+    },
+  };
+  check("ステインレスS1: デフォルト(Lv10)で0.12×4=+48%", Math.abs(resolveConditionalValue(stainless, {}) - 0.48) < 1e-9, resolveConditionalValue(stainless, {}));
+  check("ステインレスS1: SLv7(0-indexed6)で0.12×3=+36%", Math.abs(resolveConditionalValue(stainless, { skillLevel: 7 }) - 0.36) < 1e-9, resolveConditionalValue(stainless, { skillLevel: 7 }));
+  check("ステインレスS1: トグルON(装置2台)で0.48×2=+96%", Math.abs(resolveConditionalValue(stainless, { toggleOn: true }) - 0.96) < 1e-9, resolveConditionalValue(stainless, { toggleOn: true }));
+}
+{
+  // ナスティS3: スキルLvではなく段階(1〜3段階)で値が変わる(.20/.40/.60)。
+  const nasty = {
+    id: "nasty_s3",
+    name: "ナスティS3",
+    kind: "pct",
+    value: 0.6,
+    scope: { type: "individual" },
+    singleTarget: false,
+    bonus: null,
+    source: {
+      operatorId: "char_4212_nasti",
+      operatorName: "ナスティ",
+      talent: null,
+      skill: null,
+      scale: null,
+      basePct: null,
+      stage: { skillId: "sktok_nasti_nstbld", skillLabel: "止まり木", values: [0.2, 0.4, 0.6], labels: ["1段階", "2段階", "3段階"] },
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 1, stageIndex: 3 },
+    },
+  };
+  check("ナスティS3: デフォルト(3段階)で+60%", Math.abs(resolveConditionalValue(nasty, {}) - 0.6) < 1e-9, resolveConditionalValue(nasty, {}));
+  check("ナスティS3: 1段階目で+20%", Math.abs(resolveConditionalValue(nasty, { stageIndex: 1 }) - 0.2) < 1e-9, resolveConditionalValue(nasty, { stageIndex: 1 }));
+  check("ナスティS3: 2段階目で+40%", Math.abs(resolveConditionalValue(nasty, { stageIndex: 2 }) - 0.4) < 1e-9);
+}
+{
+  // エクシア: 素質talent1.atk(E2のみ。潜在1=.06/潜在6=.08)。モジュールX Lv2は素質未強化と
+  // 同値(.06/.08)、Lv3で.08/.10。モジュールX Lv2以上装備で対象2名(max_targets_by_module)。
+  const exusiai = {
+    id: "exusiai",
+    name: "エクシア",
+    kind: "pct",
+    value: 0.1,
+    scope: { type: "individual" },
+    singleTarget: true,
+    bonus: null,
+    source: {
+      operatorId: "char_103_angel",
+      operatorName: "エクシア",
+      talent: {
+        valuesByEliteAndPotential: [
+          [0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0],
+          [0.06, 0.06, 0.06, 0.06, 0.06, 0.08],
+        ],
+        eliteVaries: true,
+        potentialVaries: true,
+        modules: [
+          {
+            moduleId: "uniequip_002_angel",
+            typeName: "X",
+            name: "エクシアの傑作",
+            valuesByLevelAndPotential: [
+              [0.06, 0.06, 0.06, 0.06, 0.06, 0.08],
+              [0.06, 0.06, 0.06, 0.06, 0.06, 0.08],
+              [0.08, 0.08, 0.08, 0.08, 0.08, 0.1],
+            ],
+          },
+        ],
+      },
+      skill: null,
+      scale: null,
+      basePct: null,
+      stage: null,
+      maxTargetsByModule: { moduleId: "uniequip_002_angel", minLevel: 2, count: 2 },
+      defaults: { elite: 2, potential: 5, moduleId: "uniequip_002_angel", moduleLevel: 3, skillLevel: 1, stageIndex: 1 },
+    },
+  };
+  check("エクシア: デフォルト(E2/潜在6/モジュールXLv3)で+10%", Math.abs(resolveConditionalValue(exusiai, {}) - 0.1) < 1e-9, resolveConditionalValue(exusiai, {}));
+  check("エクシア: E0/E1は0(素質未解放)", resolveConditionalValue(exusiai, { elite: 0 }) === 0 && resolveConditionalValue(exusiai, { elite: 1 }) === 0);
+  check("エクシア: モジュールXLv3/潜在1(0-indexed)で+8%", Math.abs(resolveConditionalValue(exusiai, { potential: 0 }) - 0.08) < 1e-9, resolveConditionalValue(exusiai, { potential: 0 }));
+
+  // findSingleTargetConflicts: モジュールXLv2以上装備時は2行まで警告なし、3行目からは警告。
+  const catalog = { buffers: [exusiai] };
+  const levelsDefault = { exusiai: { elite: 2, potential: 5, moduleId: "uniequip_002_angel", moduleLevel: 3, skillLevel: 1, stageIndex: 1, toggleOn: false } };
+  const rows2 = [row({ opId: "a", buffIds: ["exusiai"] }), row({ opId: "b", buffIds: ["exusiai"] })];
+  check("エクシア: モジュールXLv2以上装備(デフォルト)で2行選んでも警告なし", !findSingleTargetConflicts(catalog, rows2, {}, levelsDefault).has("exusiai"));
+  const rows3 = [...rows2, row({ opId: "c", buffIds: ["exusiai"] })];
+  check("エクシア: モジュールXLv2以上装備でも3行選ぶと警告", findSingleTargetConflicts(catalog, rows3, {}, levelsDefault).has("exusiai"));
+  const levelsNoModule = { exusiai: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 1, stageIndex: 1, toggleOn: false } };
+  check("エクシア: モジュール未装備なら2行でも警告(上限1のまま)", findSingleTargetConflicts(catalog, rows2, {}, levelsNoModule).has("exusiai"));
+  const levelsLv1 = { exusiai: { elite: 2, potential: 5, moduleId: "uniequip_002_angel", moduleLevel: 1, skillLevel: 1, stageIndex: 1, toggleOn: false } };
+  check("エクシア: モジュールXLv1(min_level未満)なら2行でも警告", findSingleTargetConflicts(catalog, rows2, {}, levelsLv1).has("exusiai"));
+}
+{
+  // コーディネーター指示: ワルファリンS2/アS3もsingle_targetなので、2行で選ぶと警告が出ること。
+  const plasmaBuf = { id: "plasma", name: "ワルファリンS2", kind: "pct", scope: { type: "individual" }, singleTarget: true, source: null, value: 0.9 };
+  const durianBuf = { id: "durian", name: "アS3", kind: "pct", scope: { type: "individual" }, singleTarget: true, source: null, value: 0.5 };
+  const catalog = { buffers: [plasmaBuf, durianBuf] };
+  const plasmaRows2 = [row({ opId: "a", buffIds: ["plasma"] }), row({ opId: "b", buffIds: ["plasma"] })];
+  check("ワルファリンS2: 2行で選ぶと⚠が出る", findSingleTargetConflicts(catalog, plasmaRows2, {}, {}).has("plasma"));
+  const plasmaRows1 = [row({ opId: "a", buffIds: ["plasma"] })];
+  check("ワルファリンS2: 1行だけなら⚠は出ない", !findSingleTargetConflicts(catalog, plasmaRows1, {}, {}).has("plasma"));
+  const durianRows2 = [row({ opId: "a", buffIds: ["durian"] }), row({ opId: "b", buffIds: ["durian"] })];
+  check("アS3: 2行で選ぶと⚠が出る", findSingleTargetConflicts(catalog, durianRows2, {}, {}).has("durian"));
+}
+{
+  // computeBuffBreakdown経由でも育成設定(globalBuffLevels)が反映されること。
+  const plasma = {
+    id: "plasma",
+    name: "ワルファリンS2",
+    kind: "pct",
+    value: 0.9,
+    scope: { type: "individual" },
+    singleTarget: true,
+    bonus: null,
+    source: {
+      operatorId: "char_171_bldsk",
+      operatorName: "ワルファリン",
+      talent: null,
+      skill: { skillNum: "2", skillLabel: "不安定血漿", valuesByLevel: [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9], varies: true },
+      scale: null,
+      basePct: null,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 10, stageIndex: 1 },
+    },
+  };
+  const catalog = { buffers: [plasma] };
+  const b1 = computeBuffBreakdown(row({ buffIds: ["plasma"] }), { tags: [] }, catalog, [], { plasma: { skillLevel: 1 } });
+  approxEqual(b1.individualPct, 0.3, 1e-9, "個別バフ(source付き): globalBuffLevelsのskillLevel=1で+30%");
+  const b2 = computeBuffBreakdown(row({ buffIds: ["plasma"] }), { tags: [] }, catalog, [], {});
+  approxEqual(b2.individualPct, 0.9, 1e-9, "個別バフ(source付き): globalBuffLevels省略時はデフォルト(Lv10)で+90%");
+}
+
+console.log("\n=== P5: state移行(旧stainless_1/stainless_2の2エントリ→新stainless_s1+toggle) ===\n");
+{
+  const stainlessS1 = {
+    id: "stainless_s1",
+    name: "ステインレスS1",
+    kind: "pct",
+    value: 0.48,
+    scope: { type: "individual" },
+    singleTarget: false,
+    bonus: null,
+    toggle: { label: "装置2台（×2）", mult: 2 },
+    source: {
+      operatorId: "char_4072_ironmn",
+      operatorName: "ステインレス",
+      talent: null,
+      skill: null,
+      scale: { skillNum: "1", skillLabel: "ハイパーブースト", valuesByLevel: [2, 2, 2, 2.5, 2.5, 2.5, 3, 3.5, 3.5, 4], varies: true },
+      basePct: 0.12,
+      stage: null,
+      maxTargetsByModule: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 10, stageIndex: 1 },
+    },
+  };
+  const catalog = { operators: [{ ...op(1000, 0, null), id: "op", fkEntries: [{ tags: [] }] }], buffers: [stainlessS1], inspireSources: [] };
+  const enemy = { hp: 0, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 };
+
+  // 旧stainless_1(トグル無し相当)だった行 → stainless_s1(toggleOnはfalseのまま)へ移行。
+  const oldRow1State = { v: 1, enemy, rows: [row({ opId: "op", entryIdx: 0, buffIds: ["stainless_1"] })], globalBuffIds: [] };
+  const { state: migrated1 } = dropStaleRows(oldRow1State, catalog);
+  check("stainless_1はstainless_s1へ移行される", migrated1.rows[0].buffIds.includes("stainless_s1") && !migrated1.rows[0].buffIds.includes("stainless_1"), migrated1.rows[0].buffIds);
+  check("stainless_1だった場合、toggleOnはfalseのまま", migrated1.globalBuffLevels.stainless_s1.toggleOn === false, migrated1.globalBuffLevels.stainless_s1);
+
+  // 旧stainless_2(装置2台相当)だった行 → stainless_s1 + toggleOn=trueへ移行。
+  const oldRow2State = { v: 1, enemy, rows: [row({ opId: "op", entryIdx: 0, buffIds: ["stainless_2"] })], globalBuffIds: [] };
+  const { state: migrated2 } = dropStaleRows(oldRow2State, catalog);
+  check("stainless_2はstainless_s1へ移行される", migrated2.rows[0].buffIds.includes("stainless_s1") && !migrated2.rows[0].buffIds.includes("stainless_2"), migrated2.rows[0].buffIds);
+  check("stainless_2だった場合、共有toggleOn=trueへ移行される", migrated2.globalBuffLevels.stainless_s1.toggleOn === true, migrated2.globalBuffLevels.stainless_s1);
+
+  // 鼓舞ソース側のbuffIdsでも同じ移行が起きること。
+  const sourceForMigration = {
+    id: "src",
+    operatorId: "op2",
+    name: "ソース",
+    tags: [],
+    atkBase: 100,
+    atkPotential: 0,
+    modules: [],
+    skills: [{ skillNum: "1", ratio: 1 }],
+    talentPotentialLabel: "素質凸",
+    selfParts: [],
+  };
+  const catalogWithSource = { ...catalog, inspireSources: [sourceForMigration] };
+  const oldSourceState = {
+    v: 1,
+    enemy,
+    rows: [],
+    globalBuffIds: [],
+    inspire: { sources: { src: { on: true, buffIds: ["stainless_2"] } } },
+  };
+  const { state: migratedSource } = dropStaleRows(oldSourceState, catalogWithSource);
+  check(
+    "鼓舞ソースのstainless_2もstainless_s1へ移行され、共有toggleOnがtrueになる",
+    migratedSource.inspire.sources.src.buffIds.includes("stainless_s1") && migratedSource.globalBuffLevels.stainless_s1.toggleOn === true,
+    migratedSource.inspire.sources.src,
+  );
+}
+
 console.log("\n=== engine.js が document を参照していないこと ===\n");
 {
   const here = path.dirname(fileURLToPath(import.meta.url));

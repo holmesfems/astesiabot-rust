@@ -129,8 +129,9 @@ function sourceCfg(source) {
   return { ...defaultInspireSourceCfg(source), ...(stored || {}) };
 }
 
-// P4: source付き条件付きバフの現在の軸選択(state.globalBuffLevels[id] + 未設定分は
-// b.source.defaults)。dropStaleRowsが起動時に埋めるが、念のためここでもフォールバックする。
+// P4/P5: source付きバフ(conditional/individual問わず)の現在の軸選択
+// (state.globalBuffLevels[id] + 未設定分はb.source.defaults)。dropStaleRowsが起動時に
+// 埋めるが、念のためここでもフォールバックする。
 function buffLevels(b) {
   const d = (b.source && b.source.defaults) || {};
   const stored = (state.globalBuffLevels && state.globalBuffLevels[b.id]) || {};
@@ -140,6 +141,7 @@ function buffLevels(b) {
     moduleId: d.moduleId ?? null,
     moduleLevel: d.moduleLevel ?? 3,
     skillLevel: d.skillLevel ?? 1,
+    stageIndex: d.stageIndex ?? 1,
     toggleOn: false,
     ...stored,
   };
@@ -233,18 +235,30 @@ async function fetchCatalog() {
 
 function withPreservedFocus(fn) {
   const active = document.activeElement;
-  const field = active && active.dataset ? active.dataset.field : null;
-  const idx = active && active.dataset ? active.dataset.idx : null;
+  // 同じdata-fieldの欄は複数ある(例: 各バフカードのskillLevel/toggleOn)ので、
+  // role/idx/buff-id/source-idまで一致する要素にフォーカスを戻す。
+  const keys = ["role", "field", "idx", "buffId", "sourceId"];
+  const attrs = {};
+  if (active && active.dataset && active.dataset.field != null) {
+    for (const k of keys) if (active.dataset[k] != null) attrs[k] = active.dataset[k];
+  }
   const selStart = active && "selectionStart" in active ? active.selectionStart : null;
   const selEnd = active && "selectionEnd" in active ? active.selectionEnd : null;
+  // #appを丸ごと差し替えると一瞬高さが変わってスクロール位置がずれることがあるので戻す。
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
 
   fn();
 
-  if (field != null) {
-    const selector = idx != null ? `[data-field="${field}"][data-idx="${idx}"]` : `[data-field="${field}"]`;
+  if (attrs.field != null) {
+    const toAttr = (k) => "data-" + k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
+    const selector = Object.entries(attrs)
+      .map(([k, v]) => `[${toAttr(k)}="${CSS.escape(v)}"]`)
+      .join("");
     const el = document.querySelector(selector);
     if (el) {
-      el.focus();
+      // focus()の既定動作はその要素までスクロールするので止める。
+      el.focus({ preventScroll: true });
       if (typeof el.setSelectionRange === "function" && selStart != null) {
         try {
           el.setSelectionRange(selStart, selEnd);
@@ -254,6 +268,7 @@ function withPreservedFocus(fn) {
       }
     }
   }
+  if (window.scrollX !== scrollX || window.scrollY !== scrollY) window.scrollTo(scrollX, scrollY);
 }
 
 /* ---------------- 描画: 敵セクション ---------------- */
@@ -411,7 +426,9 @@ function renderIndividualBuffChips(row, idx, singleConflicts) {
   const chips = individual
     .map((b) => {
       const on = (row.buffIds || []).includes(b.id);
-      const pctLabel = b.kind === "pct" ? `+${fmtPct(b.value)}%` : `+${trimNum(b.value)}`;
+      // P5: sourceを持つ個別バフは「個別バフの育成設定」で選んだ現在値を表示する。
+      const value = b.source ? resolveConditionalValue(b, buffLevels(b)) : b.value;
+      const pctLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
       const conflict = on && singleConflicts.has(b.id);
       const warn = conflict ? `<span class="chip-warn" title="単体対象のバフです。他の行でも選ばれています">⚠</span>` : "";
       return `<button type="button" class="chip" data-action="toggle-row-buff" data-idx="${idx}" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${warn}${escapeHtml(b.name)} ${pctLabel}</button>`;
@@ -683,7 +700,8 @@ function renderSourceIndividualBuffChips(source, cfg, singleConflicts) {
   const chips = individual
     .map((b) => {
       const on = (cfg.buffIds || []).includes(b.id);
-      const pctLabel = b.kind === "pct" ? `+${fmtPct(b.value)}%` : `+${trimNum(b.value)}`;
+      const value = b.source ? resolveConditionalValue(b, buffLevels(b)) : b.value;
+      const pctLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
       const conflict = on && singleConflicts.has(b.id);
       const warn = conflict ? `<span class="chip-warn" title="単体対象のバフです。他でも選ばれています">⚠</span>` : "";
       return `<button type="button" class="chip" data-action="toggle-source-buff" data-source-id="${escapeHtml(source.id)}" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${warn}${escapeHtml(b.name)} ${pctLabel}</button>`;
@@ -779,24 +797,21 @@ function skillLevelOptionLabel(skillLevel) {
   return skillLevel <= 7 ? `SLv${skillLevel}` : `特化${skillLevel - 7}`;
 }
 
-// P4: `source`(素質/スキルLv由来の動的値解決)を持つ条件付きバフ1件分のカード。
-// OFFの間はトグルチップだけ、ONになると値が変わる軸(昇進/潜在/モジュール/スキルLv)だけを
-// インラインの<select>で出す(dedupe済み。値が変わらない軸は`b.source`側に無いので出ない)。
-// `b.toggle`(例: 前衛アーミヤの「スキル中は効果2倍」)があればチェックボックスも出す。
-function renderConditionalSourceCard(b) {
-  const onIds = state.globalBuffIds || [];
-  const on = onIds.includes(b.id);
-  const targetLabel = b.scope.targetTags.join("/");
-  const toggleChip = `<button type="button" class="chip" data-action="toggle-global-buff" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${escapeHtml(b.name)} ${escapeHtml(targetLabel)}</button>`;
-  if (!on) {
-    return `<div class="cond-source-card">${toggleChip}</div>`;
-  }
-
-  const levels = buffLevels(b);
+// P4/P5: `source`(素質/スキルLv/スケール/固定基礎値/段階由来の動的値解決)を持つバフの
+// 「値が変わる軸」だけをインラインの<select>で出す共通ヘルパー(dedupe済み。値が変わらない
+// 軸は`b.source`側に無いので出ない)。conditionalのカード(renderConditionalSourceCard)と
+// individualの育成設定カード(renderIndividualBuffLevelCard)の両方から使う。戻り値の
+// select/checkboxは全て`data-role="global-buff-level" data-buff-id="..."`という共通の
+// 書式なので、スコープ(conditional/individual)を問わず`onGlobalBuffLevelChange`が処理する。
+// `b.toggle`(例: 前衛アーミヤの「スキル中は効果2倍」、ステインレスS1の「装置2台」)が
+// あればチェックボックスも出す。
+function renderBuffAxisControls(b, levels) {
   const value = resolveConditionalValue(b, levels);
-  const valueLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
-  const talent = b.source.talent;
-  const skill = b.source.skill;
+  const source = b.source;
+  const talent = source.talent;
+  const skill = source.skill;
+  const scale = source.scale;
+  const stage = source.stage;
 
   let controls = "";
   let hint = "";
@@ -849,6 +864,28 @@ function renderConditionalSourceCard(b) {
       .join("");
     controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="skillLevel">${opts}</select>`;
   }
+  // P5: talent/base_pctに掛け合わせるスキルLv別スケール。全レベルで値が同じ(varies=false。
+  // 例: スワイヤーS1のtalent_scale)ならセレクトを出さない。
+  if (scale && scale.varies) {
+    const opts = scale.valuesByLevel
+      .map((_, i) => {
+        const lv = i + 1;
+        return `<option value="${lv}"${levels.skillLevel === lv ? " selected" : ""}>${skillLevelOptionLabel(lv)}</option>`;
+      })
+      .join("");
+    controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="skillLevel">${opts}</select>`;
+  }
+  // P5: スキルLvではなく離散段階(例: ナスティS3の装置アップグレード段階)。
+  if (stage) {
+    const opts = stage.values
+      .map((_, i) => {
+        const idx = i + 1;
+        const label = stage.labels[i] ?? `${idx}`;
+        return `<option value="${idx}"${levels.stageIndex === idx ? " selected" : ""}>${escapeHtml(label)}</option>`;
+      })
+      .join("");
+    controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="stageIndex">${opts}</select>`;
+  }
   if (b.toggle) {
     controls += `<label class="check-label cond-toggle-label">
       <input type="checkbox" data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="toggleOn" ${levels.toggleOn ? "checked" : ""}>
@@ -856,11 +893,73 @@ function renderConditionalSourceCard(b) {
     </label>`;
   }
 
+  return { controls, hint, value };
+}
+
+// P4: `source`を持つ条件付きバフ1件分のカード。OFFの間はトグルチップだけ、ONになると
+// `renderBuffAxisControls`が返す軸コントロールを表示する。
+function renderConditionalSourceCard(b) {
+  const onIds = state.globalBuffIds || [];
+  const on = onIds.includes(b.id);
+  const targetLabel = b.scope.targetTags.join("/");
+  const toggleChip = `<button type="button" class="chip" data-action="toggle-global-buff" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${escapeHtml(b.name)} ${escapeHtml(targetLabel)}</button>`;
+  if (!on) {
+    return `<div class="cond-source-card">${toggleChip}</div>`;
+  }
+
+  const levels = buffLevels(b);
+  const { controls, hint, value } = renderBuffAxisControls(b, levels);
+  const valueLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
+
   return `<div class="cond-source-card cond-source-on" data-buff-id="${escapeHtml(b.id)}">
     <div class="cond-source-header">${toggleChip}<span class="cond-source-value">${valueLabel}</span></div>
     ${hint}
     <div class="cond-source-controls">${controls}</div>
   </div>`;
+}
+
+// P5: `source`を持つ個別バフ1件分の「育成設定」カード。individualバフはconditionalと
+// 違いスコープ自体のON/OFFチップを持たない(行/鼓舞ソースのチップで選ぶため)ので、
+// トグルチップの代わりに名前をそのまま見出しにする。
+function renderIndividualBuffLevelCard(b) {
+  const levels = buffLevels(b);
+  const { controls, hint, value } = renderBuffAxisControls(b, levels);
+  const valueLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
+  return `<div class="cond-source-card cond-source-on" data-buff-id="${escapeHtml(b.id)}">
+    <div class="cond-source-header"><span class="cond-source-name">${escapeHtml(b.name)}</span><span class="cond-source-value">${valueLabel}</span></div>
+    ${hint}
+    <div class="cond-source-controls">${controls}</div>
+  </div>`;
+}
+
+// P5: 行(row.buffIds)/鼓舞ソース(ONのcfg.buffIds)のどちらかで現在選ばれている
+// バフidの集合(育成設定カードの表示対象を絞るために使う)。
+function usedIndividualBuffIds() {
+  const used = new Set();
+  for (const row of state.rows) for (const id of row.buffIds || []) used.add(id);
+  const sources = (state.inspire && state.inspire.sources) || {};
+  for (const cfg of Object.values(sources)) {
+    if (!cfg || !cfg.on) continue;
+    for (const id of cfg.buffIds || []) used.add(id);
+  }
+  return used;
+}
+
+// 「個別バフの育成設定」セクション(P5)。sourceを持つ個別バフのうち、行または鼓舞ソースで
+// 現在チェックされているものだけをカード表示する(オーナー方針:
+// 「チェックしたやつの育成状況を設定出来るようにすればOK」)。1件も無ければヒントのみ。
+function renderIndividualBuffLevelsSection() {
+  const sourced = (catalog.buffers || []).filter((b) => b.scope.type === "individual" && b.source);
+  if (!sourced.length) return "";
+  const usedIds = usedIndividualBuffIds();
+  const relevant = sourced.filter((b) => usedIds.has(b.id));
+  const body = relevant.length
+    ? relevant.map((b) => renderIndividualBuffLevelCard(b)).join("")
+    : `<p class="section-empty-hint">行やソースで個別バフを選ぶと、ここで育成状況(昇進・潜在・モジュール・スキルLv等)を設定できます。</p>`;
+  return `<section class="card" id="individual-buff-levels-section">
+    <h2>個別バフの育成設定</h2>
+    ${body}
+  </section>`;
 }
 
 // 「② 全体バフ（条件付き）」セクション。summaryに"N件ON"を出す(仕様どおり。P3で
@@ -884,7 +983,7 @@ function renderGlobalBuffs() {
   const sourcedHtml = sourcedConditional.map((b) => renderConditionalSourceCard(b)).join("");
 
   const inspireSources = catalog.inspireSources || [];
-  const singleConflicts = findSingleTargetConflicts(catalog, state.rows, inspireStates());
+  const singleConflicts = findSingleTargetConflicts(catalog, state.rows, inspireStates(), buffLevelsState());
   const onSourceCfgs = inspireSources.map((s) => sourceCfg(s)).filter((cfg) => cfg.on);
   const inspireTotal = inspireSources.reduce((sum, s) => {
     const cfg = sourceCfg(s);
@@ -909,7 +1008,7 @@ function renderGlobalBuffs() {
 }
 
 function renderRows() {
-  const singleConflicts = findSingleTargetConflicts(catalog, state.rows, inspireStates());
+  const singleConflicts = findSingleTargetConflicts(catalog, state.rows, inspireStates(), buffLevelsState());
   let html = `${operatorDatalist()}<section class="card" id="rows-section"><h2>③ FKするオペレーター</h2><div id="rows-list">`;
   state.rows.forEach((row, idx) => {
     const expanded = idx === expandedIdx;
@@ -997,7 +1096,7 @@ function renderVerdict() {
 
 function render() {
   withPreservedFocus(() => {
-    $("app").innerHTML = renderEnemy() + renderGlobalBuffs() + renderRows() + renderVerdict();
+    $("app").innerHTML = renderEnemy() + renderGlobalBuffs() + renderIndividualBuffLevelsSection() + renderRows() + renderVerdict();
   });
   saveState();
 }
@@ -1190,7 +1289,9 @@ function onGlobalBuffLevelChange(el) {
   } else {
     setBuffLevels(buffId, { [field]: Number(el.value) });
   }
-  globalBuffsOpen = true; // 操作した=開いて見ている最中なので、再描画後も開いたままにする
+  // 全体バフの欄の中で操作した=開いて見ている最中なので、再描画後も開いたままにする。
+  // 「個別バフの育成設定」の欄から操作した場合は全体バフの開閉に触らない。
+  if (el.closest("#global-buffs-details")) globalBuffsOpen = true;
   render();
 }
 
