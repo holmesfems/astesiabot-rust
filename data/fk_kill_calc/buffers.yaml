@@ -51,8 +51,14 @@
 #     オペレーターを表す(fk_dataシートには載らないため、operatorはoperator_combat側の
 #     idを直接指す)。`skills`の各要素は`{ skill_num, ratio: 数値 }`(固定値)または
 #     `{ skill_num, ratio_key: <blackboardキー名> }`(P7。スキルLv別に機械抽出する。
-#     どちらか一方必須)。スキーマ・値の出典は`src/engine/fk_kill_calc/mod.rs`の
-#     `build_inspire_sources`冒頭コメント、および本ファイル末尾の濁心スカジのコメント参照。
+#     どちらか一方必須)。`talent_potential_rank`(P8。省略可。0始まりpotential_rank。
+#     0=潜在1〜5=潜在6)は`self_parts`の`pct_potential_bonus`(素質凸ボーナス)が
+#     解放される潜在の境目を人手で指定する(実データのtalents[].candidates[]の
+#     `requiredPotentialRank`をそのまま写す)。「潜在セレクト」導入で旧来の攻撃凸/素質凸の
+#     個別チェックボックスを1つに統合したため、この値がその境目を決める
+#     (無ければ素質凸ボーナスは常に未適用のまま)。スキーマ・値の出典は
+#     `src/engine/fk_kill_calc/mod.rs`の`build_inspire_sources`冒頭コメント、
+#     および本ファイル末尾の濁心スカジのコメント参照。
 #
 # targets/bonus.tagsに書けるタグ名は`tags.rs::tag_vocabulary()`の語彙のみ
 # (`cargo test`のドリフト検知テスト`buffers.rs::every_target_tag_is_in_the_known_vocabulary`
@@ -230,7 +236,10 @@ inspire:
     skills:
       - { skill_num: "2", ratio_key: atk }
       - { skill_num: "3", ratio_key: atk }
-    talent_potential_label: 素質凸
+    # 素質「捕食本能」のrequiredPotentialRank(0始まり)=4(潜在5)。実データ確認済み
+    # (P8。旧「素質凸」チェックボックスは潜在セレクトへ統合し、潜在5以上でこの
+    # ボーナスが自動適用されるようにする)。
+    talent_potential_rank: 4
     self_parts:
       - id: talent
         label: 素質「捕食本能」(範囲内に他オペがいる)

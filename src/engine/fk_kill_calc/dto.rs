@@ -91,23 +91,12 @@ impl<'de> serde::Deserialize<'de> for DamageType {
     }
 }
 
-/// 特殊強化の乗算系(P2 follow-up 2回目。`mul_multiplier`)。行の`multiplier`
-/// (スキル倍率)に乗算する係数を、モジュール未装備/条件不一致時は`base`、
-/// `module`をLv1〜3で装備時は`by_module_level`の対応要素から都度計算する
-/// (`engine::resolveSpecialMultiplierFactor`)。詳細は`overrides.rs`冒頭コメント参照。
-#[derive(Serialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct MulMultiplier {
-    pub base: f64,
-    pub module: Option<String>,
-    pub by_module_level: Option<[f64; 3]>,
-}
-
 /// 「特殊強化」トグル(P2)。`overrides.yaml`の`special`をそのままDTO化したもの。
 /// UIはこれが`Some`のときだけ`特殊強化: <label>`のチェックボックス(デフォルトON。ただし
-/// `requires_module`付きの加算系はモジュール条件を満たさない間はチェックボックスの代わりに
-/// ヒントを出す)を出す。ONの間、`requires_module`+`add_self_atk_pct_by_module_level`は
-/// セルフ%へ加算、`mul_multiplier`は行の`multiplier`へ乗算する(どちらも都度計算。
+/// `requires_module`付きの加算系はモジュール条件を満たさない間、`mul_multiplier`付きの
+/// 乗算系は素質が未解放の間、それぞれチェックボックスの代わりにヒントを出す)を出す。
+/// ONの間、`requires_module`+`add_self_atk_pct_by_module_level`はセルフ%へ加算、
+/// `mul_multiplier`は行の`multiplier`へ乗算する(どちらも都度計算。
 /// 詳細は`overrides.rs`冒頭コメント参照)。
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -121,8 +110,14 @@ pub struct Special {
     pub requires_module: Option<String>,
     /// 加算系の値(モジュールLv1〜3ごとのセルフ%への加算値)。
     pub add_self_atk_pct_by_module_level: Option<[f64; 3]>,
-    /// 乗算系(P2 follow-up 2回目で追加)。`None`ならこの特殊強化に乗算系が無い。
-    pub mul_multiplier: Option<MulMultiplier>,
+    /// 乗算系(P2 follow-up 2回目で追加。P8 follow-upで固定値
+    /// [`base`/`module`/`by_module_level`]から素質値テーブル参照へ置き換えた)。`None`なら
+    /// この特殊強化に乗算系が無い。テーブルは`conditional_source::build_talent_source`
+    /// (P4の条件付きバフ`source.talent`と同じビルダー)で組み立てたもので、行の`multiplier`
+    /// に乗算する係数は行自身の昇進/潜在/実効モジュールでこのテーブルを引いて都度決まる
+    /// (`engine::resolveSpecialMultiplierFactor`)。値が0(素質未解放)なら乗算せず×1として
+    /// 扱う。詳細は`overrides.rs`冒頭コメント参照。
+    pub mul_multiplier: Option<ConditionalTalentSource>,
 }
 
 /// 倍率候補1件分(P7。`multiplier_candidates`の要素)。`values_by_level[i]`はスキルLv(i+1)
@@ -217,6 +212,9 @@ pub struct CatalogOperator {
     /// 計算は`phases`/`atkTrustMax`をフロントが使う)。
     pub atk_base: f64,
     pub atk_potential: f64,
+    /// 潜在ランク別(0始まり。0=潜在1〜5=潜在6)の累積ATK加算値(P8。「潜在セレクト」用。
+    /// `operator_combat::RawOperatorCombat::atk_potential_by_rank`をそのままDTO化したもの)。
+    pub atk_potential_by_rank: [f64; 6],
     pub modules: Vec<CatalogModule>,
     pub fk_entries: Vec<FkEntry>,
     /// 昇進段階ごとのLv1/Lv最大ATK(P?)。
@@ -498,10 +496,15 @@ pub struct InspireSource {
     pub tags: Vec<String>,
     pub atk_base: f64,
     pub atk_potential: f64,
+    /// 潜在ランク別(0始まり。0=潜在1〜5=潜在6)の累積ATK加算値(P8。`CatalogOperator`と同じ)。
+    pub atk_potential_by_rank: [f64; 6],
     pub modules: Vec<CatalogModule>,
     pub skills: Vec<InspireSkillRatio>,
-    /// 「素質凸」チェックボックスの表示ラベル(オペレーターごとに文言が違い得るため)。
-    pub talent_potential_label: String,
+    /// 素質凸(`self_parts`の`pct_potential_bonus`)が解放される0始まりpotential_rank(P8。
+    /// 潜在セレクトが自己%パーツの素質凸ボーナスを適用し始める境目)。`None`ならこの鼓舞
+    /// ソースは素質凸ボーナスの概念を持たない(現時点では全ソースがSome。将来的に
+    /// pct_potential_bonusを持たないソースが増えたらNoneにする想定)。
+    pub talent_potential_rank: Option<u8>,
     pub self_parts: Vec<InspireSelfPart>,
     /// 昇進段階ごとのLv1/Lv最大ATK(P?。`CatalogOperator.phases`と同じ)。
     pub phases: Vec<PhaseAtk>,

@@ -436,6 +436,14 @@
     "char_002_amiya": {
       "atk_base": 682.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "阿米娅",
       "id": "char_002_amiya",
@@ -558,6 +566,14 @@
     "char_003_kalts": {
       "atk_base": 490.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "凯尔希",
       "id": "char_003_kalts",
@@ -867,6 +883,14 @@
     "char_009_12fce": {
       "atk_base": 482.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        12.0,
+        12.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "12F",
       "id": "char_009_12fce",
@@ -900,6 +924,14 @@
     "char_010_chen": {
       "atk_base": 660.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "陈",
       "id": "char_010_chen",
@@ -1086,6 +1118,14 @@
     "char_017_huang": {
       "atk_base": 825.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "煌",
       "id": "char_017_huang",
@@ -1322,6 +1362,14 @@
     "char_1001_amiya2": {
       "atk_base": 702.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "阿米娅(前衛)",
       "id": "char_1001_amiya2",
@@ -1419,6 +1467,14 @@
     "char_1011_lava2": {
       "atk_base": 888.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "炎狱炎熔",
       "id": "char_1011_lava2",
@@ -1548,6 +1604,14 @@
     "char_1012_skadi2": {
       "atk_base": 418.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "浊心斯卡蒂",
       "id": "char_1012_skadi2",
@@ -1774,6 +1838,14 @@
     "char_1013_chen2": {
       "atk_base": 853.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "假日威龙陈",
       "id": "char_1013_chen2",
@@ -1962,6 +2034,14 @@
     "char_1014_nearl2": {
       "atk_base": 1149.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "耀骑士临光",
       "id": "char_1014_nearl2",
@@ -2128,6 +2208,14 @@
     "char_1015_aglna2": {
       "atk_base": 836.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "予愿安洁莉娜",
       "id": "char_1015_aglna2",
@@ -2233,6 +2321,14 @@
     "char_1016_agoat2": {
       "atk_base": 469.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "纯烬艾雅法拉",
       "id": "char_1016_agoat2",
@@ -2409,6 +2505,14 @@
     "char_1019_siege2": {
       "atk_base": 745.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "维娜·维多利亚",
       "id": "char_1019_siege2",
@@ -2611,6 +2715,14 @@
     "char_101_sora": {
       "atk_base": 385.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "空",
       "id": "char_101_sora",
@@ -2708,6 +2820,14 @@
     "char_1020_reed2": {
       "atk_base": 600.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "焰影苇草",
       "id": "char_1020_reed2",
@@ -2942,6 +3062,14 @@
     "char_1021_kroos2": {
       "atk_base": 577.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "寒芒克洛丝",
       "id": "char_1021_kroos2",
@@ -3079,6 +3207,14 @@
     "char_1022_flwr2": {
       "atk_base": 470.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "撷英调香师",
       "id": "char_1022_flwr2",
@@ -3200,6 +3336,14 @@
     "char_1023_ghost2": {
       "atk_base": 817.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "归溟幽灵鲨",
       "id": "char_1023_ghost2",
@@ -3457,6 +3601,14 @@
     "char_1024_hbisc2": {
       "atk_base": 571.0,
       "atk_potential": 22.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        22.0,
+        22.0,
+        22.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "濯尘芙蓉",
       "id": "char_1024_hbisc2",
@@ -3586,6 +3738,14 @@
     "char_1026_gvial2": {
       "atk_base": 816.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "百炼嘉维尔",
       "id": "char_1026_gvial2",
@@ -3893,6 +4053,14 @@
     "char_1027_greyy2": {
       "atk_base": 688.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "承曦格雷伊",
       "id": "char_1027_greyy2",
@@ -3992,6 +4160,14 @@
     "char_1028_texas2": {
       "atk_base": 659.0,
       "atk_potential": 22.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        22.0,
+        22.0,
+        22.0,
+        22.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "缄默德克萨斯",
       "id": "char_1028_texas2",
@@ -4168,6 +4344,14 @@
     "char_1029_yato2": {
       "atk_base": 655.0,
       "atk_potential": 22.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        22.0,
+        22.0,
+        22.0,
+        22.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "麒麟R夜刀",
       "id": "char_1029_yato2",
@@ -4347,6 +4531,14 @@
     "char_102_texas": {
       "atk_base": 570.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "德克萨斯",
       "id": "char_102_texas",
@@ -4440,6 +4632,14 @@
     "char_1030_noirc2": {
       "atk_base": 766.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "火龙S黑角",
       "id": "char_1030_noirc2",
@@ -4581,6 +4781,14 @@
     "char_1031_slent2": {
       "atk_base": 522.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "淬羽赫默",
       "id": "char_1031_slent2",
@@ -4773,6 +4981,14 @@
     "char_1032_excu2": {
       "atk_base": 777.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "圣约送葬人",
       "id": "char_1032_excu2",
@@ -4963,6 +5179,14 @@
     "char_1033_swire2": {
       "atk_base": 865.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "琳琅诗怀雅",
       "id": "char_1033_swire2",
@@ -5258,6 +5482,14 @@
     "char_1034_jesca2": {
       "atk_base": 582.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "涤火杰西卡",
       "id": "char_1034_jesca2",
@@ -5518,6 +5750,14 @@
     "char_1035_wisdel": {
       "atk_base": 777.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "维什戴尔",
       "id": "char_1035_wisdel",
@@ -5684,6 +5924,14 @@
     "char_1036_fang2": {
       "atk_base": 640.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "历阵锐枪芬",
       "id": "char_1036_fang2",
@@ -5781,6 +6029,14 @@
     "char_1037_amiya3": {
       "atk_base": 577.0,
       "atk_potential": 22.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        22.0,
+        22.0,
+        22.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "阿米娅(医療)",
       "id": "char_1037_amiya3",
@@ -5878,6 +6134,14 @@
     "char_1038_whitw2": {
       "atk_base": 402.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "荒芜拉普兰德",
       "id": "char_1038_whitw2",
@@ -6055,6 +6319,14 @@
     "char_1039_thorn2": {
       "atk_base": 541.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "引星棘刺",
       "id": "char_1039_thorn2",
@@ -6229,6 +6501,14 @@
     "char_103_angel": {
       "atk_base": 630.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "能天使",
       "id": "char_103_angel",
@@ -6437,6 +6717,14 @@
     "char_1040_blaze2": {
       "atk_base": 752.0,
       "atk_potential": 31.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        31.0,
+        31.0,
+        31.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "烛煌",
       "id": "char_1040_blaze2",
@@ -6665,6 +6953,14 @@
     "char_1041_angel2": {
       "atk_base": 778.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "新约能天使",
       "id": "char_1041_angel2",
@@ -6852,6 +7148,14 @@
     "char_1042_phatm2": {
       "atk_base": 530.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "酒神",
       "id": "char_1042_phatm2",
@@ -7027,6 +7331,14 @@
     "char_1043_leizi2": {
       "atk_base": 390.0,
       "atk_potential": 29.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        29.0,
+        29.0,
+        29.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "司霆惊蛰",
       "id": "char_1043_leizi2",
@@ -7225,6 +7537,14 @@
     "char_1044_hsgma2": {
       "atk_base": 722.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "斩业星熊",
       "id": "char_1044_hsgma2",
@@ -7385,6 +7705,14 @@
     "char_1045_svash2": {
       "atk_base": 653.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "凛御银灰",
       "id": "char_1045_svash2",
@@ -7540,6 +7868,14 @@
     "char_1046_sbell2": {
       "atk_base": 916.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "圣聆初雪",
       "id": "char_1046_sbell2",
@@ -7743,6 +8079,14 @@
     "char_1047_halo2": {
       "atk_base": 608.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "溯光星源",
       "id": "char_1047_halo2",
@@ -7868,6 +8212,14 @@
     "char_1048_orchd2": {
       "atk_base": 942.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "焰狐龙梓兰",
       "id": "char_1048_orchd2",
@@ -8078,6 +8430,14 @@
     "char_1049_catap2": {
       "atk_base": 574.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "雷狼龙S空爆",
       "id": "char_1049_catap2",
@@ -8233,6 +8593,14 @@
     "char_1050_chen3": {
       "atk_base": 770.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "赤刃明霄陈",
       "id": "char_1050_chen3",
@@ -8401,6 +8769,14 @@
     "char_1051_headb2": {
       "atk_base": 1312.0,
       "atk_potential": 40.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        40.0,
+        40.0,
+        40.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "怒潮凛冬",
       "id": "char_1051_headb2",
@@ -8564,6 +8940,14 @@
     "char_1052_kalts2": {
       "atk_base": 510.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "凯尔希·思衡托",
       "id": "char_1052_kalts2",
@@ -8719,6 +9103,14 @@
     "char_106_franka": {
       "atk_base": 1011.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "芙兰卡",
       "id": "char_106_franka",
@@ -8812,6 +9204,14 @@
     "char_107_liskam": {
       "atk_base": 470.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "雷蛇",
       "id": "char_107_liskam",
@@ -8916,6 +9316,14 @@
     "char_108_silent": {
       "atk_base": 557.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "赫默",
       "id": "char_108_silent",
@@ -9037,6 +9445,14 @@
     "char_109_fmout": {
       "atk_base": 785.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "远山",
       "id": "char_109_fmout",
@@ -9174,6 +9590,14 @@
     "char_110_deepcl": {
       "atk_base": 403.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "深海色",
       "id": "char_110_deepcl",
@@ -9288,6 +9712,14 @@
     "char_112_siege": {
       "atk_base": 575.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "推进之王",
       "id": "char_112_siege",
@@ -9465,6 +9897,14 @@
     "char_113_cqbw": {
       "atk_base": 1012.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "W",
       "id": "char_113_cqbw",
@@ -9655,6 +10095,14 @@
     "char_115_headbr": {
       "atk_base": 470.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "凛冬",
       "id": "char_115_headbr",
@@ -9748,6 +10196,14 @@
     "char_117_myrrh": {
       "atk_base": 525.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "末药",
       "id": "char_117_myrrh",
@@ -9869,6 +10325,14 @@
     "char_118_yuki": {
       "atk_base": 867.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "白雪",
       "id": "char_118_yuki",
@@ -9940,6 +10404,14 @@
     "char_120_hibisc": {
       "atk_base": 390.0,
       "atk_potential": 18.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        18.0,
+        18.0,
+        18.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "芙蓉",
       "id": "char_120_hibisc",
@@ -9990,6 +10462,14 @@
     "char_121_lava": {
       "atk_base": 642.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "炎熔",
       "id": "char_121_lava",
@@ -10054,6 +10534,14 @@
     "char_122_beagle": {
       "atk_base": 295.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "米格鲁",
       "id": "char_122_beagle",
@@ -10104,6 +10592,14 @@
     "char_123_fang": {
       "atk_base": 325.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "芬",
       "id": "char_123_fang",
@@ -10147,6 +10643,14 @@
     "char_124_kroos": {
       "atk_base": 425.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "克洛丝",
       "id": "char_124_kroos",
@@ -10215,6 +10719,14 @@
     "char_126_shotst": {
       "atk_base": 530.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "流星",
       "id": "char_126_shotst",
@@ -10336,6 +10848,14 @@
     "char_127_estell": {
       "atk_base": 690.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "艾丝黛尔",
       "id": "char_127_estell",
@@ -10457,6 +10977,14 @@
     "char_128_plosis": {
       "atk_base": 390.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "白面鸮",
       "id": "char_128_plosis",
@@ -10550,6 +11078,14 @@
     "char_129_bluep": {
       "atk_base": 610.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "蓝毒",
       "id": "char_129_bluep",
@@ -10679,6 +11215,14 @@
     "char_130_doberm": {
       "atk_base": 632.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "杜宾",
       "id": "char_130_doberm",
@@ -10770,6 +11314,14 @@
     "char_131_flameb": {
       "atk_base": 963.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "炎客",
       "id": "char_131_flameb",
@@ -10899,6 +11451,14 @@
     "char_133_mm": {
       "atk_base": 543.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "梅",
       "id": "char_133_mm",
@@ -11028,6 +11588,14 @@
     "char_134_ifrit": {
       "atk_base": 980.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 110.0,
       "cn_name": "伊芙利特",
       "id": "char_134_ifrit",
@@ -11250,6 +11818,14 @@
     "char_135_halo": {
       "atk_base": 705.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "星源",
       "id": "char_135_halo",
@@ -11351,6 +11927,14 @@
     "char_136_hsguma": {
       "atk_base": 490.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "星熊",
       "id": "char_136_hsguma",
@@ -11577,6 +12161,14 @@
     "char_137_brownb": {
       "atk_base": 573.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "猎蜂",
       "id": "char_137_brownb",
@@ -11706,6 +12298,14 @@
     "char_140_whitew": {
       "atk_base": 760.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "拉普兰德",
       "id": "char_140_whitew",
@@ -11835,6 +12435,14 @@
     "char_141_nights": {
       "atk_base": 643.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "夜烟",
       "id": "char_141_nights",
@@ -11964,6 +12572,14 @@
     "char_143_ghost": {
       "atk_base": 805.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "幽灵鲨",
       "id": "char_143_ghost",
@@ -12059,6 +12675,14 @@
     "char_144_red": {
       "atk_base": 605.0,
       "atk_potential": 20.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "红",
       "id": "char_144_red",
@@ -12180,6 +12804,14 @@
     "char_145_prove": {
       "atk_base": 871.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "普罗旺斯",
       "id": "char_145_prove",
@@ -12317,6 +12949,14 @@
     "char_147_shining": {
       "atk_base": 610.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "闪灵",
       "id": "char_147_shining",
@@ -12525,6 +13165,14 @@
     "char_148_nearl": {
       "atk_base": 502.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "临光",
       "id": "char_148_nearl",
@@ -12646,6 +13294,14 @@
     "char_149_scave": {
       "atk_base": 530.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "清道夫",
       "id": "char_149_scave",
@@ -12775,6 +13431,14 @@
     "char_1502_crosly": {
       "atk_base": 635.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "弑君者",
       "id": "char_1502_crosly",
@@ -12941,6 +13605,14 @@
     "char_150_snakek": {
       "atk_base": 365.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "蛇屠箱",
       "id": "char_150_snakek",
@@ -13034,6 +13706,14 @@
     "char_151_myrtle": {
       "atk_base": 520.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "桃金娘",
       "id": "char_151_myrtle",
@@ -13141,6 +13821,14 @@
     "char_154_morgan": {
       "atk_base": 980.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "摩根",
       "id": "char_154_morgan",
@@ -13279,6 +13967,14 @@
     "char_155_tiger": {
       "atk_base": 605.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "因陀罗",
       "id": "char_155_tiger",
@@ -13408,6 +14104,14 @@
     "char_157_dagda": {
       "atk_base": 614.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "达格达",
       "id": "char_157_dagda",
@@ -13525,6 +14229,14 @@
     "char_158_milu": {
       "atk_base": 1175.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "守林人",
       "id": "char_158_milu",
@@ -13646,6 +14358,14 @@
     "char_159_peacok": {
       "atk_base": 951.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 22.0,
       "cn_name": "断罪者",
       "id": "char_159_peacok",
@@ -13747,6 +14467,14 @@
     "char_163_hpsts": {
       "atk_base": 870.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "火神",
       "id": "char_163_hpsts",
@@ -13876,6 +14604,14 @@
     "char_164_nightm": {
       "atk_base": 692.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "夜魔",
       "id": "char_164_nightm",
@@ -14027,6 +14763,14 @@
     "char_166_skfire": {
       "atk_base": 874.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "天火",
       "id": "char_166_skfire",
@@ -14148,6 +14892,14 @@
     "char_171_bldsk": {
       "atk_base": 580.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "华法琳",
       "id": "char_171_bldsk",
@@ -14249,6 +15001,14 @@
     "char_172_svrash": {
       "atk_base": 763.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "银灰",
       "id": "char_172_svrash",
@@ -14391,6 +15151,14 @@
     "char_173_slchan": {
       "atk_base": 835.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "崖心",
       "id": "char_173_slchan",
@@ -14520,6 +15288,14 @@
     "char_174_slbell": {
       "atk_base": 495.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "初雪",
       "id": "char_174_slbell",
@@ -14646,6 +15422,14 @@
     "char_179_cgbird": {
       "atk_base": 420.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "夜莺",
       "id": "char_179_cgbird",
@@ -14842,6 +15626,14 @@
     "char_180_amgoat": {
       "atk_base": 735.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "艾雅法拉",
       "id": "char_180_amgoat",
@@ -15050,6 +15842,14 @@
     "char_181_flower": {
       "atk_base": 345.0,
       "atk_potential": 19.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        19.0,
+        19.0,
+        19.0
+      ],
       "atk_trust_max": 25.0,
       "cn_name": "调香师",
       "id": "char_181_flower",
@@ -15171,6 +15971,14 @@
     "char_183_skgoat": {
       "atk_base": 530.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "地灵",
       "id": "char_183_skgoat",
@@ -15278,6 +16086,14 @@
     "char_185_frncat": {
       "atk_base": 679.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "慕斯",
       "id": "char_185_frncat",
@@ -15399,6 +16215,14 @@
     "char_187_ccheal": {
       "atk_base": 480.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "嘉维尔",
       "id": "char_187_ccheal",
@@ -15536,6 +16360,14 @@
     "char_188_helage": {
       "atk_base": 832.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "赫拉格",
       "id": "char_188_helage",
@@ -15767,6 +16599,14 @@
     "char_190_clour": {
       "atk_base": 550.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "红云",
       "id": "char_190_clour",
@@ -15860,6 +16700,14 @@
     "char_192_falco": {
       "atk_base": 495.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "翎羽",
       "id": "char_192_falco",
@@ -15910,6 +16758,14 @@
     "char_193_frostl": {
       "atk_base": 660.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "霜叶",
       "id": "char_193_frostl",
@@ -15996,6 +16852,14 @@
     "char_194_leto": {
       "atk_base": 720.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "烈夏",
       "id": "char_194_leto",
@@ -16117,6 +16981,14 @@
     "char_195_glassb": {
       "atk_base": 583.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "真理",
       "id": "char_195_glassb",
@@ -16234,6 +17106,14 @@
     "char_196_sunbr": {
       "atk_base": 435.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "古米",
       "id": "char_196_sunbr",
@@ -16371,6 +17251,14 @@
     "char_197_poca": {
       "atk_base": 1142.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 110.0,
       "cn_name": "早露",
       "id": "char_197_poca",
@@ -16562,6 +17450,14 @@
     "char_198_blackd": {
       "atk_base": 435.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "讯使",
       "id": "char_198_blackd",
@@ -16691,6 +17587,14 @@
     "char_199_yak": {
       "atk_base": 375.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "角峰",
       "id": "char_199_yak",
@@ -16784,6 +17688,14 @@
     "char_2012_typhon": {
       "atk_base": 1155.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 110.0,
       "cn_name": "提丰",
       "id": "char_2012_typhon",
@@ -17040,6 +17952,14 @@
     "char_2013_cerber": {
       "atk_base": 757.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "刻俄柏",
       "id": "char_2013_cerber",
@@ -17228,6 +18148,14 @@
     "char_2014_nian": {
       "atk_base": 619.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "年",
       "id": "char_2014_nian",
@@ -17405,6 +18333,14 @@
     "char_2015_dusk": {
       "atk_base": 1028.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 110.0,
       "cn_name": "夕",
       "id": "char_2015_dusk",
@@ -17639,6 +18575,14 @@
     "char_201_moeshd": {
       "atk_base": 380.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "可颂",
       "id": "char_201_moeshd",
@@ -17768,6 +18712,14 @@
     "char_2023_ling": {
       "atk_base": 508.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "令",
       "id": "char_2023_ling",
@@ -17928,6 +18880,14 @@
     "char_2024_chyue": {
       "atk_base": 650.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "重岳",
       "id": "char_2024_chyue",
@@ -18113,6 +19073,14 @@
     "char_2025_shu": {
       "atk_base": 529.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "黍",
       "id": "char_2025_shu",
@@ -18263,6 +19231,14 @@
     "char_2026_yu": {
       "atk_base": 715.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "余",
       "id": "char_2026_yu",
@@ -18436,6 +19412,14 @@
     "char_2027_wang": {
       "atk_base": 669.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "望",
       "id": "char_2027_wang",
@@ -18623,6 +19607,14 @@
     "char_202_demkni": {
       "atk_base": 535.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "塞雷娅",
       "id": "char_202_demkni",
@@ -18817,6 +19809,14 @@
     "char_204_platnm": {
       "atk_base": 580.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "白金",
       "id": "char_204_platnm",
@@ -18962,6 +19962,14 @@
     "char_206_gnosis": {
       "atk_base": 535.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "灵知",
       "id": "char_206_gnosis",
@@ -19291,6 +20299,14 @@
     "char_208_melan": {
       "atk_base": 803.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "玫兰莎",
       "id": "char_208_melan",
@@ -19341,6 +20357,14 @@
     "char_209_ardign": {
       "atk_base": 305.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "卡缇",
       "id": "char_209_ardign",
@@ -19391,6 +20415,14 @@
     "char_210_stward": {
       "atk_base": 520.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "史都华德",
       "id": "char_210_stward",
@@ -19441,6 +20473,14 @@
     "char_211_adnach": {
       "atk_base": 415.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "安德切尔",
       "id": "char_211_adnach",
@@ -19491,6 +20531,14 @@
     "char_212_ansel": {
       "atk_base": 407.0,
       "atk_potential": 20.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        20.0,
+        20.0,
+        20.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "安赛尔",
       "id": "char_212_ansel",
@@ -19555,6 +20603,14 @@
     "char_213_mostma": {
       "atk_base": 939.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 105.0,
       "cn_name": "莫斯提马",
       "id": "char_213_mostma",
@@ -19723,6 +20779,14 @@
     "char_214_kafka": {
       "atk_base": 525.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "卡夫卡",
       "id": "char_214_kafka",
@@ -19851,6 +20915,14 @@
     "char_215_mantic": {
       "atk_base": 871.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "狮蝎",
       "id": "char_215_mantic",
@@ -19980,6 +21052,14 @@
     "char_218_cuttle": {
       "atk_base": 1110.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "安哲拉",
       "id": "char_218_cuttle",
@@ -20101,6 +21181,14 @@
     "char_219_meteo": {
       "atk_base": 950.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "陨星",
       "id": "char_219_meteo",
@@ -20198,6 +21286,14 @@
     "char_220_grani": {
       "atk_base": 552.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "格拉尼",
       "id": "char_220_grani",
@@ -20319,6 +21415,14 @@
     "char_222_bpipe": {
       "atk_base": 671.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "风笛",
       "id": "char_222_bpipe",
@@ -20521,6 +21625,14 @@
     "char_225_haak": {
       "atk_base": 753.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "阿",
       "id": "char_225_haak",
@@ -20711,6 +21823,14 @@
     "char_226_hmau": {
       "atk_base": 442.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "吽",
       "id": "char_226_hmau",
@@ -20840,6 +21960,14 @@
     "char_230_savage": {
       "atk_base": 705.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        35.0,
+        35.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "暴行",
       "id": "char_230_savage",
@@ -20941,6 +22069,14 @@
     "char_235_jesica": {
       "atk_base": 540.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "杰西卡",
       "id": "char_235_jesica",
@@ -21036,6 +22172,14 @@
     "char_236_rope": {
       "atk_base": 728.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "暗索",
       "id": "char_236_rope",
@@ -21157,6 +22301,14 @@
     "char_237_gravel": {
       "atk_base": 452.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "砾",
       "id": "char_237_gravel",
@@ -21245,6 +22397,14 @@
     "char_240_wyvern": {
       "atk_base": 405.0,
       "atk_potential": 20.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        20.0,
+        20.0,
+        20.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "香草",
       "id": "char_240_wyvern",
@@ -21295,6 +22455,14 @@
     "char_241_panda": {
       "atk_base": 685.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "食铁兽",
       "id": "char_241_panda",
@@ -21416,6 +22584,14 @@
     "char_242_otter": {
       "atk_base": 478.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "梅尔",
       "id": "char_242_otter",
@@ -21532,6 +22708,14 @@
     "char_243_waaifu": {
       "atk_base": 586.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "槐琥",
       "id": "char_243_waaifu",
@@ -21631,6 +22815,14 @@
     "char_245_cello": {
       "atk_base": 525.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "塑心",
       "id": "char_245_cello",
@@ -21829,6 +23021,14 @@
     "char_248_mgllan": {
       "atk_base": 509.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "麦哲伦",
       "id": "char_248_mgllan",
@@ -22040,6 +23240,14 @@
     "char_249_mlyss": {
       "atk_base": 537.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "缪尔赛思",
       "id": "char_249_mlyss",
@@ -22233,6 +23441,14 @@
     "char_250_phatom": {
       "atk_base": 648.0,
       "atk_potential": 22.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        22.0,
+        22.0,
+        22.0,
+        22.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "傀影",
       "id": "char_250_phatom",
@@ -22440,6 +23656,14 @@
     "char_252_bibeak": {
       "atk_base": 682.0,
       "atk_potential": 22.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        22.0,
+        22.0,
+        22.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "柏喙",
       "id": "char_252_bibeak",
@@ -22601,6 +23825,14 @@
     "char_253_greyy": {
       "atk_base": 699.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "格雷伊",
       "id": "char_253_greyy",
@@ -22694,6 +23926,14 @@
     "char_254_vodfox": {
       "atk_base": 473.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "巫恋",
       "id": "char_254_vodfox",
@@ -22805,6 +24045,14 @@
     "char_258_podego": {
       "atk_base": 542.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "波登可",
       "id": "char_258_podego",
@@ -22930,6 +24178,14 @@
     "char_260_durnar": {
       "atk_base": 648.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "坚雷",
       "id": "char_260_durnar",
@@ -23027,6 +24283,14 @@
     "char_261_sddrag": {
       "atk_base": 632.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "苇草",
       "id": "char_261_sddrag",
@@ -23124,6 +24388,14 @@
     "char_263_skadi": {
       "atk_base": 1095.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "斯卡蒂",
       "id": "char_263_skadi",
@@ -23297,6 +24569,14 @@
     "char_264_f12yin": {
       "atk_base": 632.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "山",
       "id": "char_264_f12yin",
@@ -23503,6 +24783,14 @@
     "char_265_sophia": {
       "atk_base": 675.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "鞭刃",
       "id": "char_265_sophia",
@@ -23626,6 +24914,14 @@
     "char_271_spikes": {
       "atk_base": 695.0,
       "atk_potential": 18.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        18.0,
+        18.0,
+        18.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "芳汀",
       "id": "char_271_spikes",
@@ -23754,6 +25050,14 @@
     "char_272_strong": {
       "atk_base": 714.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "孑",
       "id": "char_272_strong",
@@ -23875,6 +25179,14 @@
     "char_274_astesi": {
       "atk_base": 690.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "星极",
       "id": "char_274_astesi",
@@ -23978,6 +25290,14 @@
     "char_275_breeze": {
       "atk_base": 373.0,
       "atk_potential": 20.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        20.0,
+        20.0,
+        20.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "微风",
       "id": "char_275_breeze",
@@ -24075,6 +25395,14 @@
     "char_277_sqrrel": {
       "atk_base": 615.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "阿消",
       "id": "char_277_sqrrel",
@@ -24168,6 +25496,14 @@
     "char_278_orchid": {
       "atk_base": 418.0,
       "atk_potential": 19.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        19.0,
+        19.0,
+        19.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "梓兰",
       "id": "char_278_orchid",
@@ -24218,6 +25554,14 @@
     "char_279_excu": {
       "atk_base": 785.0,
       "atk_potential": 29.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        29.0,
+        29.0,
+        29.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "送葬人",
       "id": "char_279_excu",
@@ -24339,6 +25683,14 @@
     "char_281_popka": {
       "atk_base": 545.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "泡普卡",
       "id": "char_281_popka",
@@ -24407,6 +25759,14 @@
     "char_282_catap": {
       "atk_base": 672.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "空爆",
       "id": "char_282_catap",
@@ -24450,6 +25810,14 @@
     "char_283_midn": {
       "atk_base": 547.0,
       "atk_potential": 22.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        22.0,
+        22.0,
+        22.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "月见夜",
       "id": "char_283_midn",
@@ -24518,6 +25886,14 @@
     "char_284_spot": {
       "atk_base": 350.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "斑点",
       "id": "char_284_spot",
@@ -24586,6 +25962,14 @@
     "char_285_medic2": {
       "atk_base": 110.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "Lancet-2",
       "id": "char_285_medic2",
@@ -24654,6 +26038,14 @@
     "char_286_cast3": {
       "atk_base": 413.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "Castle-3",
       "id": "char_286_cast3",
@@ -24734,6 +26126,14 @@
     "char_289_gyuki": {
       "atk_base": 916.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "缠丸",
       "id": "char_289_gyuki",
@@ -24847,6 +26247,14 @@
     "char_290_vigna": {
       "atk_base": 618.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "红豆",
       "id": "char_290_vigna",
@@ -24984,6 +26392,14 @@
     "char_291_aglina": {
       "atk_base": 617.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "安洁莉娜",
       "id": "char_291_aglina",
@@ -25249,6 +26665,14 @@
     "char_293_thorns": {
       "atk_base": 741.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "棘刺",
       "id": "char_293_thorns",
@@ -25473,6 +26897,14 @@
     "char_294_ayer": {
       "atk_base": 745.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "断崖",
       "id": "char_294_ayer",
@@ -25594,6 +27026,14 @@
     "char_297_hamoni": {
       "atk_base": 1375.0,
       "atk_potential": 45.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        45.0,
+        45.0,
+        45.0
+      ],
       "atk_trust_max": 130.0,
       "cn_name": "和弦",
       "id": "char_297_hamoni",
@@ -25715,6 +27155,14 @@
     "char_298_susuro": {
       "atk_base": 548.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "苏苏洛",
       "id": "char_298_susuro",
@@ -25844,6 +27292,14 @@
     "char_300_phenxi": {
       "atk_base": 961.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "菲亚梅塔",
       "id": "char_300_phenxi",
@@ -26099,6 +27555,14 @@
     "char_301_cutter": {
       "atk_base": 641.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "刻刀",
       "id": "char_301_cutter",
@@ -26228,6 +27692,14 @@
     "char_302_glaze": {
       "atk_base": 1052.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "安比尔",
       "id": "char_302_glaze",
@@ -26341,6 +27813,14 @@
     "char_304_zebra": {
       "atk_base": 378.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "暴雨",
       "id": "char_304_zebra",
@@ -26462,6 +27942,14 @@
     "char_306_leizi": {
       "atk_base": 710.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "惊蛰",
       "id": "char_306_leizi",
@@ -26583,6 +28071,14 @@
     "char_308_swire": {
       "atk_base": 696.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "诗怀雅",
       "id": "char_308_swire",
@@ -26688,6 +28184,14 @@
     "char_311_mudrok": {
       "atk_base": 882.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "泥岩",
       "id": "char_311_mudrok",
@@ -26907,6 +28411,14 @@
     "char_322_lmlee": {
       "atk_base": 844.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "老鲤",
       "id": "char_322_lmlee",
@@ -27095,6 +28607,14 @@
     "char_325_bison": {
       "atk_base": 375.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "拜松",
       "id": "char_325_bison",
@@ -27216,6 +28736,14 @@
     "char_326_glacus": {
       "atk_base": 540.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "格劳克斯",
       "id": "char_326_glacus",
@@ -27337,6 +28865,14 @@
     "char_328_cammou": {
       "atk_base": 375.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "卡达",
       "id": "char_328_cammou",
@@ -27430,6 +28966,14 @@
     "char_332_archet": {
       "atk_base": 618.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "空弦",
       "id": "char_332_archet",
@@ -27664,6 +29208,14 @@
     "char_333_sidero": {
       "atk_base": 620.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "铸铁",
       "id": "char_333_sidero",
@@ -27783,6 +29335,14 @@
     "char_336_folivo": {
       "atk_base": 432.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "稀音",
       "id": "char_336_folivo",
@@ -27901,6 +29461,14 @@
     "char_337_utage": {
       "atk_base": 723.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "宴",
       "id": "char_337_utage",
@@ -28015,6 +29583,14 @@
     "char_338_iris": {
       "atk_base": 1389.0,
       "atk_potential": 45.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        45.0,
+        45.0,
+        45.0
+      ],
       "atk_trust_max": 130.0,
       "cn_name": "爱丽丝",
       "id": "char_338_iris",
@@ -28136,6 +29712,14 @@
     "char_340_shwaz": {
       "atk_base": 940.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "黑",
       "id": "char_340_shwaz",
@@ -28342,6 +29926,14 @@
     "char_341_sntlla": {
       "atk_base": 860.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "寒檀",
       "id": "char_341_sntlla",
@@ -28479,6 +30071,14 @@
     "char_343_tknogi": {
       "atk_base": 485.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "月禾",
       "id": "char_343_tknogi",
@@ -28608,6 +30208,14 @@
     "char_344_beewax": {
       "atk_base": 805.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "蜜蜡",
       "id": "char_344_beewax",
@@ -28703,6 +30311,14 @@
     "char_345_folnic": {
       "atk_base": 529.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "亚叶",
       "id": "char_345_folnic",
@@ -28828,6 +30444,14 @@
     "char_346_aosta": {
       "atk_base": 756.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "奥斯塔",
       "id": "char_346_aosta",
@@ -28957,6 +30581,14 @@
     "char_347_jaksel": {
       "atk_base": 589.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "杰克",
       "id": "char_347_jaksel",
@@ -29094,6 +30726,14 @@
     "char_348_ceylon": {
       "atk_base": 508.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "锡兰",
       "id": "char_348_ceylon",
@@ -29223,6 +30863,14 @@
     "char_349_chiave": {
       "atk_base": 592.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "贾维",
       "id": "char_349_chiave",
@@ -29360,6 +31008,14 @@
     "char_350_surtr": {
       "atk_base": 772.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "史尔特尔",
       "id": "char_350_surtr",
@@ -29568,6 +31224,14 @@
     "char_355_ethan": {
       "atk_base": 742.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "伊桑",
       "id": "char_355_ethan",
@@ -29665,6 +31329,14 @@
     "char_356_broca": {
       "atk_base": 842.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "布洛卡",
       "id": "char_356_broca",
@@ -29802,6 +31474,14 @@
     "char_358_lisa": {
       "atk_base": 596.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "铃兰",
       "id": "char_358_lisa",
@@ -29972,6 +31652,14 @@
     "char_362_saga": {
       "atk_base": 615.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "嵯峨",
       "id": "char_362_saga",
@@ -30160,6 +31848,14 @@
     "char_363_toddi": {
       "atk_base": 1049.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 95.0,
       "cn_name": "熔泉",
       "id": "char_363_toddi",
@@ -30306,6 +32002,14 @@
     "char_365_aprl": {
       "atk_base": 603.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "四月",
       "id": "char_365_aprl",
@@ -30403,6 +32107,14 @@
     "char_366_acdrop": {
       "atk_base": 815.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "酸糖",
       "id": "char_366_acdrop",
@@ -30500,6 +32212,14 @@
     "char_367_swllow": {
       "atk_base": 588.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "灰喉",
       "id": "char_367_swllow",
@@ -30601,6 +32321,14 @@
     "char_369_bena": {
       "atk_base": 742.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "贝娜",
       "id": "char_369_bena",
@@ -30738,6 +32466,14 @@
     "char_373_lionhd": {
       "atk_base": 863.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "莱恩哈特",
       "id": "char_373_lionhd",
@@ -30867,6 +32603,14 @@
     "char_376_therex": {
       "atk_base": 350.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "THRM-EX",
       "id": "char_376_therex",
@@ -30953,6 +32697,14 @@
     "char_377_gdglow": {
       "atk_base": 391.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "澄闪",
       "id": "char_377_gdglow",
@@ -31159,6 +32911,14 @@
     "char_378_asbest": {
       "atk_base": 673.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "石棉",
       "id": "char_378_asbest",
@@ -31256,6 +33016,14 @@
     "char_379_sesa": {
       "atk_base": 918.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "慑砂",
       "id": "char_379_sesa",
@@ -31377,6 +33145,14 @@
     "char_381_bubble": {
       "atk_base": 370.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "泡泡",
       "id": "char_381_bubble",
@@ -31474,6 +33250,14 @@
     "char_383_snsant": {
       "atk_base": 745.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "雪雉",
       "id": "char_383_snsant",
@@ -31603,6 +33387,14 @@
     "char_385_finlpp": {
       "atk_base": 489.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "清流",
       "id": "char_385_finlpp",
@@ -31682,6 +33474,14 @@
     "char_388_mint": {
       "atk_base": 807.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "薄绿",
       "id": "char_388_mint",
@@ -31819,6 +33619,14 @@
     "char_391_rosmon": {
       "atk_base": 748.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "迷迭香",
       "id": "char_391_rosmon",
@@ -31984,6 +33792,14 @@
     "char_394_hadiya": {
       "atk_base": 585.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "哈蒂娅",
       "id": "char_394_hadiya",
@@ -32065,6 +33881,14 @@
     "char_4000_jnight": {
       "atk_base": 217.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "正义骑士号",
       "id": "char_4000_jnight",
@@ -32145,6 +33969,14 @@
     "char_4004_pudd": {
       "atk_base": 612.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "布丁",
       "id": "char_4004_pudd",
@@ -32238,6 +34070,14 @@
     "char_4006_melnte": {
       "atk_base": 882.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "玫拉",
       "id": "char_4006_melnte",
@@ -32359,6 +34199,14 @@
     "char_4009_irene": {
       "atk_base": 701.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "艾丽妮",
       "id": "char_4009_irene",
@@ -32581,6 +34429,14 @@
     "char_400_weedy": {
       "atk_base": 722.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "温蒂",
       "id": "char_400_weedy",
@@ -32730,6 +34586,14 @@
     "char_4010_etlchi": {
       "atk_base": 750.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "隐德来希",
       "id": "char_4010_etlchi",
@@ -32980,6 +34844,14 @@
     "char_4011_lessng": {
       "atk_base": 1129.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "止颂",
       "id": "char_4011_lessng",
@@ -33148,6 +35020,14 @@
     "char_4013_kjera": {
       "atk_base": 354.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "耶拉",
       "id": "char_4013_kjera",
@@ -33285,6 +35165,14 @@
     "char_4014_lunacu": {
       "atk_base": 1074.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "子月",
       "id": "char_4014_lunacu",
@@ -33378,6 +35266,14 @@
     "char_4015_spuria": {
       "atk_base": 707.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "空构",
       "id": "char_4015_spuria",
@@ -33490,6 +35386,14 @@
     "char_4016_kazema": {
       "atk_base": 772.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "风丸",
       "id": "char_4016_kazema",
@@ -33625,6 +35529,14 @@
     "char_4017_puzzle": {
       "atk_base": 606.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "谜图",
       "id": "char_4017_puzzle",
@@ -33770,6 +35682,14 @@
     "char_4019_ncdeer": {
       "atk_base": 478.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "九色鹿",
       "id": "char_4019_ncdeer",
@@ -33875,6 +35795,14 @@
     "char_401_elysm": {
       "atk_base": 533.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "极境",
       "id": "char_401_elysm",
@@ -34004,6 +35932,14 @@
     "char_4023_rfalcn": {
       "atk_base": 564.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "红隼",
       "id": "char_4023_rfalcn",
@@ -34124,6 +36060,14 @@
     "char_4025_aprot2": {
       "atk_base": 729.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "暮落",
       "id": "char_4025_aprot2",
@@ -34271,6 +36215,14 @@
     "char_4026_vulpis": {
       "atk_base": 622.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "忍冬",
       "id": "char_4026_vulpis",
@@ -34449,6 +36401,14 @@
     "char_4027_heyak": {
       "atk_base": 723.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "霍尔海雅",
       "id": "char_4027_heyak",
@@ -34677,6 +36637,14 @@
     "char_402_tuye": {
       "atk_base": 568.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "图耶",
       "id": "char_402_tuye",
@@ -34806,6 +36774,14 @@
     "char_4031_liesel": {
       "atk_base": 875.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "复奏",
       "id": "char_4031_liesel",
@@ -34935,6 +36911,14 @@
     "char_4032_provs": {
       "atk_base": 578.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "但书",
       "id": "char_4032_provs",
@@ -35060,6 +37044,14 @@
     "char_4036_forcer": {
       "atk_base": 653.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "见行者",
       "id": "char_4036_forcer",
@@ -35189,6 +37181,14 @@
     "char_4037_demetr": {
       "atk_base": 665.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "贝洛内",
       "id": "char_4037_demetr",
@@ -35392,6 +37392,14 @@
     "char_4039_horn": {
       "atk_base": 1006.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "号角",
       "id": "char_4039_horn",
@@ -35600,6 +37608,14 @@
     "char_4040_rockr": {
       "atk_base": 380.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "洛洛",
       "id": "char_4040_rockr",
@@ -35737,6 +37753,14 @@
     "char_4041_chnut": {
       "atk_base": 424.0,
       "atk_potential": 15.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        15.0,
+        15.0,
+        15.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "褐果",
       "id": "char_4041_chnut",
@@ -35858,6 +37882,14 @@
     "char_4042_lumen": {
       "atk_base": 585.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "流明",
       "id": "char_4042_lumen",
@@ -36042,6 +38074,14 @@
     "char_4043_erato": {
       "atk_base": 1027.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "埃拉托",
       "id": "char_4043_erato",
@@ -36167,6 +38207,14 @@
     "char_4045_heidi": {
       "atk_base": 360.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "海蒂",
       "id": "char_4045_heidi",
@@ -36307,6 +38355,14 @@
     "char_4046_ebnhlz": {
       "atk_base": 1550.0,
       "atk_potential": 52.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        52.0,
+        52.0,
+        52.0
+      ],
       "atk_trust_max": 150.0,
       "cn_name": "黑键",
       "id": "char_4046_ebnhlz",
@@ -36548,6 +38604,14 @@
     "char_4047_pianst": {
       "atk_base": 665.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "车尔尼",
       "id": "char_4047_pianst",
@@ -36677,6 +38741,14 @@
     "char_4048_doroth": {
       "atk_base": 661.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "多萝西",
       "id": "char_4048_doroth",
@@ -36914,6 +38986,14 @@
     "char_4051_akkord": {
       "atk_base": 740.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "协律",
       "id": "char_4051_akkord",
@@ -37035,6 +39115,14 @@
     "char_4052_surfer": {
       "atk_base": 600.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "寻澜",
       "id": "char_4052_surfer",
@@ -37164,6 +39252,14 @@
     "char_4054_malist": {
       "atk_base": 360.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "至简",
       "id": "char_4054_malist",
@@ -37293,6 +39389,14 @@
     "char_4055_bgsnow": {
       "atk_base": 946.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "鸿雪",
       "id": "char_4055_bgsnow",
@@ -37486,6 +39590,14 @@
     "char_4056_titi": {
       "atk_base": 598.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "缇缇",
       "id": "char_4056_titi",
@@ -37639,6 +39751,14 @@
     "char_4058_pepe": {
       "atk_base": 1360.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "佩佩",
       "id": "char_4058_pepe",
@@ -37857,6 +39977,14 @@
     "char_405_absin": {
       "atk_base": 703.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "苦艾",
       "id": "char_405_absin",
@@ -37986,6 +40114,14 @@
     "char_4062_totter": {
       "atk_base": 970.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "铅踝",
       "id": "char_4062_totter",
@@ -38146,6 +40282,14 @@
     "char_4063_quartz": {
       "atk_base": 1437.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "石英",
       "id": "char_4063_quartz",
@@ -38275,6 +40419,14 @@
     "char_4064_mlynar": {
       "atk_base": 385.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "玛恩纳",
       "id": "char_4064_mlynar",
@@ -38444,6 +40596,14 @@
     "char_4065_judge": {
       "atk_base": 916.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "斥罪",
       "id": "char_4065_judge",
@@ -38678,6 +40838,14 @@
     "char_4066_highmo": {
       "atk_base": 710.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "海沫",
       "id": "char_4066_highmo",
@@ -38819,6 +40987,14 @@
     "char_4067_lolxh": {
       "atk_base": 728.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "罗小黑",
       "id": "char_4067_lolxh",
@@ -38920,6 +41096,14 @@
     "char_4071_peper": {
       "atk_base": 489.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "明椒",
       "id": "char_4071_peper",
@@ -39049,6 +41233,14 @@
     "char_4072_ironmn": {
       "atk_base": 633.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "白铁",
       "id": "char_4072_ironmn",
@@ -39224,6 +41416,14 @@
     "char_4077_palico": {
       "atk_base": 306.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "泰拉大陆调查团",
       "id": "char_4077_palico",
@@ -39328,6 +41528,14 @@
     "char_4078_bdhkgt": {
       "atk_base": 920.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "截云",
       "id": "char_4078_bdhkgt",
@@ -39457,6 +41665,14 @@
     "char_4079_haini": {
       "atk_base": 505.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "海霓",
       "id": "char_4079_haini",
@@ -39578,6 +41794,14 @@
     "char_4080_lin": {
       "atk_base": 919.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "林",
       "id": "char_4080_lin",
@@ -39798,6 +42022,14 @@
     "char_4081_warmy": {
       "atk_base": 646.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "温米",
       "id": "char_4081_warmy",
@@ -39919,6 +42151,14 @@
     "char_4082_qiubai": {
       "atk_base": 768.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "仇白",
       "id": "char_4082_qiubai",
@@ -40148,6 +42388,14 @@
     "char_4083_chimes": {
       "atk_base": 1508.0,
       "atk_potential": 40.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        40.0,
+        40.0,
+        40.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "铎铃",
       "id": "char_4083_chimes",
@@ -40277,6 +42525,14 @@
     "char_4087_ines": {
       "atk_base": 639.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "伊内丝",
       "id": "char_4087_ines",
@@ -40429,6 +42685,14 @@
     "char_4088_hodrer": {
       "atk_base": 1656.0,
       "atk_potential": 45.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        45.0,
+        45.0,
+        45.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "赫德雷",
       "id": "char_4088_hodrer",
@@ -40599,6 +42863,14 @@
     "char_4091_ulika": {
       "atk_base": 122.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 20.0,
       "cn_name": "U-Official",
       "id": "char_4091_ulika",
@@ -40673,6 +42945,14 @@
     "char_4093_frston": {
       "atk_base": 198.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "Friston-3",
       "id": "char_4093_frston",
@@ -40747,6 +43027,14 @@
     "char_4098_vvana": {
       "atk_base": 746.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "薇薇安娜",
       "id": "char_4098_vvana",
@@ -40965,6 +43253,14 @@
     "char_4100_caper": {
       "atk_base": 665.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "跃跃",
       "id": "char_4100_caper",
@@ -41094,6 +43390,14 @@
     "char_4102_threye": {
       "atk_base": 477.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "凛视",
       "id": "char_4102_threye",
@@ -41229,6 +43533,14 @@
     "char_4104_coldst": {
       "atk_base": 1063.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 105.0,
       "cn_name": "冰酿",
       "id": "char_4104_coldst",
@@ -41358,6 +43670,14 @@
     "char_4105_almond": {
       "atk_base": 695.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "杏仁",
       "id": "char_4105_almond",
@@ -41479,6 +43799,14 @@
     "char_4106_bryota": {
       "atk_base": 685.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "苍苔",
       "id": "char_4106_bryota",
@@ -41624,6 +43952,14 @@
     "char_4107_vrdant": {
       "atk_base": 732.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "维荻",
       "id": "char_4107_vrdant",
@@ -41749,6 +44085,14 @@
     "char_4109_baslin": {
       "atk_base": 523.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "深律",
       "id": "char_4109_baslin",
@@ -41846,6 +44190,14 @@
     "char_4110_delphn": {
       "atk_base": 1370.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 130.0,
       "cn_name": "戴菲恩",
       "id": "char_4110_delphn",
@@ -41987,6 +44339,14 @@
     "char_4114_harold": {
       "atk_base": 420.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "哈洛德",
       "id": "char_4114_harold",
@@ -42108,6 +44468,14 @@
     "char_4116_blkkgt": {
       "atk_base": 685.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "锏",
       "id": "char_4116_blkkgt",
@@ -42322,6 +44690,14 @@
     "char_4117_ray": {
       "atk_base": 1192.0,
       "atk_potential": 37.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        37.0,
+        37.0,
+        37.0
+      ],
       "atk_trust_max": 120.0,
       "cn_name": "莱伊",
       "id": "char_4117_ray",
@@ -42490,6 +44866,14 @@
     "char_4119_wanqin": {
       "atk_base": 514.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "万顷",
       "id": "char_4119_wanqin",
@@ -42619,6 +45003,14 @@
     "char_411_tomimi": {
       "atk_base": 635.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "特米米",
       "id": "char_411_tomimi",
@@ -42764,6 +45156,14 @@
     "char_4121_zuole": {
       "atk_base": 820.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "左乐",
       "id": "char_4121_zuole",
@@ -42990,6 +45390,14 @@
     "char_4122_grabds": {
       "atk_base": 590.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "小满",
       "id": "char_4122_grabds",
@@ -43119,6 +45527,14 @@
     "char_4123_ela": {
       "atk_base": 668.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "艾拉",
       "id": "char_4123_ela",
@@ -43325,6 +45741,14 @@
     "char_4124_iana": {
       "atk_base": 758.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "双月",
       "id": "char_4124_iana",
@@ -43490,6 +45914,14 @@
     "char_4125_rdoc": {
       "atk_base": 657.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "医生",
       "id": "char_4125_rdoc",
@@ -43655,6 +46087,14 @@
     "char_4126_fuze": {
       "atk_base": 835.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "导火索",
       "id": "char_4126_fuze",
@@ -43780,6 +46220,14 @@
     "char_4130_luton": {
       "atk_base": 790.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "露托",
       "id": "char_4130_luton",
@@ -43901,6 +46349,14 @@
     "char_4131_odda": {
       "atk_base": 1260.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "奥达",
       "id": "char_4131_odda",
@@ -44030,6 +46486,14 @@
     "char_4132_ascln": {
       "atk_base": 954.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "阿斯卡纶",
       "id": "char_4132_ascln",
@@ -44219,6 +46683,14 @@
     "char_4133_logos": {
       "atk_base": 761.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "逻各斯",
       "id": "char_4133_logos",
@@ -44445,6 +46917,14 @@
     "char_4134_cetsyr": {
       "atk_base": 399.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "魔王",
       "id": "char_4134_cetsyr",
@@ -44584,6 +47064,14 @@
     "char_4136_phonor": {
       "atk_base": 235.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "PhonoR-0",
       "id": "char_4136_phonor",
@@ -44664,6 +47152,14 @@
     "char_4137_udflow": {
       "atk_base": 484.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "深巡",
       "id": "char_4137_udflow",
@@ -44809,6 +47305,14 @@
     "char_4138_narant": {
       "atk_base": 765.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "娜仁图亚",
       "id": "char_4138_narant",
@@ -45035,6 +47539,14 @@
     "char_4139_papyrs": {
       "atk_base": 500.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "莎草",
       "id": "char_4139_papyrs",
@@ -45180,6 +47692,14 @@
     "char_4140_lasher": {
       "atk_base": 485.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "衡沙",
       "id": "char_4140_lasher",
@@ -45297,6 +47817,14 @@
     "char_4141_marcil": {
       "atk_base": 1024.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 110.0,
       "cn_name": "玛露西尔",
       "id": "char_4141_marcil",
@@ -45445,6 +47973,14 @@
     "char_4142_laios": {
       "atk_base": 975.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "莱欧斯",
       "id": "char_4142_laios",
@@ -45548,6 +48084,14 @@
     "char_4143_sensi": {
       "atk_base": 510.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "森西",
       "id": "char_4143_sensi",
@@ -45645,6 +48189,14 @@
     "char_4144_chilc": {
       "atk_base": 560.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "齐尔查克",
       "id": "char_4144_chilc",
@@ -45766,6 +48318,14 @@
     "char_4145_ulpia": {
       "atk_base": 1649.0,
       "atk_potential": 45.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        45.0,
+        45.0,
+        45.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "乌尔比安",
       "id": "char_4145_ulpia",
@@ -45908,6 +48468,14 @@
     "char_4146_nymph": {
       "atk_base": 745.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "妮芙",
       "id": "char_4146_nymph",
@@ -46086,6 +48654,14 @@
     "char_4147_mitm": {
       "atk_base": 555.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "渡桥",
       "id": "char_4147_mitm",
@@ -46210,6 +48786,14 @@
     "char_4148_philae": {
       "atk_base": 643.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "菲莱",
       "id": "char_4148_philae",
@@ -46339,6 +48923,14 @@
     "char_4151_tinman": {
       "atk_base": 499.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "锡人",
       "id": "char_4151_tinman",
@@ -46475,6 +49067,14 @@
     "char_4155_talr": {
       "atk_base": 766.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 25.0,
       "cn_name": "裁度",
       "id": "char_4155_talr",
@@ -46596,6 +49196,14 @@
     "char_415_flint": {
       "atk_base": 620.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "燧石",
       "id": "char_415_flint",
@@ -46717,6 +49325,14 @@
     "char_4162_cathy": {
       "atk_base": 590.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "凯瑟琳",
       "id": "char_4162_cathy",
@@ -46925,6 +49541,14 @@
     "char_4163_rosesa": {
       "atk_base": 360.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "瑰盐",
       "id": "char_4163_rosesa",
@@ -47070,6 +49694,14 @@
     "char_4164_tecno": {
       "atk_base": 519.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "特克诺",
       "id": "char_4164_tecno",
@@ -47186,6 +49818,14 @@
     "char_4165_ctrail": {
       "atk_base": 727.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "云迹",
       "id": "char_4165_ctrail",
@@ -47263,6 +49903,14 @@
     "char_4166_varkis": {
       "atk_base": 810.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "摆渡人",
       "id": "char_4166_varkis",
@@ -47384,6 +50032,14 @@
     "char_416_zumama": {
       "atk_base": 1077.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "森蚺",
       "id": "char_416_zumama",
@@ -47612,6 +50268,14 @@
     "char_4171_wulfen": {
       "atk_base": 560.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "钼铅",
       "id": "char_4171_wulfen",
@@ -47717,6 +50381,14 @@
     "char_4172_xingzh": {
       "atk_base": 473.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "行箸",
       "id": "char_4172_xingzh",
@@ -47838,6 +50510,14 @@
     "char_4173_nowell": {
       "atk_base": 556.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "诺威尔",
       "id": "char_4173_nowell",
@@ -47959,6 +50639,14 @@
     "char_4177_brigid": {
       "atk_base": 715.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "水灯心",
       "id": "char_4177_brigid",
@@ -48092,6 +50780,14 @@
     "char_4178_alanna": {
       "atk_base": 610.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "阿兰娜",
       "id": "char_4178_alanna",
@@ -48282,6 +50978,14 @@
     "char_4179_monstr": {
       "atk_base": 558.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "Mon3tr",
       "id": "char_4179_monstr",
@@ -48469,6 +51173,14 @@
     "char_4182_oblvns": {
       "atk_base": 785.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "丰川祥子",
       "id": "char_4182_oblvns",
@@ -48642,6 +51354,14 @@
     "char_4183_mortis": {
       "atk_base": 792.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "若叶睦",
       "id": "char_4183_mortis",
@@ -48845,6 +51565,14 @@
     "char_4184_dolris": {
       "atk_base": 379.0,
       "atk_potential": 20.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        20.0,
+        20.0,
+        20.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "三角初华",
       "id": "char_4184_dolris",
@@ -49018,6 +51746,14 @@
     "char_4185_amoris": {
       "atk_base": 1230.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "祐天寺若麦",
       "id": "char_4185_amoris",
@@ -49195,6 +51931,14 @@
     "char_4186_tmoris": {
       "atk_base": 839.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "八幡海铃",
       "id": "char_4186_tmoris",
@@ -49341,6 +52085,14 @@
     "char_4187_graceb": {
       "atk_base": 900.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "聆音",
       "id": "char_4187_graceb",
@@ -49418,6 +52170,14 @@
     "char_4188_confes": {
       "atk_base": 192.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "CONFESS-47",
       "id": "char_4188_confes",
@@ -49498,6 +52258,14 @@
     "char_4191_tippi": {
       "atk_base": 785.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "蒂比",
       "id": "char_4191_tippi",
@@ -49575,6 +52343,14 @@
     "char_4193_lemuen": {
       "atk_base": 1301.0,
       "atk_potential": 46.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        46.0,
+        46.0,
+        46.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "蕾缪安",
       "id": "char_4193_lemuen",
@@ -49710,6 +52486,14 @@
     "char_4194_rmixer": {
       "atk_base": 564.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "信仰搅拌机",
       "id": "char_4194_rmixer",
@@ -49890,6 +52674,14 @@
     "char_4195_radian": {
       "atk_base": 486.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 20.0,
       "cn_name": "电弧",
       "id": "char_4195_radian",
@@ -50066,6 +52858,14 @@
     "char_4196_reckpr": {
       "atk_base": 577.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "录武官",
       "id": "char_4196_reckpr",
@@ -50219,6 +53019,14 @@
     "char_4198_christ": {
       "atk_base": 640.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "Miss.Christine",
       "id": "char_4198_christ",
@@ -50340,6 +53148,14 @@
     "char_4199_makiri": {
       "atk_base": 650.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "松桐",
       "id": "char_4199_makiri",
@@ -50435,6 +53251,14 @@
     "char_4202_haruka": {
       "atk_base": 535.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "遥",
       "id": "char_4202_haruka",
@@ -50585,6 +53409,14 @@
     "char_4203_kichi": {
       "atk_base": 792.0,
       "atk_potential": 31.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        31.0,
+        31.0,
+        31.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "吉星",
       "id": "char_4203_kichi",
@@ -50714,6 +53546,14 @@
     "char_4204_mantra": {
       "atk_base": 755.0,
       "atk_potential": 31.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        31.0,
+        31.0,
+        31.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "真言",
       "id": "char_4204_mantra",
@@ -50856,6 +53696,14 @@
     "char_4207_branch": {
       "atk_base": 865.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "折桠",
       "id": "char_4207_branch",
@@ -50977,6 +53825,14 @@
     "char_4208_wintim": {
       "atk_base": 537.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "冬时",
       "id": "char_4208_wintim",
@@ -51098,6 +53954,14 @@
     "char_420_flamtl": {
       "atk_base": 611.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "焰尾",
       "id": "char_420_flamtl",
@@ -51256,6 +54120,14 @@
     "char_4211_snhunt": {
       "atk_base": 1051.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "雪猎",
       "id": "char_4211_snhunt",
@@ -51385,6 +54257,14 @@
     "char_4212_nasti": {
       "atk_base": 614.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "娜斯提",
       "id": "char_4212_nasti",
@@ -51521,6 +54401,14 @@
     "char_4213_skybx": {
       "atk_base": 984.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "天空盒",
       "id": "char_4213_skybx",
@@ -51589,6 +54477,14 @@
     "char_4214_cairn": {
       "atk_base": 606.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "响石",
       "id": "char_4214_cairn",
@@ -51710,6 +54606,14 @@
     "char_4215_buddy": {
       "atk_base": 122.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 15.0,
       "cn_name": "罗德岛隐秘队",
       "id": "char_4215_buddy",
@@ -51842,6 +54746,14 @@
     "char_4217_makoto": {
       "atk_base": 825.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "结城理",
       "id": "char_4217_makoto",
@@ -52097,6 +55009,14 @@
     "char_4218_aigis": {
       "atk_base": 942.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "埃癸斯",
       "id": "char_4218_aigis",
@@ -52257,6 +55177,14 @@
     "char_4219_yukari": {
       "atk_base": 805.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "岳羽由加莉",
       "id": "char_4219_yukari",
@@ -52354,6 +55282,14 @@
     "char_421_crow": {
       "atk_base": 725.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "羽毛笔",
       "id": "char_421_crow",
@@ -52461,6 +55397,14 @@
     "char_4220_kormr": {
       "atk_base": 272.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "虎狼丸",
       "id": "char_4220_kormr",
@@ -52541,6 +55485,14 @@
     "char_4221_ju": {
       "atk_base": 1060.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "矩",
       "id": "char_4221_ju",
@@ -52665,6 +55617,14 @@
     "char_4222_taraxa": {
       "atk_base": 505.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "风絮",
       "id": "char_4222_taraxa",
@@ -52758,6 +55718,14 @@
     "char_4223_botany": {
       "atk_base": 501.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "伯塔尼",
       "id": "char_4223_botany",
@@ -52887,6 +55855,14 @@
     "char_4224_turdus": {
       "atk_base": 495.0,
       "atk_potential": 24.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        24.0,
+        24.0,
+        24.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "乌啾",
       "id": "char_4224_turdus",
@@ -53016,6 +55992,14 @@
     "char_4225_tanya": {
       "atk_base": 632.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "裂响",
       "id": "char_4225_tanya",
@@ -53145,6 +56129,14 @@
     "char_4226_veen": {
       "atk_base": 1510.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "维伊",
       "id": "char_4226_veen",
@@ -53277,6 +56269,14 @@
     "char_4227_gallus": {
       "atk_base": 296.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "GALLUS²",
       "id": "char_4227_gallus",
@@ -53357,6 +56357,14 @@
     "char_4228_closur": {
       "atk_base": 540.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "可露希尔",
       "id": "char_4228_closur",
@@ -53485,6 +56493,14 @@
     "char_4229_aphris": {
       "atk_base": 986.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 110.0,
       "cn_name": "谬因",
       "id": "char_4229_aphris",
@@ -53611,6 +56627,14 @@
     "char_422_aurora": {
       "atk_base": 956.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "极光",
       "id": "char_422_aurora",
@@ -53740,6 +56764,14 @@
     "char_4230_mcnist": {
       "atk_base": 573.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "机械师",
       "id": "char_4230_mcnist",
@@ -53861,6 +56893,14 @@
     "char_4234_pedro": {
       "atk_base": 810.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "佩德洛",
       "id": "char_4234_pedro",
@@ -53938,6 +56978,14 @@
     "char_4235_thumpy": {
       "atk_base": 701.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "珊比",
       "id": "char_4235_thumpy",
@@ -54131,6 +57179,14 @@
     "char_4236_tmslot": {
       "atk_base": 385.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "时隙",
       "id": "char_4236_tmslot",
@@ -54268,6 +57324,14 @@
     "char_4237_jcinta": {
       "atk_base": 502.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "嘉辛塔",
       "id": "char_4237_jcinta",
@@ -54389,6 +57453,14 @@
     "char_423_blemsh": {
       "atk_base": 581.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "瑕光",
       "id": "char_423_blemsh",
@@ -54560,6 +57632,14 @@
     "char_426_billro": {
       "atk_base": 926.0,
       "atk_potential": 34.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        34.0,
+        34.0,
+        34.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "卡涅利安",
       "id": "char_426_billro",
@@ -54737,6 +57817,14 @@
     "char_427_vigil": {
       "atk_base": 542.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "伺夜",
       "id": "char_427_vigil",
@@ -54956,6 +58044,14 @@
     "char_430_fartth": {
       "atk_base": 1296.0,
       "atk_potential": 40.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        40.0,
+        40.0,
+        40.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "远牙",
       "id": "char_430_fartth",
@@ -55155,6 +58251,14 @@
     "char_431_ashlok": {
       "atk_base": 915.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "灰毫",
       "id": "char_431_ashlok",
@@ -55292,6 +58396,14 @@
     "char_433_windft": {
       "atk_base": 605.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "掠风",
       "id": "char_433_windft",
@@ -55483,6 +58595,14 @@
     "char_436_whispr": {
       "atk_base": 532.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "絮雨",
       "id": "char_436_whispr",
@@ -55604,6 +58724,14 @@
     "char_437_mizuki": {
       "atk_base": 975.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 110.0,
       "cn_name": "水月",
       "id": "char_437_mizuki",
@@ -55843,6 +58971,14 @@
     "char_440_pinecn": {
       "atk_base": 722.0,
       "atk_potential": 28.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        28.0,
+        28.0,
+        28.0
+      ],
       "atk_trust_max": 55.0,
       "cn_name": "松果",
       "id": "char_440_pinecn",
@@ -55972,6 +59108,14 @@
     "char_445_wscoot": {
       "atk_base": 320.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "骋风",
       "id": "char_445_wscoot",
@@ -56093,6 +59237,14 @@
     "char_446_aroma": {
       "atk_base": 840.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 80.0,
       "cn_name": "阿罗玛",
       "id": "char_446_aroma",
@@ -56222,6 +59374,14 @@
     "char_449_glider": {
       "atk_base": 410.0,
       "atk_potential": 19.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        19.0,
+        19.0,
+        19.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "蜜莓",
       "id": "char_449_glider",
@@ -56343,6 +59503,14 @@
     "char_450_necras": {
       "atk_base": 678.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "死芒",
       "id": "char_450_necras",
@@ -56523,6 +59691,14 @@
     "char_451_robin": {
       "atk_base": 553.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "罗宾",
       "id": "char_451_robin",
@@ -56628,6 +59804,14 @@
     "char_452_bstalk": {
       "atk_base": 455.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "豆苗",
       "id": "char_452_bstalk",
@@ -56744,6 +59928,14 @@
     "char_455_nothin": {
       "atk_base": 765.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "乌有",
       "id": "char_455_nothin",
@@ -56881,6 +60073,14 @@
     "char_456_ash": {
       "atk_base": 624.0,
       "atk_potential": 27.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        27.0,
+        27.0,
+        27.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "灰烬",
       "id": "char_456_ash",
@@ -57053,6 +60253,14 @@
     "char_457_blitz": {
       "atk_base": 490.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 45.0,
       "cn_name": "闪击",
       "id": "char_457_blitz",
@@ -57186,6 +60394,14 @@
     "char_458_rfrost": {
       "atk_base": 569.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "霜华",
       "id": "char_458_rfrost",
@@ -57321,6 +60537,14 @@
     "char_459_tachak": {
       "atk_base": 661.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "战车",
       "id": "char_459_tachak",
@@ -57467,6 +60691,14 @@
     "char_464_cement": {
       "atk_base": 1042.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "洋灰",
       "id": "char_464_cement",
@@ -57604,6 +60836,14 @@
     "char_466_qanik": {
       "atk_base": 695.0,
       "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "雪绒",
       "id": "char_466_qanik",
@@ -57725,6 +60965,14 @@
     "char_469_indigo": {
       "atk_base": 1216.0,
       "atk_potential": 36.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        36.0,
+        36.0,
+        36.0
+      ],
       "atk_trust_max": 100.0,
       "cn_name": "深靛",
       "id": "char_469_indigo",
@@ -57854,6 +61102,14 @@
     "char_472_pasngr": {
       "atk_base": 774.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 85.0,
       "cn_name": "异客",
       "id": "char_472_pasngr",
@@ -58107,6 +61363,14 @@
     "char_473_mberry": {
       "atk_base": 423.0,
       "atk_potential": 19.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        19.0,
+        19.0,
+        19.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "桑葚",
       "id": "char_473_mberry",
@@ -58228,6 +61492,14 @@
     "char_474_glady": {
       "atk_base": 851.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "歌蕾蒂娅",
       "id": "char_474_glady",
@@ -58400,6 +61672,14 @@
     "char_475_akafyu": {
       "atk_base": 758.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "赤冬",
       "id": "char_475_akafyu",
@@ -58514,6 +61794,14 @@
     "char_476_blkngt": {
       "atk_base": 502.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "夜半",
       "id": "char_476_blkngt",
@@ -58598,6 +61886,14 @@
     "char_478_kirara": {
       "atk_base": 858.0,
       "atk_potential": 30.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        30.0,
+        30.0
+      ],
       "atk_trust_max": 60.0,
       "cn_name": "绮良",
       "id": "char_478_kirara",
@@ -58727,6 +62023,14 @@
     "char_479_sleach": {
       "atk_base": 586.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "琴柳",
       "id": "char_479_sleach",
@@ -58904,6 +62208,14 @@
     "char_484_robrta": {
       "atk_base": 570.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 35.0,
       "cn_name": "罗比菈塔",
       "id": "char_484_robrta",
@@ -59071,6 +62383,14 @@
     "char_485_pallas": {
       "atk_base": 737.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "帕拉斯",
       "id": "char_485_pallas",
@@ -59241,6 +62561,14 @@
     "char_486_takila": {
       "atk_base": 352.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "龙舌兰",
       "id": "char_486_takila",
@@ -59362,6 +62690,14 @@
     "char_487_bobb": {
       "atk_base": 486.0,
       "atk_potential": 21.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        21.0,
+        21.0,
+        21.0
+      ],
       "atk_trust_max": 40.0,
       "cn_name": "波卜",
       "id": "char_487_bobb",
@@ -59491,6 +62827,14 @@
     "char_488_buildr": {
       "atk_base": 475.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 20.0,
       "cn_name": "青枳",
       "id": "char_488_buildr",
@@ -59620,6 +62964,14 @@
     "char_489_serum": {
       "atk_base": 850.0,
       "atk_potential": 33.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        33.0,
+        33.0,
+        33.0
+      ],
       "atk_trust_max": 90.0,
       "cn_name": "蚀清",
       "id": "char_489_serum",
@@ -59749,6 +63101,14 @@
     "char_491_humus": {
       "atk_base": 646.0,
       "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "休谟斯",
       "id": "char_491_humus",
@@ -59878,6 +63238,14 @@
     "char_492_quercu": {
       "atk_base": 463.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "夏栎",
       "id": "char_492_quercu",
@@ -60007,6 +63375,14 @@
     "char_493_firwhl": {
       "atk_base": 932.0,
       "atk_potential": 32.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        32.0,
+        32.0,
+        32.0
+      ],
       "atk_trust_max": 50.0,
       "cn_name": "火哨",
       "id": "char_493_firwhl",
@@ -60136,6 +63512,14 @@
     "char_494_vendla": {
       "atk_base": 580.0,
       "atk_potential": 22.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        22.0,
+        22.0,
+        22.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "刺玫",
       "id": "char_494_vendla",
@@ -60257,6 +63641,14 @@
     "char_496_wildmn": {
       "atk_base": 628.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 70.0,
       "cn_name": "野鬃",
       "id": "char_496_wildmn",
@@ -60354,6 +63746,14 @@
     "char_497_ctable": {
       "atk_base": 590.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "晓歌",
       "id": "char_497_ctable",
@@ -60483,6 +63883,14 @@
     "char_498_inside": {
       "atk_base": 597.0,
       "atk_potential": 23.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        23.0,
+        23.0
+      ],
       "atk_trust_max": 75.0,
       "cn_name": "隐现",
       "id": "char_498_inside",
@@ -60583,6 +63991,14 @@
     "char_499_kaitou": {
       "atk_base": 643.0,
       "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
       "atk_trust_max": 65.0,
       "cn_name": "折光",
       "id": "char_499_kaitou",
@@ -60704,6 +64120,14 @@
     "char_500_noirc": {
       "atk_base": 240.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 0.0,
       "cn_name": "黑角",
       "id": "char_500_noirc",
@@ -60738,6 +64162,14 @@
     "char_501_durin": {
       "atk_base": 370.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "杜林",
       "id": "char_501_durin",
@@ -60771,6 +64203,14 @@
     "char_502_nblade": {
       "atk_base": 262.0,
       "atk_potential": 18.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        9.0,
+        18.0,
+        18.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "夜刀",
       "id": "char_502_nblade",
@@ -60804,6 +64244,14 @@
     "char_503_rang": {
       "atk_base": 299.0,
       "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
       "atk_trust_max": 30.0,
       "cn_name": "巡林者",
       "id": "char_503_rang",

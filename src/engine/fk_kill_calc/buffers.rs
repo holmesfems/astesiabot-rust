@@ -104,7 +104,15 @@ pub struct RawInspireSource {
     pub operator: String,
     pub name: String,
     pub skills: Vec<RawInspireSkill>,
-    pub talent_potential_label: String,
+    /// 素質凸(自己%パーツの`pct_potential_bonus`)が解放される0始まりpotential_rank
+    /// (P8。「潜在セレクト」導入で攻撃凸/素質凸の個別チェックボックスを1つの潜在セレクトに
+    /// 統合したため、その境目をデータで持つ。`None`はこのソースが素質凸ボーナスの概念を
+    /// 持たないことを意味する。値は実データ(character_table.jsonのtalents[].candidates[])の
+    /// `requiredPotentialRank`から人手で写す。self_partsを機械的にtalentIndexへ紐付けて
+    /// 自動導出する仕組みは無い(手動データのため。ドリフト検知は
+    /// `every_inspire_source_with_potential_bonus_has_talent_potential_rank`が
+    /// 「pct_potential_bonusを持つならこの値も必須」という整合性だけを保証する)。
+    pub talent_potential_rank: Option<u8>,
     pub self_parts: Vec<RawInspireSelfPart>,
 }
 
@@ -521,6 +529,20 @@ mod tests {
         for i in raw_individual_sourced() {
             let source = i.source.as_ref().expect("raw_individual_sourced()はsourceを持つはず");
             assert_source_has_exactly_one_primary(&i.id, source);
+        }
+    }
+
+    /// P8: `pct_potential_bonus`(素質凸で加算される値)を1件でも持つ鼓舞ソースは
+    /// `talent_potential_rank`(潜在セレクトが素質凸ボーナスを適用し始める境目)を
+    /// 必ず持つこと。無いと素質凸ボーナスが常時未適用になってしまう(手動データの
+    /// 記入漏れ検知)。
+    #[test]
+    fn every_inspire_source_with_potential_bonus_has_talent_potential_rank() {
+        for s in raw_inspire_sources() {
+            let has_bonus = s.self_parts.iter().any(|p| p.pct_potential_bonus != 0.0);
+            if has_bonus {
+                assert!(s.talent_potential_rank.is_some(), "buffers.yaml: inspire '{}'はpct_potential_bonusを持つがtalent_potential_rankが未設定", s.id);
+            }
         }
     }
 

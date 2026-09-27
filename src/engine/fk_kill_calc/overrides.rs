@@ -53,16 +53,23 @@
 //!         スナップショットしない＝モジュールを変えれば即座に反映される)。モジュール未装備/
 //!         条件を満たさない時はUIがチェックボックスの代わりにヒントを出す。
 //!         例: ブレイズS3「待機ボーナス」はモジュールX(`uniequip_002_huang`)Lv1=0/Lv2=0.04/Lv3=0.06
-//!       - **乗算系**(`mul_multiplier`。P2 follow-up 2回目で追加): `base`(モジュール未装備/
-//!         条件を満たさない時の倍率。E2最大潜在の素質値をそのまま使う想定) +
-//!         `module`(uniEquipId、省略可) + `by_module_level`(該当モジュールをLv1〜3で装備時の
-//!         倍率。要素数3必須。素質強化が無いLvは`base`と同じ値を入れる)。行の`multiplier`
-//!         (スキル倍率)に**乗算**する(置き換えでも加算でもない)。モジュール条件を満たさない/
-//!         `module`省略時は常に`base`を使う(＝この系統は「常に適用可能」なのでUIは常時
-//!         チェックボックスを出し、ヒントには切り替えない)。ONの間だけ有効
-//!         (`engine::resolveSpecialMultiplierFactor`が都度計算)。
-//!         例: ファイヤーウォッチS2「遠距離特効」はbase=1.45(素質「暗殺者」E2最大潜在)、
-//!         モジュールY(`uniequip_002_milu`)Lv1=1.45/Lv2=1.5/Lv3=1.55
+//!       - **乗算系**(`mul_multiplier`。P2 follow-up 2回目で追加。P8 follow-upで固定値
+//!         (`base`+`module`+`by_module_level`)から素質値テーブル参照へ置き換えた):
+//!         `talent`(`RawOperatorCombat.talents`のインデックス。0始まり) + `key`
+//!         (そのtalentのblackboardキー名。例: "atk_scale")を指定する。値の解決は
+//!         `conditional_source::build_talent_source`(P4の条件付きバフ`source.talent`と
+//!         全く同じビルダーを再利用。昇進×潜在 + モジュールLv×潜在の値テーブルを機械抽出する)
+//!         に委ね、`Special.mul_multiplier`に`dto::ConditionalTalentSource`として持たせる。
+//!         行の`multiplier`(スキル倍率)に**乗算**する係数は、固定値ではなく**行自身の
+//!         `elite`/`potential`/実効モジュール(`effectiveModuleId`)**でこのテーブルを引いて
+//!         都度決まる(`engine::resolveSpecialMultiplierFactor`)。値が0(=その昇進/潜在では
+//!         素質が未解放。例: E0)なら乗算せず×1として扱い、UIはチェックボックスの代わりに
+//!         「特殊強化「<label>」は素質が昇進<N>で解放」ヒントを出す(`specialUiState`/
+//!         `specialMulCanApply`が判定。`requires_module`のヒントと同じ位置付け)。
+//!         例: ファイヤーウォッチS2「遠距離特効」は`talent: 0, key: "atk_scale"`
+//!         (素質「暗殺者」)。E1=1.2(潜在1〜4)/1.25(潜在5〜6)、E2=1.4/1.45、
+//!         モジュールY(`uniequip_002_milu`)Lv1=E2基礎値のまま(素質強化が付かない)/
+//!         Lv2=1.45,1.5/Lv3=1.5,1.55(潜在1〜4/5〜6)。E0は素質自体が未解放(値0→factor 1)。
 //!   - `note`: 補足コメント(フロント表示用)
 //!
 //! ここに載せる値は機械データの自動判定と食い違う実測値であり、オーナーの参照
@@ -73,6 +80,11 @@
 //! `dmg_mult`/`hits`はFW/Weedyの実データ精査の結果どちらも不要と判明したため
 //! `OverrideSpecial`から削除した。将来また置き換え系が要る特殊強化が出てきたら
 //! 素直に生やせばよい。)
+//!
+//! (P8 follow-upのメモ: `mul_multiplier`は当初`base`+`module`+`by_module_level`の
+//! 固定値だったが、FWの「遠距離特効」が実は素質「暗殺者」の値そのもの(行の昇進/潜在で
+//! 変わる)だったため、固定値では行の潜在設定を無視してしまう不具合があった。
+//! `{ talent, key }`(素質値テーブル参照)へ置き換えて解消した。)
 
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -80,13 +92,15 @@ use std::sync::OnceLock;
 
 use super::dto::DamageType;
 
-/// 特殊強化の乗算系(P2 follow-up。`mul_multiplier`)。フィールドの意味は
-/// ファイル冒頭コメント参照。
+/// 特殊強化の乗算系(P2 follow-up。`mul_multiplier`)。P8 follow-upで固定値
+/// (`base`/`module`/`by_module_level`)から素質値テーブル参照へ置き換えた。
+/// フィールドの意味はファイル冒頭コメント参照。
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 pub struct OverrideMulMultiplier {
-    pub base: f64,
-    pub module: Option<String>,
-    pub by_module_level: Option<[f64; 3]>,
+    /// `RawOperatorCombat.talents`のインデックス(0始まり)。
+    pub talent: usize,
+    /// そのtalentのblackboardキー名(例: "atk_scale")。
+    pub key: String,
 }
 
 /// 「特殊強化」トグル1件分(P2)。`label`以外は全て省略可能。
@@ -99,7 +113,7 @@ pub struct OverrideSpecial {
     pub requires_module: Option<String>,
     /// 加算系の値(モジュールLv1〜3ごとのセルフ%への加算値。要素数3必須)。
     pub add_self_atk_pct_by_module_level: Option<[f64; 3]>,
-    /// 乗算系(P2 follow-up 2回目で追加)。
+    /// 乗算系(P2 follow-up 2回目で追加。P8 follow-upで素質値テーブル参照へ置き換え)。
     pub mul_multiplier: Option<OverrideMulMultiplier>,
 }
 

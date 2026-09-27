@@ -18,14 +18,14 @@ pub use dto::Catalog;
 pub use overrides::{OverrideSpecial, OverrideVariant, Overrides, OverridesMap};
 
 use crate::engine::external_source::fk_data::{FkSheetData, FkSheetRow};
-use crate::engine::external_source::operator_combat::OperatorCombat;
+use crate::engine::external_source::operator_combat::{OperatorCombat, RawOperatorCombat};
 use crate::engine::external_source::operator_data::OperatorData;
 use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::fk_data_search::search::skill_id_by_num;
 use buffers::RawInspireSource;
 use dto::{
     CatalogModule, CatalogOperator, DamageType, FkEntry, InspireModuleOverride, InspireSelfPart, InspireSkillRatio, InspireSource,
-    MulMultiplier, MultiplierCandidate, PhaseAtk, Special, Valued,
+    MultiplierCandidate, PhaseAtk, Special, Valued,
 };
 use indexmap::IndexMap;
 use std::collections::HashMap;
@@ -150,6 +150,17 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                         );
                         let (self_atk_pct, self_atk_pct_by_level, self_atk_pct_fixed) =
                             resolve_variant_self_atk_pct(variant, &default_self_atk_pct_by_level, default_self_atk_pct, num_levels);
+                        // P8 follow-up: `mul_multiplier`(素質値テーブル参照)が実データに解決
+                        // できない(talent_index範囲外)場合は、fk_dataのskipped/inspireのskippedと
+                        // 同じ方針で`skipped`に記録した上でこの特殊強化を静かに落とす(ドリフト自体は
+                        // `cargo test`の`validate_special_mul_multiplier`が検知する)。
+                        let special = variant.special.as_ref().and_then(|s| match to_special_dto(s, combat_op) {
+                            Some(dto) => Some(dto),
+                            None => {
+                                skipped.push(format!("special:{op_id}/{}", row.skill_num));
+                                None
+                            }
+                        });
                         fk_entries.push(build_entry(
                             row,
                             skill_label.clone(),
@@ -164,7 +175,7 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                             Valued::from_override(variant.hits, default_hits),
                             Valued::from_override(variant.damage_type, default_damage_type),
                             tags_for_variant,
-                            variant.special.as_ref().map(to_special_dto),
+                            special,
                             variant.note.clone(),
                         ));
                     }
@@ -197,6 +208,7 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
             tags: operator_tags,
             atk_base: combat_op.atk_base,
             atk_potential: combat_op.atk_potential,
+            atk_potential_by_rank: combat_op.atk_potential_by_rank,
             modules: to_catalog_modules(&combat_op.modules),
             fk_entries,
             phases: to_phase_atk_dtos(&combat_op.phases),
@@ -241,9 +253,10 @@ fn build_inspire_sources(combat: &OperatorCombat, ops: &OperatorData, skills: &S
             tags,
             atk_base: op.atk_base,
             atk_potential: op.atk_potential,
+            atk_potential_by_rank: op.atk_potential_by_rank,
             modules: to_catalog_modules(&op.modules),
             skills: skill_ratios,
-            talent_potential_label: raw.talent_potential_label.clone(),
+            talent_potential_rank: raw.talent_potential_rank,
             self_parts: raw.self_parts.iter().map(to_inspire_self_part_dto).collect(),
             phases: to_phase_atk_dtos(&op.phases),
             atk_trust_max: op.atk_trust_max,
@@ -354,19 +367,21 @@ pub fn validate_inspire_sources(sources: &[RawInspireSource], combat: &OperatorC
     bad
 }
 
-/// `overrides.yaml`の`special`(手動データ)をそのままDTO(`dto::Special`)へ変換する。
-fn to_special_dto(special: &OverrideSpecial) -> Special {
-    Special {
+/// `overrides.yaml`の`special`(手動データ)をDTO(`dto::Special`)へ変換する。
+/// `mul_multiplier`(P8 follow-upで素質値テーブル参照になった)が実データ(`op.talents`)に
+/// 解決できない(talent_index範囲外)場合は`None`を返し、呼び出し側が`skipped`に記録する。
+fn to_special_dto(special: &OverrideSpecial, op: &RawOperatorCombat) -> Option<Special> {
+    let mul_multiplier = match &special.mul_multiplier {
+        Some(mm) => Some(conditional_source::build_talent_source(op, mm.talent, &mm.key)?),
+        None => None,
+    };
+    Some(Special {
         label: special.label.clone(),
         description: special.description.clone(),
         requires_module: special.requires_module.clone(),
         add_self_atk_pct_by_module_level: special.add_self_atk_pct_by_module_level,
-        mul_multiplier: special.mul_multiplier.as_ref().map(|m| MulMultiplier {
-            base: m.base,
-            module: m.module.clone(),
-            by_module_level: m.by_module_level,
-        }),
-    }
+        mul_multiplier,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -577,27 +592,53 @@ pub fn validate_overrides(overrides: &Overrides, fk: &FkSheetData, combat: &Oper
 /// ドリフト検知用(`cargo test`で実行する。P2 follow-upで追加)。
 pub fn validate_special_requires_module(overrides: &Overrides, combat: &OperatorCombat) -> Vec<String> {
     let mut bad = Vec::new();
-    let check_module_id = |op_id: &str, skill_num: &str, module_id: &str, field: &str, bad: &mut Vec<String>| {
-        let Some(op) = combat.operators.get(op_id) else {
-            bad.push(format!("{op_id}/{skill_num} (operator idがoperator_combatに無い)"));
-            return;
-        };
-        if !op.modules.iter().any(|m| m.eq_id == module_id) {
-            bad.push(format!("{op_id}/{skill_num} ({field}'{module_id}'が'{}'のmodulesに無い)", op.name));
-        }
-    };
-
     for (op_id, skill_num) in overrides.all_keys() {
         let Some(variants) = overrides.variants_for(op_id, skill_num) else { continue };
         for variant in variants {
             let Some(special) = &variant.special else { continue };
-            if let Some(module_id) = &special.requires_module {
-                check_module_id(op_id, skill_num, module_id, "special.requires_module", &mut bad);
+            let Some(module_id) = &special.requires_module else { continue };
+            let Some(op) = combat.operators.get(op_id) else {
+                bad.push(format!("{op_id}/{skill_num} (operator idがoperator_combatに無い)"));
+                continue;
+            };
+            if !op.modules.iter().any(|m| m.eq_id == *module_id) {
+                bad.push(format!("{op_id}/{skill_num} (special.requires_module'{module_id}'が'{}'のmodulesに無い)", op.name));
             }
-            if let Some(mul) = &special.mul_multiplier {
-                if let Some(module_id) = &mul.module {
-                    check_module_id(op_id, skill_num, module_id, "special.mul_multiplier.module", &mut bad);
+        }
+    }
+    bad
+}
+
+/// overrides.yamlの`special.mul_multiplier`(乗算系。P8 follow-upで固定値から素質値
+/// テーブル参照`{ talent, key }`へ置き換えた)が、実データ(`operator_combat`のtalents)に
+/// 解決できるかを検証する。`talent_index`が範囲外な参照に加え、「最大成長(E2・潜在6)でも
+/// 値が0以下」(=`key`のスペルミス等で存在しないキーを指している。存在しないキーは
+/// `resolve_talent_base`が0にフォールバックしてしまい、`build_talent_source`自体は
+/// 成功[Some]を返すため、これが無いと静かに見逃す)も不一致として検出する。
+/// 存在しない参照の一覧を返す(空ならOK)。ゲームデータ更新でtalent構成が変わった際の
+/// ドリフト検知用(`cargo test`で実行する。P8 follow-upで追加)。
+pub fn validate_special_mul_multiplier(overrides: &Overrides, combat: &OperatorCombat) -> Vec<String> {
+    let mut bad = Vec::new();
+    for (op_id, skill_num) in overrides.all_keys() {
+        let Some(variants) = overrides.variants_for(op_id, skill_num) else { continue };
+        for variant in variants {
+            let Some(special) = &variant.special else { continue };
+            let Some(mm) = &special.mul_multiplier else { continue };
+            let Some(op) = combat.operators.get(op_id) else {
+                bad.push(format!("{op_id}/{skill_num} (operator idがoperator_combatに無い)"));
+                continue;
+            };
+            match conditional_source::build_talent_source(op, mm.talent, &mm.key) {
+                Some(table) => {
+                    let max_growth = table.values_by_elite_and_potential[2][5];
+                    if max_growth <= 0.0 {
+                        bad.push(format!(
+                            "{op_id}/{skill_num} (special.mul_multiplier.talent[{}]/key'{}'が最大成長[E2・潜在6]でも値0以下)",
+                            mm.talent, mm.key
+                        ));
+                    }
                 }
+                None => bad.push(format!("{op_id}/{skill_num} (special.mul_multiplier.talent[{}]が'{}'のtalentsに無い)", mm.talent, op_id)),
             }
         }
     }
@@ -705,6 +746,17 @@ mod tests {
         assert!(bad.is_empty(), "overrides.yamlのspecial.requires_moduleが実データと不一致:\n{}", bad.join("\n"));
     }
 
+    /// overrides.yamlの`special.mul_multiplier`(P8 follow-upで素質値テーブル参照
+    /// `{ talent, key }`へ置き換え)が、実データ(operator_combatのtalents)に解決でき、
+    /// 最大成長で値0以下(=キー名のスペルミス等)でないこと。ゲームデータ更新でtalent構成が
+    /// 変わった際のドリフト検知用。
+    #[test]
+    fn every_special_mul_multiplier_points_to_an_existing_talent_and_key() {
+        let combat: OperatorCombat = load_seed(operator_combat::SEED_PATH);
+        let bad = validate_special_mul_multiplier(Overrides::global(), &combat);
+        assert!(bad.is_empty(), "overrides.yamlのspecial.mul_multiplierが実データと不一致:\n{}", bad.join("\n"));
+    }
+
     /// ブレイズ(char_017_huang) S3: self_atk_pctは特殊強化の有無に関わらず常に0.712
     /// (Manual。バグにより理論値0.8の8/9しか反映されない実測値)で、特殊強化
     /// 「待機ボーナス」はモジュールX(uniequip_002_huang)Lv2で+4%/Lv3で+6%を「加算」する
@@ -725,19 +777,42 @@ mod tests {
         assert!(special.mul_multiplier.is_none());
     }
 
-    /// ファイヤーウォッチ(char_158_milu) S2「遠距離特効」: 乗算系(mul_multiplier)で、
-    /// モジュールY(uniequip_002_milu)未装備時はbase=1.45、Lv1=1.45/Lv2=1.5/Lv3=1.55
-    /// (P2 follow-up 2回目で追加)。
+    /// ファイヤーウォッチ(char_158_milu) S2「遠距離特効」: 乗算系(mul_multiplier)。
+    /// P8 follow-upで固定値から素質「暗殺者」(talent[0].atk_scale)の値テーブル参照へ
+    /// 置き換えた。E1=1.2(潜在1〜4)/1.25(潜在5〜6)、E2=1.4/1.45、モジュールY
+    /// (uniequip_002_milu)Lv1=E2基礎値のまま(素質強化が付かない)/Lv2=1.45,1.5/Lv3=1.5,1.55。
+    /// E0は素質自体が未解放なので値0(オーナー確認済みの実データ値。2026-09時点)。
     #[test]
-    fn fw_s2_special_uses_mul_multiplier_with_module_y_levels() {
+    fn fw_s2_special_uses_mul_multiplier_talent_table() {
         let result = build_from_seeds();
         let fw = result.catalog.operators.iter().find(|op| op.name == "ファイヤーウォッチ").expect("ファイヤーウォッチがカタログに存在すること");
         let s2 = fw.fk_entries.iter().find(|e| e.skill_num == "2").expect("ファイヤーウォッチのS2が存在すること");
         let special = s2.special.as_ref().expect("ファイヤーウォッチS2に特殊強化(遠距離特効)があるはず");
-        let mul = special.mul_multiplier.as_ref().expect("mul_multiplierがあるはず");
-        assert_eq!(mul.base, 1.45);
-        assert_eq!(mul.module.as_deref(), Some("uniequip_002_milu"));
-        assert_eq!(mul.by_module_level, Some([1.45, 1.5, 1.55]));
+        let table = special.mul_multiplier.as_ref().expect("mul_multiplierがあるはず");
+
+        let approx_eq = |a: f64, b: f64| (a - b).abs() < 1e-9;
+        // E0: 素質未解放なので全潜在0。
+        assert!(table.values_by_elite_and_potential[0].iter().all(|v| approx_eq(*v, 0.0)), "E0={:?}", table.values_by_elite_and_potential[0]);
+        // E1: 潜在1〜4=1.2、潜在5〜6=1.25。
+        assert!(approx_eq(table.values_by_elite_and_potential[1][0], 1.2), "E1潜在1={}", table.values_by_elite_and_potential[1][0]);
+        assert!(approx_eq(table.values_by_elite_and_potential[1][3], 1.2), "E1潜在4={}", table.values_by_elite_and_potential[1][3]);
+        assert!(approx_eq(table.values_by_elite_and_potential[1][4], 1.25), "E1潜在5={}", table.values_by_elite_and_potential[1][4]);
+        // E2: 潜在1〜4=1.4、潜在5〜6=1.45。
+        assert!(approx_eq(table.values_by_elite_and_potential[2][0], 1.4), "E2潜在1={}", table.values_by_elite_and_potential[2][0]);
+        assert!(approx_eq(table.values_by_elite_and_potential[2][5], 1.45), "E2潜在6={}", table.values_by_elite_and_potential[2][5]);
+
+        let module_y = table.modules.iter().find(|m| m.module_id == "uniequip_002_milu").expect("モジュールYがあるはず");
+        // Lv1(index0)は素質強化が付かないのでE2基礎値のまま。
+        assert!(approx_eq(module_y.values_by_level_and_potential[0][0], 1.4), "モジュールYLv1潜在1={}", module_y.values_by_level_and_potential[0][0]);
+        assert!(approx_eq(module_y.values_by_level_and_potential[0][5], 1.45), "モジュールYLv1潜在6={}", module_y.values_by_level_and_potential[0][5]);
+        // Lv2(index1)=1.45(潜在1〜4)/1.5(潜在5〜6)。
+        assert!(approx_eq(module_y.values_by_level_and_potential[1][0], 1.45), "モジュールYLv2潜在1={}", module_y.values_by_level_and_potential[1][0]);
+        assert!(approx_eq(module_y.values_by_level_and_potential[1][5], 1.5), "モジュールYLv2潜在6={}", module_y.values_by_level_and_potential[1][5]);
+        // Lv3(index2)=1.5(潜在1〜4)/1.55(潜在5〜6)。
+        assert!(approx_eq(module_y.values_by_level_and_potential[2][0], 1.5), "モジュールYLv3潜在1={}", module_y.values_by_level_and_potential[2][0]);
+        assert!(approx_eq(module_y.values_by_level_and_potential[2][3], 1.5), "モジュールYLv3潜在4={}", module_y.values_by_level_and_potential[2][3]);
+        assert!(approx_eq(module_y.values_by_level_and_potential[2][4], 1.55), "モジュールYLv3潜在5={}", module_y.values_by_level_and_potential[2][4]);
+
         // 加算系(requires_module)はFWには無い(乗算系のみ)。
         assert!(special.requires_module.is_none());
     }

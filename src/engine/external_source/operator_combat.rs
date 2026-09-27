@@ -141,7 +141,13 @@ pub struct RawOperatorCombat {
     pub atk_base: f64,
     /// 潜在(潜能)によるATK加算の合計（`formulaItem == "ADDITION"`のもののみ。
     /// 倍率型(MULTIPLY等)のATK潜在は将来的に別扱いが必要なため、ここには含めない）。
+    /// `atk_potential_by_rank[5]`と同じ値(後方互換のため残す)。
     pub atk_potential: f64,
+    /// 潜在ランク別(0始まり。0=潜在1〜5=潜在6)の累積ATK加算値(P8。フレームキル計算機の
+    /// 「潜在セレクト」用)。`potentialRanks[i]`は0始まりpotential_rank=(i+1)で解放される
+    /// (`RawTalentCandidate.potential_rank`と同じ採番)ため、潜在1(rank0)は常に0。
+    #[serde(default)]
+    pub atk_potential_by_rank: [f64; 6],
     /// デフォルト(無強化)モジュールは含めない。`eq_type`昇順ソート済み。
     pub modules: Vec<RawModuleCombat>,
     /// 素質一覧(P4。フレームキル計算機の「条件付きバフ」が昇進/潜在から値を機械抽出する
@@ -359,28 +365,48 @@ fn parse_skill_unlock_phase(source_value: &Value) -> Vec<(String, u8)> {
         .collect()
 }
 
-/// `potentialRanks`のうち`attributeType == "ATK"` かつ `formulaItem == "ADDITION"`の
-/// modifierの値を合算する（実データ調査済み: 対象6体は全てADDITION型で1件のみ）。
-/// 倍率型(MULTIPLY等)のATK潜在は意図的に含めない（フラットな`atk_base`加算として
-/// 扱うのが不適切なため。将来的に必要になったら別フィールドで持つこと）。
-fn parse_atk_potential(source_value: &Value) -> f64 {
+/// `potentialRanks[i]`のうち`attributeType == "ATK"` かつ `formulaItem == "ADDITION"`の
+/// modifierの値を、潜在ランク別(0始まり。0=潜在1〜5=潜在6)の累積配列にする(P8。
+/// フレームキル計算機の「潜在セレクト」用)。倍率型(MULTIPLY等)のATK潜在は意図的に
+/// 含めない（フラットな`atk_base`加算として扱うのが不適切なため。将来的に必要になったら
+/// 別フィールドで持つこと）。
+///
+/// `potentialRanks`配列のインデックス`i`(0始まり)は0始まりpotential_rank=`i+1`で解放される
+/// (`RawTalentCandidate.potential_rank`/`RawModuleTalentOverride.potential_rank`と同じ採番。
+/// 潜在1そのもの[rank0]に対応するエントリは存在しないため常に0のまま)。実データ調査済み:
+/// 大半のオペレーターは`i=2`(潜在4)に1件だけ持つ(例: シー+34)。夜刀のように2件
+/// (`i=2,3`=潜在4,5)持つ個体・196体は1件も持たない個体もある。
+fn parse_atk_potential_by_rank(source_value: &Value) -> [f64; 6] {
+    let mut by_rank = [0.0; 6];
     let Some(Value::Array(ranks)) = source_value.get("potentialRanks") else {
-        return 0.0;
+        return by_rank;
     };
-    ranks
-        .iter()
-        .filter_map(|rank| rank.get("buff")?.get("attributes")?.get("attributeModifiers")?.as_array())
-        .flatten()
-        .filter_map(|modifier| {
-            let attr_type = modifier.get("attributeType").and_then(Value::as_str)?;
-            let formula_item = modifier.get("formulaItem").and_then(Value::as_str)?;
-            if attr_type != "ATK" || formula_item != "ADDITION" {
-                return None;
-            }
-            modifier.get("value").and_then(Value::as_f64)
-        })
-        // `sum()`は空のとき-0.0を返すため、0.0起点のfoldにする（Seedに"-0.0"が出るのを防ぐ）。
-        .fold(0.0, |acc, v| acc + v)
+    for (i, rank) in ranks.iter().enumerate() {
+        let Some(modifiers) = rank.get("buff").and_then(|b| b.get("attributes")).and_then(|a| a.get("attributeModifiers")).and_then(Value::as_array)
+        else {
+            continue;
+        };
+        let add: f64 = modifiers
+            .iter()
+            .filter_map(|modifier| {
+                let attr_type = modifier.get("attributeType").and_then(Value::as_str)?;
+                let formula_item = modifier.get("formulaItem").and_then(Value::as_str)?;
+                if attr_type != "ATK" || formula_item != "ADDITION" {
+                    return None;
+                }
+                modifier.get("value").and_then(Value::as_f64)
+            })
+            // `sum()`は空のとき-0.0を返すため、0.0起点のfoldにする（Seedに"-0.0"が出るのを防ぐ）。
+            .fold(0.0, |acc, v| acc + v);
+        if add == 0.0 {
+            continue;
+        }
+        let unlock_rank = i + 1; // 0始まりpotential_rank。
+        for slot in by_rank.iter_mut().skip(unlock_rank) {
+            *slot += add;
+        }
+    }
+    by_rank
 }
 
 /// char_table.json のCN/JPをマージしながらオペレーター一覧を構築する
@@ -424,6 +450,7 @@ fn build_characters(
         let phases = parse_phases(source_value);
         let atk_trust_max = parse_atk_trust_max(source_value);
         let atk_base = phases.last().map(|p| p.atk_max).unwrap_or(0.0) + atk_trust_max;
+        let atk_potential_by_rank = parse_atk_potential_by_rank(source_value);
 
         let raw = RawOperatorCombat {
             id: key.clone(),
@@ -433,7 +460,8 @@ fn build_characters(
             position: position.to_string(),
             nation_id,
             atk_base,
-            atk_potential: parse_atk_potential(source_value),
+            atk_potential: atk_potential_by_rank[5],
+            atk_potential_by_rank,
             modules: Vec::new(),
             talents: parse_talents(source_value),
             phases,
@@ -494,6 +522,7 @@ fn build_patches(
         let phases = parse_phases(source_value);
         let atk_trust_max = parse_atk_trust_max(source_value);
         let atk_base = phases.last().map(|p| p.atk_max).unwrap_or(0.0) + atk_trust_max;
+        let atk_potential_by_rank = parse_atk_potential_by_rank(source_value);
 
         let raw = RawOperatorCombat {
             id: key.clone(),
@@ -503,7 +532,8 @@ fn build_patches(
             position: position.to_string(),
             nation_id,
             atk_base,
-            atk_potential: parse_atk_potential(source_value),
+            atk_potential: atk_potential_by_rank[5],
+            atk_potential_by_rank,
             modules: Vec::new(),
             talents: parse_talents(source_value),
             phases,
@@ -697,5 +727,28 @@ mod tests {
         assert_eq!(dusk.phases[2].atk_min, 771.0);
         assert_eq!(dusk.phases[2].atk_max, 918.0);
         assert_eq!(dusk.atk_trust_max, 110.0);
+    }
+
+    /// P8: `atk_potential_by_rank`(潜在ランク別累積ATK加算)の実データ突き合わせ
+    /// (オフライン。Seedを直接読む)。オーナー確認済み実機値: シー(char_2015_dusk)は
+    /// 潜在4(0始まりrank3)で+34(潜在1〜3は+0)。夜刀(char_502_nblade)は
+    /// potentialRanksのindex2,3(rank3,4=潜在4,5)の2回に分けて加算される。
+    /// Castle-3(char_286_cast3)はATK潜在を1件も持たないため全ランク+0のまま。
+    #[test]
+    fn seed_has_expected_atk_potential_by_rank() {
+        let json = std::fs::read_to_string(SEED_PATH)
+            .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
+        let data: OperatorCombat = serde_json::from_str(&json).expect("seedがOperatorCombatとしてparseできること");
+
+        let dusk = data.get_by_name("シー").expect("シーがseedに存在すること");
+        assert_eq!(dusk.atk_potential_by_rank, [0.0, 0.0, 0.0, 34.0, 34.0, 34.0], "シーは潜在4(rank3)で+34のはず");
+        assert_eq!(dusk.atk_potential, 34.0, "atk_potentialはatk_potential_by_rank[5]と一致するはず");
+
+        let nblade = data.operators.get("char_502_nblade").expect("夜刀(char_502_nblade)がseedに存在すること");
+        assert_eq!(nblade.atk_potential_by_rank, [0.0, 0.0, 0.0, 9.0, 18.0, 18.0], "夜刀は潜在4で+9・潜在5で更に+9(計+18)のはず");
+
+        let castle3 = data.get_by_name("Castle-3").expect("Castle-3がseedに存在すること");
+        assert_eq!(castle3.atk_potential_by_rank, [0.0; 6], "Castle-3はATK潜在を持たないので全ランク+0のはず");
+        assert_eq!(castle3.atk_potential, 0.0);
     }
 }
