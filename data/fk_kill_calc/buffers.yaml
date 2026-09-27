@@ -1,18 +1,22 @@
 # フレームキル計算機のバフカタログ(P2)。P3で`inspire`(鼓舞ソース)リストを追加。
-# P4でconditionalに`source`(ゲームデータからの動的値解決)を追加。
+# P4でconditionalに`source`(ゲームデータからの動的値解決)を追加。P5でindividualにも
+# `source`を対応させ、talent×scale/base_pct×scale/stageの3種のソース形状を追加した。
 #
 # 読み込み方法・スキーマの詳細は`src/engine/fk_kill_calc/buffers.rs`冒頭のコメント、
 # 解決アルゴリズムの詳細は`src/engine/fk_kill_calc/conditional_source.rs`冒頭コメントを参照。
 # 簡単には:
-#   individual: 行ごとにチップで選ぶバフ(自己バフ等)。
-#     - { id, name, pct: 0.xx (または flat: 数値), single_target: true(省略時false), note }
+#   individual: 行ごとにチップで選ぶバフ(自己バフ等)。値は固定(pct/flat)か、
+#     ゲームデータからの動的解決(source。P5)のどちらか一方:
+#     - { id, name, pct: 0.xx (または flat: 数値。固定値の場合)
+#         single_target: true(省略時false)
+#         source: { ... } (省略可。P5。下記`source`の形状を参照)
+#         toggle: { label: "...", mult: 倍率 } (省略可。P5。例: ステインレスS1の「装置2台」)
+#         note }
 #   conditional: 全体で1回ON/OFFし、targetsのタグを持つ行にだけ自動で効くバフ。値は
 #     固定(pct/flat)か、ゲームデータからの動的解決(source)のどちらか一方:
 #     - { id, name, targets: [タグ,...],
 #         pct: 0.xx (または flat: 数値。固定値の場合)
-#         source: { operator: <charId>, talent: <talentIndex> (素質由来。0始まり) または
-#                   skill_num: "<fk_dataのskill_num>" (スキルLv別blackboard由来。
-#                   talentとどちらか一方), key: <blackboardのキー名> } (P4)
+#         source: { ... } (省略可。P4。下記`source`の形状を参照)
 #         toggle: { label: "...", mult: 倍率 } (省略可。P4。ON/OFFで解決値に倍率を掛ける
 #                   単純なトグル。例: 前衛アーミヤの「スキル中は効果2倍」)
 #         bonus: { tags: [タグ,...],
@@ -21,9 +25,28 @@
 #                  note } (省略可。targetsに加えてbonus.tagsのいずれかも持つ行には
 #                  基本値の代わりにbonus側の値を使う),
 #         note }
+#   `source`の形状(individual/conditional共通。次のいずれか1つ):
+#     - { operator: <charId>, talent: <talentIndex> (素質由来。0始まり), key: <キー名> }
+#         … 素質値そのもの(例: castle3、エクシア)
+#     - { operator: <charId>, skill_num: "<fk_dataのskill_num>", key: <キー名> }
+#         … スキルLv別blackboardそのもの(例: 血漿、ドリアン、ズィマー、スプリアS2)
+#     - { operator, talent: <idx>, key: <キー名>,
+#         scale_skill_num: "<skill_num>", scale_key: <キー名> }
+#         … 素質値 × スキルLv別スケール(P5。例: スワイヤーS1/S2)
+#     - { operator, base_pct: 0.xx, scale_skill_num: "<skill_num>", scale_key: <キー名> }
+#         … 固定基礎値(ゲームデータから機械抽出できないトークン等由来) × スキルLv別
+#           スケール(P5。例: ステインレスS1)
+#     - { operator, stage_skill_id: "<直接指定するskillId>",
+#         stage_keys: [キー名,...], stage_labels: [表示ラベル,...] }
+#         … スキルLvではなく同一skillのblackboard上の複数キーを離散段階として使う
+#           (P5。例: ナスティS3。3要素なら"1段階"〜"3段階")
+#     いずれも`max_targets_by_module: { module: <uniEquipId>, min_level: <Lv>, count: <人数> }`
+#     (省略可。P5。individual専用の使い方。値の解決には関与せず、指定モジュールLv以上を
+#     装備している間だけ`single_target`警告の許容選択数を`count`に緩和する。例: エクシア)
+#     を追加で持てる。
 #     `source`の値解決(昇進/潜在/モジュール/スキルLvの軸、値が変わらない軸を隠すdedupe等)は
 #     全て`build_catalog`(Rust側)が行い、フロントは解決済みの値テーブルを
-#     `resolveConditionalPct`(engine.js)で読むだけ。
+#     `resolveConditionalValue`(engine.js)で読むだけ。
 #   inspire(P3): 鼓舞(インスパイア)ソース。FKする側ではなく「味方に鼓舞バフを撒く側」の
 #     オペレーターを表す(fk_dataシートには載らないため、operatorはoperator_combat側の
 #     idを直接指す)。スキーマ・値の出典は`src/engine/fk_kill_calc/mod.rs`の
@@ -33,22 +56,68 @@
 # (`cargo test`のドリフト検知テスト`buffers.rs::every_target_tag_is_in_the_known_vocabulary`
 # が保証する)。固定値(pct/flat)は全てオーナー提供の参照スプレッドシートに基づく(出典:
 # 各行のnote参照)。`source`付きの値は`operator_combat`/`skill_data`から機械抽出するため
-# ここには数値を書かない(実データ検証結果はconditional各行のnote参照)。
+# ここには数値を書かない(実データ検証結果は各行のnote参照)。
 
+## P5実データ検証結果(CN gamedata。2026-09時点。conditionalのP4ブロックと同じ出典
+## character_table.json/skill_table.json/battle_equip_table.jsonから確認済み。数値自体は
+## ここには書かず`build_catalog`が機械抽出する。詳細な解決アルゴリズムは
+## `conditional_source.rs`冒頭コメント参照):
 individual:
-  - { id: plasma, name: 血漿, pct: 0.90 }
-  - { id: durian, name: ドリアン, pct: 0.50 }
-  # 素質「天使の祝福」(能天使/Exusiai, char_103_angel) E2最大素質凸:
-  # 攻撃力+8%(+2%)=+10%、生命上限+13%(+3%)=+16%。「配置後、この効果はランダムな味方
-  # 1名にも同様に付与される」ため、選んだ行1つにだけ効くバフとして"individual"に置く
-  # (single_target=true。同じ行に2回選んでも意味が無い/他の行と同時に選ぶと「本当に
-  # そのランダム対象がこの2行になるか」は保証されないので警告対象にする)。
-  - { id: exusiai, name: エクシア, pct: 0.10, single_target: true, note: "素質「天使の祝福」E2最大素質凸: 自身攻撃力+10%(生命上限+16%)。配置後ランダムな味方1名にも同じ効果を付与する" }
-  - { id: swire_s1, name: スワイヤーS1, pct: 0.24 }
-  - { id: stainless_2, name: "ステインレス(2)", pct: 0.96 }
-  - { id: stainless_1, name: "ステインレス(1)", pct: 0.48 }
-  - { id: nasty_s3, name: ナスティS3, pct: 0.60 }
-  - { id: sprria_s2, name: スプリアS2, pct: 0.20, single_target: true }
+  # ワルファリン(char_171_bldsk)S2(skchr_bldsk_2)のblackboard"atk"はスキルLv1〜10
+  # (Lv8〜10=特化1〜3)で.30〜.90まで変化する(旧固定.90→P5でスキルLv解決に変更)。
+  # 「自身と攻撃範囲内ランダムな味方1人」に付与するためsingle_target(コーディネーター
+  # 指示によりP5で追加)。
+  - { id: plasma, name: ワルファリンS2, single_target: true, source: { operator: char_171_bldsk, skill_num: "2", key: atk }, note: "スキルLv別blackboard(atk)そのもの。自身と攻撃範囲内ランダムな味方1人に付与" }
+  # ア(char_225_haak)S3(skchr_haak_3、CN名"爆发剂・榴莲味"/JP名"劇性増強剤・ドリアン")の
+  # blackboard"atk"はスキルLv1〜10で.25〜.50まで変化する(旧固定.50→P5でスキルLv解決に
+  # 変更)。ワルファリンS2と同様「自身と1名」に付与する効果のためsingle_target(コーディ
+  # ネーター指示によりP5で追加)。
+  - { id: durian, name: アS3, single_target: true, source: { operator: char_225_haak, skill_num: "3", key: atk }, note: "スキルLv別blackboard(atk)そのもの。スキル名は「爆发剂・榴莲味」(JP: 劇性増強剤・ドリアン)" }
+  # 素質「天使の祝福」(能天使/Exusiai, char_103_angel)talent1.atk: E2のみ(E0/E1は候補が
+  # 無く0)。潜在1(potentialRank0)=.06/潜在6(potentialRank5)=.08。モジュールX
+  # (uniequip_002_angel)Lv2は素質未強化時と同値(.06/.08)、Lv3で.08/.10まで上昇する。
+  # 「配置後、この効果はランダムな味方1名にも同様に付与される」ため選んだ行1つにだけ
+  # 効くバフとして"individual"に置く(single_target=true)。モジュールX Lv2以上を装備すると
+  # 対象が2名になるため、max_targets_by_moduleで単体対象警告の許容数を2に緩和する。
+  - id: exusiai
+    name: エクシア
+    single_target: true
+    source: { operator: char_103_angel, talent: 1, key: atk, max_targets_by_module: { module: uniequip_002_angel, min_level: 2, count: 2 } }
+    note: "素質「天使の祝福」。E2でのみ解放(E0/E1は0)。モジュールX Lv2以上装備で対象が2名になる"
+  # スワイヤー(char_308_swire)talent0.atk: E0(.03/潜在5で.05)/E1(.06/.08)/E2(.10/.12)。
+  # モジュール上書き無し。この素質値にスキル1(skchr_swire_1)のtalent_scale(全レベル2.0で
+  # 固定。P5のdedupeによりスキルLv軸は非表示になる)を掛けたものがS1の効果。
+  - { id: swire_s1, name: スワイヤーS1, source: { operator: char_308_swire, talent: 0, key: atk, scale_skill_num: "1", scale_key: talent_scale }, note: "素質(talent0.atk)×スキル1のtalent_scale(全レベル2.0固定なのでスキル軸は非表示)" }
+  # スワイヤーの同じ素質(talent0.atk)に、スキル2(skchr_swire_2)のtalent_scale
+  # (Lv1〜10で2.1〜3.0まで変化)を掛けたものがS2の効果(swire_s1と素質は共通、スキル軸だけ違う)。
+  - { id: swire_s2, name: スワイヤーS2, source: { operator: char_308_swire, talent: 0, key: atk, scale_skill_num: "2", scale_key: talent_scale }, note: "素質(talent0.atk。swire_s1と同じ素質)×スキル2のtalent_scale(2.1〜3.0)" }
+  # ステインレス(char_4072_ironmn)S1の装置本体(token_10027_ironmn_pile1)の素質+12%は
+  # トークンでoperator_combatに存在しないため固定値(base_pct)として持つ。これにスキル1
+  # (skchr_ironmn_1)のfake_scale(Lv1〜10で2〜4まで変化)を掛けたものが効果値。
+  # 装置を2台設置した場合は効果が2倍になるためtoggleで表現する(旧stainless_1/2の
+  # 2エントリ制から1エントリ+toggleへP5で統合。移行はengine.jsのdropStaleRowsが行う)。
+  - id: stainless_s1
+    name: ステインレスS1
+    source: { operator: char_4072_ironmn, base_pct: 0.12, scale_skill_num: "1", scale_key: fake_scale }
+    toggle: { label: "装置2台（×2）", mult: 2.0 }
+    note: "装置本体の素質+12%(base_pct。トークンのためoperator_combatに存在しない)×スキル1のfake_scale。装置2台なら効果2倍(toggle)"
+  # ナスティ(char_4212_nasti)S3のトークンスキル(sktok_nasti_nstbld)は、スキルLvではなく
+  # 装置のアップグレード段階(1〜3段階)で値が変わる。最大Lv(特化3)のblackboardが
+  # "attack@nasti_nstbld[m4_bonus/m5_bonus/m6_bonus].atk"という3つのキーを同時に持ち、
+  # これがそのまま1〜3段階の値(.20/.40/.60)に対応する。
+  - id: nasty_s3
+    name: ナスティS3
+    source:
+      {
+        operator: char_4212_nasti,
+        stage_skill_id: sktok_nasti_nstbld,
+        stage_keys: ["attack@nasti_nstbld[m4_bonus].atk", "attack@nasti_nstbld[m5_bonus].atk", "attack@nasti_nstbld[m6_bonus].atk"],
+        stage_labels: ["1段階", "2段階", "3段階"],
+      }
+    note: "装置アップグレード段階(トークンスキルsktok_nasti_nstbld、最大Lvのblackboard)。スキルLvではなく段階で値が変わる"
+  # スプリア(char_4015_spuria)S2(skchr_spuria_2)のblackboard"atk"はスキルLv1〜10で
+  # .10〜.30まで変化する(旧固定.20→P5でスキルLv解決に変更)。single_targetは既存どおり維持。
+  - { id: sprria_s2, name: スプリアS2, single_target: true, source: { operator: char_4015_spuria, skill_num: "2", key: atk }, note: "スキルLv別blackboard(atk)そのもの" }
 
 ## P4実データ検証結果(CN gamedata。2026-09時点。全て`character_table.json`の
 ## `talents[i].candidates[]`(素質)/`skill_table.json`の`levels[].blackboard`(スキル)/

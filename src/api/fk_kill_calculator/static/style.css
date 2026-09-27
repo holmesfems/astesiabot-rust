@@ -116,6 +116,13 @@ summary{cursor:pointer;color:var(--faint);font-size:12px}
 }
 .cond-source-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cond-source-value{font-size:12.5px;font-weight:700;color:var(--ok)}
+/* P5: 個別バフの育成設定カード(トグルチップの代わりに名前だけを見出しにする)。 */
+.cond-source-name{font-size:12px;font-weight:600}
+#individual-buff-levels-section .cond-source-card{margin-top:0}
+#individual-buff-levels-section .cond-source-card + .cond-source-card{margin-top:8px}
+/* .special-hintと見た目は揃えるが、`.special-hint`セレクタとは別クラスにする
+   (行のヒント[特殊強化のモジュール条件等]とpage全体で衝突しないようにするため)。 */
+.section-empty-hint{font-size:11.5px;color:var(--faint);margin:0}
 .cond-source-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
 .cond-source-controls select{
   width:auto;font-size:11.5px;padding:3px 6px;margin-top:0;

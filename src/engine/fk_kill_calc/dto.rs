@@ -226,9 +226,21 @@ pub struct BuffToggle {
     pub mult: f64,
 }
 
-/// 「条件付きバフ」の値をゲームデータから機械抽出する動的ソース(P4)。`talent`(素質)/
-/// `skill`(スキルLv別blackboard)のどちらか一方を持つ。詳細な設計意図・実データ検証結果は
-/// `buffers.rs`冒頭コメント + `conditional_source.rs`冒頭コメント参照。
+/// 「条件付き/個別バフ」の値をゲームデータから機械抽出する動的ソース(P4で条件付き向けに
+/// 追加、P5で個別バフにも対応させ以下3種を追加)。`talent`(素質)/`skill`(スキルLv別
+/// blackboardがそのまま値になる)/`scale`(P5。素質または`base_pct`に掛け合わせる2軸目の
+/// スキルLv別倍率)/`base_pct`(P5。ゲームデータに存在しない固定基礎値)/`stage`(P5。
+/// スキルLvではなく離散的な「段階」で値が変わるソース)の組み合わせで最終値を表現する。
+/// 実際に使われる組み合わせは:
+///   - `talent`のみ: 素質そのものが値(例: castle3、エクシア)
+///   - `skill`のみ: スキルLv別blackboardがそのまま値(例: 血漿、ドリアン、ズィマー)
+///   - `talent` × `scale`: 素質値にスキルLv別スケールを掛ける(例: スワイヤーS1/S2)
+///   - `base_pct` × `scale`: 固定基礎値にスキルLv別スケールを掛ける(例: ステインレスS1)
+///   - `stage`のみ: 離散的な段階値(例: ナスティS3)
+/// `max_targets_by_module`(P5)は値の解決には関与せず、`single_target`警告の上限を
+/// フロントが緩和するためだけに使う(例: エクシア。モジュールX Lv2以上で対象2名)。
+/// 詳細な設計意図・実データ検証結果は`buffers.rs`冒頭コメント +
+/// `conditional_source.rs`冒頭コメント参照。
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConditionalSource {
@@ -236,6 +248,17 @@ pub struct ConditionalSource {
     pub operator_name: String,
     pub talent: Option<ConditionalTalentSource>,
     pub skill: Option<ConditionalSkillSource>,
+    /// P5: 2軸目の乗算スケール(スキルLv別blackboard由来)。`talent`または`base_pct`と
+    /// 掛け合わせて最終値を作る。`skill`と同時に使うことは無い(排他)。
+    pub scale: Option<ConditionalSkillSource>,
+    /// P5: ゲームデータから機械抽出できない固定の基礎値(トークン等由来。YAML直書き定数)。
+    /// `talent`が無い時だけ意味を持ち、`scale`と組み合わせて使う。
+    pub base_pct: Option<f64>,
+    /// P5: スキルLvではなく離散的な「段階」で値が変わるソース。`talent`/`skill`/`scale`/
+    /// `base_pct`とは排他。
+    pub stage: Option<ConditionalStageSource>,
+    /// P5: 特定モジュールLv以上を装備している間、このバフの対象人数が増える。
+    pub max_targets_by_module: Option<MaxTargetsByModule>,
     pub defaults: ConditionalSourceDefaults,
 }
 
@@ -269,12 +292,40 @@ pub struct ConditionalSourceModule {
 
 /// スキルLv別blackboard由来の値テーブル(P4)。`values_by_level[i]`はスキルLv(i+1)の値
 /// (Lv1〜7 + 特化1〜3で最大10要素。データに存在するレベル数だけ入る)。
+/// `ConditionalSource.skill`(値そのもの)と`ConditionalSource.scale`(P5。他の値に掛ける
+/// 倍率)の両方でこの型を使い回す。
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConditionalSkillSource {
     pub skill_num: String,
     pub skill_label: String,
     pub values_by_level: Vec<f64>,
+    /// P5: レベルによって値が実際に変わるか(dedupe用)。falseならUIはこの軸の
+    /// セレクトを出さない(例: スワイヤーS1のtalent_scaleは全レベル2.0で固定)。
+    pub varies: bool,
+}
+
+/// 離散的な「段階」で値が変わるソース(P5。例: ナスティS3の装置アップグレード段階)。
+/// スキルLvの概念は無く、同一スキルのblackboard上にある複数キー(段階ごとに別名で
+/// 存在する)から直接値を引く。`values[i]`が`labels[i]`(1段階目、2段階目…)の値。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalStageSource {
+    pub skill_id: String,
+    pub skill_label: String,
+    pub values: Vec<f64>,
+    pub labels: Vec<String>,
+}
+
+/// 特定モジュールLv以上を装備している間、このバフの対象人数が増える(P5。例: エクシアの
+/// 素質。モジュールX Lv2以上で2名)。値の解決には関与しない(`single_target`警告の
+/// 上限をフロントが緩和するためだけに使う)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MaxTargetsByModule {
+    pub module_id: String,
+    pub min_level: u8,
+    pub count: u8,
 }
 
 /// 「最大成長」を表すデフォルトの選択状態(P4)。UIが条件付きバフを初めてONにした時に使う
@@ -289,8 +340,10 @@ pub struct ConditionalSourceDefaults {
     pub module_id: Option<String>,
     /// 1〜3。`module_id`が`None`なら意味を持たない。
     pub module_level: u8,
-    /// 1〜(データ数)。skillソースでなければ意味を持たない。
+    /// 1〜(データ数)。`skill`/`scale`ソースでなければ意味を持たない。
     pub skill_level: u8,
+    /// P5: 1〜(段階数)。`stage`ソースでなければ意味を持たない(既定は最終段階)。
+    pub stage_index: u8,
 }
 
 /// バフ定義1件。P1では`Catalog::buffers`は常に空のVecだったが、P2で

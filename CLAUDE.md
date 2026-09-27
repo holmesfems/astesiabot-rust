@@ -134,16 +134,21 @@ src/
 │       │                buffers::raw_inspire_sources()+operator_combatをマージして
 │       │                Catalog.inspireSourcesを組み立てる。対象operatorが無ければ
 │       │                `skipped`に"inspire:<id>"として記録し静かに落とす）もここ
-│       ├── conditional_source.rs … 条件付きバフの「ゲームデータからの動的値解決」(P4)。
-│       │                buffers::raw_conditional_sourced()(素質/スキルLv由来のsource生データ)
-│       │                とoperator_combat(talents)/skill_data(blackboard_by_level)をマージし、
-│       │                昇進×潜在(×モジュールLv)の値テーブル(dto::ConditionalTalentSource /
-│       │                ConditionalSkillSource)を組み立てる`build_conditional_sourced_buffers`。
-│       │                値が変わらない軸(昇進/潜在/モジュール)は自動で隠す(dedupe。
-│       │                elite_varies/potential_varies/modulesを参照)。対象operator/talentIndex/
-│       │                skill_numが実データに無ければ`skipped`に"buff:<id>"として記録し
-│       │                静かに落とす（inspireと同じ方針）。validate_conditional_sources
-│       │                （ドリフト検知）もここ。詳細解決アルゴリズムはファイル冒頭コメント参照
+│       ├── conditional_source.rs … 条件付き/個別バフの「ゲームデータからの動的値解決」
+│       │                (P4で条件付き向けに追加、P5で個別バフにも対応)。
+│       │                buffers::raw_conditional_sourced()/raw_individual_sourced()
+│       │                (素質/スキルLv/スケール/固定基礎値/段階由来のsource生データ)と
+│       │                operator_combat(talents)/skill_data(blackboard/blackboard_by_level)を
+│       │                マージし、値テーブル(dto::ConditionalTalentSource/ConditionalSkillSource/
+│       │                ConditionalStageSource)を組み立てる`build_conditional_sourced_buffers`/
+│       │                `build_individual_sourced_buffers`(共通の`build_source`を経由)。
+│       │                値が変わらない軸(昇進/潜在/モジュール/スケールのスキルLv)は自動で隠す
+│       │                (dedupe。elite_varies/potential_varies/modules/scale.variesを参照)。
+│       │                対象operator/talentIndex/skill_num/skill_id/stage_keysが実データに
+│       │                無ければ`skipped`に"buff:<id>"として記録し静かに落とす
+│       │                （inspireと同じ方針）。validate_conditional_sources/
+│       │                validate_individual_sources（ドリフト検知）もここ。
+│       │                詳細解決アルゴリズムはファイル冒頭コメント参照
 │       ├── dto.rs     … Catalog/CatalogOperator/FkEntry/Buffer等（JSONはcamelCase）。
 │       │                Valued<T>{value,source}でAuto/Manualの出所を持つ。FkEntry.tags
 │       │                (P2)・FkEntry.special(P2。特殊強化トグル)もここ。
@@ -151,7 +156,11 @@ src/
 │       │                (P3。鼓舞ソースのDTO。詳細は下記ポイント参照)もここ。
 │       │                ConditionalSource/ConditionalTalentSource/ConditionalSourceModule/
 │       │                ConditionalSkillSource/ConditionalSourceDefaults/BuffToggle
-│       │                (P4。`Buffer.source`/`Buffer.toggle`のDTO)もここ
+│       │                (P4。`Buffer.source`/`Buffer.toggle`のDTO。P5でConditionalSource に
+│       │                `scale`/`basePct`/`stage`/`maxTargetsByModule`、ConditionalSkillSource に
+│       │                `varies`、ConditionalSourceDefaultsに`stageIndex`を追加し、
+│       │                ConditionalStageSource/MaxTargetsByModuleを新設。個別バフにも
+│       │                同じDTOを使い回す)もここ
 │       ├── tags.rs    … profession/position/nationIdからタグ・ダメージ属性の初期値を推測する。
 │       │                tag_vocabulary()(P2。近距離/職業/勢力/弾薬スキルの全タグ語彙。
 │       │                overrides.yamlの手動tags・buffers.yamlのtargets/bonus.tagsの
@@ -644,6 +653,29 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   (`fk_kill_calc::mod`の`every_inspire_source_points_to_existing_operator_skill_and_modules`、
   `buffers.rs`の`inspire_self_part_replaces_points_to_an_existing_part_in_the_same_source`)が
   operator/skill_num/moduleId参照・`replaces`先の実在・id一意性を保証する。
+- **fk_kill_calculatorの個別バフ(P5)もP4と同じ機構でゲームデータから動的に値解決できる**:
+  `buffers.yaml`の`individual.*.source`は`conditional.*.source`と同じ`talent`/`skill_num`に
+  加えて3種を新設した: `scale_skill_num`/`scale_key`(素質値または`base_pct`に掛け合わせる
+  2軸目のスキルLv別倍率。例: スワイヤーS1/S2の`talent0.atk × skill.talent_scale`)、
+  `base_pct`(ゲームデータに存在しない固定基礎値。トークン等由来で機械抽出できない場合の
+  YAML直書き定数。例: ステインレスS1の装置本体+12%)、`stage_skill_id`+`stage_keys`+
+  `stage_labels`(スキルLvではなく同一skillのblackboard上の複数キーを離散段階として使う。
+  例: ナスティS3の装置アップグレード1〜3段階)。`max_targets_by_module: { module, min_level,
+  count }`(individual専用。値の解決には関与せず、指定モジュールLv以上を装備している間
+  `single_target`警告の許容選択数を`count`に緩和する。例: エクシアはモジュールX Lv2以上で
+  2名まで警告なし。`findSingleTargetConflicts`が`globalBuffLevels`から都度判定する)。
+  これらは全て`conditional_source.rs`の`build_source`/`resolve_default_value`が
+  scope(individual/conditional)を問わず共通で解決する(`dto::ConditionalSource`に
+  `scale`/`basePct`/`stage`/`maxTargetsByModule`を追加)。フロントは新設セクション
+  「個別バフの育成設定」(`renderIndividualBuffLevelsSection`。global buffs直下)で、
+  行または鼓舞ソースで**現在チェックされている**source付き個別バフだけをカード表示し、
+  値が変わる軸(`renderBuffAxisControls`。conditionalのカードと共通化)を選ばせる。
+  選択状態は`state.globalBuffLevels[id]`にconditionalと同じ名前空間で保存する
+  (`stageIndex`フィールドを追加)。ステインレスは旧`stainless_1`/`stainless_2`の
+  2エントリ制から`stainless_s1`+`toggle`(装置2台=×2)の1エントリへ統合し、
+  `dropStaleRows`が移行する(`stainless_2`だった箇所が1つでもあれば共有`toggleOn`を
+  trueにする)。血漿(plasma)・ドリアン(durian)はオーナー指示で`single_target`化した
+  (どちらも「自身+ランダムな味方1名」に付与する効果のため)。
 - **サイトアイコンは元画像から生成して commit する**: 元画像は `assets/icon/`
   （通常版 PNG と simple版 SVG）。差し替えたら
   `& "C:\Program Files\nodejs\node.exe" assets/icon/generate.mjs` を回して

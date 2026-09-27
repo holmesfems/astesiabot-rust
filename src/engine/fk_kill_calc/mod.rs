@@ -167,12 +167,14 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
 
     let inspire_sources = build_inspire_sources(combat, &mut skipped);
 
-    // P4: 固定pct/flatのバフ(individual + 一部conditional)に、ゲームデータから動的解決した
-    // conditional(`source`付き)を続けて足す。fk_dataのskipped/inspireのskippedと同じ方針で、
-    // 実データと不一致なバフは`skipped`に記録した上で静かに落とす
-    // (`conditional_source::build_conditional_sourced_buffers`参照)。
+    // P4/P5: 固定pct/flatのバフ(individual + 一部conditional)に、ゲームデータから動的解決した
+    // conditional/individual(`source`付き)を続けて足す。fk_dataのskipped/inspireのskippedと
+    // 同じ方針で、実データと不一致なバフは`skipped`に記録した上で静かに落とす
+    // (`conditional_source::build_conditional_sourced_buffers`/
+    // `build_individual_sourced_buffers`参照)。
     let mut buffers = buffers::global().to_vec();
     buffers.extend(conditional_source::build_conditional_sourced_buffers(combat, ops, skills, &mut skipped));
+    buffers.extend(conditional_source::build_individual_sourced_buffers(combat, ops, skills, &mut skipped));
 
     CatalogBuild { catalog: Catalog { operators, buffers, inspire_sources }, skipped }
 }
@@ -673,6 +675,83 @@ mod tests {
         let skills: SkillData = load_seed(skill_data::SEED_PATH);
         let bad = conditional_source::validate_conditional_sources(&combat, &ops, &skills);
         assert!(bad.is_empty(), "buffers.yamlのconditional(source付き)に実データと不一致な参照がある:\n{}", bad.join("\n"));
+    }
+
+    /// P5: buffers.yamlのindividual(source付き)が実データ(operator_combat/operator_data/
+    /// skill_data)と整合していることのドリフト検知。ゲームデータ更新でオペレーターID・
+    /// talentIndex・skill_num・skill_id・キー名が変わった場合、このテストが不一致キーを
+    /// 列挙して落ちる。
+    #[test]
+    fn every_individual_source_points_to_existing_operator_talent_or_skill() {
+        let ops: OperatorData = load_seed(operator_data::SEED_PATH);
+        let combat: OperatorCombat = load_seed(operator_combat::SEED_PATH);
+        let skills: SkillData = load_seed(skill_data::SEED_PATH);
+        let bad = conditional_source::validate_individual_sources(&combat, &ops, &skills);
+        assert!(bad.is_empty(), "buffers.yamlのindividual(source付き)に実データと不一致な参照がある:\n{}", bad.join("\n"));
+    }
+
+    /// P5: オーナー確認済みの実データ値(2026-09時点)と一致すること。ゲームデータ更新で
+    /// 数値が変わった場合はここを見直す(デフォルト値は「最大成長」設定。非デフォルトの
+    /// 値もいくつか併せて検証する)。
+    #[test]
+    fn individual_source_default_and_selected_values_match_verified_gamedata() {
+        let result = build_from_seeds();
+        let find = |id: &str| result.catalog.buffers.iter().find(|b| b.id == id).unwrap_or_else(|| panic!("バフ'{id}'がカタログに無い"));
+        let approx_eq = |a: f64, b: f64| (a - b).abs() < 1e-9;
+
+        let plasma = find("plasma");
+        assert!(approx_eq(plasma.value, 0.90), "plasmaのデフォルト値={}", plasma.value);
+        assert!(plasma.single_target, "plasmaはsingle_targetのはず");
+
+        let durian = find("durian");
+        assert!(approx_eq(durian.value, 0.50), "durianのデフォルト値={}", durian.value);
+        assert!(durian.single_target, "durianはsingle_targetのはず");
+
+        let swire_s1 = find("swire_s1");
+        assert!(approx_eq(swire_s1.value, 0.24), "swire_s1のデフォルト値={}", swire_s1.value);
+        let swire_s1_talent = &swire_s1.source.as_ref().unwrap().talent.as_ref().unwrap();
+        // E2・潜在1(potentialRank0)= 0.10(talent) × 2.0(scale) = 0.20。
+        assert!(approx_eq(swire_s1_talent.values_by_elite_and_potential[2][0], 0.10), "swire_s1talentのE2潜在1={}", swire_s1_talent.values_by_elite_and_potential[2][0]);
+        let swire_s1_scale = swire_s1.source.as_ref().unwrap().scale.as_ref().unwrap();
+        assert!(!swire_s1_scale.varies, "swire_s1のscale(talent_scale)は全レベル2.0固定でvaries=falseのはず");
+        assert!(approx_eq(swire_s1_scale.values_by_level[0], 2.0), "swire_s1のscale値={}", swire_s1_scale.values_by_level[0]);
+
+        let swire_s2 = find("swire_s2");
+        assert!(approx_eq(swire_s2.value, 0.36), "swire_s2のデフォルト値={}", swire_s2.value);
+        let swire_s2_scale = swire_s2.source.as_ref().unwrap().scale.as_ref().unwrap();
+        assert!(swire_s2_scale.varies, "swire_s2のscale(talent_scale)は2.1〜3.0で変化するのでvaries=trueのはず");
+
+        let stainless = find("stainless_s1");
+        assert!(approx_eq(stainless.value, 0.48), "stainless_s1のデフォルト値={}", stainless.value);
+        assert!(approx_eq(stainless.source.as_ref().unwrap().base_pct.unwrap(), 0.12), "stainless_s1のbase_pct");
+        let stainless_scale = stainless.source.as_ref().unwrap().scale.as_ref().unwrap();
+        // SLv7(0-indexed6)は0.12×3=0.36。
+        assert!(approx_eq(stainless_scale.values_by_level[6], 3.0), "stainless_s1のscale[SLv7]={}", stainless_scale.values_by_level[6]);
+        let toggle = stainless.toggle.as_ref().expect("stainless_s1はtoggle(装置2台)を持つはず");
+        assert_eq!(toggle.mult, 2.0);
+
+        let nasty = find("nasty_s3");
+        assert!(approx_eq(nasty.value, 0.60), "nasty_s3のデフォルト値={}", nasty.value);
+        let stage = nasty.source.as_ref().unwrap().stage.as_ref().expect("nasty_s3はstageソースのはず");
+        assert!(approx_eq(stage.values[0], 0.20), "nasty_s3の1段階目={}", stage.values[0]);
+        assert_eq!(stage.labels, vec!["1段階".to_string(), "2段階".to_string(), "3段階".to_string()]);
+
+        let sprria = find("sprria_s2");
+        assert!(approx_eq(sprria.value, 0.30), "sprria_s2のデフォルト値={}", sprria.value);
+        assert!(sprria.single_target, "sprria_s2はsingle_targetのはず");
+
+        let exusiai = find("exusiai");
+        assert!(approx_eq(exusiai.value, 0.10), "exusiaiのデフォルト値={}", exusiai.value);
+        let exusiai_talent = exusiai.source.as_ref().unwrap().talent.as_ref().unwrap();
+        // E0/E1は候補が無いので0(素質は昇進2でのみ解放)。
+        assert!(approx_eq(exusiai_talent.values_by_elite_and_potential[0][5], 0.0), "exusiaiのE0潜在6={}", exusiai_talent.values_by_elite_and_potential[0][5]);
+        let exusiai_module = exusiai_talent.modules.iter().find(|m| m.module_id == "uniequip_002_angel").expect("exusiaiのモジュールXがあるはず");
+        // モジュールX Lv3(index2)・潜在1(potentialRank0)= 0.08。
+        assert!(approx_eq(exusiai_module.values_by_level_and_potential[2][0], 0.08), "exusiaiのXLv3潜在1={}", exusiai_module.values_by_level_and_potential[2][0]);
+        let max_targets = exusiai.source.as_ref().unwrap().max_targets_by_module.as_ref().expect("exusiaiはmax_targets_by_moduleを持つはず");
+        assert_eq!(max_targets.module_id, "uniequip_002_angel");
+        assert_eq!(max_targets.min_level, 2);
+        assert_eq!(max_targets.count, 2);
     }
 
     /// P4: オーナー確認済みの実データ値(2026-09時点)と一致すること。ゲームデータ更新で

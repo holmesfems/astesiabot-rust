@@ -467,29 +467,98 @@ async function runBuffScenario(browser, baseUrl) {
     const formulaWithPlasma = await page.locator('.row-formula').innerText();
     ok('formula line reflects the individual buff pct (個別90%)', formulaWithPlasma.includes('個別90%'), formulaWithPlasma);
 
-    // --- single_targetバフ(エクシア)を2行で選ぶと⚠が出る ---
-    const exusiaiChip1 = page.locator('.chip[data-buff-id="exusiai"]');
-    ok('single_target chip (エクシア) exists', (await exusiaiChip1.count()) === 1);
-    await exusiaiChip1.click();
+    // --- single_targetバフ(アS3/durian。コーディネーター指示でP5にsingle_target化)を
+    //     2行で選ぶと⚠が出る ---
+    const durianChip1 = page.locator('.chip[data-buff-id="durian"]');
+    ok('single_target chip (アS3/durian) exists', (await durianChip1.count()) === 1);
+    await durianChip1.click();
     await page.waitForTimeout(100);
-    ok('no ⚠ warning yet (selected on only 1 row)', (await exusiaiChip1.locator('.chip-warn').count()) === 0);
+    ok('no ⚠ warning yet for durian (selected on only 1 row)', (await durianChip1.locator('.chip-warn').count()) === 0);
     await page.click('[data-action="collapse-row"]');
 
     // addOperator直後は新しい行(2人目)が展開済み(addRow()の仕様)なので、
     // 編集ボタンを押し直す必要は無い。
     await addOperator(page, 'Ash', '400%');
     await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const durianChip2 = page.locator('.row-expanded .chip[data-buff-id="durian"]');
+    await durianChip2.click();
+    await page.waitForTimeout(100);
+    ok('durian ⚠ warning appears once the same buff is chosen on a 2nd row',
+      (await page.locator('.row-expanded .chip-warn').count()) === 1);
+    await durianChip2.click(); // 以降のシナリオに影響しないよう元に戻す(Ash側)
+    await page.waitForTimeout(100);
+    await page.click('[data-action="collapse-row"]');
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    await page.locator('.row-expanded .chip[data-buff-id="durian"]').click(); // ブレイズ側も元に戻す
+    await page.waitForTimeout(100);
+    await page.click('[data-action="collapse-row"]');
+
+    // --- single_targetバフ(エクシア)は対象人数の拡張(max_targets_by_module。P5)の対象:
+    //     育成設定の既定(モジュールX Lv2以上)では2行選んでも⚠が出ない ---
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const exusiaiChip1 = page.locator('.row-expanded .chip[data-buff-id="exusiai"]');
+    ok('single_target chip (エクシア) exists', (await exusiaiChip1.count()) === 1);
+    await exusiaiChip1.click();
+    await page.waitForTimeout(100);
+    ok('no ⚠ warning yet (selected on only 1 row)', (await exusiaiChip1.locator('.chip-warn').count()) === 0);
+    await page.click('[data-action="collapse-row"]');
+
+    await page.locator('[data-action="edit-row"]').nth(1).click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
     const exusiaiChip2 = page.locator('.row-expanded .chip[data-buff-id="exusiai"]');
     await exusiaiChip2.click();
     await page.waitForTimeout(100);
-    ok('single_target ⚠ warning appears once the same buff is chosen on a 2nd row',
+    ok('with the default growth setting (module X Lv2+), 2 rows do NOT trigger the ⚠ warning (max_targets_by_module=2)',
+      (await page.locator('.row-expanded .chip-warn').count()) === 0);
+    await page.click('[data-action="collapse-row"]');
+
+    // --- 3行目でエクシアを選ぶと上限(2)を超えるので⚠が出る ---
+    await addOperator(page, 'ブレイズ', null);
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const exusiaiChip3 = page.locator('.row-expanded .chip[data-buff-id="exusiai"]');
+    await exusiaiChip3.click();
+    await page.waitForTimeout(100);
+    ok('⚠ appears once a 3rd row selects エクシア (exceeds max_targets_by_module=2)',
       (await page.locator('.row-expanded .chip-warn').count()) === 1);
+    await exusiaiChip3.click(); // 3行目の選択を戻してから削除する
+    await page.waitForTimeout(100);
+    await page.click('[data-action="collapse-row"]');
+    await page.locator('[data-action="del-row"]').last().click(); // 3行目(検証用に追加したブレイズ)を削除
+    await page.waitForTimeout(100);
+    ok('back to 2 rows after removing the 3rd', (await page.locator('.row-card').count()) === 2);
+
+    // --- 「個別バフの育成設定」: エクシアのモジュールを「なし」にすると対象人数の上限が
+    //     1に戻り、2行選択でも⚠が出るようになる ---
+    const exusiaiLevelCard = page.locator('#individual-buff-levels-section .cond-source-card[data-buff-id="exusiai"]');
+    ok('individual buff growth settings section shows a card for エクシア (checked on 2 rows)', (await exusiaiLevelCard.count()) === 1);
+    const exusiaiValueBefore = (await exusiaiLevelCard.locator('.cond-source-value').innerText()).trim();
+    ok('エクシア default resolved value is +10% (E2/潜在6/モジュールXLv3)', exusiaiValueBefore === '+10%', exusiaiValueBefore);
+    const exusiaiModuleSelect = exusiaiLevelCard.locator('select[data-field="moduleId"]');
+    await exusiaiModuleSelect.selectOption({ label: 'なし' });
+    await page.waitForTimeout(100);
+    await page.locator('[data-action="edit-row"]').nth(1).click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    ok('⚠ appears on the 2nd row once エクシア growth module is set to なし (limit falls back to 1)',
+      (await page.locator('.row-expanded .chip-warn').count()) === 1);
+    await page.click('[data-action="collapse-row"]');
+    await exusiaiModuleSelect.selectOption({ label: 'X' }); // 元に戻す
+    await page.waitForTimeout(100);
+    await page.locator('[data-action="edit-row"]').nth(1).click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    ok('⚠ disappears again once module X is reselected', (await page.locator('.row-expanded .chip-warn').count()) === 0);
     await page.click('[data-action="collapse-row"]');
 
     // --- 全体バフ(条件付き。Castle 近距離+20%)をON: 近距離(ブレイズ)には適用、
     //     非近距離(Ash=狙撃)には適用されない ---
-    await page.click('#global-buffs-details summary');
-    await page.waitForTimeout(50);
+    // ②全体バフは、直前のエクシア育成設定操作(onGlobalBuffLevelChangeがglobalBuffsOpen=trueに
+    // する)で既に開いている可能性があるため、summaryクリックは「閉じている場合だけ」行う
+    // (開いている状態でクリックするとトグルで閉じてしまう)。
+    if (!(await page.locator('#global-buffs-details').evaluate((el) => el.open))) {
+      await page.click('#global-buffs-details summary');
+      await page.waitForTimeout(50);
+    }
     const castleChip = page.locator('.chip[data-buff-id="castle3"]');
     ok('global conditional buff chip (Castle) exists', (await castleChip.count()) === 1);
     await castleChip.click();
@@ -570,6 +639,11 @@ async function runBuffScenario(browser, baseUrl) {
     ok('global buff ON state survives reload (localStorage)', summaryAfterReload.includes('1件ON'), summaryAfterReload);
     const badgesAfterReload = await page.locator('.badge-buffcount').allTextContents();
     ok('row buff-count badges survive reload', badgesAfterReload.some((t) => /^バフ\d+$/.test(t.trim())), badgesAfterReload);
+    const exusiaiCardAfterReload = page.locator('#individual-buff-levels-section .cond-source-card[data-buff-id="exusiai"]');
+    ok('individual buff growth settings section persists after reload (エクシア card still shown)', (await exusiaiCardAfterReload.count()) === 1);
+    ok('エクシア resolved value survives reload (+10%, module X restored)',
+      (await exusiaiCardAfterReload.locator('.cond-source-value').innerText()).trim() === '+10%',
+      await exusiaiCardAfterReload.locator('.cond-source-value').innerText());
 
     // --- 共有URLにもバフ状態が含まれる ---
     await page.click('[data-action="share"]');
@@ -585,6 +659,8 @@ async function runBuffScenario(browser, baseUrl) {
       ok('shared URL restores the global buff ON state', otherSummary.includes('1件ON'), otherSummary);
       const otherBadges = await other.locator('.badge-buffcount').allTextContents();
       ok('shared URL restores row buff-count badges', otherBadges.some((t) => /^バフ\d+$/.test(t.trim())), otherBadges);
+      const otherExusiaiCard = other.locator('#individual-buff-levels-section .cond-source-card[data-buff-id="exusiai"]');
+      ok('shared URL restores the individual buff growth settings (エクシア card present)', (await otherExusiaiCard.count()) === 1);
     } finally {
       await otherContext.close();
     }
@@ -723,19 +799,35 @@ async function runInspireScenario(browser, baseUrl) {
     await plasmaChip.click(); // 元に戻す(後続シナリオへの影響を避ける)
     await page.waitForTimeout(100);
 
-    // --- single_target(エクシア)⚠: 鼓舞ソースと行の両方で選ぶと両方に⚠が出る ---
-    const sourceExusiaiChip = page.locator('.inspire-source-card .chip[data-buff-id="exusiai"]');
-    await sourceExusiaiChip.click();
+    // --- single_target(アS3/durian)⚠: 鼓舞ソースと行の両方で選ぶと両方に⚠が出る
+    //     (durianはmax_targets_by_moduleを持たないので上限は常に1のまま) ---
+    const sourceDurianChip = page.locator('.inspire-source-card .chip[data-buff-id="durian"]');
+    await sourceDurianChip.click();
     await page.waitForTimeout(100);
-    ok('no ⚠ yet (エクシア selected only on the inspire source)', (await sourceExusiaiChip.locator('.chip-warn').count()) === 0);
+    ok('no ⚠ yet (durian selected only on the inspire source)', (await sourceDurianChip.locator('.chip-warn').count()) === 0);
     await page.locator('[data-action="edit-row"]').first().click();
     await page.waitForSelector('.row-expanded', { timeout: 5000 });
-    const rowExusiaiChip = page.locator('.row-expanded .chip[data-buff-id="exusiai"]');
-    await rowExusiaiChip.click();
+    const rowDurianChip = page.locator('.row-expanded .chip[data-buff-id="durian"]');
+    await rowDurianChip.click();
     await page.waitForTimeout(100);
     ok('⚠ appears on the row once the same single_target buff is also selected on the inspire source',
       (await page.locator('.row-expanded .chip-warn').count()) === 1);
-    ok('⚠ also appears on the inspire source chip', (await sourceExusiaiChip.locator('.chip-warn').count()) === 1);
+    ok('⚠ also appears on the inspire source chip', (await sourceDurianChip.locator('.chip-warn').count()) === 1);
+    await rowDurianChip.click(); // 元に戻す
+    await page.waitForTimeout(100);
+    await sourceDurianChip.click();
+    await page.waitForTimeout(100);
+
+    // --- エクシア(max_targets_by_module=2。P5): 育成設定が既定(モジュールX Lv2以上)の間は
+    //     ソース+行の合計2箇所選んでも⚠が出ない ---
+    const sourceExusiaiChip = page.locator('.inspire-source-card .chip[data-buff-id="exusiai"]');
+    await sourceExusiaiChip.click();
+    await page.waitForTimeout(100);
+    const rowExusiaiChip = page.locator('.row-expanded .chip[data-buff-id="exusiai"]');
+    await rowExusiaiChip.click();
+    await page.waitForTimeout(100);
+    ok('no ⚠ for エクシア with source+row=2 selections (max_targets_by_module=2 by default)',
+      (await page.locator('.row-expanded .chip-warn').count()) === 0 && (await sourceExusiaiChip.locator('.chip-warn').count()) === 0);
     await rowExusiaiChip.click(); // 元に戻す
     await page.waitForTimeout(100);
     await sourceExusiaiChip.click();
@@ -873,6 +965,119 @@ async function runConditionalSourceScenario(browser, baseUrl) {
   }
 }
 
+// P5: 個別バフの動的値解決(talent×scale/base_pct×scale/stage)と「個別バフの育成設定」
+// セクションの表現層テスト。何も選んでいない間はヒントのみ、行でバフを選ぶとカードが
+// 現れること・軸の表示/非表示(scaleのvaries)・段階セレクト・トグル(装置2台)・
+// リロードでの永続化を検証する。
+async function runIndividualBuffLevelsScenario(browser, baseUrl) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+
+    // --- 何も選んでいない間はヒントのみ(カード無し) ---
+    const section = page.locator('#individual-buff-levels-section');
+    ok('individual buff growth settings section shows only a hint when nothing is checked',
+      (await section.locator('.cond-source-card').count()) === 0 && (await section.innerText()).includes('育成状況'));
+
+    // --- ステインレスS1をチェックするとカードが現れ、トグル(装置2台)で解決値が変わる ---
+    await addOperator(page, 'Ash', '400%');
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    await page.locator('.row-expanded .chip[data-buff-id="stainless_s1"]').click();
+    await page.waitForTimeout(100);
+    const stainlessCard = section.locator('.cond-source-card[data-buff-id="stainless_s1"]');
+    ok('ステインレスS1 card appears once checked on a row', (await stainlessCard.count()) === 1);
+    const stainlessValueBefore = (await stainlessCard.locator('.cond-source-value').innerText()).trim();
+    ok('ステインレスS1 default resolved value is +48% (base_pct 0.12 × scale Lv10=4)', stainlessValueBefore === '+48%', stainlessValueBefore);
+    const stainlessToggle = stainlessCard.locator('input[data-field="toggleOn"]');
+    ok('ステインレスS1 card has a "装置2台" toggle checkbox, unchecked by default', (await stainlessToggle.count()) === 1 && !(await stainlessToggle.isChecked()));
+    await stainlessToggle.check();
+    await page.waitForTimeout(100);
+    const stainlessValueAfter = (await stainlessCard.locator('.cond-source-value').innerText()).trim();
+    ok('checking "装置2台" doubles the resolved value to +96%', stainlessValueAfter === '+96%', stainlessValueAfter);
+    // 行のチップ表示も連動して更新される。
+    const stainlessChipText = await page.locator('.row-expanded .chip[data-buff-id="stainless_s1"]').innerText();
+    ok('the row chip label also reflects the toggled value (+96%)', stainlessChipText.includes('96%'), stainlessChipText);
+
+    // --- 育成設定を変えてもスクロール位置が動かない(render後のフォーカス復元が同じ
+    //     data-fieldの別カードへ飛んでスクロールしていた不具合の回帰テスト) ---
+    await stainlessCard.scrollIntoViewIfNeeded();
+    const scrollResult = await page.evaluate(async () => {
+      const el = document.querySelector('#individual-buff-levels-section .cond-source-card[data-buff-id="stainless_s1"] input[data-field="toggleOn"]');
+      const before = window.scrollY;
+      el.focus({ preventScroll: true });
+      el.click();
+      await new Promise((r) => setTimeout(r, 200));
+      el.ownerDocument.querySelector('#individual-buff-levels-section .cond-source-card[data-buff-id="stainless_s1"] input[data-field="toggleOn"]').click();
+      await new Promise((r) => setTimeout(r, 200));
+      return { before, after: window.scrollY, activeBuff: document.activeElement && document.activeElement.dataset.buffId };
+    });
+    ok('toggling a growth setting keeps the scroll position and focus on the same card',
+      scrollResult.before === scrollResult.after && scrollResult.activeBuff === 'stainless_s1', JSON.stringify(scrollResult));
+    ok('changing an individual growth setting does not expand the global buff panel',
+      !(await page.locator('#global-buffs-details').evaluate((el) => el.open)));
+
+    // --- スワイヤーS1(scale固定値なのでスキルLv軸は非表示)/S2(scaleが変化するので表示) ---
+    await page.locator('.row-expanded .chip[data-buff-id="swire_s1"]').click();
+    await page.locator('.row-expanded .chip[data-buff-id="swire_s2"]').click();
+    await page.waitForTimeout(100);
+    const swireS1Card = section.locator('.cond-source-card[data-buff-id="swire_s1"]');
+    const swireS2Card = section.locator('.cond-source-card[data-buff-id="swire_s2"]');
+    ok('swire_s1 card has elite/potential selects (talent varies) but no skill level select (scale is constant 2.0)',
+      (await swireS1Card.locator('select[data-field="elite"]').count()) === 1 &&
+        (await swireS1Card.locator('select[data-field="potential"]').count()) === 1 &&
+        (await swireS1Card.locator('select[data-field="skillLevel"]').count()) === 0);
+    ok('swire_s2 card DOES have a skill level select (scale varies 2.1〜3.0)',
+      (await swireS2Card.locator('select[data-field="skillLevel"]').count()) === 1);
+    const swireS2ValueBefore = (await swireS2Card.locator('.cond-source-value').innerText()).trim();
+    ok('swire_s2 default resolved value is +36%', swireS2ValueBefore === '+36%', swireS2ValueBefore);
+    await swireS2Card.locator('select[data-field="skillLevel"]').selectOption('1');
+    await page.waitForTimeout(100);
+    const swireS2ValueLv1 = (await swireS2Card.locator('.cond-source-value').innerText()).trim();
+    ok('switching swire_s2 to skill level 1 changes the resolved value to +25% (25.2 rounded)', swireS2ValueLv1 === '+25%', swireS2ValueLv1);
+
+    // --- ナスティS3: 段階セレクト(1段階/2段階/3段階) ---
+    await page.locator('.row-expanded .chip[data-buff-id="nasty_s3"]').click();
+    await page.waitForTimeout(100);
+    const nastyCard = section.locator('.cond-source-card[data-buff-id="nasty_s3"]');
+    const nastyStageSelect = nastyCard.locator('select[data-field="stageIndex"]');
+    ok('nasty_s3 card has a stage select', (await nastyStageSelect.count()) === 1);
+    const nastyStageLabels = await nastyStageSelect.locator('option').allTextContents();
+    ok('nasty_s3 stage select offers 1段階/2段階/3段階', JSON.stringify(nastyStageLabels) === JSON.stringify(['1段階', '2段階', '3段階']), nastyStageLabels);
+    const nastyValueBefore = (await nastyCard.locator('.cond-source-value').innerText()).trim();
+    ok('nasty_s3 default (3段階) resolves to +60%', nastyValueBefore === '+60%', nastyValueBefore);
+    await nastyStageSelect.selectOption('1');
+    await page.waitForTimeout(100);
+    const nastyValueLv1 = (await nastyCard.locator('.cond-source-value').innerText()).trim();
+    ok('switching nasty_s3 to 1段階 resolves to +20%', nastyValueLv1 === '+20%', nastyValueLv1);
+
+    // --- リロードで育成設定(トグル/スキルLv/段階)が保持される(localStorage) ---
+    await page.waitForTimeout(500);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(300);
+    const stainlessValueReloaded = (await page.locator('#individual-buff-levels-section .cond-source-card[data-buff-id="stainless_s1"] .cond-source-value').innerText()).trim();
+    ok('stainless_s1 toggle survives reload (+96%)', stainlessValueReloaded === '+96%', stainlessValueReloaded);
+    const swireS2ValueReloaded = (await page.locator('#individual-buff-levels-section .cond-source-card[data-buff-id="swire_s2"] .cond-source-value').innerText()).trim();
+    ok('swire_s2 skill level selection survives reload (+25%)', swireS2ValueReloaded === '+25%', swireS2ValueReloaded);
+    const nastyValueReloaded = (await page.locator('#individual-buff-levels-section .cond-source-card[data-buff-id="nasty_s3"] .cond-source-value').innerText()).trim();
+    ok('nasty_s3 stage selection survives reload (+20%)', nastyValueReloaded === '+20%', nastyValueReloaded);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  individual-buff-levels scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_individual_buff_levels.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
 // P1形(buffIds/specialOn/globalBuffIds無し)のlocalStorage stateがそのまま読み込めること。
 async function runOldShapeLocalStorageScenario(browser, baseUrl) {
   const context = await browser.newContext();
@@ -945,6 +1150,7 @@ try {
   await runStaleRowScenario(browser, baseUrl);
   await runBuffScenario(browser, baseUrl);
   await runConditionalSourceScenario(browser, baseUrl);
+  await runIndividualBuffLevelsScenario(browser, baseUrl);
   await runInspireScenario(browser, baseUrl);
   await runOldShapeLocalStorageScenario(browser, baseUrl);
 } catch (e) {

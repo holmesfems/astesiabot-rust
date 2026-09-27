@@ -311,24 +311,41 @@ export function resolveConditionalValue(b, levels = {}) {
   const source = b.source;
   const defaults = source.defaults || {};
   let base;
-  if (source.skill) {
+  if (source.stage) {
+    // P5: 離散段階ソース(スキルLvではなく段階で値が変わる。例: ナスティS3)。
+    const stageIndex = levels.stageIndex ?? defaults.stageIndex ?? 1;
+    const idx = Math.min(Math.max(stageIndex, 1), source.stage.values.length) - 1;
+    base = source.stage.values[idx] ?? 0;
+  } else if (!source.talent && source.basePct == null && source.skill) {
+    // 純粋なスキルソース(値そのもの。talent/base_pctが無ければscaleと組み合わせる余地も無い)。
     const skillLevel = levels.skillLevel ?? defaults.skillLevel ?? 1;
     const idx = Math.min(Math.max(skillLevel, 1), source.skill.valuesByLevel.length) - 1;
     base = source.skill.valuesByLevel[idx] ?? 0;
-  } else if (source.talent) {
-    const elite = levels.elite ?? defaults.elite ?? 2;
-    const potential = levels.potential ?? defaults.potential ?? 5;
-    const moduleId = levels.moduleId !== undefined ? levels.moduleId : (defaults.moduleId ?? null);
-    // モジュールは昇進2でしか装備できないので、E0/E1ではモジュール選択を無視する。
-    const module = moduleId && elite >= 2 ? source.talent.modules.find((m) => m.moduleId === moduleId) : null;
-    if (module) {
-      const moduleLevel = levels.moduleLevel ?? defaults.moduleLevel ?? 3;
-      base = module.valuesByLevelAndPotential[moduleLevel - 1][potential] ?? 0;
-    } else {
-      base = source.talent.valuesByEliteAndPotential[elite][potential] ?? 0;
-    }
   } else {
-    base = b.value;
+    // P5: talent または base_pct を主軸とし、scale(あれば)を掛け合わせる。
+    let primary;
+    if (source.talent) {
+      const elite = levels.elite ?? defaults.elite ?? 2;
+      const potential = levels.potential ?? defaults.potential ?? 5;
+      const moduleId = levels.moduleId !== undefined ? levels.moduleId : (defaults.moduleId ?? null);
+      // モジュールは昇進2でしか装備できないので、E0/E1ではモジュール選択を無視する。
+      const module = moduleId && elite >= 2 ? source.talent.modules.find((m) => m.moduleId === moduleId) : null;
+      if (module) {
+        const moduleLevel = levels.moduleLevel ?? defaults.moduleLevel ?? 3;
+        primary = module.valuesByLevelAndPotential[moduleLevel - 1][potential] ?? 0;
+      } else {
+        primary = source.talent.valuesByEliteAndPotential[elite][potential] ?? 0;
+      }
+    } else {
+      primary = source.basePct ?? 0;
+    }
+    let scaleFactor = 1;
+    if (source.scale) {
+      const skillLevel = levels.skillLevel ?? defaults.skillLevel ?? 1;
+      const idx = Math.min(Math.max(skillLevel, 1), source.scale.valuesByLevel.length) - 1;
+      scaleFactor = source.scale.valuesByLevel[idx] ?? 1;
+    }
+    base = primary * scaleFactor;
   }
   if (b.toggle) {
     const toggleOn = levels.toggleOn ?? false;
@@ -347,8 +364,11 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = [], gl
   for (const id of row.buffIds || []) {
     const b = byId.get(id);
     if (!b || b.scope.type !== "individual") continue;
-    if (b.kind === "pct") individualPct += b.value;
-    else individualFlat += b.value;
+    // P5: sourceを持つ個別バフはglobalBuffLevels[id](育成設定)で解決した値を使う
+    // (conditionalと同じ`resolveConditionalValue`をそのまま再利用する)。
+    const value = b.source ? resolveConditionalValue(b, (globalBuffLevels && globalBuffLevels[id]) || {}) : b.value;
+    if (b.kind === "pct") individualPct += value;
+    else individualFlat += value;
   }
 
   let conditionalPct = 0,
@@ -401,20 +421,32 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = [], gl
 }
 
 /**
- * `single_target`(単体対象)バフが2行以上で選ばれているかを検出する。
+ * `single_target`(単体対象)バフが許容数を超えて選ばれているかを検出する。
  * UIが⚠警告を出すためのデータ(「本当に両方に乗るのか？」の注意喚起。計算自体は
  * 単純合算のままで、警告を出すだけに留める)。P3: 鼓舞ソース(`inspireSourceStates`。
  * ON中のソースの`buffIds`のみを数える。OFF中は効果自体が無いため対象外)側の選択も
  * 行と同じ名前空間で数える(例: エクシアを行とソース両方で選ぶと両方に⚠が出る)。
- * @returns {Set<string>} 複数箇所(行/鼓舞ソース跨ぎ含む)で選ばれているバフidの集合
+ * 許容数は通常1だが、P5の`b.source.maxTargetsByModule`(例: エクシア。モジュールX Lv2以上
+ * 装備時は2名まで許容)が現在の`globalBuffLevels`選択で条件を満たす間は`count`に緩和する。
+ * @returns {Set<string>} 許容数を超えて選ばれているバフidの集合
  */
-export function findSingleTargetConflicts(catalog, rows, inspireSourceStates = {}) {
+export function findSingleTargetConflicts(catalog, rows, inspireSourceStates = {}, globalBuffLevels = {}) {
   const buffers = (catalog && catalog.buffers) || [];
-  const singleIds = new Set(buffers.filter((b) => b.singleTarget).map((b) => b.id));
+  const singleBuffs = buffers.filter((b) => b.singleTarget);
+  const limitFor = (b) => {
+    const mt = b.source && b.source.maxTargetsByModule;
+    if (!mt) return 1;
+    const defaults = (b.source && b.source.defaults) || {};
+    const levels = (globalBuffLevels && globalBuffLevels[b.id]) || {};
+    const moduleId = levels.moduleId !== undefined ? levels.moduleId : (defaults.moduleId ?? null);
+    const moduleLevel = levels.moduleLevel ?? defaults.moduleLevel ?? 3;
+    return moduleId === mt.moduleId && moduleLevel >= mt.minLevel ? mt.count : 1;
+  };
+  const limitById = new Map(singleBuffs.map((b) => [b.id, limitFor(b)]));
   const countById = new Map();
   const count = (ids) => {
     for (const id of ids || []) {
-      if (!singleIds.has(id)) continue;
+      if (!limitById.has(id)) continue;
       countById.set(id, (countById.get(id) || 0) + 1);
     }
   };
@@ -424,7 +456,7 @@ export function findSingleTargetConflicts(catalog, rows, inspireSourceStates = {
     count(cfg.buffIds);
   }
   const conflicts = new Set();
-  for (const [id, count] of countById) if (count > 1) conflicts.add(id);
+  for (const [id, n] of countById) if (n > (limitById.get(id) ?? 1)) conflicts.add(id);
   return conflicts;
 }
 
@@ -629,6 +661,11 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSo
  * バフidのエントリは静かに取り除く。また旧(P2)形の`amiya_guard_normal`/
  * `amiya_guard_skill`(P4で`amiya_guard`+toggleへ1本化)が`globalBuffIds`に残っていれば
  * `amiya_guard`(+`amiya_guard_skill`だった場合はtoggleOn)へ移行する。
+ * P5: `globalBuffLevels`の補完対象はconditionalに限らず`b.source`を持つ全バフ(個別も含む)。
+ * 旧(P2)形の`stainless_1`/`stainless_2`(2エントリ制。P5で`stainless_s1`+toggleへ1本化)が
+ * `row.buffIds`/鼓舞ソースの`buffIds`に残っていれば`stainless_s1`へ移行する
+ * (`stainless_2`だった箇所が1つでもあれば共有toggleをONにする。toggleはバフ単位で
+ * 共有する状態[`globalBuffLevels`]なので、どの行/ソース由来でも1回ONにすれば良い)。
  * @returns {{state:object, dropped:number}}
  */
 export function dropStaleRows(state, catalog) {
@@ -637,6 +674,21 @@ export function dropStaleRows(state, catalog) {
   const validBuffIds = new Set(buffers.map((b) => b.id));
   const inspireSources = (catalog.inspireSources || []);
   let dropped = 0;
+
+  // P5: stainless_1/stainless_2 → stainless_s1 の移行(migrateStainlessIdsの前に、
+  // 移行前の生データ全体からstainless_2の使用有無を1回だけ調べる。globalBuffLevelsは
+  // バフ単位で共有する状態なので、行/鼓舞ソースのどちらでどう使われていたかは問わない)。
+  const rawSourceCfgs = Object.values((state.inspire && state.inspire.sources) || {});
+  const hadStainless2 = [...state.rows.flatMap((r) => r.buffIds || []), ...rawSourceCfgs.flatMap((c) => (c && c.buffIds) || [])].includes(
+    "stainless_2",
+  );
+  const migrateStainlessIds = (ids) => {
+    if (!ids || !ids.length) return ids;
+    const set = new Set();
+    for (const id of ids) set.add(id === "stainless_1" || id === "stainless_2" ? "stainless_s1" : id);
+    return Array.from(set);
+  };
+
   const rows = state.rows
     .filter((row) => {
       const op = opById.get(row.opId);
@@ -646,7 +698,7 @@ export function dropStaleRows(state, catalog) {
     })
     .map((row) => ({
       ...row,
-      buffIds: (row.buffIds || []).filter((id) => validBuffIds.has(id)),
+      buffIds: migrateStainlessIds(row.buffIds || []).filter((id) => validBuffIds.has(id)),
       specialOn: row.specialOn !== false,
       inspireOn: row.inspireOn !== false,
     }));
@@ -665,8 +717,8 @@ export function dropStaleRows(state, catalog) {
   }
   const globalBuffIds = rawGlobalBuffIds.filter((id) => validBuffIds.has(id));
 
-  // P4: source付きバフ全てにglobalBuffLevelsのデフォルトを補う(初めてONにした時に
-  // 見せる値と、共有URL/localStorageの欠損補完を兼ねる)。
+  // P4/P5: source付きバフ全て(conditional/individual問わず)にglobalBuffLevelsの
+  // デフォルトを補う(初めてONにした時に見せる値と、共有URL/localStorageの欠損補完を兼ねる)。
   const rawLevels = state.globalBuffLevels || {};
   const globalBuffLevels = {};
   for (const b of buffers) {
@@ -679,10 +731,12 @@ export function dropStaleRows(state, catalog) {
       moduleId: d.moduleId ?? null,
       moduleLevel: d.moduleLevel ?? 3,
       skillLevel: d.skillLevel ?? 1,
+      stageIndex: d.stageIndex ?? 1,
       toggleOn: false,
       ...stored,
     };
     if (migratedToggleOn.has(b.id)) globalBuffLevels[b.id].toggleOn = true;
+    if (b.id === "stainless_s1" && hadStainless2) globalBuffLevels[b.id].toggleOn = true;
   }
 
   const sourceById = new Map(inspireSources.map((s) => [s.id, s]));
@@ -698,7 +752,7 @@ export function dropStaleRows(state, catalog) {
     }
     cleanedSources[sourceId] = {
       ...cfg,
-      buffIds: (cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
+      buffIds: migrateStainlessIds(cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
       parts,
     };
   }
