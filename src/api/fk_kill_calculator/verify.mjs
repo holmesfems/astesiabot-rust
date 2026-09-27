@@ -21,6 +21,14 @@ import {
   computeBuffBreakdown,
   resolveConditionalValue,
   potentialGroups,
+  computeBaseAtk,
+  resolveAtk,
+  moduleUsable,
+  effectiveModuleId,
+  maxEliteFor,
+  maxLevelForElite,
+  makeDefaultRow,
+  skillUnlockWarning,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -1437,6 +1445,152 @@ console.log("\n=== P5: state移行(旧stainless_1/stainless_2の2エントリ→
     migratedSource.inspire.sources.src.buffIds.includes("stainless_s1") && migratedSource.globalBuffLevels.stainless_s1.toggleOn === true,
     migratedSource.inspire.sources.src,
   );
+}
+
+console.log("\n=== P6: 昇進/レベル/信頼度からのベースATK計算(computeBaseAtk/resolveAtk) ===\n");
+{
+  // エーベンホルツ(char_4046_ebnhlz)。オーナー確認済みの実データ。
+  const ebenholz = {
+    id: "op",
+    name: "エーベンホルツ",
+    tags: [],
+    atkBase: 1550,
+    atkPotential: 0,
+    modules: [],
+    fkEntries: [],
+    phases: [
+      { maxLevel: 50, atkMin: 611, atkMax: 873 },
+      { maxLevel: 80, atkMin: 873, atkMax: 1134 },
+      { maxLevel: 90, atkMin: 1134, atkMax: 1400 },
+    ],
+    atkTrustMax: 150,
+    skillUnlockPhase: [
+      ["1", 0],
+      ["2", 1],
+      ["3", 2],
+    ],
+  };
+  check("E2 Lv60(信頼度0で補間だけ抜き出す) = 1310(1134+59×266/89=1310.34…の四捨五入)", computeBaseAtk(ebenholz, 2, 60, 0) === 1310, computeBaseAtk(ebenholz, 2, 60, 0));
+  check("E2 Lv90(最大)・信頼度100% = atkBase(1400+150=1550)と一致", computeBaseAtk(ebenholz, 2, 90, 100) === 1550, computeBaseAtk(ebenholz, 2, 90, 100));
+  check("E0 Lv1(信頼度0) = 611(補間の端)", computeBaseAtk(ebenholz, 0, 1, 0) === 611, computeBaseAtk(ebenholz, 0, 1, 0));
+  check("E1 Lv1(=E0 Lv50の値と同じ871→873。信頼度0)", computeBaseAtk(ebenholz, 1, 1, 0) === 873, computeBaseAtk(ebenholz, 1, 1, 0));
+  check("信頼度50%は四捨五入して個別に加算される(150×0.5=75)", computeBaseAtk(ebenholz, 2, 90, 50) === 1400 + 75, computeBaseAtk(ebenholz, 2, 90, 50));
+  check("levelは1未満にクランプされる", computeBaseAtk(ebenholz, 2, -5, 0) === computeBaseAtk(ebenholz, 2, 1, 0));
+  check("levelはmaxLevelにクランプされる", computeBaseAtk(ebenholz, 2, 9999, 0) === computeBaseAtk(ebenholz, 2, 90, 0));
+  check("maxEliteFor=2(3段階)", maxEliteFor(ebenholz) === 2);
+  check("maxLevelForElite(E1)=80", maxLevelForElite(ebenholz, 1) === 80);
+
+  // シー(char_2015_dusk)。オーナー実機検証: E2 Lv71・信頼度100%・無モジュール・
+  // 潜在+34 → ATK1031(886.618→887 + 110 + 34)。切り捨てだと1030になり実測と食い違う。
+  const dusk = {
+    id: "op2",
+    name: "シー",
+    tags: [],
+    atkBase: 1028,
+    atkPotential: 34,
+    modules: [],
+    fkEntries: [],
+    phases: [
+      { maxLevel: 50, atkMin: 426, atkMax: 601 },
+      { maxLevel: 80, atkMin: 601, atkMax: 771 },
+      { maxLevel: 90, atkMin: 771, atkMax: 918 },
+    ],
+    atkTrustMax: 110,
+  };
+  const duskRow = { elite: 2, level: 71, trust: 100, potential: true, moduleId: null, moduleLv: 3 };
+  check(
+    "シー E2 Lv71・信頼度100%・潜在ON・モジュール無し → resolveAtk=1031(オーナー実機確認値)",
+    resolveAtk(dusk, duskRow) === 1031,
+    resolveAtk(dusk, duskRow),
+  );
+  check(
+    "上と同じ内訳: 補間部分だけ抜き出すと887(切り捨てなら886。信頼度0で分離して確認)",
+    computeBaseAtk(dusk, 2, 71, 0) === 887,
+    computeBaseAtk(dusk, 2, 71, 0),
+  );
+
+  // phasesが無い(旧来の簡易opオブジェクト)場合はatkBaseへフォールバックする(後方互換)。
+  const legacyOp = { atkBase: 500, atkPotential: 0, modules: [] };
+  check("phases無しのopはelite/levelを無視してatkBaseを返す", computeBaseAtk(legacyOp, 2, 1, 0) === 500);
+  check("phases無しのopのmaxEliteForは0", maxEliteFor(legacyOp) === 0);
+}
+
+console.log("\n=== P6: モジュール装備可否(moduleUsable/effectiveModuleId) ===\n");
+{
+  const moduleE2Lv60 = { id: "m", typeName: "X", name: "m", atkByLevel: [10, 20, 30], unlockPhase: 2, unlockLevel: 60 };
+  check("E2 Lv60ちょうどは装備可能", moduleUsable(moduleE2Lv60, 2, 60) === true);
+  check("E2 Lv59は装備不可(境界)", moduleUsable(moduleE2Lv60, 2, 59) === false);
+  check("E1(昇進不足)は装備不可", moduleUsable(moduleE2Lv60, 1, 90) === false);
+  check("nullモジュールは常にfalse", moduleUsable(null, 2, 90) === false);
+
+  const opWithModule = { id: "op3", name: "op3", tags: [], atkBase: 1000, atkPotential: 0, modules: [moduleE2Lv60], fkEntries: [], phases: [], atkTrustMax: 0 };
+  check(
+    "装備可能な組み合わせではeffectiveModuleIdがそのまま返る",
+    effectiveModuleId(opWithModule, { moduleId: "m", elite: 2, level: 60 }) === "m",
+  );
+  check(
+    "装備不可の組み合わせ(Lv59)ではeffectiveModuleIdがnullになる",
+    effectiveModuleId(opWithModule, { moduleId: "m", elite: 2, level: 59 }) === null,
+  );
+  const atkUsable = resolveAtk(opWithModule, { elite: 2, level: 60, trust: 100, potential: false, moduleId: "m", moduleLv: 3 });
+  const atkUnusable = resolveAtk(opWithModule, { elite: 2, level: 59, trust: 100, potential: false, moduleId: "m", moduleLv: 3 });
+  check("装備不可の間はモジュールATKがresolveAtkに加算されない", atkUnusable < atkUsable, { atkUsable, atkUnusable });
+
+  // モジュールにunlockPhase/unlockLevelが無い(既存の簡易テストオブジェクト)場合は常に装備可能
+  // (後方互換。verify.mjsの他のop()ヘルパーがこの形を使い続けられるようにするため)。
+  const legacyModule = { id: "m2", typeName: "Y", name: "m2", atkByLevel: [1, 2, 3] };
+  check("unlockPhase/unlockLevel無しのモジュールは常に装備可能(後方互換)", moduleUsable(legacyModule, 0, 1) === true);
+}
+
+console.log("\n=== P6: makeDefaultRowの昇進/レベル/信頼度の既定値 ===\n");
+{
+  const opFullPhases = {
+    id: "op4",
+    name: "op4",
+    tags: [],
+    atkBase: 1000,
+    atkPotential: 0,
+    modules: [],
+    fkEntries: [{ skillNum: "1", skillLabel: "s1", variantLabel: null, multiplier: { value: 1, source: "auto" }, multiplierCandidates: [], selfAtkPct: { value: 0, source: "auto" }, hits: { value: 1, source: "auto" }, damageType: { value: "physical", source: "auto" }, tags: [] }],
+    phases: [
+      { maxLevel: 50, atkMin: 100, atkMax: 200 },
+      { maxLevel: 80, atkMin: 200, atkMax: 300 },
+      { maxLevel: 90, atkMin: 300, atkMax: 400 },
+    ],
+    atkTrustMax: 50,
+    skillUnlockPhase: [["1", 0]],
+  };
+  const rowFull = makeDefaultRow(opFullPhases, 0);
+  check("3段階あるopの既定昇進はE2", rowFull.elite === 2, rowFull.elite);
+  check("既定レベルはE2の最大(90)", rowFull.level === 90, rowFull.level);
+  check("既定信頼度は100", rowFull.trust === 100, rowFull.trust);
+
+  // フェーズが2つしか無いオペレーター(6凸できない低レアリティ想定)は既定昇進もE1止まり。
+  const opTwoPhases = { ...opFullPhases, phases: opFullPhases.phases.slice(0, 2) };
+  const rowTwo = makeDefaultRow(opTwoPhases, 0);
+  check("フェーズが2つのopの既定昇進はE1", rowTwo.elite === 1, rowTwo.elite);
+  check("既定レベルはE1の最大(80)", rowTwo.level === 80, rowTwo.level);
+}
+
+console.log("\n=== P6: スキル解放昇進の警告(skillUnlockWarning) ===\n");
+{
+  const opS3E2 = {
+    id: "op5",
+    name: "op5",
+    skillUnlockPhase: [
+      ["1", 0],
+      ["2", 1],
+      ["3", 2],
+    ],
+    phases: [{ maxLevel: 1 }, { maxLevel: 1 }, { maxLevel: 1 }],
+  };
+  const entryS3 = { skillNum: "3" };
+  check("E1でS3(昇進2解放)を選ぶと警告が出る", skillUnlockWarning(opS3E2, entryS3, { elite: 1 }) === "S3は昇進2で解放");
+  check("E2でS3を選ぶと警告は出ない", skillUnlockWarning(opS3E2, entryS3, { elite: 2 }) === null);
+  const entryS1 = { skillNum: "1" };
+  check("E0でS1(昇進0解放)を選んでも警告は出ない", skillUnlockWarning(opS3E2, entryS1, { elite: 0 }) === null);
+  const entryTalent = { skillNum: "素質1" };
+  check("素質行(skillUnlockPhaseに無いskillNum)は警告対象外", skillUnlockWarning(opS3E2, entryTalent, { elite: 0 }) === null);
 }
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");
