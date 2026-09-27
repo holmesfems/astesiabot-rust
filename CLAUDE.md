@@ -65,19 +65,31 @@ src/
 │   │   │                       SEED_PATH = data/seed/operator_data.json
 │   │   ├── operator_combat.rs … フレームキル計算機用のオペレーター戦闘生データ
 │   │   │                       （元ATK/信頼度込みATK・潜在ATK・モジュールのATK加算値・
-│   │   │                       nationId(P2で追加。勢力タグ判定用machine-only)。
-│   │   │                       machine-extractableな数値のみ）。character_table.json /
-│   │   │                       uniequip_table.json / battle_equip_table.json から構築する。
+│   │   │                       nationId(P2で追加。勢力タグ判定用machine-only)・
+│   │   │                       talents(P4で追加。素質candidates一覧。phase/potentialRank/
+│   │   │                       blackboard。条件付きバフの動的値解決に使う)・
+│   │   │                       モジュールのtalent_overrides_by_level(P4。モジュール装備時の
+│   │   │                       素質上書き候補)。machine-extractableな数値のみ）。
+│   │   │                       character_table.json / uniequip_table.json /
+│   │   │                       battle_equip_table.json から構築する。
 │   │   │                       operator_data.rs（消費素材ドメイン）とは意図的に別ソース
 │   │   │                       （オーナー方針: 両ドメインを混ぜない。詳細は下記ポイント参照）。
-│   │   │                       SEED_PATH = data/seed/operator_combat.json
+│   │   │                       **P4で発覚した罠**: モジュールのuniequip_table.jsonエントリは
+│   │   │                       `charId`が基礎オペレーター(前衛アーミヤなら"char_002_amiya")の
+│   │   │                       ままで、どの派生形専用かは`tmplId`が持つ(基礎キャラ自身の
+│   │   │                       モジュールは`tmplId`が無い)。`build_modules`は
+│   │   │                       `tmplId.unwrap_or(charId)`で振り分け先を決める(`charId`だけで
+│   │   │                       振り分けると派生形専用のモジュールが基礎オペレーターに付いて
+│   │   │                       しまう回帰があった)。SEED_PATH = data/seed/operator_combat.json
 │   │   └── skill_data/      … スキルID→表示名+説明文+blackboard+is_ammo_skill
 │   │       │                  （skill_table.json をfetch）。
 │   │       ├── mod.rs          … SkillData（旧skill_names.rsのSkillNamesを統合）。get_str/
 │   │       │                      get_description/get_blackboard（最大レベルのblackboard。
-│   │       │                      フレームキル計算機のスキル倍率取得に使う）/is_ammo_skill
-│   │       │                      （P2で追加。`durationType == "AMMO"`か。フレームキル計算機の
-│   │       │                      「弾薬スキル」タグ判定用machine-only）。
+│   │       │                      フレームキル計算機のスキル倍率取得に使う）/
+│   │       │                      get_blackboard_by_level（P4で追加。レベル1〜のblackboard
+│   │       │                      一覧。条件付きバフのスキルLv由来の動的値解決に使う）/
+│   │       │                      is_ammo_skill（P2で追加。`durationType == "AMMO"`か。
+│   │       │                      フレームキル計算機の「弾薬スキル」タグ判定用machine-only）。
 │   │       │                      SEED_PATH = data/seed/skill_data.json
 │   │       ├── raw.rs          … skill_table.jsonの生JSON構造体（durationTypeもここ）
 │   │       └── description.rs  … 最大レベルの説明文組み立て（タグ除去・プレースホルダ解決・
@@ -122,11 +134,24 @@ src/
 │       │                buffers::raw_inspire_sources()+operator_combatをマージして
 │       │                Catalog.inspireSourcesを組み立てる。対象operatorが無ければ
 │       │                `skipped`に"inspire:<id>"として記録し静かに落とす）もここ
+│       ├── conditional_source.rs … 条件付きバフの「ゲームデータからの動的値解決」(P4)。
+│       │                buffers::raw_conditional_sourced()(素質/スキルLv由来のsource生データ)
+│       │                とoperator_combat(talents)/skill_data(blackboard_by_level)をマージし、
+│       │                昇進×潜在(×モジュールLv)の値テーブル(dto::ConditionalTalentSource /
+│       │                ConditionalSkillSource)を組み立てる`build_conditional_sourced_buffers`。
+│       │                値が変わらない軸(昇進/潜在/モジュール)は自動で隠す(dedupe。
+│       │                elite_varies/potential_varies/modulesを参照)。対象operator/talentIndex/
+│       │                skill_numが実データに無ければ`skipped`に"buff:<id>"として記録し
+│       │                静かに落とす（inspireと同じ方針）。validate_conditional_sources
+│       │                （ドリフト検知）もここ。詳細解決アルゴリズムはファイル冒頭コメント参照
 │       ├── dto.rs     … Catalog/CatalogOperator/FkEntry/Buffer等（JSONはcamelCase）。
 │       │                Valued<T>{value,source}でAuto/Manualの出所を持つ。FkEntry.tags
 │       │                (P2)・FkEntry.special(P2。特殊強化トグル)もここ。
 │       │                InspireSource/InspireSelfPart/InspireModuleOverride/InspireSkillRatio
-│       │                (P3。鼓舞ソースのDTO。詳細は下記ポイント参照)もここ
+│       │                (P3。鼓舞ソースのDTO。詳細は下記ポイント参照)もここ。
+│       │                ConditionalSource/ConditionalTalentSource/ConditionalSourceModule/
+│       │                ConditionalSkillSource/ConditionalSourceDefaults/BuffToggle
+│       │                (P4。`Buffer.source`/`Buffer.toggle`のDTO)もここ
 │       ├── tags.rs    … profession/position/nationIdからタグ・ダメージ属性の初期値を推測する。
 │       │                tag_vocabulary()(P2。近距離/職業/勢力/弾薬スキルの全タグ語彙。
 │       │                overrides.yamlの手動tags・buffers.yamlのtargets/bonus.tagsの
@@ -141,11 +166,19 @@ src/
 │                         定義。同じくinclude_str!埋め込み）のロード。`buffers::global()`で
 │                         1回だけパースして使い回す。個別(individual)は行ごとにチップで選ぶ
 │                         バフ、条件付き(conditional)は全体で1回ON/OFFしFkEntry.tagsとの
-│                         重なりで自動適用。`bonus`(省略可)はタグ限定の上書き値(例: 異格
-│                         エクシアは弾薬スキル+13%、ラテラーノ勢は基本値の代わりに26%を採用。
-│                         加算ではなく置き換え)。ドリフト検知テスト(unique id・pct/flat
-│                         どちらか一方・targetタグがtag_vocabulary()に存在・値が現実的な
-│                         範囲)は`buffers.rs`の`#[cfg(test)]`。`raw_inspire_sources()`
+│                         重なりで自動適用。値は固定`pct`/`flat`、またはゲームデータからの
+│                         動的解決`source`(P4。talent/skill_num+key。素質/スキルLv由来)の
+│                         どちらか。`source`付きのconditionalは`global()`には含まれず、
+│                         `raw_conditional_sourced()`(P4。生データのみ)経由で`mod.rs`側
+│                         (`conditional_source.rs`)がゲームデータとマージする(`raw_inspire_sources()`
+│                         と同じ2段構え)。`toggle`(P4。ON/OFFで解決値に倍率を掛ける単純な
+│                         トグル。例: 前衛アーミヤの「スキル中は効果2倍」)も`conditional`の
+│                         フィールド。`bonus`(省略可)はタグ限定の上書き値で、`value`(固定値。
+│                         置き換え)/`mult`(P4。解決した基本値への倍率。例: 異格エクシアは
+│                         弾薬スキル+13%、ラテラーノ勢は基本値×2=26%)のどちらか。ドリフト検知
+│                         テスト(unique id・pct/flat/sourceのいずれか1つ・targetタグが
+│                         tag_vocabulary()に存在・値が現実的な範囲)は`buffers.rs`の
+│                         `#[cfg(test)]`。`raw_inspire_sources()`
 │                         (P3。同ファイルの`inspire`リストの生データ。`mod.rs`の
 │                         `build_inspire_sources`が`operator_combat`とマージする)もここ。
 │                         詳細は下記ポイント参照
@@ -241,7 +274,11 @@ src/
 │           │                     atk/final/perHit/rowDamage計算、撃破提案(suggest)、
 │           │                     stale row除去(dropStaleRows)。単位の約束はファイル冒頭コメント参照。
 │           │                     computeInspireSource/computeInspireSelfParts/computeInspireForRow
-│           │                     (P3。鼓舞ソース計算。詳細は下記ポイント参照)もここ
+│           │                     (P3。鼓舞ソース計算。詳細は下記ポイント参照)もここ。
+│           │                     resolveConditionalValue(P4。`Buffer.source`(素質/スキルLv由来)
+│           │                     +選択中の昇進/潜在/モジュール/スキルLv/トグルから値を解決する。
+│           │                     Rust側が事前に解決した値テーブルを引くだけで、判定ロジック
+│           │                     自体はRust/JSに重複させない。詳細は下記ポイント参照)もここ
 │           ├── ui.js           … 表現層。カタログfetch・状態管理・DOM描画。状態はlocalStorageに
 │           │                     自動保存し、アドレスバーのURLは書き換えない（ページ自体を共有
 │           │                     しやすくするため）。#state=付きURLは「共有URLをコピー」時だけ
@@ -257,7 +294,13 @@ src/
 │           │                     row.inspireOn・state.inspire.sources（P3。鼓舞ソースの
 │           │                     ON/OFF・スキル/モジュール/自己%パーツ/個別バフ/手入力バフ。
 │           │                     手入力バフ+%欄だけrenderLive対応、他はchange→render）も
-│           │                     dropStaleRowsが未知ソースid/パーツidを静かに除去する
+│           │                     dropStaleRowsが未知ソースid/パーツidを静かに除去する。
+│           │                     state.globalBuffLevels（P4。`source`付き条件付きバフごとの
+│           │                     昇進/潜在/モジュール/モジュールLv/スキルLv/トグル選択。
+│           │                     全てselect/checkboxなので常にrender。renderConditionalSourceCard
+│           │                     が値が変わる軸だけをインライン表示する。dropStaleRowsが
+│           │                     デフォルト補完+旧(P2)形前衛アーミヤ2エントリの移行を兼ねる。
+│           │                     詳細は下記ポイント参照）もここ
 │           ├── style.css       … 420px想定の縦長1カラム。他ページ(home/lod_chest_solver)と
 │           │                     同じくダーク固定（配色トークンはhome_index.htmlの:rootを流用）
 │           └── lz-string.min.js … test_runner/static/lz-string.min.jsと同じ1.5.0, MITを
@@ -539,9 +582,44 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     実際にそのオペレーターのmodulesに存在することを
     `validate_special_requires_module`(`cargo test`)が検証する。
 - fk_kill_calculatorのstate/URLのバックワード互換は`v:1`のまま、`row.buffIds`/
-  `row.specialOn`/`state.globalBuffIds`/`row.inspireOn`/`state.inspire.sources`を
-  省略可能フィールドとして追加し、`dropStaleRows`が旧(P1/P2)形の補完＋未知バフid・
-  未知の鼓舞ソースid/パーツidの静かな除去を兼ねる。
+  `row.specialOn`/`state.globalBuffIds`/`row.inspireOn`/`state.inspire.sources`/
+  `state.globalBuffLevels`(P4)を省略可能フィールドとして追加し、`dropStaleRows`が
+  旧(P1/P2)形の補完＋未知バフid・未知の鼓舞ソースid/パーツidの静かな除去、および
+  旧(P2)形前衛アーミヤ2エントリ(`amiya_guard_normal`/`amiya_guard_skill`。
+  exclusive_group)→新1エントリ(`amiya_guard`+toggle)への移行を兼ねる
+  (`amiya_guard_skill`だった場合は`toggleOn: true`へ移行)。
+- **fk_kill_calculatorの条件付きバフ(P4)はゲームデータから動的に値解決できる**:
+  `data/fk_kill_calc/buffers.yaml`の`conditional.*`は固定`pct`/`flat`の代わりに
+  `source: { operator: <charId>, talent: <talentIndex> または skill_num: "<fk_dataの
+  skill_num>", key: <blackboardキー> }`を持てる。素質(talent)由来は
+  `operator_combat`の`talents[i].candidates[]`(phase=0/1/2=E0/E1/E2、
+  potentialRank=0〜5=潜在1〜6)+モジュールの`talent_overrides_by_level`から、
+  スキル(skill_num)由来は`skill_data`の`get_blackboard_by_level`(スキルLv1〜10。
+  Lv8〜10=特化1〜3)から、`conditional_source.rs`(`build_conditional_sourced_buffers`)が
+  昇進×潜在(×モジュールLv)の値テーブル(`dto::ConditionalTalentSource`/
+  `ConditionalSkillSource`)を機械抽出する。**値が実際に変わらない軸は自動で隠す**
+  (`elite_varies`/`potential_varies`、モジュールは値を変えるものだけ`modules`に残す。
+  例: ポデンコ/ペペはモジュール上書きの値がベースと完全一致するため`modules`が空になり、
+  UIはモジュール選択を出さない。スズランは逆にベースにキー自体が無く常に0で、モジュールXを
+  装備して初めて値が付く)。`Buffer.value`には「最大成長」
+  (昇進2・潜在6・値が変わるモジュールがあればそのLv3・スキルソースなら最大Lv)で
+  解決した値を入れる(`ConditionalSourceDefaults`)。フロント(`state.globalBuffLevels[id]`。
+  昇進/潜在/モジュール/モジュールLv/スキルLv/トグル)はこのデフォルトから始まり、
+  `resolveConditionalValue`(engine.js)が選択に応じて値を都度計算する(Rustが用意した
+  値テーブルを引くだけで、判定ロジック自体はJS側で再実装しない)。モジュールは昇進2で
+  しか装備できないので、E0/E1ではモジュール選択を無視し(engine.js)、UIもモジュール欄を
+  隠して「素質は昇進Nで解放」等のヒントを出す。潜在の選択肢は値が変わる境目だけに
+  まとめる(`engine.js`の`potentialGroups`。例: エイヤは「潜在1-5/潜在6」)。`toggle: { label, mult }`
+  (P4)はON/OFFで解決値に倍率を掛ける単純な仕組み(前衛アーミヤ「スキル中は効果2倍」用に
+  導入。旧`amiya_guard_normal`/`amiya_guard_skill`の2エントリ+exclusive_groupを1エントリに
+  統合した)。`bonus.mult`(P4。`bonus.value`の代わりに使える)は基本値への倍率で、
+  「ラテラーノ勢は基本値の2倍」のように基本値自体が可変な場合に使う(実データの
+  blackboardにも同じ"mult"キー(2.0)が載っており、異格エクシアの素質「铳弹协约」が
+  そのまま出典)。ドリフト検知(`conditional_source::validate_conditional_sources`。
+  operator/talentIndex/skill_num/キーの実在・最大成長でも値が0以下にならないこと)は
+  `mod.rs`の`#[cfg(test)]`。**P4で発覚した罠**: モジュールの`uniequip_table.json`エントリは
+  `charId`が基礎オペレーターのままで`tmplId`が派生形を指す(前衛アーミヤ等)。詳細は
+  `operator_combat.rs`冒頭の`build_modules`コメント参照。
 - **fk_kill_calculatorの鼓舞(インスパイア。P3)は「最大値のみ適用、合算しない」**:
   `data/fk_kill_calc/buffers.yaml`の`inspire`リスト(現時点では濁心スカジのみ)が
   鼓舞ソースの定義本体。行(`row.inspireOn`。既定true)がONの間、ONになっている

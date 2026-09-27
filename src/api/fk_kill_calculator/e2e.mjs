@@ -509,22 +509,53 @@ async function runBuffScenario(browser, baseUrl) {
     ok('Castle does not apply (–) to Ash(狙撃/非近距離)', condAsh.includes('–') && condAsh.includes('Castle'), condAsh);
     await page.click('[data-action="collapse-row"]');
 
-    // --- 前衛アーミヤ: 「全員」に効き、通常/スキル中は片方ONでもう片方がOFFになる ---
-    const amiyaNormalChip = page.locator('.chip[data-buff-id="amiya_guard_normal"]');
-    const amiyaSkillChip = page.locator('.chip[data-buff-id="amiya_guard_skill"]');
-    await amiyaNormalChip.click();
+    // --- P4: Castle(source付き。潜在のみ変化・昇進/モジュールは変わらない)は、
+    //     ONにするとインラインの潜在セレクトだけが出て、選択を変えると解決値が変わる ---
+    const castleCard = page.locator('.cond-source-card[data-buff-id="castle3"]');
+    ok('Castle card has a potential select (potential varies)',
+      (await castleCard.locator('select[data-field="potential"]').count()) === 1);
+    ok('Castle card has no elite select (elite does not vary; PHASE_0 only)',
+      (await castleCard.locator('select[data-field="elite"]').count()) === 0);
+    ok('Castle card has no module select (no talent-overriding module)',
+      (await castleCard.locator('select[data-field="moduleId"]').count()) === 0);
+    const castleValueBefore = (await castleCard.locator('.cond-source-value').innerText()).trim();
+    ok('Castle default value is +20% (潜在6)', castleValueBefore === '+20%', castleValueBefore);
+    await castleCard.locator('select[data-field="potential"]').selectOption('0');
     await page.waitForTimeout(100);
-    ok('前衛アーミヤ(通常) turns on', (await amiyaNormalChip.getAttribute('aria-pressed')) === 'true');
-    await amiyaSkillChip.click();
+    const castleValueAfter = (await castleCard.locator('.cond-source-value').innerText()).trim();
+    ok('changing potential to 潜在1 updates the resolved value to +10%', castleValueAfter === '+10%', castleValueAfter);
+    await castleCard.locator('select[data-field="potential"]').selectOption('5'); // 元(潜在6)に戻す
     await page.waitForTimeout(100);
-    ok('turning on 前衛アーミヤ(スキル中) turns (通常) off (exclusive group)',
-      (await amiyaSkillChip.getAttribute('aria-pressed')) === 'true' && (await amiyaNormalChip.getAttribute('aria-pressed')) === 'false');
+
+    // --- 潜在の選択肢は値が変わる境目だけ(エイヤは潜在1-5/潜在6) ---
+    const ayaChip = page.locator('.chip[data-buff-id="aya"]');
+    const ayaWasOn = (await ayaChip.getAttribute('aria-pressed')) === 'true';
+    if (!ayaWasOn) { await ayaChip.click(); await page.waitForTimeout(100); }
+    const ayaPotOpts = await page.locator('.cond-source-card[data-buff-id="aya"] select[data-field="potential"] option').allInnerTexts();
+    ok('エイヤ potential options are grouped to 潜在1-5/潜在6', JSON.stringify(ayaPotOpts) === JSON.stringify(['潜在1-5', '潜在6']), JSON.stringify(ayaPotOpts));
+    if (!ayaWasOn) { await page.locator('.chip[data-buff-id="aya"]').click(); await page.waitForTimeout(100); }
+
+    // --- 前衛アーミヤ: 「全員」に効き、toggle(スキル中は効果2倍)で解決値が変わる(P4で
+    //     旧amiya_guard_normal/amiya_guard_skillの2エントリから1エントリ+toggleへ統合) ---
+    const amiyaChip = page.locator('.chip[data-buff-id="amiya_guard"]');
+    await amiyaChip.click();
+    await page.waitForTimeout(100);
+    ok('前衛アーミヤ turns on', (await amiyaChip.getAttribute('aria-pressed')) === 'true');
+    const amiyaCard = page.locator('.cond-source-card[data-buff-id="amiya_guard"]');
+    const amiyaToggle = amiyaCard.locator('input[data-field="toggleOn"]');
+    ok('前衛アーミヤ card has a "スキル中" toggle checkbox', (await amiyaToggle.count()) === 1);
+    ok('the toggle is unchecked by default', !(await amiyaToggle.isChecked()));
+    const amiyaValueNormal = (await amiyaCard.locator('.cond-source-value').innerText()).trim();
+    await amiyaToggle.check();
+    await page.waitForTimeout(100);
+    const amiyaValueSkill = (await amiyaCard.locator('.cond-source-value').innerText()).trim();
+    ok('checking the toggle doubles the resolved value', amiyaValueSkill !== amiyaValueNormal, `${amiyaValueNormal} -> ${amiyaValueSkill}`);
     await page.locator('[data-action="edit-row"]').nth(1).click();
     await page.waitForSelector('.row-expanded', { timeout: 5000 });
     const condAshAmiya = await page.locator('.row-conditional-status').innerText();
-    ok('前衛アーミヤ(全員) applies (✓) to Ash(狙撃)', /✓\s*前衛アーミヤ\(スキル中\)/.test(condAshAmiya), condAshAmiya);
+    ok('前衛アーミヤ(全員) applies (✓) to Ash(狙撃)', /✓\s*前衛アーミヤ/.test(condAshAmiya), condAshAmiya);
     await page.click('[data-action="collapse-row"]');
-    await amiyaSkillChip.click(); // 以降の「1件ON」前提のシナリオに影響しないようOFFに戻す
+    await amiyaChip.click(); // 以降の「1件ON」前提のシナリオに影響しないようOFFに戻す
     await page.waitForTimeout(100);
 
     // --- バフN件バッジが折りたたみ行に出る ---
@@ -753,6 +784,95 @@ async function runInspireScenario(browser, baseUrl) {
   }
 }
 
+// P4: 条件付きバフの動的値解決(昇進/潜在/モジュール/スキルLv)のインライン選択UIの
+// 表現層テスト。スズラン(モジュール限定。未装備時はヒント)・ズィマー(スキルLv選択)・
+// 選択のlocalStorage永続化を検証する。
+async function runConditionalSourceScenario(browser, baseUrl) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+    await page.click('#global-buffs-details summary');
+    await page.waitForTimeout(50);
+
+    // --- スズラン: デフォルト(最大成長)はモジュールX Lv3が最初から選ばれた状態で+9%。
+    //     モジュールを「なし」に戻すとヒント表示(+0%、base has no atk key)に切り替わる ---
+    const suzuranChip = page.locator('.chip[data-buff-id="suzuran"]');
+    ok('suzuran chip exists', (await suzuranChip.count()) === 1);
+    await suzuranChip.click();
+    await page.waitForTimeout(100);
+    const suzuranCard = page.locator('.cond-source-card[data-buff-id="suzuran"]');
+    ok('suzuran defaults to module X selected already (max-growth default) with a level select',
+      (await suzuranCard.locator('select[data-field="moduleLevel"]').count()) === 1 && (await suzuranCard.locator('.special-hint').count()) === 0);
+    const suzuranValueDefault = (await suzuranCard.locator('.cond-source-value').innerText()).trim();
+    ok('suzuran default resolved value is +9% (module X Lv3)', suzuranValueDefault === '+9%', suzuranValueDefault);
+    const suzuranModuleSelect = suzuranCard.locator('select[data-field="moduleId"]');
+    const suzuranModuleLabels = await suzuranModuleSelect.locator('option').allTextContents();
+    ok('suzuran module select offers なし and X', suzuranModuleLabels.some((l) => l.trim() === 'X') && suzuranModuleLabels.some((l) => l.trim() === 'なし'), suzuranModuleLabels);
+    await suzuranModuleSelect.selectOption({ label: 'なし' });
+    await page.waitForTimeout(100);
+    ok('switching module to なし shows the hint instead of a level select (base has no atk key)',
+      (await suzuranCard.locator('.special-hint').count()) === 1 && (await suzuranCard.locator('select[data-field="moduleLevel"]').count()) === 0);
+    const suzuranValueNoModule = (await suzuranCard.locator('.cond-source-value').innerText()).trim();
+    ok('suzuran resolved value is +0% without a module', suzuranValueNoModule === '+0%', suzuranValueNoModule);
+    await suzuranModuleSelect.selectOption({ label: 'X' });
+    await page.waitForTimeout(100);
+    ok('selecting module X again reveals the level select and hides the hint',
+      (await suzuranCard.locator('select[data-field="moduleLevel"]').count()) === 1 && (await suzuranCard.locator('.special-hint').count()) === 0);
+    const suzuranValueAfter = (await suzuranCard.locator('.cond-source-value').innerText()).trim();
+    ok('suzuran resolved value is +9% again with module X at its default level (Lv3)', suzuranValueAfter === '+9%', suzuranValueAfter);
+    await suzuranCard.locator('select[data-field="moduleLevel"]').selectOption('2');
+    await page.waitForTimeout(100);
+    const suzuranValueLv2 = (await suzuranCard.locator('.cond-source-value').innerText()).trim();
+    ok('switching module X to Lv2 changes the resolved value to +6%', suzuranValueLv2 === '+6%', suzuranValueLv2);
+
+    // --- ズィマー: スキルLv別blackboard由来。Lvセレクトを変えると解決値が変わる ---
+    const zimaChip = page.locator('.chip[data-buff-id="zima"]');
+    await zimaChip.click();
+    await page.waitForTimeout(100);
+    const zimaCard = page.locator('.cond-source-card[data-buff-id="zima"]');
+    const zimaSkillSelect = zimaCard.locator('select[data-field="skillLevel"]');
+    ok('zima card has a skill level select', (await zimaSkillSelect.count()) === 1);
+    const zimaLabels = await zimaSkillSelect.locator('option').allTextContents();
+    ok('zima skill level select has 10 levels labelled SLv1..SLv7 + 特化1..3',
+      JSON.stringify(zimaLabels) === JSON.stringify(['SLv1', 'SLv2', 'SLv3', 'SLv4', 'SLv5', 'SLv6', 'SLv7', '特化1', '特化2', '特化3']), zimaLabels);
+    ok('zima chip is labelled ズィマーS2', (await zimaChip.innerText()).includes('ズィマーS2'), await zimaChip.innerText());
+    const zimaValueDefault = (await zimaCard.locator('.cond-source-value').innerText()).trim();
+    ok('zima default (特化3) resolves to +60%', zimaValueDefault === '+60%', zimaValueDefault);
+    await zimaSkillSelect.selectOption('1');
+    await page.waitForTimeout(100);
+    const zimaValueLv1 = (await zimaCard.locator('.cond-source-value').innerText()).trim();
+    ok('switching zima to skill level 1 resolves to +25%', zimaValueLv1 === '+25%', zimaValueLv1);
+
+    // --- リロードで選択(モジュールLv2・スキルLv1)が保持される(localStorage) ---
+    await page.waitForTimeout(500);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(300);
+    if (!(await page.locator('#global-buffs-details').evaluate((el) => el.open))) {
+      await page.click('#global-buffs-details summary');
+      await page.waitForTimeout(50);
+    }
+    const suzuranValueReloaded = (await page.locator('.cond-source-card[data-buff-id="suzuran"] .cond-source-value').innerText()).trim();
+    ok('suzuran module Lv2 selection survives reload (localStorage)', suzuranValueReloaded === '+6%', suzuranValueReloaded);
+    const zimaValueReloaded = (await page.locator('.cond-source-card[data-buff-id="zima"] .cond-source-value').innerText()).trim();
+    ok('zima skill level 1 selection survives reload (localStorage)', zimaValueReloaded === '+25%', zimaValueReloaded);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  conditional-source scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_conditional_source.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
 // P1形(buffIds/specialOn/globalBuffIds無し)のlocalStorage stateがそのまま読み込めること。
 async function runOldShapeLocalStorageScenario(browser, baseUrl) {
   const context = await browser.newContext();
@@ -824,6 +944,7 @@ try {
   await runMainScenario(browser, baseUrl);
   await runStaleRowScenario(browser, baseUrl);
   await runBuffScenario(browser, baseUrl);
+  await runConditionalSourceScenario(browser, baseUrl);
   await runInspireScenario(browser, baseUrl);
   await runOldShapeLocalStorageScenario(browser, baseUrl);
 } catch (e) {

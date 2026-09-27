@@ -1,13 +1,29 @@
 # フレームキル計算機のバフカタログ(P2)。P3で`inspire`(鼓舞ソース)リストを追加。
+# P4でconditionalに`source`(ゲームデータからの動的値解決)を追加。
 #
-# 読み込み方法・スキーマの詳細は`src/engine/fk_kill_calc/buffers.rs`冒頭のコメントを参照。
+# 読み込み方法・スキーマの詳細は`src/engine/fk_kill_calc/buffers.rs`冒頭のコメント、
+# 解決アルゴリズムの詳細は`src/engine/fk_kill_calc/conditional_source.rs`冒頭コメントを参照。
 # 簡単には:
 #   individual: 行ごとにチップで選ぶバフ(自己バフ等)。
 #     - { id, name, pct: 0.xx (または flat: 数値), single_target: true(省略時false), note }
-#   conditional: 全体で1回ON/OFFし、targetsのタグを持つ行にだけ自動で効くバフ。
-#     - { id, name, pct: 0.xx (または flat: 数値), targets: [タグ,...],
-#         bonus: { tags: [タグ,...], pct/flat: 数値, note } (省略可。targetsに加えて
-#         bonus.tagsのいずれかも持つ行には基本値の代わりにbonus側の値を使う), note }
+#   conditional: 全体で1回ON/OFFし、targetsのタグを持つ行にだけ自動で効くバフ。値は
+#     固定(pct/flat)か、ゲームデータからの動的解決(source)のどちらか一方:
+#     - { id, name, targets: [タグ,...],
+#         pct: 0.xx (または flat: 数値。固定値の場合)
+#         source: { operator: <charId>, talent: <talentIndex> (素質由来。0始まり) または
+#                   skill_num: "<fk_dataのskill_num>" (スキルLv別blackboard由来。
+#                   talentとどちらか一方), key: <blackboardのキー名> } (P4)
+#         toggle: { label: "...", mult: 倍率 } (省略可。P4。ON/OFFで解決値に倍率を掛ける
+#                   単純なトグル。例: 前衛アーミヤの「スキル中は効果2倍」)
+#         bonus: { tags: [タグ,...],
+#                  pct/flat: 数値 (固定値。旧来の置き換え) または
+#                  mult: 倍率 (P4。source付きバフ専用。解決した基本値にこの倍率を掛ける),
+#                  note } (省略可。targetsに加えてbonus.tagsのいずれかも持つ行には
+#                  基本値の代わりにbonus側の値を使う),
+#         note }
+#     `source`の値解決(昇進/潜在/モジュール/スキルLvの軸、値が変わらない軸を隠すdedupe等)は
+#     全て`build_catalog`(Rust側)が行い、フロントは解決済みの値テーブルを
+#     `resolveConditionalPct`(engine.js)で読むだけ。
 #   inspire(P3): 鼓舞(インスパイア)ソース。FKする側ではなく「味方に鼓舞バフを撒く側」の
 #     オペレーターを表す(fk_dataシートには載らないため、operatorはoperator_combat側の
 #     idを直接指す)。スキーマ・値の出典は`src/engine/fk_kill_calc/mod.rs`の
@@ -15,8 +31,9 @@
 #
 # targets/bonus.tagsに書けるタグ名は`tags.rs::tag_vocabulary()`の語彙のみ
 # (`cargo test`のドリフト検知テスト`buffers.rs::every_target_tag_is_in_the_known_vocabulary`
-# が保証する)。値は全てオーナー提供の参照スプレッドシートに基づく(出典: 各行のnote参照。
-# 数値未確定のものは `# 要確認` を付けてある)。
+# が保証する)。固定値(pct/flat)は全てオーナー提供の参照スプレッドシートに基づく(出典:
+# 各行のnote参照)。`source`付きの値は`operator_combat`/`skill_data`から機械抽出するため
+# ここには数値を書かない(実データ検証結果はconditional各行のnote参照)。
 
 individual:
   - { id: plasma, name: 血漿, pct: 0.90 }
@@ -33,29 +50,67 @@ individual:
   - { id: nasty_s3, name: ナスティS3, pct: 0.60 }
   - { id: sprria_s2, name: スプリアS2, pct: 0.20, single_target: true }
 
+## P4実データ検証結果(CN gamedata。2026-09時点。全て`character_table.json`の
+## `talents[i].candidates[]`(素質)/`skill_table.json`の`levels[].blackboard`(スキル)/
+## `battle_equip_table.json`の`addOrOverrideTalentDataBundle`(モジュールの素質上書き)から
+## 確認済み。数値自体はここには書かず、上記ゲームデータから`build_catalog`が機械抽出する
+## (`conditional_source.rs`参照)。ここのnoteは出典と「dedupeで軸が消える/残る」の注記のみ):
 conditional:
-  - { id: castle3, name: Castle, pct: 0.20, targets: [近距離] }
-  - { id: zima, name: ズィマー, pct: 0.45, targets: [先鋒] }
-  - { id: aya, name: エイヤ, pct: 0.14, targets: [術師] }
-  - { id: podenco, name: ポデンコ, pct: 0.11, targets: [補助] }
-  - { id: schwarz, name: シュヴァルツ, pct: 0.15, targets: [狙撃] }
-  - { id: suzuran, name: スズラン, pct: 0.09, targets: [補助] }
-  - { id: pepe, name: ペペ, pct: 0.20, targets: [前衛] }
-  # 前衛アーミヤの素質は味方全員に掛かる(targets: [全員])。スキル中は値が上がるが、
-  # 通常時の値と重ねて乗るわけではないので exclusive_group で同時に効かないようにする。
-  - { id: amiya_guard_normal, name: "前衛アーミヤ(通常)", pct: 0.07, targets: [全員], exclusive_group: amiya_guard }
-  - { id: amiya_guard_skill, name: "前衛アーミヤ(スキル中)", pct: 0.14, targets: [全員], exclusive_group: amiya_guard }
-  # 新約能天使(異格エクシア。char_1041_angel2)の素質「铳弹协约」E2最大潜在:
-  # 「在场时，携带弹药类技能的干员攻击力+13%，对【拉特兰】干员的效果翻倍」
-  # (在場時、弾薬類スキルを持つ干員の攻撃力+13%。【ラテラーノ】干員へは効果2倍)。
+  # Castle(char_286_cast3)talent0.atk: PHASE_0のみ(昇進では変わらない)。潜在1〜6で
+  # 0.10刻み(0.10/0.12/0.14/0.16/0.18/0.20)。モジュール上書き無し。
+  - { id: castle3, name: Castle, targets: [近距離], source: { operator: char_286_cast3, talent: 0, key: atk } }
+  # ズィマー(char_115_headbr)S2(skchr_headbr_2)のblackboard"atk"はスキルLv1〜10
+  # (Lv8〜10=特化1〜3)で変化する(素質ではなくスキル由来)。
+  - { id: zima, name: ズィマーS2, targets: [先鋒], source: { operator: char_115_headbr, skill_num: "2", key: atk } }
+  # エイヤ(char_180_amgoat)talent0.atk: E1(.07/潜在6で.09)/E2(.14/潜在6で.16)。
+  # モジュールX(uniequip_002_amgoat)Lv2(.18/潜在6で.20)/Lv3(.22/潜在6で.24)は
+  # ベースと異なる値なのでmodules軸に残る。
+  - { id: aya, name: エイヤ, targets: [術師], source: { operator: char_180_amgoat, talent: 0, key: atk } }
+  # ポデンコ(char_258_podego)talent0.atk: E1(.05/潜在5で.07)/E2(.09/潜在5で.11)。
+  # モジュールX(uniequip_002_podego)は同じtalentIndexを上書きするが値がベースと完全一致
+  # (Lv2/Lv3とも.09/.11)なのでdedupeによりmodules軸は空になる(意図的。UIにモジュール
+  # 選択を出さない)。
+  - { id: podenco, name: ポデンコ, targets: [補助], source: { operator: char_258_podego, talent: 0, key: atk } }
+  # シュヴァルツ(char_340_shwaz)talent1.atk: E2のみ(.08/潜在6で.10)。
+  # モジュールX(uniequip_002_shwaz)Lv2(.11/潜在6で.13)/Lv3(.13/潜在6で.15)は
+  # ベースと異なる値なのでmodules軸に残る。
+  - { id: schwarz, name: シュヴァルツ, targets: [狙撃], source: { operator: char_340_shwaz, talent: 1, key: atk } }
+  # スズラン(char_358_lisa)talent0にはatkキーが無い(ベースは常に0)。
+  # モジュールX(uniequip_002_lisa)がtalent0を上書きしてatk(Lv2=.06/Lv3=.09)を追加する
+  # ため、モジュール無しでは0・モジュール装備で初めて効果が出る(UIはヒント表示)。
+  - { id: suzuran, name: スズラン, targets: [補助], source: { operator: char_358_lisa, talent: 0, key: atk } }
+  # ペペ(char_4058_pepe)talent1.atk: E2のみ(.16/潜在3で.20)。モジュールA
+  # (uniequip_003_pepe)は同じtalentIndexを上書きするが値がベースと完全一致(.16/.20)
+  # なのでdedupeによりmodules軸は空になる(意図的)。
+  - { id: pepe, name: ペペ, targets: [前衛], source: { operator: char_4058_pepe, talent: 1, key: atk } }
+  # 前衛アーミヤ(char_1001_amiya2)talent0.atk: E1(.04)/E2(.07。潜在では変わらない)。
+  # モジュールX(uniequip_002_amiya2。charId上はchar_002_amiya名義だがtmplIdで
+  # char_1001_amiya2専用と判定される。P4で発覚したoperator_combat.rsの罠。詳細は
+  # operator_combat.rs::build_modulesのコメント参照)Lv2(.08)/Lv3(.09)。
+  # 素質は味方全員に掛かる(targets: [全員])。「スキル中は効果2倍」は固定バフの
+  # exclusive_group(旧amiya_guard_normal/amiya_guard_skill)ではなく汎用のtoggleで表現する
+  # (P4で1本化。旧state(グローバルバフidに残る)はengine.jsのdropStaleRowsが移行する)。
+  - {
+      id: amiya_guard,
+      name: 前衛アーミヤ,
+      targets: [全員],
+      source: { operator: char_1001_amiya2, talent: 0, key: atk },
+      toggle: { label: "スキル中(効果2倍)", mult: 2.0 },
+      note: "素質「愤怒的松弛」E2最大潜在の値。スキル使用中は効果が2倍になる",
+    }
+  # 新約能天使(異格エクシア。char_1041_angel2)talent1.atk: E2のみ(.09/潜在3で.13。
+  # それ以上の潜在では候補が無いため.13で頭打ち)。blackboardには"mult"キー(=2.0)も
+  # 同居しており、これがラテラーノ勢への2倍ボーナスの出典そのもの
+  # (「在场时，携带弹药类技能的干员攻击力+13%，对【拉特兰】干员的效果翻倍」)。
   # target=弾薬スキル(machine tag。durationType==AMMOで判定)、
-  # ラテラーノ勢だけ2倍(26%)になるのをbonusで表現する。
+  # ラテラーノ勢だけ基本値の2倍になるのをbonus.multで表現する(P4。固定値ではなく
+  # 「解決した基本値×2」なので、ゲームデータ更新で基本値が変わってもbonus側は自動追従する)。
   - {
       id: exusiai_alter,
       name: 異格エクシア,
-      pct: 0.13,
       targets: [弾薬スキル],
-      bonus: { tags: [ラテラーノ], pct: 0.26, note: "素質「铳弹协约」: ラテラーノ勢は効果2倍" },
+      source: { operator: char_1041_angel2, talent: 1, key: atk },
+      bonus: { tags: [ラテラーノ], mult: 2.0, note: "素質「铳弹协约」: ラテラーノ勢は効果2倍" },
       note: "新約能天使(char_1041_angel2)素質「铳弹协约」E2最大潜在の値",
     }
 

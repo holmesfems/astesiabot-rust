@@ -35,6 +35,8 @@ import {
   defaultInspireSourceCfg,
   computeInspireSource,
   computeInspireSelfParts,
+  resolveConditionalValue,
+  potentialGroups,
 } from "./engine.js";
 
 const ENEMY_PERCENT_FIELDS = new Set(["defPct", "vulnPct"]);
@@ -127,9 +129,35 @@ function sourceCfg(source) {
   return { ...defaultInspireSourceCfg(source), ...(stored || {}) };
 }
 
+// P4: source付き条件付きバフの現在の軸選択(state.globalBuffLevels[id] + 未設定分は
+// b.source.defaults)。dropStaleRowsが起動時に埋めるが、念のためここでもフォールバックする。
+function buffLevels(b) {
+  const d = (b.source && b.source.defaults) || {};
+  const stored = (state.globalBuffLevels && state.globalBuffLevels[b.id]) || {};
+  return {
+    elite: d.elite ?? 2,
+    potential: d.potential ?? 5,
+    moduleId: d.moduleId ?? null,
+    moduleLevel: d.moduleLevel ?? 3,
+    skillLevel: d.skillLevel ?? 1,
+    toggleOn: false,
+    ...stored,
+  };
+}
+
+function setBuffLevels(buffId, patch) {
+  if (!state.globalBuffLevels) state.globalBuffLevels = {};
+  state.globalBuffLevels[buffId] = { ...(state.globalBuffLevels[buffId] || {}), ...patch };
+}
+
 // P3: computeTotal/findSingleTargetConflicts に渡す鼓舞ソースstate(id→cfg)。
 function inspireStates() {
   return (state.inspire && state.inspire.sources) || {};
+}
+
+// P4: computeTotal/computeInspireSource に渡すglobalBuffLevels(buffId→軸選択)。
+function buffLevelsState() {
+  return state.globalBuffLevels || {};
 }
 
 function setSourceCfg(sourceId, patch) {
@@ -279,7 +307,7 @@ function rowPlainSummary(row) {
   const op = findOperator(catalog, row.opId);
   if (!op) return "オペレーター未選択";
   const entry = findEntry(op, row.entryIdx);
-  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates());
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
   const r = results[0];
   return `${op.name} ${shortSkillRef(entry)}: ${fmtInt(r.perHit)}×${row.hits}Hit → 実ダメ ${fmtInt(r.rowDamage)}`;
 }
@@ -308,7 +336,7 @@ function renderRowSummary(row, idx) {
     return `${dot}<span class="row-summary-name row-summary-empty">オペレーター未選択</span>`;
   }
   const entry = findEntry(op, row.entryIdx);
-  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates());
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
   const r = results[0];
   const tooltip = escapeHtml(rowPlainSummary(row));
   const nameRef = escapeHtml(`${op.name} ${shortSkillRef(entry)}`);
@@ -476,7 +504,7 @@ function renderRowInspireToggle(r, row, idx) {
 function renderRowExpanded(row, idx, singleConflicts) {
   const op = findOperator(catalog, row.opId);
   const entry = op ? findEntry(op, row.entryIdx) : null;
-  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates());
+  const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
   const r = results[0];
 
   let entrySelectHtml = `<select data-role="row" data-field="entryIdx" data-idx="${idx}" ${op ? "" : "disabled"}>`;
@@ -594,6 +622,7 @@ function renderFormulaLine(op, row) {
     state.enemy,
     state.globalBuffIds,
     inspireStates(),
+    buffLevelsState(),
   ).results[0];
   const specialLabel = entry && entry.special ? entry.special.label : "";
   const selfPart = specialAddPct > 0 ? `セルフ${fmtPct(row.selfPct)}%+${specialLabel}${fmtPct(specialAddPct)}%` : `セルフ${fmtPct(row.selfPct)}%`;
@@ -693,7 +722,7 @@ function renderInspireSourceCard(source, singleConflicts) {
     return `<div class="inspire-source-card">${toggleChip}</div>`;
   }
 
-  const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds);
+  const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds, buffLevelsState());
   const skillOptions = source.skills
     .map((s) => {
       const label = /^\d+$/.test(s.skillNum) ? `S${s.skillNum}` : s.skillNum;
@@ -740,13 +769,111 @@ function renderInspireSourceCard(source, singleConflicts) {
   </div>`;
 }
 
+// P4: 潜在ラベル("潜在1"〜"潜在6")。0始まりのpotentialRankをそのままindexに使う。
+function potentialOptionLabel(group) {
+  return group.from === group.to ? `潜在${group.from + 1}` : `潜在${group.from + 1}-${group.to + 1}`;
+}
+
+// P4: スキルLvラベル("1"〜"7" + "特化1"〜"特化3")。Lv1始まりのskillLevelをそのままindexに使う。
+function skillLevelOptionLabel(skillLevel) {
+  return skillLevel <= 7 ? `SLv${skillLevel}` : `特化${skillLevel - 7}`;
+}
+
+// P4: `source`(素質/スキルLv由来の動的値解決)を持つ条件付きバフ1件分のカード。
+// OFFの間はトグルチップだけ、ONになると値が変わる軸(昇進/潜在/モジュール/スキルLv)だけを
+// インラインの<select>で出す(dedupe済み。値が変わらない軸は`b.source`側に無いので出ない)。
+// `b.toggle`(例: 前衛アーミヤの「スキル中は効果2倍」)があればチェックボックスも出す。
+function renderConditionalSourceCard(b) {
+  const onIds = state.globalBuffIds || [];
+  const on = onIds.includes(b.id);
+  const targetLabel = b.scope.targetTags.join("/");
+  const toggleChip = `<button type="button" class="chip" data-action="toggle-global-buff" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${escapeHtml(b.name)} ${escapeHtml(targetLabel)}</button>`;
+  if (!on) {
+    return `<div class="cond-source-card">${toggleChip}</div>`;
+  }
+
+  const levels = buffLevels(b);
+  const value = resolveConditionalValue(b, levels);
+  const valueLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
+  const talent = b.source.talent;
+  const skill = b.source.skill;
+
+  let controls = "";
+  let hint = "";
+  if (talent) {
+    if (talent.eliteVaries) {
+      const opts = [0, 1, 2]
+        .map((e) => `<option value="${e}"${levels.elite === e ? " selected" : ""}>E${e}</option>`)
+        .join("");
+      controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="elite">${opts}</select>`;
+    }
+    if (talent.potentialVaries) {
+      // 値が変わる境目だけを選択肢にする(例: 潜在1-5/潜在6)。option値はグループ内の最大潜在。
+      const opts = potentialGroups(talent)
+        .map((g) => {
+          const selected = levels.potential >= g.from && levels.potential <= g.to;
+          return `<option value="${g.to}"${selected ? " selected" : ""}>${potentialOptionLabel(g)}</option>`;
+        })
+        .join("");
+      controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="potential">${opts}</select>`;
+    }
+    // モジュールは昇進2でしか装備できないので、E0/E1の間はモジュール欄を出さない。
+    const minElite = talent.valuesByEliteAndPotential.findIndex((byPot) => (byPot[levels.potential] ?? 0) > 0);
+    if (value <= 0 && minElite > levels.elite) {
+      hint = `<p class="special-hint">「${escapeHtml(b.name)}」の素質は昇進${minElite}で解放</p>`;
+    } else if (talent.modules.length && levels.elite >= 2) {
+      const moduleOpts =
+        `<option value=""${!levels.moduleId ? " selected" : ""}>なし</option>` +
+        talent.modules
+          .map((m) => `<option value="${escapeHtml(m.moduleId)}"${levels.moduleId === m.moduleId ? " selected" : ""}>${escapeHtml(m.typeName)}</option>`)
+          .join("");
+      controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="moduleId">${moduleOpts}</select>`;
+      if (levels.moduleId) {
+        const lvOpts = [1, 2, 3]
+          .map((lv) => `<option value="${lv}"${levels.moduleLevel === lv ? " selected" : ""}>Lv${lv}</option>`)
+          .join("");
+        controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="moduleLevel">${lvOpts}</select>`;
+      } else if (value <= 0) {
+        // スズランのように、モジュール未装備だと値が0(=効果なし)のケースのヒント。
+        const m = talent.modules[0];
+        hint = `<p class="special-hint">「${escapeHtml(b.name)}」はモジュール${escapeHtml(m.typeName)}装備時のみ有効</p>`;
+      }
+    }
+  }
+  if (skill) {
+    const opts = skill.valuesByLevel
+      .map((_, i) => {
+        const lv = i + 1;
+        return `<option value="${lv}"${levels.skillLevel === lv ? " selected" : ""}>${skillLevelOptionLabel(lv)}</option>`;
+      })
+      .join("");
+    controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="skillLevel">${opts}</select>`;
+  }
+  if (b.toggle) {
+    controls += `<label class="check-label cond-toggle-label">
+      <input type="checkbox" data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="toggleOn" ${levels.toggleOn ? "checked" : ""}>
+      ${escapeHtml(b.toggle.label)}
+    </label>`;
+  }
+
+  return `<div class="cond-source-card cond-source-on" data-buff-id="${escapeHtml(b.id)}">
+    <div class="cond-source-header">${toggleChip}<span class="cond-source-value">${valueLabel}</span></div>
+    ${hint}
+    <div class="cond-source-controls">${controls}</div>
+  </div>`;
+}
+
 // 「② 全体バフ（条件付き）」セクション。summaryに"N件ON"を出す(仕様どおり。P3で
 // 鼓舞ソースのON件数と合計量も合算して出す)。
 function renderGlobalBuffs() {
   const conditional = (catalog.buffers || []).filter((b) => b.scope.type === "conditional");
+  // P4: 固定値(pct/flat)のconditionalは従来どおりチップ1行に並べ、`source`付き
+  // (ゲームデータから動的解決するもの)は選択軸を出せるカード形式にする。
+  const fixedConditional = conditional.filter((b) => !b.source);
+  const sourcedConditional = conditional.filter((b) => b.source);
   const onIds = state.globalBuffIds || [];
   const onCount = conditional.filter((b) => onIds.includes(b.id)).length;
-  const chips = conditional
+  const chips = fixedConditional
     .map((b) => {
       const on = onIds.includes(b.id);
       const pctLabel = b.kind === "pct" ? `+${fmtPct(b.value)}%` : `+${trimNum(b.value)}`;
@@ -754,13 +881,14 @@ function renderGlobalBuffs() {
       return `<button type="button" class="chip" data-action="toggle-global-buff" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${escapeHtml(b.name)} ${escapeHtml(targetLabel)} ${pctLabel}</button>`;
     })
     .join("");
+  const sourcedHtml = sourcedConditional.map((b) => renderConditionalSourceCard(b)).join("");
 
   const inspireSources = catalog.inspireSources || [];
   const singleConflicts = findSingleTargetConflicts(catalog, state.rows, inspireStates());
   const onSourceCfgs = inspireSources.map((s) => sourceCfg(s)).filter((cfg) => cfg.on);
   const inspireTotal = inspireSources.reduce((sum, s) => {
     const cfg = sourceCfg(s);
-    return cfg.on ? sum + computeInspireSource(s, cfg, catalog, state.globalBuffIds).amount : sum;
+    return cfg.on ? sum + computeInspireSource(s, cfg, catalog, state.globalBuffIds, buffLevelsState()).amount : sum;
   }, 0);
   const summaryCount = onCount + onSourceCfgs.length;
   const inspireSummarySuffix = onSourceCfgs.length ? `・鼓舞+${fmtInt(inspireTotal)}` : "";
@@ -774,6 +902,7 @@ function renderGlobalBuffs() {
     <details id="global-buffs-details"${globalBuffsOpen ? " open" : ""}>
       <summary>${summaryCount}件ON${inspireSummarySuffix}</summary>
       <div class="chip-row">${chips}</div>
+      ${sourcedHtml}
       ${inspireHtml}
     </details>
   </section>`;
@@ -806,7 +935,7 @@ function renderRows() {
 /* ---------------- 描画: 判定セクション ---------------- */
 
 function renderVerdict() {
-  const { results, total, killed } = computeTotal(catalog, state.rows, state.enemy, state.globalBuffIds, inspireStates());
+  const { results, total, killed } = computeTotal(catalog, state.rows, state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
   const hp = state.enemy.hp;
   const scale = Math.max(total, hp, 1);
 
@@ -899,7 +1028,7 @@ function renderLive() {
     const wrap = document.querySelector(`.inspire-result-wrap[data-source-id="${source.id}"]`);
     if (!wrap) return;
     const cfg = sourceCfg(source);
-    const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds);
+    const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds, buffLevelsState());
     wrap.innerHTML = renderInspireResultBlock(source, cfg, result);
   });
   $("verdict-section").outerHTML = renderVerdict();
@@ -1049,6 +1178,22 @@ function toggleGlobalBuff(buffId) {
   render();
 }
 
+// P4: `source`付き条件付きバフの軸選択(昇進/潜在/モジュール/モジュールLv/スキルLv/トグル)。
+// 全てselect/checkboxなので常にrenderで確定させる(onInspireFieldChangeと同じ方針)。
+function onGlobalBuffLevelChange(el) {
+  const buffId = el.dataset.buffId;
+  const field = el.dataset.field;
+  if (field === "toggleOn") {
+    setBuffLevels(buffId, { toggleOn: el.checked });
+  } else if (field === "moduleId") {
+    setBuffLevels(buffId, { moduleId: el.value || null });
+  } else {
+    setBuffLevels(buffId, { [field]: Number(el.value) });
+  }
+  globalBuffsOpen = true; // 操作した=開いて見ている最中なので、再描画後も開いたままにする
+  render();
+}
+
 /* ---------------- イベント処理: 鼓舞ソース(P3) ---------------- */
 
 function toggleInspireSource(sourceId) {
@@ -1171,6 +1316,7 @@ function onAppChange(ev) {
   if (el.dataset.role === "enemy") onEnemyFieldChange(el);
   else if (el.dataset.role === "row") onRowFieldChange(el);
   else if (el.dataset.role === "inspire") onInspireFieldChange(el);
+  else if (el.dataset.role === "global-buff-level") onGlobalBuffLevelChange(el);
 }
 
 function onAppClick(ev) {
@@ -1234,7 +1380,7 @@ function onAppClick(ev) {
 export async function initUi() {
   catalog = await fetchCatalog();
   const shared = takeStateFromSharedUrl();
-  state = shared ?? loadSavedState() ?? { v: 1, enemy: defaultEnemy(), rows: [], globalBuffIds: [], inspire: { sources: {} } };
+  state = shared ?? loadSavedState() ?? { v: 1, enemy: defaultEnemy(), rows: [], globalBuffIds: [], globalBuffLevels: {}, inspire: { sources: {} } };
   if (shared) {
     showToast("共有URLの内容を読み込みました");
     saveState();

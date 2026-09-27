@@ -58,6 +58,42 @@ pub struct RawModuleCombat {
     pub name: String,
     /// Stage1〜3のATK加算値。データに存在するステージ数だけ入る。
     pub atk_by_level: Vec<f64>,
+    /// フレームキル計算機の「条件付きバフ(P4)」用: このモジュールを装備した時の素質上書き
+    /// (`addOrOverrideTalentDataBundle`)候補一覧。インデックス0=Lv1/1=Lv2/2=Lv3。
+    /// Lv1は素質強化自体が無いことが多く、その場合は空Vec。`talentIndex`が負値(素質を
+    /// 上書きしない特性追加等)の候補は含めない(`talent_index`はusizeなので保持できない)。
+    #[serde(default)]
+    pub talent_overrides_by_level: Vec<Vec<RawModuleTalentOverride>>,
+}
+
+/// モジュールによる素質上書き候補1件（P4。`battle_equip_table.json`の
+/// `phases[lvIdx].parts[].addOrOverrideTalentDataBundle.candidates[]`）。
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RawModuleTalentOverride {
+    /// このオペレーターの`talents`配列上のインデックス(0始まり)。
+    pub talent_index: usize,
+    /// 0始まり(`requiredPotentialRank`そのまま。0=潜在1〜5=潜在6)。
+    pub potential_rank: u8,
+    /// `value`が`None`の項目は除外済み(skill_dataのblackboardと同じ方針)。
+    pub blackboard: IndexMap<String, f64>,
+}
+
+/// 素質(talent)候補1件（P4。`character_table.json`/`char_patch_table.json`の
+/// `talents[i].candidates[]`）。
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RawTalentCandidate {
+    /// 0=PHASE_0(E0)/1=PHASE_1(E1)/2=PHASE_2(E2)。
+    pub phase: u8,
+    /// 0始まり(`requiredPotentialRank`そのまま。0=潜在1〜5=潜在6)。
+    pub potential_rank: u8,
+    /// `value`が`None`の項目は除外済み。
+    pub blackboard: IndexMap<String, f64>,
+}
+
+/// 素質1つ分(候補一覧のみ。`talents`配列上のインデックスがtalentIndexに対応する)。
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct RawTalent {
+    pub candidates: Vec<RawTalentCandidate>,
 }
 
 /// オペレーター1名分の戦闘生データ（machine-extractableな数値のみ）。
@@ -82,6 +118,10 @@ pub struct RawOperatorCombat {
     pub atk_potential: f64,
     /// デフォルト(無強化)モジュールは含めない。`eq_type`昇順ソート済み。
     pub modules: Vec<RawModuleCombat>,
+    /// 素質一覧(P4。フレームキル計算機の「条件付きバフ」が昇進/潜在から値を機械抽出する
+    /// ために使う。`talents[i]`の`i`がtalentIndex)。
+    #[serde(default)]
+    pub talents: Vec<RawTalent>,
 }
 
 /// オペレーター戦闘生データ一式。
@@ -148,6 +188,93 @@ async fn fetch_impl() -> Result<OperatorCombat, FetchError> {
 /// （`operator_data.rs::is_char_key`と同一ロジック）。
 fn is_char_key(key: &str) -> bool {
     key.split('_').next() == Some("char")
+}
+
+/// `unlockCondition.phase`("PHASE_0"/"PHASE_1"/"PHASE_2")を0/1/2へ変換する。
+/// 未知の値はPHASE_0(0)扱い(実データで確認済みの値以外は来ない想定)。
+fn phase_to_u8(phase: &str) -> u8 {
+    match phase {
+        "PHASE_1" => 1,
+        "PHASE_2" => 2,
+        _ => 0,
+    }
+}
+
+/// blackboard配列(`[{key, value}]`)をIndexMapへ変換する。`value`が無い/数値でない項目は
+/// 除外する(skill_dataのblackboard構築と同じ方針)。
+fn parse_blackboard(value: Option<&Value>) -> IndexMap<String, f64> {
+    let Some(Value::Array(items)) = value else { return IndexMap::new() };
+    items
+        .iter()
+        .filter_map(|item| {
+            let key = item.get("key")?.as_str()?.to_string();
+            let value = item.get("value")?.as_f64()?;
+            Some((key, value))
+        })
+        .collect()
+}
+
+/// `talents[i].candidates[]`(character_table.json/char_patch_table.json共通)をパースする。
+/// P4: フレームキル計算機の「条件付きバフ」が昇進/潜在から値を機械抽出するために使う。
+fn parse_talents(source_value: &Value) -> Vec<RawTalent> {
+    let Some(Value::Array(talents)) = source_value.get("talents") else { return Vec::new() };
+    talents
+        .iter()
+        .map(|t| {
+            let candidates = t
+                .get("candidates")
+                .and_then(Value::as_array)
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|c| {
+                            let phase = c.get("unlockCondition")?.get("phase")?.as_str().map(phase_to_u8)?;
+                            let potential_rank = c.get("requiredPotentialRank")?.as_u64()? as u8;
+                            let blackboard = parse_blackboard(c.get("blackboard"));
+                            Some(RawTalentCandidate { phase, potential_rank, blackboard })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            RawTalent { candidates }
+        })
+        .collect()
+}
+
+/// `<uniEquipId>.phases[lvIdx].parts[].addOrOverrideTalentDataBundle.candidates[]`
+/// (battle_equip_table.json)をパースする。戻り値のインデックス0=Lv1/1=Lv2/2=Lv3。
+/// `talentIndex`が負値(素質を上書きしない特性追加等)の候補は除外する。
+fn parse_module_talent_overrides(battle_value: Option<&Value>) -> Vec<Vec<RawModuleTalentOverride>> {
+    let Some(phases) = battle_value.and_then(|v| v.get("phases")).and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    phases
+        .iter()
+        .map(|phase| {
+            let Some(parts) = phase.get("parts").and_then(Value::as_array) else { return Vec::new() };
+            parts
+                .iter()
+                .flat_map(|part| {
+                    let candidates = part
+                        .get("addOrOverrideTalentDataBundle")
+                        .and_then(|b| b.get("candidates"))
+                        .and_then(Value::as_array);
+                    let Some(candidates) = candidates else { return Vec::new() };
+                    candidates
+                        .iter()
+                        .filter_map(|c| {
+                            let talent_index = c.get("talentIndex").and_then(Value::as_i64)?;
+                            if talent_index < 0 {
+                                return None;
+                            }
+                            let potential_rank = c.get("requiredPotentialRank").and_then(Value::as_u64)? as u8;
+                            let blackboard = parse_blackboard(c.get("blackboard"));
+                            Some(RawModuleTalentOverride { talent_index: talent_index as usize, potential_rank, blackboard })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect()
+        })
+        .collect()
 }
 
 /// 昇進2(E2、`phases`の最終要素)最大レベルのATK + 信頼度100時点のATK加算を合算する。
@@ -247,6 +374,7 @@ fn build_characters(
             atk_base: parse_atk_base(source_value),
             atk_potential: parse_atk_potential(source_value),
             modules: Vec::new(),
+            talents: parse_talents(source_value),
         };
         name_to_id.insert(name, key.clone());
         operators.insert(key.clone(), raw);
@@ -309,6 +437,7 @@ fn build_patches(
             atk_base: parse_atk_base(source_value),
             atk_potential: parse_atk_potential(source_value),
             modules: Vec::new(),
+            talents: parse_talents(source_value),
         };
         name_to_id.insert(name, key.clone());
         operators.insert(key.clone(), raw);
@@ -316,7 +445,19 @@ fn build_patches(
 }
 
 /// uniequip_table.json（モジュールのメタ情報: 名前/typeName2/charId）と
-/// battle_equip_table.json（Stage1〜3のATK加算値）を突き合わせて各オペレーターへ追加する。
+/// battle_equip_table.json（Stage1〜3のATK加算値 + P4の素質上書き）を突き合わせて
+/// 各オペレーターへ追加する。
+///
+/// **`tmplId`優先の注意(P4で発覚した実データの罠)**: アーミヤの前衛/医療形態のような
+/// 「複数の`char_patch_table`派生形が同じ基礎`charId`を共有する」オペレーターの場合、
+/// uniequip_table.json側の各モジュールは`charId`が基礎オペレーター(例:
+/// "char_002_amiya")のまま共通で、`tmplId`にどの派生形専用か(例: "char_1001_amiya2"
+/// =前衛アーミヤ)が入る。ここを`charId`だけで振り分けると、派生形専用のはずの
+/// モジュールが全て基礎オペレーターの方に付いてしまう(前衛アーミヤの実装時に発覚した
+/// 回帰。P4で修正)。`tmplId`があればそちらを優先して振り分け先にする。
+/// (濁心スカジのように`char_1012_skadi2`という専用charIdを直接持つ派生キャラは
+/// `tmplId`を持たない=`charId`のままで正しく振り分けられる。両ケースを両立させるため
+/// `tmplId.unwrap_or(charId)`にする)。
 fn build_modules(
     cn_uniequip: &Value,
     jp_uniequip: &Value,
@@ -337,7 +478,9 @@ fn build_modules(
         let Some(char_id) = cn_value.get("charId").and_then(Value::as_str) else {
             continue;
         };
-        if !operators.contains_key(char_id) {
+        // tmplId優先の理由は関数冒頭コメント参照。
+        let target_id = cn_value.get("tmplId").and_then(Value::as_str).unwrap_or(char_id);
+        if !operators.contains_key(target_id) {
             continue;
         }
 
@@ -374,11 +517,12 @@ fn build_modules(
             })
             .unwrap_or_default();
 
-        by_operator.entry(char_id.to_string()).or_default().push(RawModuleCombat {
+        by_operator.entry(target_id.to_string()).or_default().push(RawModuleCombat {
             eq_id: equip_id.clone(),
             eq_type: eq_type.to_string(),
             name,
             atk_by_level,
+            talent_overrides_by_level: parse_module_talent_overrides(battle_value),
         });
     }
 
