@@ -32,11 +32,25 @@
        含まれるものを無条件に合算する(タグ判定なし。行ごとにユーザーが選ぶため)。
      - 条件付きバフ(`scope.type==="conditional"`): state.globalBuffIdsでON中の
        ものだけ対象。`scope.targetTags`とエントリの`entry.tags`が1つでも
-       重なれば適用。`bonus`(省略可)がある場合、`bonus.targetTags`とも
-       重なっていれば基本値の代わりに`bonus.value`を採用する(置き換え。加算ではない。
-       例: 異格エクシアは弾薬スキル+13%だが、ラテラーノ勢は26%に置き換わる)。
+       重なれば適用。基本値は`b.value`(固定)または`resolveConditionalValue(b, levels)`
+       (P4。`b.source`付きバフはゲームデータから機械抽出した値を選択中の昇進/潜在/
+       モジュール/スキルLvで解決する。詳細は同関数のコメント参照)。`bonus`(省略可)が
+       ある場合、`bonus.targetTags`とも重なっていれば基本値の代わりに
+       `bonus.value`(固定)または`基本値×bonus.mult`(P4)を採用する(置き換え。加算ではない。
+       例: 異格エクシアは弾薬スキル+13%だが、ラテラーノ勢は基本値の2倍(26%)に置き換わる)。
      - どちらも`kind`(pct/flat)ごとに合算し、pct分はextraPctへ、flat分は
        extraFlatへ(inspireFlatとして)反映する。
+
+   P4で追加した「条件付きバフの動的値解決」(`resolveConditionalValue`)。
+   `b.source`(素質由来 or スキルLv由来)を持つ条件付きバフは、固定`b.value`の代わりに
+   `state.globalBuffLevels[b.id]`(昇進/潜在/モジュール/モジュールLv/スキルLv/トグルON)の
+   選択に応じて値を都度計算する。素質由来はモジュール選択があれば`source.talent.modules`
+   から該当モジュールのLv別テーブルを、無ければ`source.talent.valuesByEliteAndPotential`
+   (昇進×潜在の表)を引く。スキル由来は`source.skill.valuesByLevel`(スキルLv1〜10)を
+   そのまま引く。`b.toggle`(省略可)がONなら最後に`toggle.mult`を掛ける
+   (例: 前衛アーミヤの「スキル中は効果2倍」)。値テーブル自体はRust側
+   (`engine::fk_kill_calc::conditional_source`)が事前に解決済みなので、JS側は
+   テーブル引きと軸のフォールバック(未選択時は`source.defaults`)だけを行う。
 
    P2 follow-upで追加した「特殊強化」の2系統(`entry.special`。詳細は各関数のコメント参照)。
    どちらも`row.specialOn`が有効かつモジュール条件を満たす時だけ効く。置き換え系
@@ -265,7 +279,65 @@ export function resolveResEff(enemy) {
 /** 条件付きバフの`targets`で「味方全員」を表す特別なタグ(Rust側`tags.rs::ALL_TAG`と同じ)。 */
 export const ALL_TAG = "全員";
 
-export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = []) {
+/**
+ * `b.source`(P4。素質由来 or スキルLv由来)を持つ条件付きバフの値を、選択中の軸
+ * (`levels`。省略/未選択の軸は`source.defaults`にフォールバック)で解決する。
+ * `b.source`が無い(固定`pct`/`flat`)バフはそのまま`b.value`を返す。
+ * `b.toggle`(省略可)がONなら最後に`toggle.mult`を掛ける。
+ * @param {object} b カタログの`Buffer`(dto.rs参照)。
+ * @param {{elite?:number, potential?:number, moduleId?:(string|null), moduleLevel?:number,
+ *           skillLevel?:number, toggleOn?:boolean}} levels
+ */
+// 素質ソースの潜在(0〜5=潜在1〜6)を「値が変わる境目」でまとめる。昇進×潜在と各モジュールの
+// Lv×潜在の全テーブルで値の組が同じ潜在は1つの選択肢にする(例: エイヤは潜在1-5/潜在6)。
+// 戻り値: [{ from, to }](0-indexed、昇順)。
+export function potentialGroups(talent) {
+  const tables = [
+    ...((talent && talent.valuesByEliteAndPotential) || []),
+    ...((talent && talent.modules) || []).flatMap((m) => m.valuesByLevelAndPotential || []),
+  ];
+  const keyOf = (p) => tables.map((byPot) => byPot[p] ?? 0).join(",");
+  const groups = [];
+  for (let p = 0; p < 6; p++) {
+    const last = groups[groups.length - 1];
+    if (last && keyOf(last.to) === keyOf(p)) last.to = p;
+    else groups.push({ from: p, to: p });
+  }
+  return groups;
+}
+
+export function resolveConditionalValue(b, levels = {}) {
+  if (!b || !b.source) return b ? b.value : 0;
+  const source = b.source;
+  const defaults = source.defaults || {};
+  let base;
+  if (source.skill) {
+    const skillLevel = levels.skillLevel ?? defaults.skillLevel ?? 1;
+    const idx = Math.min(Math.max(skillLevel, 1), source.skill.valuesByLevel.length) - 1;
+    base = source.skill.valuesByLevel[idx] ?? 0;
+  } else if (source.talent) {
+    const elite = levels.elite ?? defaults.elite ?? 2;
+    const potential = levels.potential ?? defaults.potential ?? 5;
+    const moduleId = levels.moduleId !== undefined ? levels.moduleId : (defaults.moduleId ?? null);
+    // モジュールは昇進2でしか装備できないので、E0/E1ではモジュール選択を無視する。
+    const module = moduleId && elite >= 2 ? source.talent.modules.find((m) => m.moduleId === moduleId) : null;
+    if (module) {
+      const moduleLevel = levels.moduleLevel ?? defaults.moduleLevel ?? 3;
+      base = module.valuesByLevelAndPotential[moduleLevel - 1][potential] ?? 0;
+    } else {
+      base = source.talent.valuesByEliteAndPotential[elite][potential] ?? 0;
+    }
+  } else {
+    base = b.value;
+  }
+  if (b.toggle) {
+    const toggleOn = levels.toggleOn ?? false;
+    if (toggleOn) base *= b.toggle.mult;
+  }
+  return base;
+}
+
+export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = [], globalBuffLevels = {}) {
   const buffers = (catalog && catalog.buffers) || [];
   const byId = new Map(buffers.map((b) => [b.id, b]));
   const entryTags = entry && entry.tags ? entry.tags : [];
@@ -302,8 +374,15 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = []) {
       notAppliedConditional.push({ id, name: b.name });
       continue;
     }
+    const levels = (globalBuffLevels && globalBuffLevels[id]) || {};
+    const baseValue = resolveConditionalValue(b, levels);
     const bonusMatches = !!(b.bonus && b.bonus.targetTags.some((t) => entryTags.includes(t)));
-    const value = bonusMatches ? b.bonus.value : b.value;
+    let value;
+    if (bonusMatches) {
+      value = b.bonus.mult != null ? baseValue * b.bonus.mult : b.bonus.value;
+    } else {
+      value = baseValue;
+    }
     if (b.kind === "pct") conditionalPct += value;
     else conditionalFlat += value;
     appliedConditional.push({ id, name: b.name, value, kind: b.kind, bonusApplied: bonusMatches });
@@ -436,14 +515,14 @@ export function resolveInspireSourceAtk(source, cfg) {
  * @returns {{amount:number, atk:number, ratio:number, skillNum:string, selfPct:number,
  *            selfParts:{pct:number, applied:Array}, breakdown:object, manualPct:number}}
  */
-export function computeInspireSource(source, cfg, catalog, globalBuffIds = []) {
+export function computeInspireSource(source, cfg, catalog, globalBuffIds = [], globalBuffLevels = {}) {
   const skills = (source && source.skills) || [];
   const skillEntry = skills.find((s) => s.skillNum === cfg.skillNum) || skills[0] || { skillNum: "", ratio: 0 };
   const atk = resolveInspireSourceAtk(source, cfg);
   const selfParts = computeInspireSelfParts(source, cfg);
   const pseudoRow = { buffIds: cfg.buffIds || [] };
   const pseudoEntry = { tags: (source && source.tags) || [] };
-  const breakdown = computeBuffBreakdown(pseudoRow, pseudoEntry, catalog, globalBuffIds);
+  const breakdown = computeBuffBreakdown(pseudoRow, pseudoEntry, catalog, globalBuffIds, globalBuffLevels);
   const manualPct = cfg.buffPct || 0;
   const selfPct = selfParts.pct + breakdown.extraPct + manualPct;
   const amount = atk * (1 + selfPct) * skillEntry.ratio;
@@ -456,7 +535,7 @@ export function computeInspireSource(source, cfg, catalog, globalBuffIds = []) {
  * (`row.opId === source.operatorId`)にはそのソース自身の鼓舞は乗らない。
  * @returns {null|{sourceId:string, sourceName:string, amount:number}}
  */
-export function computeInspireForRow(catalog, row, inspireSourceStates, globalBuffIds = []) {
+export function computeInspireForRow(catalog, row, inspireSourceStates, globalBuffIds = [], globalBuffLevels = {}) {
   if (!row || row.inspireOn === false) return null;
   const sources = (catalog && catalog.inspireSources) || [];
   const states = inspireSourceStates || {};
@@ -465,7 +544,7 @@ export function computeInspireForRow(catalog, row, inspireSourceStates, globalBu
     const cfg = states[source.id];
     if (!cfg || !cfg.on) continue;
     if (row.opId && row.opId === source.operatorId) continue;
-    const result = computeInspireSource(source, cfg, catalog, globalBuffIds);
+    const result = computeInspireSource(source, cfg, catalog, globalBuffIds, globalBuffLevels);
     if (result.amount <= 0) continue;
     if (!best || result.amount > best.amount) best = { sourceId: source.id, sourceName: source.name, amount: result.amount };
   }
@@ -514,18 +593,21 @@ export function computeRowDamage(op, row, enemy, inspireFlat = 0, extraPct = 0, 
  * `globalBuffIds`(P2。省略時は`[]`=P1互換)は条件付きバフの判定に使う。
  * `inspireSourceStates`(P3。省略時は`{}`=P1/P2互換)は`state.inspire.sources`
  * (id→設定)をそのまま渡す想定で、`computeInspireForRow`が各行の鼓舞(最大1件)を決める。
+ * `globalBuffLevels`(P4。省略時は`{}`=P1〜P3互換)は`state.globalBuffLevels`
+ * (buffId→昇進/潜在/モジュール/スキルLv/トグルの選択)をそのまま渡す想定で、
+ * `source`付き条件付きバフの値解決(`resolveConditionalValue`)に使う。
  * @returns {{results:(Array<null|{row:RowState, op:object, breakdown:object, inspireApplied:object}&ReturnType<typeof computeRowDamage>>),
  *            total:number, killed:boolean}}
  */
-export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSourceStates = {}) {
+export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSourceStates = {}, globalBuffLevels = {}) {
   const results = rows.map((row) => {
     const op = findOperator(catalog, row.opId);
     if (!op) return null;
     const entry = findEntry(op, row.entryIdx);
-    const breakdown = computeBuffBreakdown(row, entry, catalog, globalBuffIds);
+    const breakdown = computeBuffBreakdown(row, entry, catalog, globalBuffIds, globalBuffLevels);
     const specialAddPct = resolveSpecialAddPct(entry, row);
     const specialMulFactor = resolveSpecialMultiplierFactor(entry, row);
-    const inspireApplied = computeInspireForRow(catalog, row, inspireSourceStates, globalBuffIds);
+    const inspireApplied = computeInspireForRow(catalog, row, inspireSourceStates, globalBuffIds, globalBuffLevels);
     const inspireFlat = breakdown.extraFlat + (inspireApplied ? inspireApplied.amount : 0);
     const dmg = computeRowDamage(op, row, enemy, inspireFlat, breakdown.extraPct + specialAddPct, specialMulFactor);
     return { row, op, breakdown, specialAddPct, specialMulFactor, inspireApplied, ...dmg };
@@ -542,11 +624,17 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSo
  * （古い形(P1)のstate/共有URLにはこれらのフィールドが無いため、そのまま読めるようにする）。
  * P3: `row.inspireOn`の省略時デフォルト(true)も補い、`state.inspire.sources`から
  * カタログに存在しないソースid/パーツid・バフidを同じく静かに取り除く。
+ * P4: `source`付き条件付きバフ全てに`state.globalBuffLevels[id]`のデフォルト値
+ * (`source.defaults`由来。未設定/一部欠損分だけ補う)を補完し、カタログから消えた
+ * バフidのエントリは静かに取り除く。また旧(P2)形の`amiya_guard_normal`/
+ * `amiya_guard_skill`(P4で`amiya_guard`+toggleへ1本化)が`globalBuffIds`に残っていれば
+ * `amiya_guard`(+`amiya_guard_skill`だった場合はtoggleOn)へ移行する。
  * @returns {{state:object, dropped:number}}
  */
 export function dropStaleRows(state, catalog) {
   const opById = new Map(catalog.operators.map((o) => [o.id, o]));
-  const validBuffIds = new Set((catalog.buffers || []).map((b) => b.id));
+  const buffers = catalog.buffers || [];
+  const validBuffIds = new Set(buffers.map((b) => b.id));
   const inspireSources = (catalog.inspireSources || []);
   let dropped = 0;
   const rows = state.rows
@@ -562,7 +650,40 @@ export function dropStaleRows(state, catalog) {
       specialOn: row.specialOn !== false,
       inspireOn: row.inspireOn !== false,
     }));
-  const globalBuffIds = (state.globalBuffIds || []).filter((id) => validBuffIds.has(id));
+
+  // P4: 旧(P2)形の前衛アーミヤ2エントリ(exclusive_group)→新1エントリ+toggleへの移行。
+  let rawGlobalBuffIds = (state.globalBuffIds || []).slice();
+  const migratedToggleOn = new Set();
+  const hadNormal = rawGlobalBuffIds.includes("amiya_guard_normal");
+  const hadSkill = rawGlobalBuffIds.includes("amiya_guard_skill");
+  if (hadNormal || hadSkill) {
+    rawGlobalBuffIds = rawGlobalBuffIds.filter((id) => id !== "amiya_guard_normal" && id !== "amiya_guard_skill");
+    if (validBuffIds.has("amiya_guard")) {
+      rawGlobalBuffIds.push("amiya_guard");
+      if (hadSkill) migratedToggleOn.add("amiya_guard");
+    }
+  }
+  const globalBuffIds = rawGlobalBuffIds.filter((id) => validBuffIds.has(id));
+
+  // P4: source付きバフ全てにglobalBuffLevelsのデフォルトを補う(初めてONにした時に
+  // 見せる値と、共有URL/localStorageの欠損補完を兼ねる)。
+  const rawLevels = state.globalBuffLevels || {};
+  const globalBuffLevels = {};
+  for (const b of buffers) {
+    if (!b.source) continue;
+    const d = b.source.defaults || {};
+    const stored = rawLevels[b.id] || {};
+    globalBuffLevels[b.id] = {
+      elite: d.elite ?? 2,
+      potential: d.potential ?? 5,
+      moduleId: d.moduleId ?? null,
+      moduleLevel: d.moduleLevel ?? 3,
+      skillLevel: d.skillLevel ?? 1,
+      toggleOn: false,
+      ...stored,
+    };
+    if (migratedToggleOn.has(b.id)) globalBuffLevels[b.id].toggleOn = true;
+  }
 
   const sourceById = new Map(inspireSources.map((s) => [s.id, s]));
   const rawInspireSources = (state.inspire && state.inspire.sources) || {};
@@ -582,7 +703,7 @@ export function dropStaleRows(state, catalog) {
     };
   }
 
-  return { state: { ...state, rows, globalBuffIds, inspire: { sources: cleanedSources } }, dropped };
+  return { state: { ...state, rows, globalBuffIds, globalBuffLevels, inspire: { sources: cleanedSources } }, dropped };
 }
 
 /* ============================================================
@@ -629,15 +750,21 @@ function minimalIntegerSatisfying(lo, hi, predicate) {
  * pct(%換算)/flat値そのもの（"cheapest first by added pct"の仕様どおり）。
  */
 export function suggest(state, catalog) {
-  const { rows, enemy, globalBuffIds = [] } = state;
+  const { rows, enemy, globalBuffIds = [], globalBuffLevels = {} } = state;
   const inspireSourceStates = (state.inspire && state.inspire.sources) || {};
-  const { results, killed } = computeTotal(catalog, rows, enemy, globalBuffIds, inspireSourceStates);
+  const { results, killed } = computeTotal(catalog, rows, enemy, globalBuffIds, inspireSourceStates, globalBuffLevels);
   if (killed) return [];
 
   const suggestions = [];
   const killsWith = (testRows, testEnemy, testGlobalBuffIds, testInspireSourceStates) =>
-    computeTotal(catalog, testRows, testEnemy ?? enemy, testGlobalBuffIds ?? globalBuffIds, testInspireSourceStates ?? inspireSourceStates)
-      .killed;
+    computeTotal(
+      catalog,
+      testRows,
+      testEnemy ?? enemy,
+      testGlobalBuffIds ?? globalBuffIds,
+      testInspireSourceStates ?? inspireSourceStates,
+      globalBuffLevels,
+    ).killed;
 
   results.forEach((r, i) => {
     if (!r) return;

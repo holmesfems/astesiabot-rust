@@ -19,6 +19,8 @@ import {
   computeInspireForRow,
   defaultInspireSourceCfg,
   computeBuffBreakdown,
+  resolveConditionalValue,
+  potentialGroups,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -844,6 +846,244 @@ console.log("\n=== バフ調整: 「全員」タグ・exclusiveGroup（前衛ア
   approxEqual(b3.conditionalPct, 0.14, 1e-9, "同じexclusiveGroupが両方ONでも合算せず最大値(14%)だけ効く");
   check("exclusiveGroupで外れた方は適用一覧に出ない",
     b3.appliedConditional.length === 1 && b3.appliedConditional[0].id === "amiya_guard_skill", b3.appliedConditional);
+}
+
+console.log("\n=== P4: 条件付きバフの動的値解決(resolveConditionalValue) ===\n");
+// 実データ(character_table.json talents + battle_equip_table.json。2026-09時点)の値をそのまま
+// 使う。出典・導出の詳細はdata/fk_kill_calc/buffers.yamlのconditional各行のnote参照。
+{
+  // エイヤ(talent0.atk): E1(.07/潜在6で.09)/E2(.14/潜在6で.16)、
+  // モジュールX Lv2(.18/潜在6で.20)/Lv3(.22/潜在6で.24)。両軸(elite/potential)が変化し、
+  // モジュールも値を変えるので3軸とも見せる想定。
+  const aya = {
+    id: "aya",
+    name: "エイヤ",
+    kind: "pct",
+    value: 0.24,
+    scope: { type: "conditional", targetTags: ["術師"] },
+    singleTarget: false,
+    bonus: null,
+    source: {
+      operatorId: "char_180_amgoat",
+      operatorName: "エイヤ",
+      talent: {
+        valuesByEliteAndPotential: [
+          [0, 0, 0, 0, 0, 0],
+          [0.07, 0.07, 0.07, 0.07, 0.07, 0.09],
+          [0.14, 0.14, 0.14, 0.14, 0.14, 0.16],
+        ],
+        eliteVaries: true,
+        potentialVaries: true,
+        modules: [
+          {
+            moduleId: "uniequip_002_amgoat",
+            typeName: "X",
+            name: "エイヤ用X",
+            valuesByLevelAndPotential: [
+              [0.14, 0.14, 0.14, 0.14, 0.14, 0.16],
+              [0.18, 0.18, 0.18, 0.18, 0.18, 0.2],
+              [0.22, 0.22, 0.22, 0.22, 0.22, 0.24],
+            ],
+          },
+        ],
+      },
+      skill: null,
+      defaults: { elite: 2, potential: 5, moduleId: "uniequip_002_amgoat", moduleLevel: 3, skillLevel: 1 },
+    },
+  };
+  check("エイヤ: デフォルト設定(E2/潜在6/モジュールXLv3)で+24%", Math.abs(resolveConditionalValue(aya, {}) - 0.24) < 1e-9, resolveConditionalValue(aya, {}));
+  check("エイヤ: E1/潜在6/モジュール無しで+9%", Math.abs(resolveConditionalValue(aya, { elite: 1, potential: 5, moduleId: null }) - 0.09) < 1e-9);
+  check("エイヤ: E2/潜在1(0-indexed)/モジュール無しで+14%", Math.abs(resolveConditionalValue(aya, { elite: 2, potential: 0, moduleId: null }) - 0.14) < 1e-9);
+  check("エイヤ: モジュールXのLv2/潜在1で+18%", Math.abs(resolveConditionalValue(aya, { moduleId: "uniequip_002_amgoat", moduleLevel: 2, potential: 0 }) - 0.18) < 1e-9);
+  check("エイヤ: 潜在の選択肢は潜在1-5/潜在6の2つ", JSON.stringify(potentialGroups(aya.source.talent)) === JSON.stringify([{ from: 0, to: 4 }, { from: 5, to: 5 }]), JSON.stringify(potentialGroups(aya.source.talent)));
+  check("エイヤ: E1ではモジュールX Lv3を選んでいても無視される(+9%)", Math.abs(resolveConditionalValue(aya, { elite: 1, potential: 5, moduleId: "uniequip_002_amgoat", moduleLevel: 3 }) - 0.09) < 1e-9, resolveConditionalValue(aya, { elite: 1, potential: 5, moduleId: "uniequip_002_amgoat", moduleLevel: 3 }));
+  check("エイヤ: モジュールXのLv1は素質未強化(E2/潜在6で+16%)", Math.abs(resolveConditionalValue(aya, { moduleId: "uniequip_002_amgoat", moduleLevel: 1, potential: 5 }) - 0.16) < 1e-9, resolveConditionalValue(aya, { moduleId: "uniequip_002_amgoat", moduleLevel: 1, potential: 5 }));
+}
+{
+  // ポデンコ: モジュールXの上書きが値を変えない(dedupe)ので、Rust側はmodulesを空Vecで
+  // 返す想定。JS側はmodulesが空ならmoduleId未選択のまま扱う(ベース値を使う)。
+  const podenco = {
+    id: "podenco",
+    name: "ポデンコ",
+    kind: "pct",
+    value: 0.11,
+    scope: { type: "conditional", targetTags: ["補助"] },
+    singleTarget: false,
+    bonus: null,
+    source: {
+      operatorId: "char_258_podego",
+      operatorName: "ポデンコ",
+      talent: {
+        valuesByEliteAndPotential: [
+          [0, 0, 0, 0, 0, 0],
+          [0.05, 0.05, 0.05, 0.05, 0.07, 0.07],
+          [0.09, 0.09, 0.09, 0.09, 0.11, 0.11],
+        ],
+        eliteVaries: true,
+        potentialVaries: true,
+        modules: [],
+      },
+      skill: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 1 },
+    },
+  };
+  check("ポデンコ: 潜在の選択肢は潜在1-4/潜在5-6の2つ", JSON.stringify(potentialGroups(podenco.source.talent)) === JSON.stringify([{ from: 0, to: 3 }, { from: 4, to: 5 }]), JSON.stringify(potentialGroups(podenco.source.talent)));
+  check("潜在グループ: 全潜在で値が違えば6つ(Castle型)", potentialGroups({ valuesByEliteAndPotential: [[0.1, 0.12, 0.14, 0.16, 0.18, 0.2]], modules: [] }).length === 6);
+  check("ポデンコ: modules軸が空(dedupeで隠れる)", podenco.source.talent.modules.length === 0);
+  check("ポデンコ: デフォルトで+11%", Math.abs(resolveConditionalValue(podenco, {}) - 0.11) < 1e-9, resolveConditionalValue(podenco, {}));
+}
+{
+  // ズィマー: スキルLv別blackboard由来(素質ではない)。L1..L10 = .25,.30,.35,.35,.40,.45,.45,.50,.55,.60。
+  const zima = {
+    id: "zima",
+    name: "ズィマー",
+    kind: "pct",
+    value: 0.6,
+    scope: { type: "conditional", targetTags: ["先鋒"] },
+    singleTarget: false,
+    bonus: null,
+    source: {
+      operatorId: "char_115_headbr",
+      operatorName: "ズィマー",
+      talent: null,
+      skill: { skillNum: "2", skillLabel: "乌萨斯战吼", valuesByLevel: [0.25, 0.3, 0.35, 0.35, 0.4, 0.45, 0.45, 0.5, 0.55, 0.6] },
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 10 },
+    },
+  };
+  check("ズィマー: デフォルト(特化3=Lv10)で+60%", Math.abs(resolveConditionalValue(zima, {}) - 0.6) < 1e-9, resolveConditionalValue(zima, {}));
+  check("ズィマー: Lv1で+25%", Math.abs(resolveConditionalValue(zima, { skillLevel: 1 }) - 0.25) < 1e-9);
+  check("ズィマー: Lv8(特化1)で+50%", Math.abs(resolveConditionalValue(zima, { skillLevel: 8 }) - 0.5) < 1e-9);
+}
+{
+  // スズラン: ベースにatkキーが無い(常に0)。モジュールXを装備して初めて効果が出る。
+  const suzuran = {
+    id: "suzuran",
+    name: "スズラン",
+    kind: "pct",
+    value: 0.09,
+    scope: { type: "conditional", targetTags: ["補助"] },
+    singleTarget: false,
+    bonus: null,
+    source: {
+      operatorId: "char_358_lisa",
+      operatorName: "スズラン",
+      talent: {
+        valuesByEliteAndPotential: [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]],
+        eliteVaries: false,
+        potentialVaries: false,
+        modules: [
+          { moduleId: "uniequip_002_lisa", typeName: "X", name: "スズラン用X", valuesByLevelAndPotential: [[0, 0, 0, 0, 0, 0], [0.06, 0.06, 0.06, 0.06, 0.06, 0.06], [0.09, 0.09, 0.09, 0.09, 0.09, 0.09]] },
+        ],
+      },
+      skill: null,
+      defaults: { elite: 2, potential: 5, moduleId: "uniequip_002_lisa", moduleLevel: 3, skillLevel: 1 },
+    },
+  };
+  check("スズラン: デフォルト(モジュールXLv3)で+9%", Math.abs(resolveConditionalValue(suzuran, {}) - 0.09) < 1e-9, resolveConditionalValue(suzuran, {}));
+  check("スズラン: モジュール未装備では0%(ヒント表示のトリガー)", resolveConditionalValue(suzuran, { moduleId: null }) === 0);
+  check("スズラン: eliteVaries/potentialVariesはどちらもfalse", !suzuran.source.talent.eliteVaries && !suzuran.source.talent.potentialVaries);
+}
+{
+  // 前衛アーミヤ: toggle(スキル中は効果2倍)。E1(.04)/E2(.07)、モジュールX Lv2(.08)/Lv3(.09)。
+  const amiya = {
+    id: "amiya_guard",
+    name: "前衛アーミヤ",
+    kind: "pct",
+    value: 0.09,
+    scope: { type: "conditional", targetTags: ["全員"] },
+    singleTarget: false,
+    bonus: null,
+    toggle: { label: "スキル中(効果2倍)", mult: 2 },
+    source: {
+      operatorId: "char_1001_amiya2",
+      operatorName: "前衛アーミヤ",
+      talent: {
+        valuesByEliteAndPotential: [[0, 0, 0, 0, 0, 0], [0.04, 0.04, 0.04, 0.04, 0.04, 0.04], [0.07, 0.07, 0.07, 0.07, 0.07, 0.07]],
+        eliteVaries: true,
+        potentialVaries: false,
+        modules: [
+          { moduleId: "uniequip_002_amiya2", typeName: "X", name: "アーミヤ用X", valuesByLevelAndPotential: [[0.07, 0.07, 0.07, 0.07, 0.07, 0.07], [0.08, 0.08, 0.08, 0.08, 0.08, 0.08], [0.09, 0.09, 0.09, 0.09, 0.09, 0.09]] },
+        ],
+      },
+      skill: null,
+      defaults: { elite: 2, potential: 5, moduleId: "uniequip_002_amiya2", moduleLevel: 3, skillLevel: 1 },
+    },
+  };
+  check("前衛アーミヤ: デフォルト(トグルOFF)で+9%", Math.abs(resolveConditionalValue(amiya, {}) - 0.09) < 1e-9, resolveConditionalValue(amiya, {}));
+  check("前衛アーミヤ: トグルONで2倍(+18%)", Math.abs(resolveConditionalValue(amiya, { toggleOn: true }) - 0.18) < 1e-9, resolveConditionalValue(amiya, { toggleOn: true }));
+}
+{
+  // 異格エクシア: bonus.multで基本値の2倍(置き換え)。computeBuffBreakdown経由で確認する
+  // (bonusの適用はresolveConditionalValueではなくcomputeBuffBreakdown側の責務のため)。
+  const exusiaiAlterSourced = {
+    id: "exusiai_alter",
+    name: "異格エクシア",
+    kind: "pct",
+    value: 0.13,
+    scope: { type: "conditional", targetTags: ["弾薬スキル"] },
+    singleTarget: false,
+    bonus: { targetTags: ["ラテラーノ"], value: null, mult: 2, note: null },
+    source: {
+      operatorId: "char_1041_angel2",
+      operatorName: "異格エクシア",
+      talent: {
+        valuesByEliteAndPotential: [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0.09, 0.09, 0.13, 0.13, 0.13, 0.13]],
+        eliteVaries: true,
+        potentialVaries: true,
+        modules: [],
+      },
+      skill: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 1 },
+    },
+  };
+  const catalog = { buffers: [exusiaiAlterSourced] };
+  const b1 = computeBuffBreakdown(row({ buffIds: [] }), { tags: ["弾薬スキル"] }, catalog, ["exusiai_alter"]);
+  approxEqual(b1.conditionalPct, 0.13, 1e-9, "異格エクシア(source化後): 弾薬スキルのみは基本値13%");
+  const b2 = computeBuffBreakdown(row({ buffIds: [] }), { tags: ["弾薬スキル", "ラテラーノ"] }, catalog, ["exusiai_alter"]);
+  approxEqual(b2.conditionalPct, 0.26, 1e-9, "異格エクシア(source化後): ラテラーノ勢はbonus.multで基本値の2倍(26%)");
+}
+
+console.log("\n=== P4: state移行(前衛アーミヤの旧2エントリ→新1エントリ+toggle、globalBuffLevelsのデフォルト補完) ===\n");
+{
+  const amiyaGuard = {
+    id: "amiya_guard",
+    name: "前衛アーミヤ",
+    kind: "pct",
+    value: 0.09,
+    scope: { type: "conditional", targetTags: ["全員"] },
+    singleTarget: false,
+    bonus: null,
+    toggle: { label: "スキル中(効果2倍)", mult: 2 },
+    source: {
+      operatorId: "char_1001_amiya2",
+      operatorName: "前衛アーミヤ",
+      talent: { valuesByEliteAndPotential: [[0,0,0,0,0,0],[0.04,0.04,0.04,0.04,0.04,0.04],[0.07,0.07,0.07,0.07,0.07,0.07]], eliteVaries: true, potentialVaries: false, modules: [] },
+      skill: null,
+      defaults: { elite: 2, potential: 5, moduleId: null, moduleLevel: 3, skillLevel: 1 },
+    },
+  };
+  const catalog = { operators: [], buffers: [amiyaGuard], inspireSources: [] };
+
+  // 旧(P2)形: amiya_guard_skillがONだった → 新amiya_guard + toggleOn=trueに移行する。
+  const oldSkillState = { v: 1, enemy: { hp: 0, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 }, rows: [], globalBuffIds: ["amiya_guard_skill"] };
+  const { state: migratedSkill } = dropStaleRows(oldSkillState, catalog);
+  check("amiya_guard_skillはamiya_guardへ移行される", migratedSkill.globalBuffIds.includes("amiya_guard") && !migratedSkill.globalBuffIds.includes("amiya_guard_skill"), migratedSkill.globalBuffIds);
+  check("amiya_guard_skillだった場合、toggleOn=trueへ移行される", migratedSkill.globalBuffLevels.amiya_guard.toggleOn === true, migratedSkill.globalBuffLevels);
+
+  // 旧(P2)形: amiya_guard_normalがONだった → 新amiya_guard(toggleOn=falseのまま)に移行する。
+  const oldNormalState = { v: 1, enemy: { hp: 0, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 }, rows: [], globalBuffIds: ["amiya_guard_normal"] };
+  const { state: migratedNormal } = dropStaleRows(oldNormalState, catalog);
+  check("amiya_guard_normalはamiya_guardへ移行される", migratedNormal.globalBuffIds.includes("amiya_guard"), migratedNormal.globalBuffIds);
+  check("amiya_guard_normalだった場合、toggleOnはfalseのまま", migratedNormal.globalBuffLevels.amiya_guard.toggleOn === false);
+
+  // globalBuffLevelsが無い/欠損しているstateでも、source付きバフのデフォルトが補われる。
+  const bareState = { v: 1, enemy: { hp: 0, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 }, rows: [], globalBuffIds: [] };
+  const { state: cleanedBare } = dropStaleRows(bareState, catalog);
+  check(
+    "globalBuffLevels無しのstateにもamiya_guardのデフォルトが補われる",
+    cleanedBare.globalBuffLevels.amiya_guard && cleanedBare.globalBuffLevels.amiya_guard.elite === 2 && cleanedBare.globalBuffLevels.amiya_guard.toggleOn === false,
+    cleanedBare.globalBuffLevels,
+  );
 }
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");

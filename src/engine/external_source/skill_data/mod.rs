@@ -27,6 +27,11 @@ pub struct SkillItem {
     /// `description`の文字列組み立てとは独立に持つ。`IndexMap`はJSON上の元の並び順を
     /// 保持するため（挿入順保持が必要な他ソースとの一貫性。厳密な順序依存は今のところ無い）。
     pub blackboard: IndexMap<String, f64>,
+    /// レベル1〜(データに存在する数だけ)のblackboard一覧（P4で追加。フレームキル計算機の
+    /// 「条件付きバフ」がスキルLv/特化段階から値を機械抽出するために使う。`blackboard`
+    /// (最大レベルのみ)とは独立に持つ。既存の`get_blackboard`のAPIは変えない）。
+    #[serde(default)]
+    pub blackboard_by_level: Vec<IndexMap<String, f64>>,
     /// フレームキル計算機の「弾薬スキル」タグ判定用（machine-only）。
     /// `durationType == "AMMO"`かどうか（`raw.rs::RawSkillLevel::duration_type`参照）。
     #[serde(default)]
@@ -53,6 +58,12 @@ impl SkillData {
     /// idから最大レベルのblackboardを解決する。無ければ`None`。
     pub fn get_blackboard(&self, id: &str) -> Option<&IndexMap<String, f64>> {
         self.id_to_item.get(id).map(|item| &item.blackboard)
+    }
+
+    /// idからレベル1〜(データに存在する数だけ)のblackboard一覧を解決する。無ければ`None`。
+    /// P4: フレームキル計算機の「条件付きバフ」がスキルLv/特化段階から値を機械抽出するために使う。
+    pub fn get_blackboard_by_level(&self, id: &str) -> Option<&Vec<IndexMap<String, f64>>> {
+        self.id_to_item.get(id).map(|item| &item.blackboard_by_level)
     }
 
     /// idが「弾薬スキル」(`durationType == "AMMO"`)かどうか。無ければfalse。
@@ -90,9 +101,8 @@ async fn fetch_impl() -> Result<SkillData, FetchError> {
             let jp_value = jp_table.get(id.as_str());
             let source = jp_value.unwrap_or(cn_value);
             // Python版は`levels[-1]`のskillJsonから名前/説明文を組み立てる。
-            let Some(last_level) = source.get("levels").and_then(Value::as_array).and_then(|levels| levels.last()) else {
-                continue;
-            };
+            let Some(levels) = source.get("levels").and_then(Value::as_array) else { continue };
+            let Some(last_level) = levels.last() else { continue };
             let Ok(level) = serde_json::from_value::<RawSkillLevel>(last_level.clone()) else {
                 continue;
             };
@@ -101,12 +111,27 @@ async fn fetch_impl() -> Result<SkillData, FetchError> {
             let blackboard: IndexMap<String, f64> =
                 level.blackboard.iter().filter_map(|item| item.value.map(|v| (item.key.clone(), v))).collect();
             let is_ammo_skill = level.duration_type == "AMMO";
+            // P4: レベル1〜(データに存在する数だけ)のblackboardも保持する。1レベルでも
+            // deserialize/構造が壊れているものは黙って空blackboardのまま積む
+            // （name/description解決自体は最大レベルのみに依存するため、ここで丸ごと
+            // スキップして`id_to_item`への挿入自体を諦める必要は無い）。
+            let blackboard_by_level: Vec<IndexMap<String, f64>> = levels
+                .iter()
+                .map(|lv| {
+                    serde_json::from_value::<RawSkillLevel>(lv.clone())
+                        .map(|parsed| {
+                            parsed.blackboard.iter().filter_map(|item| item.value.map(|v| (item.key.clone(), v))).collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect();
             id_to_item.insert(
                 id.clone(),
                 SkillItem {
                     name: level.name,
                     description,
                     blackboard,
+                    blackboard_by_level,
                     is_ammo_skill,
                 },
             );

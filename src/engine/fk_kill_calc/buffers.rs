@@ -4,15 +4,34 @@
 //! スキーマは2種類:
 //!   - `individual`: 行ごとにチップで選ぶバフ(自己バフ等)。`FkEntry`側の条件は見ない。
 //!   - `conditional`: 全体で1回ON/OFFし、`targets`のタグを持つ行にだけ自動で効くバフ。
-//!     `bonus`(省略可)は「`bonus.tags`のいずれかをエントリが持つ場合、基本値の代わりに
-//!     `bonus.pct`/`bonus.flat`を採用する(置き換え。加算ではない)」という汎用の
-//!     タグ限定ボーナス(特定バフIDにハードコードしない。例: 異格エクシアの
-//!     「弾薬スキル+13%、ラテラーノ勢は2倍(26%)」)。
+//!     値は`pct`/`flat`の固定値、または`source`(P4)によるゲームデータからの動的解決の
+//!     どちらかを持つ。`bonus`(省略可)は「`bonus.tags`のいずれかをエントリが持つ場合、
+//!     基本値の代わりにこちらを採用する(置き換え。加算ではない)」という汎用のタグ限定
+//!     ボーナス(特定バフIDにハードコードしない。例: 異格エクシアの
+//!     「弾薬スキル+13%、ラテラーノ勢は2倍(26%)」)。`bonus.value`(固定値)/`bonus.mult`
+//!     (基本値への倍率。P4)はどちらか一方。
 //!
-//! 各バフは`pct`(ATKへの割合)/`flat`(定額。P1の`inspireFlat`と同じ差し込み口に足す想定)の
-//! どちらか一方を必ず指定する(両方/どちらも無しは`build_buffers`がpanicする。
-//! ビルド時埋め込みなので実データ側の誤りとして即座に気付ける)。`bonus`を指定する場合も
-//! 親と同じ種別(pct/flat)を使うこと(親がpctなのにbonus.flatを指定する、等は不可)。
+//! **P4で追加した`source`(動的値解決)**: `pct`/`flat`の代わりに
+//! `source: { operator: <charId>, talent: <talentIndex>, key: <blackboardキー> }`
+//! (素質由来)または`source: { operator, skill_num: "<fk_dataのskill_num>", key }`
+//! (スキルLv別blackboard由来)を指定すると、値をゲームデータ(`operator_combat`の
+//! `talents`/モジュール素質上書き、または`skill_data`の`blackboard_by_level`)から
+//! 機械抽出する(3層構成のうち1層目)。この解決自体は`build_buffers`(YAMLパースのみで
+//! ゲームデータへ依存しない)ではなく、`mod.rs`の`build_conditional_sourced_buffers`
+//! (`OperatorCombat`/`SkillData`/`OperatorData`を受け取れる`build_catalog`経由)が担当する
+//! (`build_inspire_sources`と同じ2段構え: このファイルはYAMLの生データだけを
+//! `raw_conditional_sourced()`で公開し、実際のマージは`mod.rs`側)。
+//! 解決アルゴリズムの詳細(昇進/潜在/モジュールの優先順位、値が変わらない軸を隠す
+//! dedupe等)は`conditional_source.rs`冒頭コメント参照。
+//! `toggle: { label, mult }`(P4)はON/OFFで解決値に`mult`を掛ける単純なトグル
+//! (例: 前衛アーミヤの「スキル中は効果2倍」)。
+//!
+//! 各バフは`pct`(ATKへの割合)/`flat`(定額。P1の`inspireFlat`と同じ差し込み口に足す想定)/
+//! `source`のいずれか1つを必ず指定する(`conditional`のみ`source`を選べる。`individual`は
+//! 今のところ`pct`/`flat`のみ。0個/2個以上の指定は`build_buffers`がpanicする。
+//! ビルド時埋め込みなので実データ側の誤りとして即座に気付ける)。`bonus`を指定する場合、
+//! `bonus.value`を使うなら親と同じ種別(pct/flat)を使うこと(親がpctなのにbonus.flatを
+//! 指定する、等は不可)。`bonus.mult`は`source`付きバフ専用。
 
 use super::dto::{Buffer, BufferBonus, BufferKind, BufferScope};
 use serde::Deserialize;
@@ -71,12 +90,33 @@ pub struct RawInspireSource {
     pub self_parts: Vec<RawInspireSelfPart>,
 }
 
+/// `conditional.*.bonus`の生データ。`pct`/`flat`(固定値。旧来)と`mult`(基本値への倍率。
+/// P4で追加。`source`付きバフ専用)はどちらか一方。
 #[derive(Deserialize, Clone, Debug)]
-struct RawBonus {
-    tags: Vec<String>,
-    pct: Option<f64>,
-    flat: Option<f64>,
-    note: Option<String>,
+pub(crate) struct RawBonus {
+    pub(crate) tags: Vec<String>,
+    pub(crate) pct: Option<f64>,
+    pub(crate) flat: Option<f64>,
+    #[serde(default)]
+    pub(crate) mult: Option<f64>,
+    pub(crate) note: Option<String>,
+}
+
+/// `conditional.*.source`の生データ(P4)。`talent`/`skill_num`のどちらか一方を持つ
+/// (`build_conditional_sourced_buffers`が検証する)。
+#[derive(Deserialize, Clone, Debug)]
+pub(crate) struct RawConditionalSource {
+    pub(crate) operator: String,
+    pub(crate) talent: Option<usize>,
+    pub(crate) skill_num: Option<String>,
+    pub(crate) key: String,
+}
+
+/// `conditional.*.toggle`の生データ(P4)。
+#[derive(Deserialize, Clone, Debug)]
+pub(crate) struct RawToggle {
+    pub(crate) label: String,
+    pub(crate) mult: f64,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -91,15 +131,22 @@ struct RawIndividual {
 }
 
 #[derive(Deserialize, Clone, Debug)]
-struct RawConditional {
-    id: String,
-    name: String,
-    pct: Option<f64>,
-    flat: Option<f64>,
-    targets: Vec<String>,
-    bonus: Option<RawBonus>,
-    exclusive_group: Option<String>,
-    note: Option<String>,
+pub(crate) struct RawConditional {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) pct: Option<f64>,
+    pub(crate) flat: Option<f64>,
+    pub(crate) targets: Vec<String>,
+    pub(crate) bonus: Option<RawBonus>,
+    pub(crate) exclusive_group: Option<String>,
+    pub(crate) note: Option<String>,
+    /// P4: ゲームデータからの動的値解決。`Some`なら`pct`/`flat`は指定しない
+    /// (`build_buffers`はこの手のconditionalを対象外にし、`raw_conditional_sourced()`
+    /// 経由で`mod.rs`側に解決を委ねる)。
+    #[serde(default)]
+    pub(crate) source: Option<RawConditionalSource>,
+    #[serde(default)]
+    pub(crate) toggle: Option<RawToggle>,
 }
 
 #[derive(Deserialize, Clone, Debug, Default)]
@@ -124,10 +171,13 @@ fn kind_and_value(pct: Option<f64>, flat: Option<f64>, ctx: &str) -> (BufferKind
     }
 }
 
-fn build_bonus(parent_id: &str, parent_kind: BufferKind, raw: RawBonus) -> BufferBonus {
+/// 固定値(`pct`/`flat`)のbonusを組み立てる(旧来の置き換え方式)。`mult`指定時は
+/// `build_conditional_sourced_buffers`(mod.rs)側が別途組み立てるので、ここは呼ばない。
+fn build_bonus(parent_id: &str, parent_kind: BufferKind, raw: &RawBonus) -> BufferBonus {
+    assert!(raw.mult.is_none(), "buffers.yaml: conditional {parent_id}.bonus.mult は固定値バフでは使えない(source付きバフ専用)");
     let (bonus_kind, value) = kind_and_value(raw.pct, raw.flat, &format!("conditional {parent_id}.bonus"));
     assert_eq!(bonus_kind, parent_kind, "buffers.yaml: conditional {parent_id}.bonus は親と同じ種別(pct/flat)を使うこと");
-    BufferBonus { target_tags: raw.tags, value, note: raw.note }
+    BufferBonus { target_tags: raw.tags.clone(), value: Some(value), mult: None, note: raw.note.clone() }
 }
 
 fn build_buffers() -> Vec<Buffer> {
@@ -145,13 +195,21 @@ fn build_buffers() -> Vec<Buffer> {
             single_target: ind.single_target,
             bonus: None,
             exclusive_group: None,
+            source: None,
+            toggle: None,
             note: ind.note,
         });
     }
 
+    // P4: `source`付きのconditionalは値をゲームデータから解決する必要があるため、ここでは
+    // 組み立てず`raw_conditional_sourced()`経由で`mod.rs::build_conditional_sourced_buffers`
+    // に任せる(固定`pct`/`flat`のconditionalだけをここで組み立てる)。
     for cond in parsed.conditional {
+        if cond.source.is_some() {
+            continue;
+        }
         let (kind, value) = kind_and_value(cond.pct, cond.flat, &format!("conditional {}", cond.id));
-        let bonus = cond.bonus.map(|b| build_bonus(&cond.id, kind, b));
+        let bonus = cond.bonus.as_ref().map(|b| build_bonus(&cond.id, kind, b));
         buffers.push(Buffer {
             id: cond.id,
             name: cond.name,
@@ -161,6 +219,8 @@ fn build_buffers() -> Vec<Buffer> {
             single_target: false,
             bonus,
             exclusive_group: cond.exclusive_group,
+            source: None,
+            toggle: None,
             note: cond.note,
         });
     }
@@ -171,8 +231,32 @@ fn build_buffers() -> Vec<Buffer> {
 static BUFFERS: OnceLock<Vec<Buffer>> = OnceLock::new();
 
 /// プロセス内で1回だけパースして使い回す(`Overrides::global()`と同じ方針)。
+/// `source`付きのconditionalは含まない(`raw_conditional_sourced()`参照)。
 pub fn global() -> &'static [Buffer] {
     BUFFERS.get_or_init(build_buffers)
+}
+
+static CONDITIONAL_SOURCED_RAW: OnceLock<Vec<RawConditional>> = OnceLock::new();
+
+fn build_conditional_sourced_raw() -> Vec<RawConditional> {
+    let parsed: BuffersYaml = serde_yaml::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    parsed.conditional.into_iter().filter(|c| c.source.is_some()).collect()
+}
+
+/// `source`付きconditionalの生データ(P4)。`build_catalog`(mod.rs)が`operator_combat`/
+/// `skill_data`とマージして値を解決し、`dto::Buffer`を組み立てる材料として使う。
+/// プロセス内で1回だけパースして使い回す(`global()`と同じ方針。BUFFERS_YAMLを複数回
+/// パースする無駄はあるが、P1/P2からの構造を崩さないための素直な実装
+/// =`raw_inspire_sources()`と同じ理由)。
+pub(crate) fn raw_conditional_sourced() -> &'static [RawConditional] {
+    CONDITIONAL_SOURCED_RAW.get_or_init(build_conditional_sourced_raw)
+}
+
+/// [`build_bonus`]のsource付き版を`mod.rs`から呼べるように公開する
+/// (固定値bonus(`pct`/`flat`)は`source`付きバフでも使えるため。`mult`のみのbonusは
+/// `mod.rs`側で直接組み立てる)。
+pub(crate) fn build_fixed_bonus(parent_id: &str, parent_kind: BufferKind, raw: &RawBonus) -> BufferBonus {
+    build_bonus(parent_id, parent_kind, raw)
 }
 
 static INSPIRE_RAW: OnceLock<Vec<RawInspireSource>> = OnceLock::new();
@@ -220,6 +304,10 @@ mod tests {
         for b in buffers {
             assert!(seen.insert(b.id.as_str()), "buffers.yamlのid'{}'が重複している", b.id);
         }
+        // P4: source付きconditionalのidも同じ名前空間で重複しないこと(global()には含まれない)。
+        for c in raw_conditional_sourced() {
+            assert!(seen.insert(c.id.as_str()), "buffers.yamlのconditional(source付き) id'{}'が既存のバフidと重複している", c.id);
+        }
         // P3: 鼓舞ソースのidも同じ名前空間で重複しないこと。
         for s in raw_inspire_sources() {
             assert!(seen.insert(s.id.as_str()), "buffers.yamlのinspire id'{}'が既存のバフidと重複している", s.id);
@@ -266,6 +354,18 @@ mod tests {
                 }
             }
         }
+        // P4: source付きconditionalのtargets/bonus.tagsも同じ語彙で検証する
+        // (global()に含まれないため別途チェックが要る)。
+        for c in raw_conditional_sourced() {
+            for t in &c.targets {
+                assert!(vocab.contains(&t.as_str()), "buffers.yaml: '{}'のtargetタグ'{t}'がtag_vocabulary()に無い", c.id);
+            }
+            if let Some(bonus) = &c.bonus {
+                for t in &bonus.tags {
+                    assert!(vocab.contains(&t.as_str()), "buffers.yaml: '{}'のbonus.tags'{t}'がtag_vocabulary()に無い", c.id);
+                }
+            }
+        }
     }
 
     #[test]
@@ -273,7 +373,9 @@ mod tests {
         for b in global() {
             assert!(value_in_sane_range(b.kind, b.value), "buffers.yaml: '{}'の値{}が現実的な範囲外", b.id, b.value);
             if let Some(bonus) = &b.bonus {
-                assert!(value_in_sane_range(b.kind, bonus.value), "buffers.yaml: '{}'のbonus値{}が現実的な範囲外", b.id, bonus.value);
+                if let Some(v) = bonus.value {
+                    assert!(value_in_sane_range(b.kind, v), "buffers.yaml: '{}'のbonus値{v}が現実的な範囲外", b.id);
+                }
             }
         }
     }
@@ -288,15 +390,33 @@ mod tests {
                 }
             }
         }
+        for c in raw_conditional_sourced() {
+            assert!(!c.targets.is_empty(), "buffers.yaml: conditional '{}' はtargetsを1つ以上持つこと", c.id);
+        }
     }
 
-    /// 異格エクシア(P2追加)の値がオーナー確定値+ラテラーノ2倍ボーナスと一致すること。
+    /// P4: `source`の`talent`/`skill_num`はどちらか一方だけを持つこと(0個/2個はNG)。
     #[test]
-    fn exusiai_alter_conditional_buff_has_laterano_bonus() {
-        let b = global().iter().find(|b| b.id == "exusiai_alter").expect("exusiai_alterがbuffers.yamlに存在すること");
-        assert_eq!(b.value, 0.13);
-        let bonus = b.bonus.as_ref().expect("exusiai_alterにbonusがあるはず");
-        assert_eq!(bonus.value, 0.26);
-        assert_eq!(bonus.target_tags, vec!["ラテラーノ".to_string()]);
+    fn every_conditional_source_has_exactly_one_of_talent_or_skill_num() {
+        for c in raw_conditional_sourced() {
+            let source = c.source.as_ref().expect("raw_conditional_sourced()はsourceを持つはず");
+            assert_ne!(
+                source.talent.is_some(),
+                source.skill_num.is_some(),
+                "buffers.yaml: '{}'のsourceはtalent/skill_numのどちらか一方だけを指定すること",
+                c.id
+            );
+        }
+    }
+
+    /// 異格エクシア(P2追加、P4でsource化)のbonusがラテラーノ2倍(mult)であること。
+    /// 実際に解決される数値(.13/.26)は`mod.rs`のend-to-endテストで検証する
+    /// (ここではYAMLの生データのみ確認する)。
+    #[test]
+    fn exusiai_alter_conditional_buff_has_laterano_mult_bonus() {
+        let c = raw_conditional_sourced().iter().find(|c| c.id == "exusiai_alter").expect("exusiai_alterがbuffers.yamlに存在すること");
+        let bonus = c.bonus.as_ref().expect("exusiai_alterにbonusがあるはず");
+        assert_eq!(bonus.mult, Some(2.0));
+        assert_eq!(bonus.tags, vec!["ラテラーノ".to_string()]);
     }
 }

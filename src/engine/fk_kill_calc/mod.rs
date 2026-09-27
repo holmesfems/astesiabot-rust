@@ -9,6 +9,7 @@
 //! 3. マージ → このモジュールの`build_catalog`
 
 pub mod buffers;
+mod conditional_source;
 pub mod dto;
 mod overrides;
 pub mod tags;
@@ -166,10 +167,14 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
 
     let inspire_sources = build_inspire_sources(combat, &mut skipped);
 
-    CatalogBuild {
-        catalog: Catalog { operators, buffers: buffers::global().to_vec(), inspire_sources },
-        skipped,
-    }
+    // P4: 固定pct/flatのバフ(individual + 一部conditional)に、ゲームデータから動的解決した
+    // conditional(`source`付き)を続けて足す。fk_dataのskipped/inspireのskippedと同じ方針で、
+    // 実データと不一致なバフは`skipped`に記録した上で静かに落とす
+    // (`conditional_source::build_conditional_sourced_buffers`参照)。
+    let mut buffers = buffers::global().to_vec();
+    buffers.extend(conditional_source::build_conditional_sourced_buffers(combat, ops, skills, &mut skipped));
+
+    CatalogBuild { catalog: Catalog { operators, buffers, inspire_sources }, skipped }
 }
 
 /// `buffers.yaml`の`inspire`リスト(生データ)と`operator_combat`をマージして
@@ -656,6 +661,67 @@ mod tests {
         let ops: OperatorData = load_seed(operator_data::SEED_PATH);
         let bad = validate_inspire_sources(buffers::raw_inspire_sources(), &combat, &ops);
         assert!(bad.is_empty(), "buffers.yamlのinspireリストに実データと不一致な参照がある:\n{}", bad.join("\n"));
+    }
+
+    /// P4: buffers.yamlのconditional(source付き)が実データ(operator_combat/operator_data/
+    /// skill_data)と整合していることのドリフト検知。ゲームデータ更新でオペレーターID・
+    /// talentIndex・skill_num・キー名が変わった場合、このテストが不一致キーを列挙して落ちる。
+    #[test]
+    fn every_conditional_source_points_to_existing_operator_talent_or_skill() {
+        let ops: OperatorData = load_seed(operator_data::SEED_PATH);
+        let combat: OperatorCombat = load_seed(operator_combat::SEED_PATH);
+        let skills: SkillData = load_seed(skill_data::SEED_PATH);
+        let bad = conditional_source::validate_conditional_sources(&combat, &ops, &skills);
+        assert!(bad.is_empty(), "buffers.yamlのconditional(source付き)に実データと不一致な参照がある:\n{}", bad.join("\n"));
+    }
+
+    /// P4: オーナー確認済みの実データ値(2026-09時点)と一致すること。ゲームデータ更新で
+    /// 数値が変わった場合はここを見直す。
+    #[test]
+    fn conditional_source_default_values_match_verified_gamedata() {
+        let result = build_from_seeds();
+        let find = |id: &str| result.catalog.buffers.iter().find(|b| b.id == id).unwrap_or_else(|| panic!("バフ'{id}'がカタログに無い"));
+
+        let approx_eq = |a: f64, b: f64| (a - b).abs() < 1e-9;
+
+        let castle3 = find("castle3");
+        assert!(approx_eq(castle3.value, 0.20), "castle3のデフォルト値={}", castle3.value);
+
+        let zima = find("zima");
+        assert!(approx_eq(zima.value, 0.60), "zimaのデフォルト値={}", zima.value);
+
+        let aya = find("aya");
+        assert!(approx_eq(aya.value, 0.24), "ayaのデフォルト値={}", aya.value);
+
+        let podenco = find("podenco");
+        assert!(approx_eq(podenco.value, 0.11), "podencoのデフォルト値={}", podenco.value);
+        assert!(
+            podenco.source.as_ref().unwrap().talent.as_ref().unwrap().modules.is_empty(),
+            "podencoはモジュールを装備しても値が変わらないのでmodules軸が空のはず: {:?}",
+            podenco.source.as_ref().unwrap().talent.as_ref().unwrap().modules
+        );
+
+        let pepe = find("pepe");
+        assert!(approx_eq(pepe.value, 0.20), "pepeのデフォルト値={}", pepe.value);
+        assert!(
+            pepe.source.as_ref().unwrap().talent.as_ref().unwrap().modules.is_empty(),
+            "pepeはモジュールを装備しても値が変わらないのでmodules軸が空のはず"
+        );
+
+        let amiya = find("amiya_guard");
+        assert!(approx_eq(amiya.value, 0.09), "amiya_guardのデフォルト値={}", amiya.value);
+        assert!(amiya.toggle.is_some(), "amiya_guardはtoggle(スキル中2倍)を持つはず");
+        assert_eq!(amiya.toggle.as_ref().unwrap().mult, 2.0);
+
+        let suzuran = find("suzuran");
+        assert!(approx_eq(suzuran.value, 0.09), "suzuranのデフォルト値={}", suzuran.value);
+
+        let exusiai_alter = find("exusiai_alter");
+        assert!(approx_eq(exusiai_alter.value, 0.13), "exusiai_alterのデフォルト値={}", exusiai_alter.value);
+        let bonus = exusiai_alter.bonus.as_ref().expect("exusiai_alterにbonusがあるはず");
+        assert_eq!(bonus.mult, Some(2.0));
+        // bonus値自体(基本値×倍率)はフロント側(engine.js)の責務なので、ここではmultの
+        // 存在と基本値.13だけを確認する(.13×2=.26になることはJS側のverify.mjsで検証する)。
     }
 
     /// カバレッジ確認用(fk_dataの何件がカタログに解決できたか)。`--nocapture`で確認する。

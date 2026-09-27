@@ -198,16 +198,99 @@ pub enum BufferScope {
     Conditional { target_tags: Vec<String> },
 }
 
-/// 条件付きバフの「タグ限定ボーナス」(P2)。基本の対象タグに加え、`target_tags`のいずれかを
-/// エントリが持つ場合、基本値(`Buffer.value`)の代わりにこちらの値を採用する(置き換え。
-/// 加算ではない)。例: 異格エクシアの「弾薬スキル+13%、ラテラーノ勢は2倍(26%)」。
-/// 汎用の仕組みとして持つ(特定バフIDにハードコードしない)。
+/// 条件付きバフの「タグ限定ボーナス」(P2。P4で`mult`を追加)。基本の対象タグに加え、
+/// `target_tags`のいずれかをエントリが持つ場合、基本値(`Buffer.value`。`source`付きバフなら
+/// 選択中の昇進/潜在/モジュール/スキルLvで解決した値)の代わりにこちらを採用する。
+/// `value`(固定値。置き換え)と`mult`(基本値への倍率。P4で追加)はどちらか一方のみ持つ:
+///   - `value`: 基本値を無視してこの固定値を使う(旧来。例: 異格エクシアの
+///     旧仕様「ラテラーノ勢は固定26%」)
+///   - `mult`: 選択中の設定で解決した基本値にこの倍率を掛ける(`source`付きバフ専用。
+///     基本値自体が昇進/潜在で変わるため、固定値では表現できない場合に使う。
+///     例: 異格エクシアの素質「铳弹协约」実データの`mult`キー(2.0)そのもの)
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BufferBonus {
     pub target_tags: Vec<String>,
-    pub value: f64,
+    pub value: Option<f64>,
+    pub mult: Option<f64>,
     pub note: Option<String>,
+}
+
+/// バフのON/OFFに紐づく単純な効果倍率トグル(P4)。ONの間、解決した値に`mult`を掛ける
+/// (例: 前衛アーミヤの「スキル中は効果2倍」)。`Buffer.source`の軸(昇進/潜在/モジュール等)
+/// とは独立(常にBuffer全体に対して掛かる)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BuffToggle {
+    pub label: String,
+    pub mult: f64,
+}
+
+/// 「条件付きバフ」の値をゲームデータから機械抽出する動的ソース(P4)。`talent`(素質)/
+/// `skill`(スキルLv別blackboard)のどちらか一方を持つ。詳細な設計意図・実データ検証結果は
+/// `buffers.rs`冒頭コメント + `conditional_source.rs`冒頭コメント参照。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalSource {
+    pub operator_id: String,
+    pub operator_name: String,
+    pub talent: Option<ConditionalTalentSource>,
+    pub skill: Option<ConditionalSkillSource>,
+    pub defaults: ConditionalSourceDefaults,
+}
+
+/// 素質(talent)由来の値テーブル(P4)。`values_by_elite_and_potential[phase][potentialRank]`
+/// (phase=0/1/2=E0/E1/E2、potentialRank=0〜5=潜在1〜6)がベース(モジュール無し)の値。
+/// `elite_varies`/`potential_varies`はUIがそれぞれの軸(セレクト)を出すべきかどうかの
+/// 自動判定済みフラグ(値が変わらない軸は見せない)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalTalentSource {
+    pub values_by_elite_and_potential: [[f64; 6]; 3],
+    pub elite_varies: bool,
+    pub potential_varies: bool,
+    /// 値を実際に変えるモジュールだけを載せる(dedupe済み。例: ポデンコ/ペペはモジュールを
+    /// 装備しても値が変わらないため空Vecになり、UIはモジュール選択を出さない)。
+    pub modules: Vec<ConditionalSourceModule>,
+}
+
+/// 素質を上書きするモジュール1種分の値テーブル(P4)。
+/// `values_by_level_and_potential[moduleLv][potentialRank]`(moduleLv=0/1/2=Lv1/2/3)。
+/// そのLvにこのtalentIndexへの上書き候補が無ければベース(E2側)の値にフォールバック済み
+/// (`build_conditional_sourced_buffers`が計算時に埋める)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalSourceModule {
+    pub module_id: String,
+    pub type_name: String,
+    pub name: String,
+    pub values_by_level_and_potential: [[f64; 6]; 3],
+}
+
+/// スキルLv別blackboard由来の値テーブル(P4)。`values_by_level[i]`はスキルLv(i+1)の値
+/// (Lv1〜7 + 特化1〜3で最大10要素。データに存在するレベル数だけ入る)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalSkillSource {
+    pub skill_num: String,
+    pub skill_label: String,
+    pub values_by_level: Vec<f64>,
+}
+
+/// 「最大成長」を表すデフォルトの選択状態(P4)。UIが条件付きバフを初めてONにした時に使う
+/// (`昇進2・潜在6・値が変わるモジュールが有ればLv3・スキルソースなら最大Lv`)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalSourceDefaults {
+    /// 0/1/2 = E0/E1/E2。
+    pub elite: u8,
+    /// 0〜5 = 潜在1〜6。
+    pub potential: u8,
+    pub module_id: Option<String>,
+    /// 1〜3。`module_id`が`None`なら意味を持たない。
+    pub module_level: u8,
+    /// 1〜(データ数)。skillソースでなければ意味を持たない。
+    pub skill_level: u8,
 }
 
 /// バフ定義1件。P1では`Catalog::buffers`は常に空のVecだったが、P2で
@@ -218,6 +301,9 @@ pub struct Buffer {
     pub id: String,
     pub name: String,
     pub kind: BufferKind,
+    /// `source`が`None`の固定バフはこの値をそのまま使う。`source`付きバフでは
+    /// `defaults`の選択状態で解決した値(=UIが初めてONにした時に見せる値)を入れる
+    /// (フロントが選択を変えた後の値は`resolveConditionalValue`が都度計算し直す)。
     pub value: f64,
     pub scope: BufferScope,
     /// 単体狙い(true)か範囲(false)か。同じ`single_target`バフを複数行で選ぶと
@@ -228,6 +314,10 @@ pub struct Buffer {
     /// 同じグループ名を持つ条件付きバフは同時に効かない(ONでも最大値の1件だけ採用し、
     /// UIでは片方をONにするともう片方をOFFにする)。例: 前衛アーミヤ(通常)/(スキル中)。
     pub exclusive_group: Option<String>,
+    /// ゲームデータから機械抽出する動的ソース(P4。省略時は`value`固定のまま)。
+    pub source: Option<ConditionalSource>,
+    /// ON/OFFで効果倍率が変わるトグル(P4。例: 前衛アーミヤの「スキル中は効果2倍」)。
+    pub toggle: Option<BuffToggle>,
     pub note: Option<String>,
 }
 
