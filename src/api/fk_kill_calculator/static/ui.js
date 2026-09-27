@@ -23,6 +23,7 @@
 import {
   findOperator,
   findEntry,
+  findModule,
   makeDefaultRow,
   resolveEntryValues,
   specialUiState,
@@ -37,6 +38,11 @@ import {
   computeInspireSelfParts,
   resolveConditionalValue,
   potentialGroups,
+  maxEliteFor,
+  maxLevelForElite,
+  moduleUsable,
+  effectiveModuleId,
+  skillUnlockWarning,
 } from "./engine.js";
 
 const ENEMY_PERCENT_FIELDS = new Set(["defPct", "vulnPct"]);
@@ -109,6 +115,9 @@ function blankRow() {
     entryIdx: 0,
     dmgType: "physical",
     potential: true,
+    elite: 2, // P6: オペレーター未選択の間は意味を持たない仮値(選択時にmakeDefaultRowが上書きする)
+    level: 90,
+    trust: 100,
     moduleId: null,
     moduleLv: 3,
     multiplier: 1,
@@ -324,7 +333,14 @@ function rowPlainSummary(row) {
   const entry = findEntry(op, row.entryIdx);
   const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
   const r = results[0];
-  return `${op.name} ${shortSkillRef(entry)}: ${fmtInt(r.perHit)}×${row.hits}Hit → 実ダメ ${fmtInt(r.rowDamage)}`;
+  return `${op.name} ${eliteLevelLabel(row)} ${shortSkillRef(entry)}: ${fmtInt(r.perHit)}×${row.hits}Hit → 実ダメ ${fmtInt(r.rowDamage)}`;
+}
+
+// P6: "E2 Lv90"(信頼度100%は省略。それ以外は"信頼60%"のように付け足す)。
+function eliteLevelLabel(row) {
+  let s = `E${row.elite} Lv${row.level}`;
+  if (row.trust !== 100) s += ` 信頼${row.trust}%`;
+  return s;
 }
 
 // バフN件(個別+適用中の条件付き)。0件ならバッジを出さない。
@@ -355,7 +371,8 @@ function renderRowSummary(row, idx) {
   const r = results[0];
   const tooltip = escapeHtml(rowPlainSummary(row));
   const nameRef = escapeHtml(`${op.name} ${shortSkillRef(entry)}`);
-  return `${dot}<span class="row-summary-name" title="${tooltip}">${nameRef}</span>${buffCountBadge(r)}${inspireBadge(r)}`
+  const eliteBadge = `<span class="badge badge-elite" title="昇進・レベル・信頼度">${escapeHtml(eliteLevelLabel(row))}</span>`;
+  return `${dot}<span class="row-summary-name" title="${tooltip}">${nameRef}</span>${eliteBadge}${buffCountBadge(r)}${inspireBadge(r)}`
     + `<span class="row-summary-damage" title="${tooltip}">${fmtInt(r.rowDamage)}</span>`;
 }
 
@@ -457,11 +474,18 @@ function moduleTypeNameFor(op, moduleId) {
   return m ? m.typeName : "X";
 }
 
-// 「特殊強化「<label>」はモジュール<X> Lv<N>以上で有効」ヒント文(加算系専用。
-// addSelfAtkPctByModuleLevelの最初の非ゼロ要素からLvを逆算する)。
-function specialHintText(op, entry) {
+// 「特殊強化「<label>」はモジュール<X> Lv<N>以上で有効」ヒント文(加算系専用)。
+// P6: モジュール自体が現在の昇進/レベルで装備できない間は、実データ(unlockPhase/
+// unlockLevel)から「昇進<X> Lv<Y>以上で装備可能」を示す。装備はできているが
+// モジュールLv側の条件(addSelfAtkPctByModuleLevelの最初の非ゼロ要素)を
+// 満たさない間は従来どおり「モジュール<X> Lv<N>以上で有効」を示す。
+function specialHintText(op, entry, row) {
   const sp = entry.special;
-  const typeName = moduleTypeNameFor(op, sp.requiresModule);
+  const module = findModule(op, sp.requiresModule);
+  const typeName = module ? module.typeName : moduleTypeNameFor(op, sp.requiresModule);
+  if (module && !moduleUsable(module, row.elite, row.level)) {
+    return `特殊強化「${sp.label}」はモジュール${typeName}（昇進${module.unlockPhase} Lv${module.unlockLevel}以上で装備可能）が必要`;
+  }
   const arr = sp.addSelfAtkPctByModuleLevel || [];
   const nonZeroIdx = arr.findIndex((v) => v > 0);
   const minLv = nonZeroIdx >= 0 ? nonZeroIdx + 1 : 1;
@@ -469,8 +493,8 @@ function specialHintText(op, entry) {
 }
 
 // ⓘ説明文の末尾に付ける「現在: +N%」/「現在: ×N」(P2 follow-up)。
-function specialCurrentValueText(entry, row) {
-  const cur = resolveSpecialCurrentValue(entry, row);
+function specialCurrentValueText(op, entry, row) {
+  const cur = resolveSpecialCurrentValue(op, entry, row);
   if (!cur) return "";
   return cur.kind === "mul" ? `現在: ×${trimNum(cur.value)}` : `現在: +${fmtPct(cur.value)}%`;
 }
@@ -482,16 +506,16 @@ function specialCurrentValueText(entry, row) {
 function renderSpecialCheckbox(op, entry, row, idx) {
   if (!entry || !entry.special) return "";
   const sp = entry.special;
-  const uiState = specialUiState(entry, row);
+  const uiState = specialUiState(op, entry, row);
   const descOpen = specialDescOpenIdx.has(idx);
-  const descText = [sp.description, specialCurrentValueText(entry, row)].filter(Boolean).join(" / ");
+  const descText = [sp.description, specialCurrentValueText(op, entry, row)].filter(Boolean).join(" / ");
   const infoBtn = sp.description
     ? `<button type="button" class="special-info-btn" data-action="toggle-special-desc" data-idx="${idx}" aria-expanded="${descOpen}" title="${escapeHtml(descText)}">ⓘ</button>`
     : "";
   const descBlock = descOpen && sp.description ? `<p class="special-desc">${escapeHtml(descText)}</p>` : "";
 
   if (uiState === "hint") {
-    return `<div class="row-field"><p class="special-hint">${escapeHtml(specialHintText(op, entry))}${infoBtn}</p>${descBlock}</div>`;
+    return `<div class="row-field"><p class="special-hint">${escapeHtml(specialHintText(op, entry, row))}${infoBtn}</p>${descBlock}</div>`;
   }
   return `<div class="row-field">
     <label class="check-label">
@@ -516,6 +540,54 @@ function renderRowInspireToggle(r, row, idx) {
       鼓舞: ${amountText} をこの行に適用
     </label>
   </div>`;
+}
+
+// P6: 昇進(0/1/2=E0/E1/E2)のセレクト選択肢。そのオペレーターが到達できる段階まで
+// (`maxEliteFor`。フェーズが少ないオペレーターは選択肢自体が少ない)。
+function eliteOptions(op, row) {
+  const maxElite = maxEliteFor(op);
+  let html = "";
+  for (let e = 0; e <= maxElite; e++) {
+    html += `<option value="${e}"${row.elite === e ? " selected" : ""}>E${e}</option>`;
+  }
+  return html;
+}
+
+// P6: 「[E2▾] Lv[ 90 ]/90  信頼度[100]%」の3列コントロール。昇進セレクトを変えると
+// (onRowFieldChangeが)レベルをその昇進の最大値へリセットする。
+function renderEliteLevelTrustControls(op, row, idx) {
+  const maxLevel = maxLevelForElite(op, row.elite);
+  return `<div class="row-grid3">
+    <label>昇進
+      <select data-role="row" data-field="elite" data-idx="${idx}">${eliteOptions(op, row)}</select>
+    </label>
+    <label>Lv
+      <div class="level-with-max">
+        <input type="number" step="1" min="1" max="${maxLevel}" data-role="row" data-field="level" data-idx="${idx}" value="${row.level}">
+        <span class="level-max-hint">/${maxLevel}</span>
+      </div>
+    </label>
+    <label>信頼度%
+      <input type="number" step="1" min="0" max="100" data-role="row" data-field="trust" data-idx="${idx}" value="${row.trust}">
+    </label>
+  </div>`;
+}
+
+// P6: entryのスキルが現在の昇進でまだ解放されていない場合の警告(計算は続行する)。
+function renderSkillUnlockWarning(op, entry, row) {
+  if (!op || !entry) return "";
+  const warning = skillUnlockWarning(op, entry, row);
+  if (!warning) return "";
+  return `<p class="special-hint">${escapeHtml(warning)}（計算は続行されます）</p>`;
+}
+
+// P6: 選択中のモジュールが現在の昇進/レベルでは装備できない場合のヒント
+// (実データのunlockPhase/unlockLevelから組み立てる。ATKには加算されない)。
+function renderModuleUnusableHint(op, row) {
+  if (!op || !row.moduleId) return "";
+  const module = findModule(op, row.moduleId);
+  if (!module || moduleUsable(module, row.elite, row.level)) return "";
+  return `<p class="special-hint">モジュール${escapeHtml(module.typeName)}は昇進${module.unlockPhase} Lv${module.unlockLevel}以上で装備可能（現在は加算されません）</p>`;
 }
 
 function renderRowExpanded(row, idx, singleConflicts) {
@@ -555,7 +627,9 @@ function renderRowExpanded(row, idx, singleConflicts) {
     </div>
     <div class="row-field">
       <label>FK対象 ${entrySelectHtml}</label>
+      ${renderSkillUnlockWarning(op, entry, row)}
     </div>
+    ${op ? renderEliteLevelTrustControls(op, row, idx) : ""}
     <div class="row-grid2">
       <label>ダメージ種別
         <select data-role="row" data-field="dmgType" data-idx="${idx}">
@@ -583,6 +657,7 @@ function renderRowExpanded(row, idx, singleConflicts) {
         </select>
       </label>
     </div>
+    <div class="module-hint-wrap" data-role="module-hint" data-idx="${idx}">${renderModuleUnusableHint(op, row)}</div>
     <div class="row-grid2">
       <label>倍率
         <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}" value="${trimNum(row.multiplier)}">
@@ -673,10 +748,13 @@ function moduleTypeNameForSource(source, moduleId) {
 // 同じ考え方でヒント文に切り替える(チェックボックスを隠す)。
 function renderInspireSelfPartsControls(source, cfg) {
   const parts = source.selfParts || [];
+  // P6: モジュール条件は`effectiveModuleId`(elite/level込みの装備可否)経由で判定する
+  // (computeInspireSelfPartsと同じ判定を使う。未装備/装備不可の間はヒント側に回る)。
+  const moduleId = effectiveModuleId(source, cfg);
   let html = "";
   for (const p of parts) {
     if (p.alwaysOn) continue;
-    const applicable = !p.requiresModule || cfg.moduleId === p.requiresModule;
+    const applicable = !p.requiresModule || moduleId === p.requiresModule;
     if (!applicable) {
       const typeName = moduleTypeNameForSource(source, p.requiresModule);
       html += `<p class="special-hint" title="${escapeHtml(p.description || "")}">「${escapeHtml(p.label)}」はモジュール${escapeHtml(typeName)}装備時のみ有効</p>`;
@@ -764,6 +842,20 @@ function renderInspireSourceCard(source, singleConflicts) {
       <input type="checkbox" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="talentPotential" ${cfg.talentPotential ? "checked" : ""}>
       ${escapeHtml(source.talentPotentialLabel)}
     </label>
+    <div class="row-grid3">
+      <label>昇進
+        <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="elite">${eliteOptions(source, cfg)}</select>
+      </label>
+      <label>Lv
+        <div class="level-with-max">
+          <input type="number" step="1" min="1" max="${maxLevelForElite(source, cfg.elite)}" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="level" value="${cfg.level}">
+          <span class="level-max-hint">/${maxLevelForElite(source, cfg.elite)}</span>
+        </div>
+      </label>
+      <label>信頼度%
+        <input type="number" step="1" min="0" max="100" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="trust" value="${cfg.trust}">
+      </label>
+    </div>
     <div class="row-grid2">
       <label>モジュール
         <select data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="moduleId">${moduleOptions(source, cfg)}</select>
@@ -776,6 +868,7 @@ function renderInspireSourceCard(source, singleConflicts) {
         </select>
       </label>
     </div>
+    <div class="module-hint-wrap" data-role="inspire-module-hint" data-source-id="${escapeHtml(source.id)}">${renderModuleUnusableHint(source, cfg)}</div>
     ${renderInspireSelfPartsControls(source, cfg)}
     ${renderSourceIndividualBuffChips(source, cfg, singleConflicts)}
     <div class="row-field">
@@ -1116,6 +1209,10 @@ function renderLive() {
         const field = badges.dataset.badgesFor;
         badges.outerHTML = fieldBadges(entry, field, row[field], idx);
       });
+      // P6: レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するよう
+      // 差し替える(elite/moduleIdの変更は既にrender()で全体を作り直す)。
+      const moduleHint = card.querySelector('[data-role="module-hint"]');
+      if (moduleHint) moduleHint.innerHTML = op ? renderModuleUnusableHint(op, row) : "";
     } else {
       const main = card.querySelector(".row-summary-main");
       if (main) main.innerHTML = renderRowSummary(row, idx);
@@ -1129,6 +1226,9 @@ function renderLive() {
     const cfg = sourceCfg(source);
     const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds, buffLevelsState());
     wrap.innerHTML = renderInspireResultBlock(source, cfg, result);
+    // P6: レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するようにする。
+    const moduleHint = document.querySelector(`[data-role="inspire-module-hint"][data-source-id="${source.id}"]`);
+    if (moduleHint) moduleHint.innerHTML = renderModuleUnusableHint(source, cfg);
   });
   $("verdict-section").outerHTML = renderVerdict();
   saveState();
@@ -1222,6 +1322,14 @@ function onRowFieldChange(el) {
   }
   if (field === "moduleLv") {
     row.moduleLv = Number(el.value);
+    render();
+    return;
+  }
+  if (field === "elite") {
+    const op = findOperator(catalog, row.opId);
+    row.elite = Number(el.value);
+    // P6: 昇進を変えたらレベルはその昇進の最大値へ合わせる(仕様どおり)。
+    row.level = op ? maxLevelForElite(op, row.elite) : row.level;
     render();
     return;
   }
@@ -1353,10 +1461,24 @@ function onInspireFieldChange(el) {
     render();
     return;
   }
+  if (field === "elite") {
+    const elite = Number(el.value);
+    // P6: 昇進を変えたらレベルはその昇進の最大値へ合わせる(行と同じ仕様)。
+    setSourceCfg(sourceId, { elite, level: maxLevelForElite(source, elite) });
+    render();
+    return;
+  }
   if (field === "buffPct") {
     const value = readFieldValue(el, true);
     if (valuesEqual(cfg.buffPct, value)) return;
     setSourceCfg(sourceId, { buffPct: value });
+    renderLive();
+    return;
+  }
+  if (field === "level" || field === "trust") {
+    const value = readFieldValue(el, false);
+    if (valuesEqual(cfg[field], value)) return;
+    setSourceCfg(sourceId, { [field]: value });
     renderLive();
   }
 }

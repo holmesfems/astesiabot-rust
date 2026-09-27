@@ -25,10 +25,32 @@ use crate::engine::fk_data_search::search::skill_id_by_num;
 use buffers::RawInspireSource;
 use dto::{
     CatalogModule, CatalogOperator, DamageType, FkEntry, InspireModuleOverride, InspireSelfPart, InspireSkillRatio, InspireSource,
-    MulMultiplier, Special, Valued,
+    MulMultiplier, PhaseAtk, Special, Valued,
 };
 use indexmap::IndexMap;
 use std::collections::HashMap;
+
+/// `operator_combat::RawModuleCombat`一覧をカタログ表示用の`CatalogModule`一覧へ変換する
+/// (`CatalogOperator.modules`/`InspireSource.modules`の両方から使う共通ロジック)。
+fn to_catalog_modules(modules: &[crate::engine::external_source::operator_combat::RawModuleCombat]) -> Vec<CatalogModule> {
+    modules
+        .iter()
+        .map(|m| CatalogModule {
+            id: m.eq_id.clone(),
+            type_name: m.eq_type.clone(),
+            name: m.name.clone(),
+            atk_by_level: m.atk_by_level.clone(),
+            unlock_phase: m.unlock_phase,
+            unlock_level: m.unlock_level,
+        })
+        .collect()
+}
+
+/// `operator_combat::RawPhaseAtk`一覧をDTO(`dto::PhaseAtk`)へ変換する
+/// (`CatalogOperator.phases`/`InspireSource.phases`の両方から使う共通ロジック)。
+fn to_phase_atk_dtos(phases: &[crate::engine::external_source::operator_combat::RawPhaseAtk]) -> Vec<PhaseAtk> {
+    phases.iter().map(|p| PhaseAtk { max_level: p.max_level, atk_min: p.atk_min, atk_max: p.atk_max }).collect()
+}
 
 /// fk_dataシートとゲームデータ側の表記ゆれ（全角/半角括弧、前後の空白）を吸収する。
 /// fk_dataシートは「アーミヤ（前衛）」のように全角括弧を使うことがあるが、
@@ -151,17 +173,11 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
             tags: operator_tags,
             atk_base: combat_op.atk_base,
             atk_potential: combat_op.atk_potential,
-            modules: combat_op
-                .modules
-                .iter()
-                .map(|m| CatalogModule {
-                    id: m.eq_id.clone(),
-                    type_name: m.eq_type.clone(),
-                    name: m.name.clone(),
-                    atk_by_level: m.atk_by_level.clone(),
-                })
-                .collect(),
+            modules: to_catalog_modules(&combat_op.modules),
             fk_entries,
+            phases: to_phase_atk_dtos(&combat_op.phases),
+            atk_trust_max: combat_op.atk_trust_max,
+            skill_unlock_phase: combat_op.skill_unlock_phase.clone(),
         });
     }
 
@@ -199,19 +215,13 @@ fn build_inspire_sources(combat: &OperatorCombat, skipped: &mut Vec<String>) -> 
             tags,
             atk_base: op.atk_base,
             atk_potential: op.atk_potential,
-            modules: op
-                .modules
-                .iter()
-                .map(|m| CatalogModule {
-                    id: m.eq_id.clone(),
-                    type_name: m.eq_type.clone(),
-                    name: m.name.clone(),
-                    atk_by_level: m.atk_by_level.clone(),
-                })
-                .collect(),
+            modules: to_catalog_modules(&op.modules),
             skills: raw.skills.iter().map(|s| InspireSkillRatio { skill_num: s.skill_num.clone(), ratio: s.ratio }).collect(),
             talent_potential_label: raw.talent_potential_label.clone(),
             self_parts: raw.self_parts.iter().map(to_inspire_self_part_dto).collect(),
+            phases: to_phase_atk_dtos(&op.phases),
+            atk_trust_max: op.atk_trust_max,
+            skill_unlock_phase: op.skill_unlock_phase.clone(),
         });
     }
     sources

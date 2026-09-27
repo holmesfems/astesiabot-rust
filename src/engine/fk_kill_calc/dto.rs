@@ -163,6 +163,20 @@ pub struct CatalogModule {
     pub type_name: String,
     pub name: String,
     pub atk_by_level: Vec<f64>,
+    /// このモジュールを装備できる最低昇進(0/1/2)。P?で追加。
+    pub unlock_phase: u8,
+    /// `unlock_phase`到達時点で装備可能になる最低レベル。
+    pub unlock_level: u32,
+}
+
+/// 昇進段階1つ分のLv1〜Lv最大ATK(P?。`operator_combat::RawPhaseAtk`をそのままDTO化したもの)。
+/// `engine.js::computeBaseAtk`が線形補間(四捨五入)して昇進/レベル別ATKを計算する元データ。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PhaseAtk {
+    pub max_level: u32,
+    pub atk_min: f64,
+    pub atk_max: f64,
 }
 
 /// オペレーター1名分のカタログエントリ。
@@ -172,10 +186,19 @@ pub struct CatalogOperator {
     pub id: String,
     pub name: String,
     pub tags: Vec<String>,
+    /// 昇進2最大レベル+信頼度100時点のATK(後方互換。新しい昇進/レベル/信頼度指定の
+    /// 計算は`phases`/`atkTrustMax`をフロントが使う)。
     pub atk_base: f64,
     pub atk_potential: f64,
     pub modules: Vec<CatalogModule>,
     pub fk_entries: Vec<FkEntry>,
+    /// 昇進段階ごとのLv1/Lv最大ATK(P?)。
+    pub phases: Vec<PhaseAtk>,
+    /// 信頼度100%時点のATK加算値。
+    pub atk_trust_max: f64,
+    /// skill_num→解放昇進(0/1/2)。`(skillNum, phase)`のペア一覧
+    /// (`multiplier_candidates`と同じくVecで持ち、順序はゲームデータのスキル配列順)。
+    pub skill_unlock_phase: Vec<(String, u8)>,
 }
 
 /// バフの種別。定額(Flat)か、ATKに対する割合(Pct)か。
@@ -446,6 +469,12 @@ pub struct InspireSource {
     /// 「素質凸」チェックボックスの表示ラベル(オペレーターごとに文言が違い得るため)。
     pub talent_potential_label: String,
     pub self_parts: Vec<InspireSelfPart>,
+    /// 昇進段階ごとのLv1/Lv最大ATK(P?。`CatalogOperator.phases`と同じ)。
+    pub phases: Vec<PhaseAtk>,
+    /// 信頼度100%時点のATK加算値。
+    pub atk_trust_max: f64,
+    /// skill_num→解放昇進(0/1/2)。
+    pub skill_unlock_phase: Vec<(String, u8)>,
 }
 
 /// カタログ全体。`/FrameKillCalculator/catalog.json`のレスポンス本体。

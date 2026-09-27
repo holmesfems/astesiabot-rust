@@ -58,6 +58,15 @@ pub struct RawModuleCombat {
     pub name: String,
     /// Stage1〜3のATK加算値。データに存在するステージ数だけ入る。
     pub atk_by_level: Vec<f64>,
+    /// このモジュールを装備できる最低昇進(`uniequip_table.json`の`unlockEvolvePhase`。
+    /// 0/1/2 = E0/E1/E2)。実データ調査済み: 現行の全モジュール(509件)は`PHASE_2`固定
+    /// (P?で追加。フレームキル計算機の昇進/レベル指定でモジュール装備可否を判定するため)。
+    #[serde(default)]
+    pub unlock_phase: u8,
+    /// `unlock_phase`到達時点で装備可能になる最低レベル(`unlockLevel`。レアリティにより
+    /// 40/50/60等)。
+    #[serde(default)]
+    pub unlock_level: u32,
     /// フレームキル計算機の「条件付きバフ(P4)」用: このモジュールを装備した時の素質上書き
     /// (`addOrOverrideTalentDataBundle`)候補一覧。インデックス0=Lv1/1=Lv2/2=Lv3。
     /// Lv1は素質強化自体が無いことが多く、その場合は空Vec。`talentIndex`が負値(素質を
@@ -96,6 +105,21 @@ pub struct RawTalent {
     pub candidates: Vec<RawTalentCandidate>,
 }
 
+/// 昇進段階1つ分のLv1〜Lv最大ATK(`character_table.json`の`phases[i]`。
+/// `attributesKeyFrames`は必ずLv1/Lv最大の2点なので、その間は線形補間する前提のデータ)。
+/// P?で追加。フレームキル計算機が昇進/レベル別のATKを計算する元データ
+/// (`build_catalog`はこれをそのままカタログへ渡し、四捨五入込みの補間はJS側
+/// `engine.js::computeBaseAtk`が行う)。
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RawPhaseAtk {
+    /// この昇進段階の最大レベル(6凸なら90/80/50、レアリティが低いほど小さい)。
+    pub max_level: u32,
+    /// Lv1のATK。
+    pub atk_min: f64,
+    /// `max_level`到達時のATK。
+    pub atk_max: f64,
+}
+
 /// オペレーター1名分の戦闘生データ（machine-extractableな数値のみ）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RawOperatorCombat {
@@ -112,6 +136,8 @@ pub struct RawOperatorCombat {
     #[serde(default)]
     pub nation_id: String,
     /// 昇進2(E2)最大レベルのATK + 信頼度100時点のATK加算（`favorKeyFrames`最終値）。
+    /// `phases.last().atk_max + atk_trust_max`と同じ値(後方互換のため残す。
+    /// 昇進/レベル/信頼度を指定する新計算は`phases`/`atk_trust_max`を使う)。
     pub atk_base: f64,
     /// 潜在(潜能)によるATK加算の合計（`formulaItem == "ADDITION"`のもののみ。
     /// 倍率型(MULTIPLY等)のATK潜在は将来的に別扱いが必要なため、ここには含めない）。
@@ -122,6 +148,18 @@ pub struct RawOperatorCombat {
     /// ために使う。`talents[i]`の`i`がtalentIndex)。
     #[serde(default)]
     pub talents: Vec<RawTalent>,
+    /// 昇進段階ごとのLv1/Lv最大ATK(P?。インデックス0=E0。データに存在する昇進段階数だけ
+    /// 入る。1〜3体はE0のみ、一部は2段階までしか無い[6凸できない下位レアリティ等])。
+    #[serde(default)]
+    pub phases: Vec<RawPhaseAtk>,
+    /// 信頼度100%時点のATK加算値(`favorKeyFrames`最終値。`atk_base`はこれを含んだ値)。
+    #[serde(default)]
+    pub atk_trust_max: f64,
+    /// skill_num(1始まりの文字列。`fk_data_search::search::skill_id_by_num`と同じ採番)→
+    /// 解放昇進(0/1/2)。`character_table.json`の`skills[i].unlockCond.phase`から取得
+    /// (S1=E0/S2=E1/S3=E2が大半だが、実データに即して機械抽出する)。
+    #[serde(default)]
+    pub skill_unlock_phase: Vec<(String, u8)>,
 }
 
 /// オペレーター戦闘生データ一式。
@@ -277,29 +315,48 @@ fn parse_module_talent_overrides(battle_value: Option<&Value>) -> Vec<Vec<RawMod
         .collect()
 }
 
-/// 昇進2(E2、`phases`の最終要素)最大レベルのATK + 信頼度100時点のATK加算を合算する。
-/// `phases`/`favorKeyFrames`が無い(取得できない)場合はその項を0として扱う。
-fn parse_atk_base(source_value: &Value) -> f64 {
-    let elite_max_atk = source_value
-        .get("phases")
-        .and_then(Value::as_array)
-        .and_then(|phases| phases.last())
-        .and_then(|phase| phase.get("attributesKeyFrames"))
-        .and_then(Value::as_array)
-        .and_then(|kfs| kfs.last())
-        .and_then(|kf| kf.get("data"))
-        .and_then(|data| data.get("atk"))
-        .and_then(Value::as_f64)
-        .unwrap_or(0.0);
-    let trust_max_atk = source_value
+/// `phases[i].attributesKeyFrames`(Lv1/Lv最大の2点)から昇進ごとのATKデータを構築する。
+/// `maxLevel`/`attributesKeyFrames`が欠けているエントリは(実データでは起きない想定だが)
+/// 安全側に倒してスキップする。
+fn parse_phases(source_value: &Value) -> Vec<RawPhaseAtk> {
+    let Some(Value::Array(phases)) = source_value.get("phases") else { return Vec::new() };
+    phases
+        .iter()
+        .filter_map(|phase| {
+            let max_level = phase.get("maxLevel").and_then(Value::as_u64)? as u32;
+            let kfs = phase.get("attributesKeyFrames").and_then(Value::as_array)?;
+            let atk_min = kfs.first()?.get("data")?.get("atk")?.as_f64()?;
+            let atk_max = kfs.last()?.get("data")?.get("atk")?.as_f64()?;
+            Some(RawPhaseAtk { max_level, atk_min, atk_max })
+        })
+        .collect()
+}
+
+/// 信頼度100%時点のATK加算値(`favorKeyFrames`最終値)。`favorKeyFrames`が無ければ0。
+fn parse_atk_trust_max(source_value: &Value) -> f64 {
+    source_value
         .get("favorKeyFrames")
         .and_then(Value::as_array)
         .and_then(|kfs| kfs.last())
         .and_then(|kf| kf.get("data"))
         .and_then(|data| data.get("atk"))
         .and_then(Value::as_f64)
-        .unwrap_or(0.0);
-    elite_max_atk + trust_max_atk
+        .unwrap_or(0.0)
+}
+
+/// `skills[i].unlockCond.phase`(character_table.json/char_patch_table.json共通)から
+/// skill_num("1"始まり。`skills`配列の並び順がスキル1,2,3...という前提。
+/// `fk_data_search::search::skill_id_by_num`と同じ採番)→解放昇進(0/1/2)を構築する。
+fn parse_skill_unlock_phase(source_value: &Value) -> Vec<(String, u8)> {
+    let Some(Value::Array(skills)) = source_value.get("skills") else { return Vec::new() };
+    skills
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| {
+            let phase = s.get("unlockCond")?.get("phase")?.as_str().map(phase_to_u8)?;
+            Some(((i + 1).to_string(), phase))
+        })
+        .collect()
 }
 
 /// `potentialRanks`のうち`attributeType == "ATK"` かつ `formulaItem == "ADDITION"`の
@@ -364,6 +421,10 @@ fn build_characters(
 
         let nation_id = source_value.get("nationId").and_then(Value::as_str).unwrap_or_default().to_string();
 
+        let phases = parse_phases(source_value);
+        let atk_trust_max = parse_atk_trust_max(source_value);
+        let atk_base = phases.last().map(|p| p.atk_max).unwrap_or(0.0) + atk_trust_max;
+
         let raw = RawOperatorCombat {
             id: key.clone(),
             name: name.clone(),
@@ -371,10 +432,13 @@ fn build_characters(
             profession: profession.to_string(),
             position: position.to_string(),
             nation_id,
-            atk_base: parse_atk_base(source_value),
+            atk_base,
             atk_potential: parse_atk_potential(source_value),
             modules: Vec::new(),
             talents: parse_talents(source_value),
+            phases,
+            atk_trust_max,
+            skill_unlock_phase: parse_skill_unlock_phase(source_value),
         };
         name_to_id.insert(name, key.clone());
         operators.insert(key.clone(), raw);
@@ -427,6 +491,10 @@ fn build_patches(
         let cn_name = format!("{original_cn_name}({job})");
         let nation_id = source_value.get("nationId").and_then(Value::as_str).unwrap_or_default().to_string();
 
+        let phases = parse_phases(source_value);
+        let atk_trust_max = parse_atk_trust_max(source_value);
+        let atk_base = phases.last().map(|p| p.atk_max).unwrap_or(0.0) + atk_trust_max;
+
         let raw = RawOperatorCombat {
             id: key.clone(),
             name: name.clone(),
@@ -434,10 +502,13 @@ fn build_patches(
             profession: profession.to_string(),
             position: position.to_string(),
             nation_id,
-            atk_base: parse_atk_base(source_value),
+            atk_base,
             atk_potential: parse_atk_potential(source_value),
             modules: Vec::new(),
             talents: parse_talents(source_value),
+            phases,
+            atk_trust_max,
+            skill_unlock_phase: parse_skill_unlock_phase(source_value),
         };
         name_to_id.insert(name, key.clone());
         operators.insert(key.clone(), raw);
@@ -491,6 +562,11 @@ fn build_modules(
             .or_else(|| cn_value.get("uniEquipName").and_then(Value::as_str))
             .unwrap_or_default()
             .to_string();
+        // 装備可否条件(P?)。実データ調査済み: 現行の全モジュール(509件)は`unlockEvolvePhase`が
+        // "PHASE_2"固定だが、将来的な変化に備えて機械抽出する。CN/JPで値が異なることは
+        // 無い想定なのでcn_valueから読む(uniEquipName等と違いJP優先にする必要が無い)。
+        let unlock_phase = cn_value.get("unlockEvolvePhase").and_then(Value::as_str).map(phase_to_u8).unwrap_or(0);
+        let unlock_level = cn_value.get("unlockLevel").and_then(Value::as_u64).unwrap_or(0) as u32;
 
         // battle_equip_table.jsonはCN/JPどちらもトップレベルがequipIdそのままのdict。
         // JPにエントリがあればそちらを優先し、無ければCNを使う（数値自体はCN/JPで
@@ -522,6 +598,8 @@ fn build_modules(
             eq_type: eq_type.to_string(),
             name,
             atk_by_level,
+            unlock_phase,
+            unlock_level,
             talent_overrides_by_level: parse_module_talent_overrides(battle_value),
         });
     }
@@ -574,5 +652,50 @@ mod tests {
                 "{name}に攻撃力{expected_module_atk:?}のモジュールが無い"
             );
         }
+    }
+
+    /// 昇進(P?)関連フィールドの実データ突き合わせ(オフライン。Seedを直接読む)。
+    /// エーベンホルツ(char_4046_ebnhlz): E0=Lv1-50(611〜873)/E1=Lv1-80(873〜1134)/
+    /// E2=Lv1-90(1134〜1400)、信頼度最大加算(atk_trust_max)=150、
+    /// スキル解放昇進はS1=E0/S2=E1/S3=E2。ブレイズのモジュールX(uniequip_002_huang)は
+    /// 昇進2 Lv60以上で装備可能。いずれもオーナー確認済みの実データ(2026-09時点)。
+    #[test]
+    fn seed_has_expected_phase_and_module_unlock_data() {
+        let json = std::fs::read_to_string(SEED_PATH)
+            .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
+        let data: OperatorCombat = serde_json::from_str(&json).expect("seedがOperatorCombatとしてparseできること");
+
+        let ebenholz = data.get_by_name("エーベンホルツ").expect("エーベンホルツがseedに存在すること");
+        assert_eq!(ebenholz.phases.len(), 3, "エーベンホルツはE0/E1/E2の3段階のはず");
+        assert_eq!(ebenholz.phases[0].max_level, 50);
+        assert_eq!(ebenholz.phases[0].atk_min, 611.0);
+        assert_eq!(ebenholz.phases[0].atk_max, 873.0);
+        assert_eq!(ebenholz.phases[1].max_level, 80);
+        assert_eq!(ebenholz.phases[1].atk_min, 873.0);
+        assert_eq!(ebenholz.phases[1].atk_max, 1134.0);
+        assert_eq!(ebenholz.phases[2].max_level, 90);
+        assert_eq!(ebenholz.phases[2].atk_min, 1134.0);
+        assert_eq!(ebenholz.phases[2].atk_max, 1400.0);
+        assert_eq!(ebenholz.atk_trust_max, 150.0);
+        assert_eq!(ebenholz.atk_base, ebenholz.phases[2].atk_max + ebenholz.atk_trust_max, "atk_baseはphases/atk_trust_maxと整合しているはず");
+        assert_eq!(
+            ebenholz.skill_unlock_phase,
+            vec![("1".to_string(), 0), ("2".to_string(), 1), ("3".to_string(), 2)],
+            "エーベンホルツはS1=E0/S2=E1/S3=E2のはず"
+        );
+
+        let blaze = data.get_by_name("ブレイズ").expect("ブレイズがseedに存在すること");
+        let module_x = blaze.modules.iter().find(|m| m.eq_id == "uniequip_002_huang").expect("ブレイズにモジュールX(uniequip_002_huang)があるはず");
+        assert_eq!(module_x.unlock_phase, 2, "モジュールは昇進2で装備可能なはず");
+        assert_eq!(module_x.unlock_level, 60, "ブレイズ(6凸)のモジュール装備可能レベルは60のはず");
+
+        // シー(char_2015_dusk)E2: Lv1=771/Lv90=918、信頼度最大加算=110。オーナー確認済みの
+        // 実測値(E2 Lv71・信頼度100%・無モジュール・潜在+34でATK1031)の元データ
+        // (補間の四捨五入自体はJS側`engine.js::computeBaseAtk`のverify.mjsで検証する)。
+        let dusk = data.get_by_name("シー").expect("シーがseedに存在すること");
+        assert_eq!(dusk.phases[2].max_level, 90);
+        assert_eq!(dusk.phases[2].atk_min, 771.0);
+        assert_eq!(dusk.phases[2].atk_max, 918.0);
+        assert_eq!(dusk.atk_trust_max, 110.0);
     }
 }

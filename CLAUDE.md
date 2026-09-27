@@ -72,7 +72,10 @@ src/
 │   │   │                       talents(P4で追加。素質candidates一覧。phase/potentialRank/
 │   │   │                       blackboard。条件付きバフの動的値解決に使う)・
 │   │   │                       モジュールのtalent_overrides_by_level(P4。モジュール装備時の
-│   │   │                       素質上書き候補)。machine-extractableな数値のみ）。
+│   │   │                       素質上書き候補)・phases/atk_trust_max/skill_unlock_phase・
+│   │   │                       モジュールのunlock_phase/unlock_level(P6で追加。昇進/レベル/
+│   │   │                       信頼度指定でのATK計算・モジュール装備可否判定に使う)。
+│   │   │                       machine-extractableな数値のみ）。
 │   │   │                       character_table.json / uniequip_table.json /
 │   │   │                       battle_equip_table.json から構築する。
 │   │   │                       operator_data.rs（消費素材ドメイン）とは意図的に別ソース
@@ -582,11 +585,35 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     `validate_special_requires_module`(`cargo test`)が検証する。
 - fk_kill_calculatorのstate/URLのバックワード互換は`v:1`のまま、`row.buffIds`/
   `row.specialOn`/`state.globalBuffIds`/`row.inspireOn`/`state.inspire.sources`/
-  `state.globalBuffLevels`(P4)を省略可能フィールドとして追加し、`dropStaleRows`が
+  `state.globalBuffLevels`(P4)/`row.elite`・`row.level`・`row.trust`・鼓舞ソースcfgの
+  同名フィールド(P6)を省略可能フィールドとして追加し、`dropStaleRows`が
   旧(P1/P2)形の補完＋未知バフid・未知の鼓舞ソースid/パーツidの静かな除去、および
   旧(P2)形前衛アーミヤ2エントリ(`amiya_guard_normal`/`amiya_guard_skill`。
   exclusive_group)→新1エントリ(`amiya_guard`+toggle)への移行を兼ねる
   (`amiya_guard_skill`だった場合は`toggleOn: true`へ移行)。
+- **fk_kill_calculatorは行/鼓舞ソースごとに昇進(elite)・レベル(level)・信頼度(trust)を
+  指定できる(P6)**: 従来固定していた「E2最大Lv+信頼度100」をユーザーが変更できるようにした。
+  データ層(`engine/external_source/operator_combat.rs`)は`character_table.json`の
+  `phases[i].attributesKeyFrames`(Lv1/Lv最大の2点)をそのまま`RawPhaseAtk`(`max_level`/
+  `atk_min`/`atk_max`)として保持し、線形補間はJS側(`engine.js::computeBaseAtk`)が
+  Lv1〜Lv最大の間を補間して**四捨五入(`Math.round`)**する(切り捨てだと実測値と食い違う。
+  オーナー実機確認済み: エーベンホルツE2 Lv60=1310、シーE2 Lv71・信頼度100%・無凸で
+  ATK1031)。信頼度は`favorKeyFrames`最終値(`atk_trust_max`)に`trust/100`を掛けて別途
+  四捨五入し補間後の値へ加算する(旧`atk_base`はphases最大値+信頼度100と同じ値なので
+  後方互換に残す)。モジュールの装備可否(`unlock_phase`/`unlock_level`。
+  `uniequip_table.json`の`unlockEvolvePhase`/`unlockLevel`。実データは現状全モジュール
+  `PHASE_2`固定だがレベルはレアリティで40/50/60と違う)、スキルの解放昇進
+  (`skill_unlock_phase`。`skills[i].unlockCond.phase`)も同じ層に追加した。
+  JS側は`effectiveModuleId(op, rowOrCfg)`が「選択中のモジュールがelite/levelで実際に
+  装備できているか(`moduleUsable`)」を1箇所で判定し、ATK計算・特殊強化のモジュール条件
+  (`resolveSpecialAddPct`/`resolveSpecialMultiplierFactor`。`op`引数が増えた)・鼓舞の
+  自己%パーツのモジュール条件(`computeInspireSelfParts`)は全てこれ経由でmoduleIdを参照する
+  (未装備/装備不可の間は効果に含めない。UIは実データ由来の「昇進X Lv Y以上で装備可能」
+  ヒントを出す)。`skillUnlockWarning`はentryのスキルが現在の昇進でまだ解放されていない
+  場合の警告文を返すが、計算自体は警告に関わらず続行する(オーナー方針)。
+  UIは行の展開ビュー/鼓舞ソースカードそれぞれに`[E▾] Lv[__]/max 信頼度[__]%`の
+  3列コントロールを持つ(昇進を変えるとレベルはその昇進の最大値へリセットする)。
+  折りたたみ行のサマリーには`E2 Lv90`(信頼度100%は省略)を付け足す。
 - **fk_kill_calculatorの条件付きバフ(P4)はゲームデータから動的に値解決できる**:
   `data/fk_kill_calc/buffers.yaml`の`conditional.*`は固定`pct`/`flat`の代わりに
   `source: { operator: <charId>, talent: <talentIndex> または skill_num: "<fk_dataの

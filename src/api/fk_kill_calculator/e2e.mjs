@@ -1110,6 +1110,136 @@ async function runOldShapeLocalStorageScenario(browser, baseUrl) {
   }
 }
 
+// P6: 昇進(elite)/レベル(level)/信頼度(trust)コントロール。
+async function runEliteLevelTrustScenario(browser, baseUrl) {
+  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
+  const page = await context.newPage();
+  try {
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+
+    await addOperator(page, 'Ash', '400%');
+    const eliteSelect = page.locator('.row-expanded select[data-field="elite"]');
+    const levelInput = page.locator('.row-expanded input[data-field="level"]');
+    const trustInput = page.locator('.row-expanded input[data-field="trust"]');
+
+    // --- 既定値: E2・そのオペレーターの最大レベル(90)・信頼度100% ---
+    ok('elite/level/trust controls appear on the expanded row',
+      (await eliteSelect.count()) === 1 && (await levelInput.count()) === 1 && (await trustInput.count()) === 1);
+    ok('default elite is E2', (await eliteSelect.inputValue()) === '2', await eliteSelect.inputValue());
+    ok('default level is the operator max (90)', (await levelInput.inputValue()) === '90', await levelInput.inputValue());
+    ok('default trust is 100', (await trustInput.inputValue()) === '100', await trustInput.inputValue());
+
+    // --- 昇進を変えるとレベルがその昇進の最大値へリセットされ、スキル解放警告が出る ---
+    await eliteSelect.selectOption('1');
+    await page.waitForTimeout(100);
+    ok('changing elite to E1 resets level to that phase max (80)', (await levelInput.inputValue()) === '80', await levelInput.inputValue());
+    const warningText = (await page.locator('.row-expanded .special-hint').first().innerText()).trim();
+    ok('skill unlock warning shown for S3 while at E1 (S3 unlocks at E2)', warningText.includes('S3は昇進2で解放'), warningText);
+
+    await eliteSelect.selectOption('2');
+    await page.waitForTimeout(100);
+    ok('level resets back to the E2 max (90) after returning to E2', (await levelInput.inputValue()) === '90');
+    ok('skill unlock warning disappears once back at E2',
+      !(await page.locator('.row-expanded .special-hint').allInnerTexts()).some((t) => t.includes('は昇進')));
+
+    // --- 実キー入力でレベルを打てる(1打鍵ずつでも桁順が保たれる) ---
+    await levelInput.fill('');
+    await levelInput.pressSequentially('60');
+    ok('typing "60" key by key into level yields 60', (await levelInput.inputValue()) === '60', await levelInput.inputValue());
+    await page.waitForTimeout(150);
+
+    // --- モジュール装備可否のヒント: Ashのモジュールは昇進2 Lv60以上で装備可能 ---
+    // (デフォルトのLv90では既に装備可能なので、Lv59まで下げて初めてヒントが出ることを確認する)
+    await levelInput.fill('');
+    await levelInput.pressSequentially('59');
+    await page.waitForTimeout(150);
+    const hintAt59 = (await page.locator('.module-hint-wrap').first().innerText()).trim();
+    ok('module-unusable hint appears once level drops below the unlock level (59 < 60)',
+      hintAt59.includes('昇進2 Lv60以上で装備可能'), hintAt59);
+    const formulaAt59 = await page.locator('.row-formula').innerText();
+    const atkAt59 = Number(formulaAt59.match(/^([\d,]+)/)[1].replace(/,/g, ''));
+
+    await levelInput.fill('');
+    await levelInput.pressSequentially('60');
+    await page.waitForTimeout(150);
+    ok('module-unusable hint disappears once level reaches the unlock level (60)',
+      (await page.locator('.module-hint-wrap').first().innerText()).trim() === '');
+    const formulaAt60 = await page.locator('.row-formula').innerText();
+    const atkAt60 = Number(formulaAt60.match(/^([\d,]+)/)[1].replace(/,/g, ''));
+    ok('ATK increases once the module becomes usable again', atkAt60 > atkAt59, `${atkAt59} -> ${atkAt60}`);
+
+    // --- 信頼度を下げると合計(ATK)が下がる ---
+    await trustInput.fill('');
+    await trustInput.pressSequentially('50');
+    await page.waitForTimeout(150);
+    const formulaTrust50 = await page.locator('.row-formula').innerText();
+    const atkTrust50 = Number(formulaTrust50.match(/^([\d,]+)/)[1].replace(/,/g, ''));
+    ok('lowering trust decreases ATK (and the total)', atkTrust50 < atkAt60, `${atkAt60} -> ${atkTrust50}`);
+    await trustInput.fill('');
+    await trustInput.pressSequentially('100');
+    await page.waitForTimeout(150);
+
+    // --- 折りたたみ時のサマリーラベル ("E2 Lv60"。信頼度100%は省略) ---
+    await page.click('[data-action="collapse-row"]');
+    await page.waitForTimeout(100);
+    const eliteBadgeText = (await page.locator('.badge-elite').first().innerText()).trim();
+    ok('collapsed row summary shows "E2 Lv60" (trust 100% omitted)', eliteBadgeText === 'E2 Lv60', eliteBadgeText);
+
+    // --- 信頼度が100%でない時はラベルに付け足される ---
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForTimeout(100);
+    await page.locator('.row-expanded input[data-field="trust"]').fill('');
+    await page.locator('.row-expanded input[data-field="trust"]').pressSequentially('60');
+    await page.waitForTimeout(150);
+    await page.click('[data-action="collapse-row"]');
+    await page.waitForTimeout(100);
+    const eliteBadgeTrust = (await page.locator('.badge-elite').first().innerText()).trim();
+    ok('collapsed row summary appends trust when it is not 100%', eliteBadgeTrust === 'E2 Lv60 信頼60%', eliteBadgeTrust);
+
+    // --- リロードしても昇進/レベル/信頼度が保持される(localStorage) ---
+    await page.waitForTimeout(500);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(300);
+    const eliteBadgeReloaded = (await page.locator('.badge-elite').first().innerText()).trim();
+    ok('elite/level/trust survive reload', eliteBadgeReloaded === 'E2 Lv60 信頼60%', eliteBadgeReloaded);
+
+    // --- 共有URLでも同じ状態が復元される ---
+    await page.click('[data-action="share"]');
+    await page.waitForTimeout(100);
+    const shareUrl = await page.evaluate(() => navigator.clipboard.readText());
+    const page2 = await context.newPage();
+    await page2.goto(shareUrl, { waitUntil: 'networkidle' });
+    await page2.waitForTimeout(300);
+    const eliteBadgeShared = (await page2.locator('.badge-elite').first().innerText()).trim();
+    ok('shared URL restores elite/level/trust', eliteBadgeShared === 'E2 Lv60 信頼60%', eliteBadgeShared);
+    await page2.close();
+
+    // --- 鼓舞ソース(濁心スカジ)にも同じ昇進/レベル/信頼度コントロールがある ---
+    await page.locator('#global-buffs-details summary').click();
+    await page.waitForTimeout(100);
+    await page.locator('.chip[data-action="toggle-inspire-source"][data-source-id="skadi2"]').click();
+    await page.waitForTimeout(100);
+    const sourceCard = page.locator('.inspire-source-card[data-source-id="skadi2"]');
+    ok('inspire source card has its own elite/level/trust controls',
+      (await sourceCard.locator('select[data-field="elite"]').count()) === 1 &&
+        (await sourceCard.locator('input[data-field="level"]').count()) === 1 &&
+        (await sourceCard.locator('input[data-field="trust"]').count()) === 1);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  elite/level/trust scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_elite_level_trust.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
 /* ========================================================================= *
  * main
  * ========================================================================= */
@@ -1152,6 +1282,7 @@ try {
   await runConditionalSourceScenario(browser, baseUrl);
   await runIndividualBuffLevelsScenario(browser, baseUrl);
   await runInspireScenario(browser, baseUrl);
+  await runEliteLevelTrustScenario(browser, baseUrl);
   await runOldShapeLocalStorageScenario(browser, baseUrl);
 } catch (e) {
   fail++;

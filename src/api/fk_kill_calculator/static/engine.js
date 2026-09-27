@@ -134,10 +134,10 @@ export function resolveEntryValues(entry) {
  * 無しでも`base`が常に効くため「適用不可」という状態が無い)には使わない
  * (呼び出し側=`specialUiState`が`requiresModule`の有無で分岐する)。
  */
-export function specialAddCanApply(entry, row) {
+export function specialAddCanApply(op, entry, row) {
   if (!entry || !entry.special || !entry.special.requiresModule) return false;
   const sp = entry.special;
-  if (row.moduleId !== sp.requiresModule) return false;
+  if (effectiveModuleId(op, row) !== sp.requiresModule) return false;
   const arr = sp.addSelfAtkPctByModuleLevel || [];
   return (arr[row.moduleLv - 1] || 0) > 0;
 }
@@ -147,24 +147,24 @@ export function specialAddCanApply(entry, row) {
  * **都度**計算する(モジュールを変更しても即座に反映される)。加算系を持たない
  * 特殊強化(乗算系のみ等)には常に0を返す。`row.specialOn`がfalseなら常に0。
  */
-export function resolveSpecialAddPct(entry, row) {
+export function resolveSpecialAddPct(op, entry, row) {
   if (!row.specialOn || !entry || !entry.special || !entry.special.requiresModule) return 0;
-  if (!specialAddCanApply(entry, row)) return 0;
+  if (!specialAddCanApply(op, entry, row)) return 0;
   const arr = entry.special.addSelfAtkPctByModuleLevel || [];
   return arr[row.moduleLv - 1] || 0;
 }
 
 /**
  * 特殊強化の「乗算系」(`entry.special.mulMultiplier`)が`row.multiplier`に掛ける係数。
- * `mulMultiplier.module`を`row.moduleId`がそのLvで装備していれば`byModuleLevel`の
- * 対応要素、そうでなければ常に`base`を使う(モジュール未装備でも`base`は必ず効く＝
- * 「適用不可」という状態が無い)。乗算系を持たない特殊強化には常に1(影響なし)を返す。
- * `row.specialOn`がfalseなら常に1。
+ * `mulMultiplier.module`を`row.moduleId`がそのLvで実際に装備できていれば(P6:
+ * `effectiveModuleId`。elite/level条件込み)`byModuleLevel`の対応要素、そうでなければ
+ * 常に`base`を使う(モジュール未装備でも`base`は必ず効く＝「適用不可」という状態が無い)。
+ * 乗算系を持たない特殊強化には常に1(影響なし)を返す。`row.specialOn`がfalseなら常に1。
  */
-export function resolveSpecialMultiplierFactor(entry, row) {
+export function resolveSpecialMultiplierFactor(op, entry, row) {
   if (!row.specialOn || !entry || !entry.special || !entry.special.mulMultiplier) return 1;
   const mm = entry.special.mulMultiplier;
-  if (mm.module && row.moduleId === mm.module) {
+  if (mm.module && effectiveModuleId(op, row) === mm.module) {
     const arr = mm.byModuleLevel || [];
     const v = arr[row.moduleLv - 1];
     if (v != null) return v;
@@ -180,28 +180,30 @@ export function resolveSpecialMultiplierFactor(entry, row) {
  * `entry.special`自体の有無を見て描画をスキップする)。
  * @returns {"checkbox"|"hint"|"none"}
  */
-export function specialUiState(entry, row) {
+export function specialUiState(op, entry, row) {
   if (!entry || !entry.special) return "none";
   if (entry.special.requiresModule) {
-    return specialAddCanApply(entry, row) ? "checkbox" : "hint";
+    return specialAddCanApply(op, entry, row) ? "checkbox" : "hint";
   }
   return "checkbox";
 }
 
 /**
  * 特殊強化のⓘ説明文に付け足す「現在の効果値」(P2 follow-up)。`row.specialOn`に
- * 関わらず、今のモジュール/Lvなら発動時にどんな値になるかを返す(プレビュー用途)。
+ * 関わらず、今のモジュール/Lv(P6: elite/levelで実際に装備できている場合のみ)なら
+ * 発動時にどんな値になるかを返す(プレビュー用途)。
  * 加算系(`requiresModule`)は`{kind:"add", value}`、乗算系(`mulMultiplier`)は
  * `{kind:"mul", value}`を返す。特殊強化が無い/どちらの系統も無ければ`null`。
  * @returns {null|{kind:"add"|"mul", value:number}}
  */
-export function resolveSpecialCurrentValue(entry, row) {
+export function resolveSpecialCurrentValue(op, entry, row) {
   if (!entry || !entry.special) return null;
   const sp = entry.special;
+  const moduleId = effectiveModuleId(op, row);
   if (sp.mulMultiplier) {
     const mm = sp.mulMultiplier;
     let value = mm.base;
-    if (mm.module && row.moduleId === mm.module) {
+    if (mm.module && moduleId === mm.module) {
       const arr = mm.byModuleLevel || [];
       const v = arr[row.moduleLv - 1];
       if (v != null) value = v;
@@ -209,22 +211,31 @@ export function resolveSpecialCurrentValue(entry, row) {
     return { kind: "mul", value };
   }
   if (sp.requiresModule && sp.addSelfAtkPctByModuleLevel) {
-    const idx = row.moduleId === sp.requiresModule ? row.moduleLv - 1 : -1;
+    const idx = moduleId === sp.requiresModule ? row.moduleLv - 1 : -1;
     const value = idx >= 0 ? sp.addSelfAtkPctByModuleLevel[idx] || 0 : 0;
     return { kind: "add", value };
   }
   return null;
 }
 
-/** オペレーター+FkEntryから、カタログ値をそのまま初期値にした行を作る。 */
+/**
+ * オペレーター+FkEntryから、カタログ値をそのまま初期値にした行を作る。
+ * P6: 昇進(elite)はそのオペレーターが到達できる最大値(通常E2。フェーズが少ない
+ * オペレーターはその最大)、レベルはその昇進の最大レベル、信頼度は100を既定にする
+ * (＝旧atkBase[E2最大Lv+信頼度100]と同じベースATKになる。デフォルト値は変わらない)。
+ */
 export function makeDefaultRow(op, entryIdx) {
   const entry = op.fkEntries[entryIdx];
   const values = resolveEntryValues(entry);
+  const elite = maxEliteFor(op);
   return {
     opId: op.id,
     entryIdx,
     dmgType: values.dmgType,
     potential: true,
+    elite,
+    level: maxLevelForElite(op, elite),
+    trust: 100,
     moduleId: defaultModuleId(op),
     moduleLv: 3,
     multiplier: values.multiplier,
@@ -245,11 +256,120 @@ export function findModule(op, moduleId) {
   return op.modules.find((m) => m.id === moduleId) ?? null;
 }
 
-/** atk = atkBase + (潜在) + (モジュール)。 */
+/* ============================================================
+   P6: 昇進(elite)/レベル(level)/信頼度(trust)を指定してベースATKを計算する。
+   `op`(CatalogOperator/InspireSourceどちらも同じ形状)の`phases`
+   (`[{maxLevel, atkMin, atkMax}, ...]`。インデックス0=E0)を線形補間して求める。
+   詳細はオーナー確認済みの実測値で検証済み:
+     - エーベンホルツ E2 Lv60 = 1134 + 59×(266/89) = 1310.34… → 四捨五入1310
+     - シー E2 Lv71・信頼度100%・無凸モジュール・潜在+34 =
+       (771→918の補間886.618→887) + 110(信頼度) + 34(潜在) = 1031
+       (切り捨てなら1030になり実測と食い違うため、Math.round[四捨五入]が正しい)
+   `op.phases`が無い(verify.mjs等が直接atkBaseを渡す簡易opオブジェクト)場合は
+   `op.atkBase`をそのまま使う(elite/level/trustは無視。既存テストとの後方互換)。
+   ============================================================ */
+
+/** 昇進段階(0=E0/1=E1/2=E2)に対応する`op.phases`要素。範囲外/`phases`無しはnull。 */
+export function phaseFor(op, elite) {
+  const phases = (op && op.phases) || [];
+  return phases[elite] ?? null;
+}
+
+/** そのopが到達できる最大昇進(0始まり)。`phases`が空なら0。 */
+export function maxEliteFor(op) {
+  const phases = (op && op.phases) || [];
+  return Math.max(phases.length - 1, 0);
+}
+
+/** 指定昇進の最大レベル。`phases`に無ければ1(=クランプ計算の安全なフォールバック)。 */
+export function maxLevelForElite(op, elite) {
+  const phase = phaseFor(op, elite);
+  return phase ? phase.maxLevel : 1;
+}
+
+/**
+ * 昇進/レベル/信頼度からベースATKを計算する。Lv1〜Lv最大の間は線形補間し、
+ * 四捨五入(`Math.round`)する。信頼度加算(`atkTrustMax × trust/100`)も同様に四捨五入し、
+ * 補間後の値へ加算する(それぞれ丸めてから足す。詳細はファイル冒頭コメント参照)。
+ * `level`は`phase.maxLevel`にクランプし、1未満にはしない。
+ */
+export function computeBaseAtk(op, elite, level, trust) {
+  if (!op || !op.phases || !op.phases.length) return (op && op.atkBase) || 0;
+  const phase = phaseFor(op, elite) ?? op.phases[op.phases.length - 1];
+  const clampedLevel = Math.min(Math.max(level, 1), phase.maxLevel);
+  const raw =
+    phase.maxLevel <= 1
+      ? phase.atkMax
+      : phase.atkMin + ((clampedLevel - 1) / (phase.maxLevel - 1)) * (phase.atkMax - phase.atkMin);
+  const trustAtk = Math.round((op.atkTrustMax || 0) * ((trust ?? 100) / 100));
+  return Math.round(raw) + trustAtk;
+}
+
+/** row/cfgの`elite`(未設定なら`op`の最大昇進)。古い形(P1〜P5)のstate/共有URLとの
+ * 互換のためのフォールバック(`dropStaleRows`が本来は補完するが、念のためここでも安全策)。 */
+function effectiveElite(op, rowOrCfg) {
+  return rowOrCfg && rowOrCfg.elite != null ? rowOrCfg.elite : maxEliteFor(op);
+}
+
+/** row/cfgの`level`(未設定ならその昇進の最大レベル)。 */
+function effectiveLevel(op, rowOrCfg, elite) {
+  return rowOrCfg && rowOrCfg.level != null ? rowOrCfg.level : maxLevelForElite(op, elite);
+}
+
+/** モジュールがそのelite/levelで実際に装備可能か。`module.unlockPhase`/`unlockLevel`が
+ * 無い(verify.mjs等の簡易モジュールオブジェクト)場合は常にtrue(既存テストとの後方互換)。 */
+export function moduleUsable(module, elite, level) {
+  if (!module) return false;
+  if (elite < module.unlockPhase) return false;
+  if (elite === module.unlockPhase && level < module.unlockLevel) return false;
+  return true;
+}
+
+/**
+ * row/cfgが選択したモジュールのうち、現在のelite/levelで実際に装備できているものだけを
+ * 返す(装備不可なら`null`)。ATK計算・特殊強化のモジュール条件・鼓舞の自己%パーツの
+ * モジュール条件は全てこれ経由でmoduleIdを参照する(選択はしていても未装備の間は
+ * 効果に含めない。UIはヒントで理由を示す)。
+ */
+export function effectiveModuleId(op, rowOrCfg) {
+  const module = findModule(op, rowOrCfg && rowOrCfg.moduleId);
+  if (!module) return null;
+  const elite = effectiveElite(op, rowOrCfg);
+  const level = effectiveLevel(op, rowOrCfg, elite);
+  return moduleUsable(module, elite, level) ? rowOrCfg.moduleId : null;
+}
+
+/** entryが要求する解放昇進(`op.skillUnlockPhase`にskill_numが載っていなければnull。
+ * 素質行等スキルではないentryはそもそも載らない)。 */
+export function requiredEliteForEntry(op, entry) {
+  if (!op || !entry) return null;
+  const found = (op.skillUnlockPhase || []).find(([num]) => num === entry.skillNum);
+  return found ? found[1] : null;
+}
+
+/**
+ * 現在の`row.elite`ではentryのスキルがまだ解放されていない場合の警告文(例:
+ * "S3は昇進2で解放")。解放済み/判定できない(entryが無い・素質行等)場合はnull。
+ * 警告が出ていても計算自体は続行する(オーナー方針。撃破可否の判定はしない)。
+ */
+export function skillUnlockWarning(op, entry, row) {
+  const required = requiredEliteForEntry(op, entry);
+  if (required == null) return null;
+  const elite = effectiveElite(op, row);
+  if (elite >= required) return null;
+  const prefix = /^\d+$/.test(entry.skillNum) ? `S${entry.skillNum}` : entry.skillNum;
+  return `${prefix}は昇進${required}で解放`;
+}
+
+/** atk = ベースATK(昇進/レベル/信頼度) + (潜在) + (モジュール。装備可能な場合のみ)。 */
 export function resolveAtk(op, row) {
-  const module = findModule(op, row.moduleId);
+  const elite = effectiveElite(op, row);
+  const level = effectiveLevel(op, row, elite);
+  const trust = row && row.trust != null ? row.trust : 100;
+  const moduleId = effectiveModuleId(op, { moduleId: row.moduleId, elite, level });
+  const module = findModule(op, moduleId);
   const moduleAtk = module ? module.atkByLevel[row.moduleLv - 1] ?? 0 : 0;
-  return op.atkBase + (row.potential ? op.atkPotential : 0) + moduleAtk;
+  return computeBaseAtk(op, elite, level, trust) + (row.potential ? op.atkPotential : 0) + moduleAtk;
 }
 
 /**
@@ -464,8 +584,13 @@ export function findSingleTargetConflicts(catalog, rows, inspireSourceStates = {
    P3: 鼓舞(インスパイア)ソース
    ============================================================ */
 
-/** 鼓舞ソースの設定の初期値(state未設定時のフォールバック)。 */
+/**
+ * 鼓舞ソースの設定の初期値(state未設定時のフォールバック)。
+ * P6: 昇進/レベル/信頼度も行(`makeDefaultRow`)と同じ既定(最大昇進・その最大レベル・
+ * 信頼度100)にする。
+ */
 export function defaultInspireSourceCfg(source) {
+  const elite = maxEliteFor(source);
   return {
     on: false,
     skillNum: source.skills && source.skills[0] ? source.skills[0].skillNum : "",
@@ -474,6 +599,9 @@ export function defaultInspireSourceCfg(source) {
     talentPotential: true,
     moduleId: null,
     moduleLv: 3,
+    elite,
+    level: maxLevelForElite(source, elite),
+    trust: 100,
     buffPct: 0,
     buffIds: [],
     parts: {},
@@ -491,8 +619,11 @@ export function defaultInspireSourceCfg(source) {
 export function computeInspireSelfParts(source, cfg) {
   const parts = (source && source.selfParts) || [];
   const partCfg = (cfg && cfg.parts) || {};
+  // P6: モジュール条件は`effectiveModuleId`(elite/level込みの装備可否)経由で判定する
+  // (未装備/装備不可の間はモジュール由来の効果を含めない)。
+  const moduleId = effectiveModuleId(source, cfg);
 
-  const isApplicable = (p) => !p.requiresModule || cfg.moduleId === p.requiresModule;
+  const isApplicable = (p) => !p.requiresModule || moduleId === p.requiresModule;
   const isOn = (p) => {
     if (!isApplicable(p)) return false;
     if (p.alwaysOn) return true;
@@ -500,7 +631,7 @@ export function computeInspireSelfParts(source, cfg) {
     return stored !== undefined ? !!stored : !!p.defaultOn;
   };
   const valueFor = (p) => {
-    if (p.moduleOverride && cfg.moduleId === p.moduleOverride.module) {
+    if (p.moduleOverride && moduleId === p.moduleOverride.module) {
       const lv = cfg.moduleLv - 1;
       const base = p.moduleOverride.pctByLevel[lv] ?? 0;
       const bonus = cfg.talentPotential ? p.moduleOverride.potentialBonusByLevel[lv] ?? 0 : 0;
@@ -531,10 +662,17 @@ export function computeInspireSelfParts(source, cfg) {
 
 /**
  * 鼓舞ソースのATK。行と同じ`resolveAtk`をそのまま再利用する(`cfg`を行と同じ形状
- * {potential, moduleId, moduleLv} に正規化して渡すだけで済む)。
+ * {potential, moduleId, moduleLv, elite, level, trust} に正規化して渡すだけで済む)。
  */
 export function resolveInspireSourceAtk(source, cfg) {
-  return resolveAtk(source, { potential: cfg.potential, moduleId: cfg.moduleId, moduleLv: cfg.moduleLv });
+  return resolveAtk(source, {
+    potential: cfg.potential,
+    moduleId: cfg.moduleId,
+    moduleLv: cfg.moduleLv,
+    elite: cfg.elite,
+    level: cfg.level,
+    trust: cfg.trust,
+  });
 }
 
 /**
@@ -637,8 +775,8 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSo
     if (!op) return null;
     const entry = findEntry(op, row.entryIdx);
     const breakdown = computeBuffBreakdown(row, entry, catalog, globalBuffIds, globalBuffLevels);
-    const specialAddPct = resolveSpecialAddPct(entry, row);
-    const specialMulFactor = resolveSpecialMultiplierFactor(entry, row);
+    const specialAddPct = resolveSpecialAddPct(op, entry, row);
+    const specialMulFactor = resolveSpecialMultiplierFactor(op, entry, row);
     const inspireApplied = computeInspireForRow(catalog, row, inspireSourceStates, globalBuffIds, globalBuffLevels);
     const inspireFlat = breakdown.extraFlat + (inspireApplied ? inspireApplied.amount : 0);
     const dmg = computeRowDamage(op, row, enemy, inspireFlat, breakdown.extraPct + specialAddPct, specialMulFactor);
@@ -696,12 +834,22 @@ export function dropStaleRows(state, catalog) {
       if (!ok) dropped++;
       return ok;
     })
-    .map((row) => ({
-      ...row,
-      buffIds: migrateStainlessIds(row.buffIds || []).filter((id) => validBuffIds.has(id)),
-      specialOn: row.specialOn !== false,
-      inspireOn: row.inspireOn !== false,
-    }));
+    .map((row) => {
+      const op = opById.get(row.opId);
+      // P6: 昇進/レベル/信頼度が無い古い形(P1〜P5)のstate/共有URLを補完する
+      // (`makeDefaultRow`と同じ既定: 最大昇進・その最大レベル・信頼度100)。
+      const elite = row.elite != null ? row.elite : maxEliteFor(op);
+      const level = row.level != null ? row.level : maxLevelForElite(op, elite);
+      return {
+        ...row,
+        elite,
+        level,
+        trust: row.trust != null ? row.trust : 100,
+        buffIds: migrateStainlessIds(row.buffIds || []).filter((id) => validBuffIds.has(id)),
+        specialOn: row.specialOn !== false,
+        inspireOn: row.inspireOn !== false,
+      };
+    });
 
   // P4: 旧(P2)形の前衛アーミヤ2エントリ(exclusive_group)→新1エントリ+toggleへの移行。
   let rawGlobalBuffIds = (state.globalBuffIds || []).slice();
@@ -750,8 +898,14 @@ export function dropStaleRows(state, catalog) {
     for (const [partId, on] of Object.entries(cfg.parts || {})) {
       if (knownPartIds.has(partId)) parts[partId] = on;
     }
+    // P6: 昇進/レベル/信頼度が無い古い形を補完する(行と同じ既定値)。
+    const elite = cfg.elite != null ? cfg.elite : maxEliteFor(source);
+    const level = cfg.level != null ? cfg.level : maxLevelForElite(source, elite);
     cleanedSources[sourceId] = {
       ...cfg,
+      elite,
+      level,
+      trust: cfg.trust != null ? cfg.trust : 100,
       buffIds: migrateStainlessIds(cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
       parts,
     };
