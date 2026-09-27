@@ -348,6 +348,14 @@ fn build_patches(
 
 /// uniequip_table.json からモジュール消費素材を各オペレーターへ追加する
 /// （Python `AllOperatorsInfo.init` 後半、`OperatorCosts.addEq`）。
+///
+/// **振り分け先は`tmplId`優先（Python版と意図的に異なる）**: アーミヤの前衛/医療形態のような
+/// `char_patch_table`の派生形専用モジュールは、`charId`が基礎オペレーター("char_002_amiya")の
+/// ままで、`tmplId`に派生形("char_1001_amiya2"等)が入る。Python版は`charId`だけで振り分けて
+/// いたため、派生形のモジュールが術師アーミヤに付き、派生形側はモジュール無しになっていた
+/// (issue #20)。`tmplId`を持たないモジュール(通常のオペレーターや、濁心スカジのように専用
+/// charIdを持つ派生キャラ)は`charId`のままで正しいので`tmplId.unwrap_or(charId)`にする
+/// (`operator_combat.rs`の`build_modules`と同じ)。
 fn build_modules(cn_uniequip: &Value, jp_uniequip: &Value, operators: &mut IndexMap<String, RawOperatorCost>) {
     let Some(Value::Object(equip_dict)) = cn_uniequip.get("equipDict") else { return };
     let jp_equip_dict = jp_uniequip.get("equipDict");
@@ -365,6 +373,8 @@ fn build_modules(cn_uniequip: &Value, jp_uniequip: &Value, operators: &mut Index
         let Some(char_id) = value.get("charId").and_then(Value::as_str) else {
             continue;
         };
+        // tmplId優先の理由は関数冒頭コメント参照。
+        let char_id = value.get("tmplId").and_then(Value::as_str).unwrap_or(char_id);
         if !operators.contains_key(char_id) {
             continue;
         }
@@ -436,5 +446,26 @@ mod tests {
             })
             .collect();
         assert!(mismatches.is_empty(), "name resolution regressed:\n{}", mismatches.join("\n"));
+    }
+
+    /// 派生形(前衛/医療アーミヤ)専用モジュールが`tmplId`で派生形側に振り分けられていること
+    /// （issue #20。オフライン。Seedを直接読む）。
+    #[test]
+    fn seed_attributes_patch_modules_by_tmpl_id() {
+        let json = std::fs::read_to_string(SEED_PATH)
+            .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
+        let data: OperatorData = serde_json::from_str(&json).expect("seedがOperatorDataとしてparseできること");
+        let module_types = |id: &str| -> Vec<String> {
+            data.operators
+                .get(id)
+                .unwrap_or_else(|| panic!("{id}がseedに存在すること"))
+                .modules
+                .iter()
+                .map(|m| m.eq_type.clone())
+                .collect()
+        };
+        assert_eq!(module_types("char_002_amiya"), vec!["Y"], "術師アーミヤに派生形のモジュールが混入していないこと");
+        assert_eq!(module_types("char_1001_amiya2"), vec!["X"], "前衛アーミヤにモジュールXがあること");
+        assert_eq!(module_types("char_1037_amiya3"), vec!["X"], "医療アーミヤにモジュールXがあること");
     }
 }

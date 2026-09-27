@@ -62,6 +62,9 @@ src/
 │   │   │                       昇進/スキル特化/モジュール消費素材の生データ。character_table.json /
 │   │   │                       uniequip_table.json / char_patch_table.json をまとめて1回のfetchで
 │   │   │                       構築する（旧operator_names.rsはこれに統合済み）。
+│   │   │                       モジュールの振り分けは operator_combat.rs と同じく
+│   │   │                       `tmplId.unwrap_or(charId)`（Python版は`charId`だけで派生形の
+│   │   │                       モジュールが術師アーミヤに付いていた。issue #20で意図的に修正）。
 │   │   │                       SEED_PATH = data/seed/operator_data.json
 │   │   ├── operator_combat.rs … フレームキル計算機用のオペレーター戦闘生データ
 │   │   │                       （元ATK/信頼度込みATK・潜在ATK・モジュールのATK加算値・
