@@ -930,118 +930,6 @@
       "modules": [
         {
           "cn_only": false,
-          "eq_type": "X",
-          "phase_costs": [
-            [
-              {
-                "count": 2.0,
-                "id": "mod_unlock_token"
-              },
-              {
-                "count": 3.0,
-                "id": "30064"
-              },
-              {
-                "count": 40000.0,
-                "id": "4001"
-              }
-            ],
-            [
-              {
-                "count": 2.0,
-                "id": "mod_unlock_token"
-              },
-              {
-                "count": 20.0,
-                "id": "mod_update_token_1"
-              },
-              {
-                "count": 4.0,
-                "id": "31024"
-              },
-              {
-                "count": 50000.0,
-                "id": "4001"
-              }
-            ],
-            [
-              {
-                "count": 2.0,
-                "id": "mod_unlock_token"
-              },
-              {
-                "count": 8.0,
-                "id": "mod_update_token_2"
-              },
-              {
-                "count": 5.0,
-                "id": "30034"
-              },
-              {
-                "count": 60000.0,
-                "id": "4001"
-              }
-            ]
-          ]
-        },
-        {
-          "cn_only": false,
-          "eq_type": "X",
-          "phase_costs": [
-            [
-              {
-                "count": 2.0,
-                "id": "mod_unlock_token"
-              },
-              {
-                "count": 3.0,
-                "id": "30104"
-              },
-              {
-                "count": 40000.0,
-                "id": "4001"
-              }
-            ],
-            [
-              {
-                "count": 2.0,
-                "id": "mod_unlock_token"
-              },
-              {
-                "count": 20.0,
-                "id": "mod_update_token_1"
-              },
-              {
-                "count": 4.0,
-                "id": "31024"
-              },
-              {
-                "count": 50000.0,
-                "id": "4001"
-              }
-            ],
-            [
-              {
-                "count": 2.0,
-                "id": "mod_unlock_token"
-              },
-              {
-                "count": 8.0,
-                "id": "mod_update_token_2"
-              },
-              {
-                "count": 5.0,
-                "id": "31034"
-              },
-              {
-                "count": 60000.0,
-                "id": "4001"
-              }
-            ]
-          ]
-        },
-        {
-          "cn_only": false,
           "eq_type": "Y",
           "phase_costs": [
             [
@@ -2476,7 +2364,64 @@
       "id": "char_1001_amiya2",
       "is_patch": true,
       "is_recent": false,
-      "modules": [],
+      "modules": [
+        {
+          "cn_only": false,
+          "eq_type": "X",
+          "phase_costs": [
+            [
+              {
+                "count": 2.0,
+                "id": "mod_unlock_token"
+              },
+              {
+                "count": 3.0,
+                "id": "30104"
+              },
+              {
+                "count": 40000.0,
+                "id": "4001"
+              }
+            ],
+            [
+              {
+                "count": 2.0,
+                "id": "mod_unlock_token"
+              },
+              {
+                "count": 20.0,
+                "id": "mod_update_token_1"
+              },
+              {
+                "count": 4.0,
+                "id": "31024"
+              },
+              {
+                "count": 50000.0,
+                "id": "4001"
+              }
+            ],
+            [
+              {
+                "count": 2.0,
+                "id": "mod_unlock_token"
+              },
+              {
+                "count": 8.0,
+                "id": "mod_update_token_2"
+              },
+              {
+                "count": 5.0,
+                "id": "31034"
+              },
+              {
+                "count": 60000.0,
+                "id": "4001"
+              }
+            ]
+          ]
+        }
+      ],
       "name": "アーミヤ(前衛)",
       "phases": [
         [
@@ -10728,7 +10673,64 @@
       "id": "char_1037_amiya3",
       "is_patch": true,
       "is_recent": false,
-      "modules": [],
+      "modules": [
+        {
+          "cn_only": false,
+          "eq_type": "X",
+          "phase_costs": [
+            [
+              {
+                "count": 2.0,
+                "id": "mod_unlock_token"
+              },
+              {
+                "count": 3.0,
+                "id": "30064"
+              },
+              {
+                "count": 40000.0,
+                "id": "4001"
+              }
+            ],
+            [
+              {
+                "count": 2.0,
+                "id": "mod_unlock_token"
+              },
+              {
+                "count": 20.0,
+                "id": "mod_update_token_1"
+              },
+              {
+                "count": 4.0,
+                "id": "31024"
+              },
+              {
+                "count": 50000.0,
+                "id": "4001"
+              }
+            ],
+            [
+              {
+                "count": 2.0,
+                "id": "mod_unlock_token"
+              },
+              {
+                "count": 8.0,
+                "id": "mod_update_token_2"
+              },
+              {
+                "count": 5.0,
+                "id": "30034"
+              },
+              {
+                "count": 60000.0,
+                "id": "4001"
+              }
+            ]
+          ]
+        }
+      ],
       "name": "アーミヤ(医療)",
       "phases": [
         [
