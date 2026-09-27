@@ -1032,8 +1032,18 @@ function toggleRowBuff(idx, buffId) {
 
 function toggleGlobalBuff(buffId) {
   const set = new Set(state.globalBuffIds || []);
-  if (set.has(buffId)) set.delete(buffId);
-  else set.add(buffId);
+  if (set.has(buffId)) {
+    set.delete(buffId);
+  } else {
+    set.add(buffId);
+    // 同じexclusiveGroupの他のバフ(例: 前衛アーミヤの通常/スキル中)は同時に効かないのでOFFにする。
+    const group = (catalog.buffers || []).find((b) => b.id === buffId)?.exclusiveGroup;
+    if (group) {
+      for (const b of catalog.buffers) {
+        if (b.id !== buffId && b.exclusiveGroup === group) set.delete(b.id);
+      }
+    }
+  }
   state.globalBuffIds = Array.from(set);
   globalBuffsOpen = true; // チップを操作した=開いて見ている最中なので、再描画後も開いたままにする
   render();

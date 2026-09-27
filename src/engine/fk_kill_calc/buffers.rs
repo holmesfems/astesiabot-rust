@@ -98,6 +98,7 @@ struct RawConditional {
     flat: Option<f64>,
     targets: Vec<String>,
     bonus: Option<RawBonus>,
+    exclusive_group: Option<String>,
     note: Option<String>,
 }
 
@@ -143,6 +144,7 @@ fn build_buffers() -> Vec<Buffer> {
             scope: BufferScope::Individual,
             single_target: ind.single_target,
             bonus: None,
+            exclusive_group: None,
             note: ind.note,
         });
     }
@@ -158,6 +160,7 @@ fn build_buffers() -> Vec<Buffer> {
             scope: BufferScope::Conditional { target_tags: cond.targets },
             single_target: false,
             bonus,
+            exclusive_group: cond.exclusive_group,
             note: cond.note,
         });
     }

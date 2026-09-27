@@ -262,6 +262,9 @@ export function resolveResEff(enemy) {
  *            appliedConditional:Array<{id:string,name:string,value:number,kind:string,bonusApplied:boolean}>,
  *            notAppliedConditional:Array<{id:string,name:string}>}}
  */
+/** 条件付きバフの`targets`で「味方全員」を表す特別なタグ(Rust側`tags.rs::ALL_TAG`と同じ)。 */
+export const ALL_TAG = "全員";
+
 export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = []) {
   const buffers = (catalog && catalog.buffers) || [];
   const byId = new Map(buffers.map((b) => [b.id, b]));
@@ -280,10 +283,21 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = []) {
     conditionalFlat = 0;
   const appliedConditional = [];
   const notAppliedConditional = [];
+  // exclusiveGroupが同じ条件付きバフは同時に効かないので、グループごとに最大値の1件だけ残す
+  // (UIは片方をONにするともう片方をOFFにするが、共有URL等で両方ONの状態が来ても二重に乗せない)。
+  const bestInGroup = new Map();
+  for (const id of globalBuffIds) {
+    const b = byId.get(id);
+    if (!b || b.scope.type !== "conditional" || !b.exclusiveGroup) continue;
+    const cur = bestInGroup.get(b.exclusiveGroup);
+    if (!cur || b.value > cur.value) bestInGroup.set(b.exclusiveGroup, b);
+  }
   for (const id of globalBuffIds) {
     const b = byId.get(id);
     if (!b || b.scope.type !== "conditional") continue;
-    const matches = b.scope.targetTags.some((t) => entryTags.includes(t));
+    if (b.exclusiveGroup && bestInGroup.get(b.exclusiveGroup) !== b) continue;
+    // "全員"は特別なタグで、どのエントリにも一致する(エントリ側のtagsには載らない)。
+    const matches = b.scope.targetTags.some((t) => t === ALL_TAG || entryTags.includes(t));
     if (!matches) {
       notAppliedConditional.push({ id, name: b.name });
       continue;

@@ -32,11 +32,15 @@ const FACTION_TAGS: &[(&str, &str)] = &[("laterano", "ラテラーノ")];
 /// (`skill_data::SkillData::is_ammo_skill`から判定。`build_catalog`がFkEntry単位で足す)。
 pub const AMMO_SKILL_TAG: &str = "弾薬スキル";
 
+/// 条件付きバフの`targets`専用の特別なタグ。どのエントリ(鼓舞ソースを含む)にも一致する
+/// 扱いにする(例: 前衛アーミヤの素質は味方全員に掛かる)。エントリ側の`tags`には載せない。
+pub const ALL_TAG: &str = "全員";
+
 /// `FkEntry.tags`に載りうる全タグの語彙(近距離判定+職業+勢力+弾薬スキル)。
 /// `overrides.yaml`の手動`tags`、`buffers.yaml`の`targets`/`bonus.tags`はここに
 /// 含まれる名前だけを使うことを`cargo test`のドリフト検知(buffers.rs)で保証する。
 pub fn tag_vocabulary() -> Vec<&'static str> {
-    let mut vocab = vec!["近距離", AMMO_SKILL_TAG];
+    let mut vocab = vec!["近距離", AMMO_SKILL_TAG, ALL_TAG];
     vocab.extend(PROFESSION_TAGS.iter().map(|(_, ja)| *ja));
     vocab.extend(FACTION_TAGS.iter().map(|(_, ja)| *ja));
     vocab
@@ -111,6 +115,7 @@ mod tests {
         assert!(vocab.contains(&AMMO_SKILL_TAG));
         assert!(vocab.contains(&"ラテラーノ"));
         assert!(vocab.contains(&"近距離"));
+        assert!(vocab.contains(&ALL_TAG));
     }
 
     #[test]

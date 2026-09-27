@@ -18,6 +18,7 @@ import {
   computeInspireSelfParts,
   computeInspireForRow,
   defaultInspireSourceCfg,
+  computeBuffBreakdown,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -824,6 +825,25 @@ const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value:
   const sourceStatesOff = { skadi2: { ...defaultInspireSourceCfg(source), on: false, buffIds: ["exusiai"] } };
   const conflictsSourceOff = findSingleTargetConflicts(catalog, rows1, sourceStatesOff);
   check("ソースがOFFの間はソース側の選択を数えない(⚠出ない)", !conflictsSourceOff.has("exusiai"), conflictsSourceOff);
+}
+
+console.log("\n=== バフ調整: 「全員」タグ・exclusiveGroup（前衛アーミヤ） ===\n");
+{
+  const amiyaNormal = { id: "amiya_guard_normal", name: "前衛アーミヤ(通常)", kind: "pct", value: 0.07, scope: { type: "conditional", targetTags: ["全員"] }, singleTarget: false, bonus: null, exclusiveGroup: "amiya_guard" };
+  const amiyaSkill = { id: "amiya_guard_skill", name: "前衛アーミヤ(スキル中)", kind: "pct", value: 0.14, scope: { type: "conditional", targetTags: ["全員"] }, singleTarget: false, bonus: null, exclusiveGroup: "amiya_guard" };
+  const catalog = { operators: [], buffers: [amiyaNormal, amiyaSkill], inspireSources: [] };
+  const sniperEntry = { tags: ["狙撃"] };
+  const noTagEntry = { tags: [] };
+  const r = row({ buffIds: [] });
+
+  const b1 = computeBuffBreakdown(r, sniperEntry, catalog, ["amiya_guard_normal"]);
+  approxEqual(b1.conditionalPct, 0.07, 1e-9, "「全員」の条件付きバフは狙撃の行にも効く(+7%)");
+  const b2 = computeBuffBreakdown(r, noTagEntry, catalog, ["amiya_guard_skill"]);
+  approxEqual(b2.conditionalPct, 0.14, 1e-9, "「全員」の条件付きバフはタグの無い行にも効く(+14%)");
+  const b3 = computeBuffBreakdown(r, sniperEntry, catalog, ["amiya_guard_normal", "amiya_guard_skill"]);
+  approxEqual(b3.conditionalPct, 0.14, 1e-9, "同じexclusiveGroupが両方ONでも合算せず最大値(14%)だけ効く");
+  check("exclusiveGroupで外れた方は適用一覧に出ない",
+    b3.appliedConditional.length === 1 && b3.appliedConditional[0].id === "amiya_guard_skill", b3.appliedConditional);
 }
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");

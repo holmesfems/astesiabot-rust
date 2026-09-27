@@ -225,6 +225,9 @@ pub struct Buffer {
     pub single_target: bool,
     /// `scope`が`Conditional`のバフだけが持ちうる、タグ限定の上書き値(P2)。
     pub bonus: Option<BufferBonus>,
+    /// 同じグループ名を持つ条件付きバフは同時に効かない(ONでも最大値の1件だけ採用し、
+    /// UIでは片方をONにするともう片方をOFFにする)。例: 前衛アーミヤ(通常)/(スキル中)。
+    pub exclusive_group: Option<String>,
     pub note: Option<String>,
 }
 
