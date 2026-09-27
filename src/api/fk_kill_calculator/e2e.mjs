@@ -509,6 +509,24 @@ async function runBuffScenario(browser, baseUrl) {
     ok('Castle does not apply (–) to Ash(狙撃/非近距離)', condAsh.includes('–') && condAsh.includes('Castle'), condAsh);
     await page.click('[data-action="collapse-row"]');
 
+    // --- 前衛アーミヤ: 「全員」に効き、通常/スキル中は片方ONでもう片方がOFFになる ---
+    const amiyaNormalChip = page.locator('.chip[data-buff-id="amiya_guard_normal"]');
+    const amiyaSkillChip = page.locator('.chip[data-buff-id="amiya_guard_skill"]');
+    await amiyaNormalChip.click();
+    await page.waitForTimeout(100);
+    ok('前衛アーミヤ(通常) turns on', (await amiyaNormalChip.getAttribute('aria-pressed')) === 'true');
+    await amiyaSkillChip.click();
+    await page.waitForTimeout(100);
+    ok('turning on 前衛アーミヤ(スキル中) turns (通常) off (exclusive group)',
+      (await amiyaSkillChip.getAttribute('aria-pressed')) === 'true' && (await amiyaNormalChip.getAttribute('aria-pressed')) === 'false');
+    await page.locator('[data-action="edit-row"]').nth(1).click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    const condAshAmiya = await page.locator('.row-conditional-status').innerText();
+    ok('前衛アーミヤ(全員) applies (✓) to Ash(狙撃)', /✓\s*前衛アーミヤ\(スキル中\)/.test(condAshAmiya), condAshAmiya);
+    await page.click('[data-action="collapse-row"]');
+    await amiyaSkillChip.click(); // 以降の「1件ON」前提のシナリオに影響しないようOFFに戻す
+    await page.waitForTimeout(100);
+
     // --- バフN件バッジが折りたたみ行に出る ---
     const badgeTexts = await page.locator('.badge-buffcount').allTextContents();
     ok('collapsed rows show a "バフN" badge for rows with buffs', badgeTexts.some((t) => /^バフ\d+$/.test(t.trim())), badgeTexts);
