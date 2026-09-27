@@ -125,6 +125,17 @@ pub struct Special {
     pub mul_multiplier: Option<MulMultiplier>,
 }
 
+/// 倍率候補1件分(P7。`multiplier_candidates`の要素)。`values_by_level[i]`はスキルLv(i+1)
+/// でのこのキーの値(スキルLv1〜7+特化1〜3で最大10要素。データに存在するレベル数だけ入る)。
+/// フロント側は現在選択中のスキルLv(`row.skillLevel`)でこの配列を引く
+/// (`engine.js::valueAtLevel`)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MultiplierCandidate {
+    pub key: String,
+    pub values_by_level: Vec<f64>,
+}
+
 /// フレームキル情報1件分(スキル1つのバリアント1つ)。
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -139,11 +150,27 @@ pub struct FkEntry {
     pub fk_err: String,
     pub detail: String,
     pub last_edited: String,
+    /// スキルLv別配列(`multiplier_by_level`)の最終レベル(データが10未満のスキルは
+    /// その末尾)の値。後方互換のため維持する(P6以前の呼び出し側はこのフィールドだけを見る)。
     pub multiplier: Valued<f64>,
+    /// スキルLv1〜(データ数)ごとの倍率(P7)。Auto: blackboardの選定キーそのまま。
+    /// Manual(`multiplier_key`): そのキーのスキルLv別値。Manual(固定`multiplier`):
+    /// 全レベル同じ値(`multiplier_fixed=true`)。
+    pub multiplier_by_level: Vec<f64>,
+    /// `true`ならこの倍率はスキルLvに関わらず固定(Manualの固定`multiplier`指定。P7)。
+    /// UIの「補正」バッジの文言出し分けに使う(固定なら「補正(特化3固定)」、
+    /// キー追従なら素の「補正」)。
+    pub multiplier_fixed: bool,
     /// blackboardのうちキーに"scale"を含む項目一覧("atk_scale"があれば先頭)。
-    /// フロント側で「他の倍率候補」を選ばせるための参考情報。
-    pub multiplier_candidates: Vec<(String, f64)>,
+    /// フロント側で「他の倍率候補」を選ばせるための参考情報(P7でスキルLv別に対応)。
+    pub multiplier_candidates: Vec<MultiplierCandidate>,
     pub self_atk_pct: Valued<f64>,
+    /// スキルLv1〜(データ数)ごとのセルフATK%(P7)。Auto: blackboardの"atk"そのまま。
+    /// Manual(`self_atk_pct_factor`): Autoの値に係数を掛けたもの(4桁に丸め済み)。
+    /// Manual(固定`self_atk_pct`): 全レベル同じ値(`self_atk_pct_fixed=true`)。
+    pub self_atk_pct_by_level: Vec<f64>,
+    /// `true`ならこのセルフ%はスキルLvに関わらず固定(Manualの固定`self_atk_pct`指定。P7)。
+    pub self_atk_pct_fixed: bool,
     pub hits: Valued<u32>,
     pub damage_type: Valued<DamageType>,
     /// このエントリのタグ(P2)。オペレーター機械タグ(近距離/職業/勢力) +
@@ -443,12 +470,19 @@ pub struct InspireSelfPart {
     pub default_on: bool,
 }
 
-/// 鼓舞ソースの「このスキルなら鼓舞倍率はいくつか」(P3)。
+/// 鼓舞ソースの「このスキルなら鼓舞倍率はいくつか」(P3。P7でスキルLv別対応)。
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct InspireSkillRatio {
     pub skill_num: String,
+    /// スキルLv別配列(`ratio_by_level`)の最終レベルの値。後方互換のため維持する。
     pub ratio: f64,
+    /// スキルLv1〜(データ数)ごとの鼓舞倍率(P7)。`ratio_key`指定時はblackboardの
+    /// そのキーのスキルLv別値、固定`ratio`指定時は全レベル同じ値
+    /// (`ratio_fixed=true`)。
+    pub ratio_by_level: Vec<f64>,
+    /// `true`ならこの倍率はスキルLvに関わらず固定(固定`ratio`指定。P7)。
+    pub ratio_fixed: bool,
 }
 
 /// 鼓舞(インスパイア)ソース1件分(P3)。fk_dataシート起点ではなく`buffers.yaml`の`inspire`

@@ -29,6 +29,13 @@ import {
   maxLevelForElite,
   makeDefaultRow,
   skillUnlockWarning,
+  valueAtLevel,
+  resolveMultiplierAtLevel,
+  resolveSelfAtkPctAtLevel,
+  resolveEntryValues,
+  maxSkillLevelForElite,
+  skillLevelWarning,
+  resolveInspireRatioAtLevel,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -1591,6 +1598,117 @@ console.log("\n=== P6: スキル解放昇進の警告(skillUnlockWarning) ===\n"
   check("E0でS1(昇進0解放)を選んでも警告は出ない", skillUnlockWarning(opS3E2, entryS1, { elite: 0 }) === null);
   const entryTalent = { skillNum: "素質1" };
   check("素質行(skillUnlockPhaseに無いskillNum)は警告対象外", skillUnlockWarning(opS3E2, entryTalent, { elite: 0 }) === null);
+}
+
+console.log("\n=== P7: スキルLv別の倍率/セルフ%解決(valueAtLevel/resolveEntryValues) ===\n");
+{
+  // ブレイズS3を模したエントリ(multiplier_key相当のAuto倍率+self_atk_pct_factor相当のManualセルフ%)。
+  const entryLv = {
+    skillNum: "3",
+    skillLabel: "s3",
+    variantLabel: null,
+    multiplier: { value: 3.0, source: "auto" },
+    multiplierByLevel: [2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.0],
+    multiplierFixed: false,
+    multiplierCandidates: [],
+    selfAtkPct: { value: 0.712, source: "manual" },
+    selfAtkPctByLevel: [0.267, 0.3115, 0.356, 0.4005, 0.445, 0.4895, 0.534, 0.5785, 0.623, 0.712],
+    selfAtkPctFixed: false,
+    hits: { value: 1, source: "auto" },
+    damageType: { value: "physical", source: "auto" },
+    tags: [],
+  };
+  check("valueAtLevel: SLv1(index0)", valueAtLevel(entryLv.multiplierByLevel, 1) === 2.0);
+  check("valueAtLevel: 特化3(index9)", valueAtLevel(entryLv.multiplierByLevel, 10) === 3.0);
+  check("valueAtLevel: 配列長を超える値は末尾にクランプされる", valueAtLevel(entryLv.multiplierByLevel, 999) === 3.0);
+  check("valueAtLevel: 0以下は先頭にクランプされる", valueAtLevel(entryLv.multiplierByLevel, 0) === 2.0);
+  check("valueAtLevel: 空配列は0を返す", valueAtLevel([], 5) === 0);
+
+  check("resolveMultiplierAtLevel: SLv7", resolveMultiplierAtLevel(entryLv, 7) === 2.6);
+  check("resolveSelfAtkPctAtLevel: SLv7(0.534)", resolveSelfAtkPctAtLevel(entryLv, 7) === 0.534);
+
+  const valuesAtLv1 = resolveEntryValues(entryLv, 1);
+  check("resolveEntryValues(SLv1): multiplier=2.0", valuesAtLv1.multiplier === 2.0);
+  check("resolveEntryValues(SLv1): selfPct=0.267", valuesAtLv1.selfPct === 0.267);
+  const valuesDefault = resolveEntryValues(entryLv); // skillLevel省略時は既定10(特化3)
+  check("resolveEntryValues(省略時=特化3): multiplier=3.0", valuesDefault.multiplier === 3.0);
+  check("resolveEntryValues(省略時=特化3): selfPct=0.712", valuesDefault.selfPct === 0.712);
+
+  // multiplierByLevel/selfAtkPctByLevelが無い(旧形/未解決)エントリは固定値(.value)にフォールバックする。
+  const entryNoByLevel = { multiplier: { value: 1.5, source: "auto" }, selfAtkPct: { value: 0.1, source: "auto" } };
+  check("multiplierByLevelが無ければ.valueにフォールバック", resolveMultiplierAtLevel(entryNoByLevel, 3) === 1.5);
+  check("selfAtkPctByLevelが無ければ.valueにフォールバック", resolveSelfAtkPctAtLevel(entryNoByLevel, 3) === 0.1);
+}
+
+console.log("\n=== P7: 昇進によるスキルLv上限の警告(maxSkillLevelForElite/skillLevelWarning) ===\n");
+{
+  check("E0の上限はSLv4", maxSkillLevelForElite(0) === 4);
+  check("E1の上限はSLv7", maxSkillLevelForElite(1) === 7);
+  check("E2の上限は特化3(10)", maxSkillLevelForElite(2) === 10);
+
+  check("E0でSLv4は警告無し", skillLevelWarning(0, 4) === null);
+  check("E0でSLv5は警告あり", skillLevelWarning(0, 5) === "SLv5以上は昇進1で解放");
+  check("E1でSLv7は警告無し", skillLevelWarning(1, 7) === null);
+  check("E1で特化1(8)は警告あり", skillLevelWarning(1, 8) === "特化は昇進2で解放");
+  check("E0で特化1(8)も同じ警告文言", skillLevelWarning(0, 8) === "特化は昇進2で解放");
+  check("E2で特化3(10)は警告無し", skillLevelWarning(2, 10) === null);
+}
+
+console.log("\n=== P7: dropStaleRowsが旧形にskillLevel既定値(10)を補完する ===\n");
+{
+  const opForMigration = {
+    id: "opMig",
+    name: "opMig",
+    tags: [],
+    atkBase: 1000,
+    atkPotential: 0,
+    modules: [],
+    fkEntries: [{ skillNum: "1", skillLabel: "s1", variantLabel: null, multiplier: { value: 1, source: "auto" }, multiplierCandidates: [], selfAtkPct: { value: 0, source: "auto" }, hits: { value: 1, source: "auto" }, damageType: { value: "physical", source: "auto" }, tags: [] }],
+    phases: [{ maxLevel: 90, atkMin: 900, atkMax: 1000 }],
+    atkTrustMax: 0,
+    skillUnlockPhase: [],
+  };
+  const sourceForMigration = { id: "srcMig", operatorId: "opMig", name: "srcMig", tags: [], atkBase: 1000, atkPotential: 0, modules: [], skills: [{ skillNum: "1", ratio: 1, ratioByLevel: [1], ratioFixed: true }], talentPotentialLabel: "凸", selfParts: [] };
+  const catalogForMigration = { operators: [opForMigration], buffers: [], inspireSources: [sourceForMigration] };
+  const oldState = {
+    v: 1,
+    enemy: enemyNeutral,
+    rows: [{ opId: "opMig", entryIdx: 0, dmgType: "physical", potential: true, moduleId: null, moduleLv: 3, multiplier: 1, selfPct: 0, hits: 1, buffPct: 0, dmgMult: 1, ignoreDef: 0 }],
+    inspire: { sources: { srcMig: { on: true, skillNum: "1" } } },
+  };
+  const { state: cleaned } = dropStaleRows(oldState, catalogForMigration);
+  check("旧形の行にskillLevel=10(特化3)が補完される", cleaned.rows[0].skillLevel === 10, cleaned.rows[0].skillLevel);
+  check("旧形の鼓舞ソースcfgにもskillLevel=10が補完される", cleaned.inspire.sources.srcMig.skillLevel === 10, cleaned.inspire.sources.srcMig.skillLevel);
+}
+
+console.log("\n=== P7: 鼓舞ソースのratioByLevel解決(resolveInspireRatioAtLevel/computeInspireSource) ===\n");
+{
+  const skillEntryLv = { skillNum: "3", ratio: 1.1, ratioByLevel: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.9, 1.0, 1.1] };
+  check("resolveInspireRatioAtLevel: SLv1", resolveInspireRatioAtLevel(skillEntryLv, 1) === 0.5);
+  check("resolveInspireRatioAtLevel: 特化3(既定)", resolveInspireRatioAtLevel(skillEntryLv, 10) === 1.1);
+  const skillEntryFixed = { skillNum: "2", ratio: 0.6, ratioByLevel: [0.6], ratioFixed: true };
+  check("resolveInspireRatioAtLevel: ratioByLevelが1件だけならその値に固定", resolveInspireRatioAtLevel(skillEntryFixed, 1) === 0.6);
+  check("resolveInspireRatioAtLevel: ratioByLevel無しは.ratioにフォールバック", resolveInspireRatioAtLevel({ ratio: 0.42 }, 5) === 0.42);
+
+  const sourceLv = {
+    id: "srcLv",
+    operatorId: "opLv",
+    name: "srcLv",
+    tags: [],
+    atkBase: 1000,
+    atkPotential: 0,
+    modules: [],
+    skills: [skillEntryLv],
+    talentPotentialLabel: "凸",
+    selfParts: [],
+  };
+  const cfgLv1 = { on: true, skillNum: "3", skillLevel: 1, potential: false, talentPotential: false, moduleId: null, moduleLv: 3, buffPct: 0, buffIds: [], parts: {} };
+  const cfgLv10 = { ...cfgLv1, skillLevel: 10 };
+  const catalogEmpty = { buffers: [] };
+  const resultLv1 = computeInspireSource(sourceLv, cfgLv1, catalogEmpty);
+  const resultLv10 = computeInspireSource(sourceLv, cfgLv10, catalogEmpty);
+  approxEqual(resultLv1.amount, 1000 * 0.5, 1e-9, "鼓舞ソースSLv1(ratio=0.5)のamount");
+  approxEqual(resultLv10.amount, 1000 * 1.1, 1e-9, "鼓舞ソース特化3(ratio=1.1)のamount");
 }
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");

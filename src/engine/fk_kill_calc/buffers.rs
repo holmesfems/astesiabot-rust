@@ -84,11 +84,15 @@ pub struct RawInspireSelfPart {
     pub default_on: bool,
 }
 
-/// `inspire.*.skills`の生データ1件分(P3)。
+/// `inspire.*.skills`の生データ1件分(P3。P7でスキルLv別対応)。`ratio`(固定値)/
+/// `ratio_key`(そのスキルのblackboardキー名。スキルLv別に機械抽出する)はどちらか一方
+/// (`mod.rs::build_inspire_sources`が検証する)。
 #[derive(Deserialize, Clone, Debug)]
 pub struct RawInspireSkill {
     pub skill_num: String,
-    pub ratio: f64,
+    pub ratio: Option<f64>,
+    #[serde(default)]
+    pub ratio_key: Option<String>,
 }
 
 /// `inspire`リスト1件分の生データ(P3)。`operator`(operator_combatのid)と

@@ -18,8 +18,20 @@
 //! バリアントの各フィールドは全て省略可能で、省略したフィールドは機械データ側の値を
 //! そのまま採用する(`build_catalog`が担当)。フィールド一覧:
 //!   - `label`: バリアントの表示名(例: "300%"、"物理")
-//!   - `multiplier`: スキル倍率
-//!   - `self_atk_pct`: セルフATKバフの割合
+//!   - `multiplier`: スキル倍率(固定値。スキルLvに関わらず同じ値を使う)
+//!   - `multiplier_key`: スキルLv別に倍率を追従させたい場合、固定`multiplier`の代わりに
+//!     こちらを使う(そのスキルのblackboardキー名。値そのものはスキルLv別に機械抽出する。
+//!     P7で追加)。`multiplier`と同時指定は不可(`validate_override_level_fields`が検証)。
+//!     例: Ash S3の"400%"バリアントは`multiplier_key: not_hitwall_scale`
+//!     (L1=3.0〜L10=4.0)、Horn S2の"物理"バリアントは
+//!     `multiplier_key: attack@s2.atk_scale`(L1=1.3〜L10=2.4)。
+//!   - `self_atk_pct`: セルフATKバフの割合(固定値。スキルLvに関わらず同じ値を使う。
+//!     例: Hornの0.31は素質由来でスキルLvに追従しないため固定のまま[将来バフへ
+//!     移設予定])
+//!   - `self_atk_pct_factor`: Autoのスキルレベル別セルフ%("atk"キー)にこの係数を掛けた値を
+//!     採用する(P7で追加)。`self_atk_pct`と同時指定は不可。各レベルの値は小数第4位に
+//!     丸める(浮動小数のドリフト対策)。例: ブレイズS3は`self_atk_pct_factor: 0.89`
+//!     (Autoの"atk"[L1=.30〜L10=.80]に掛けてL10=0.712・L7=0.534)
 //!   - `hits`: Hit数
 //!   - `damage_type`: "physical" | "arts" | "true"
 //!     (YAMLで`true`を無引用で書くとbool扱いになるため、bool trueも`true`属性として
@@ -92,11 +104,23 @@ pub struct OverrideSpecial {
 }
 
 /// overrides.yaml 1バリアント分。`label`〜`note`は全フィールド省略可能。
+///
+/// P7(スキルLv対応)で追加した`multiplier_key`/`self_atk_pct_factor`は、固定値の
+/// `multiplier`/`self_atk_pct`とそれぞれ排他(`build_catalog`側でも両立しない設計だが、
+/// 実データの誤りとして`cargo test`のドリフト検知[`validate_override_level_fields`]が
+/// 検出する)。詳細はファイル冒頭コメント参照。
 #[derive(Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct OverrideVariant {
     pub label: Option<String>,
     pub multiplier: Option<f64>,
+    /// スキルLv別に倍率を追従させたい場合、固定`multiplier`の代わりにこのキー名
+    /// (そのスキルのblackboardキー)を指定する(P7)。`multiplier`と同時指定は不可。
+    pub multiplier_key: Option<String>,
     pub self_atk_pct: Option<f64>,
+    /// Autoのスキルレベル別セルフ%("atk"キー)にこの係数を掛けた値を採用する(P7)。
+    /// 各レベルの値は小数第4位に丸める(浮動小数のドリフト対策)。`self_atk_pct`と
+    /// 同時指定は不可。
+    pub self_atk_pct_factor: Option<f64>,
     pub hits: Option<u32>,
     pub damage_type: Option<DamageType>,
     #[serde(default)]
