@@ -30,9 +30,7 @@ body{
 body .toolnav-bar{margin:0 0 0}
 
 .wrap{
-  max-width:480px;margin:0 auto;padding:16px 12px;
-  /* 下端固定の判定セクション(#verdict-section)に本文が隠れないよう余白を確保する */
-  padding-bottom:220px;
+  max-width:480px;margin:0 auto;padding:16px 12px 24px;
 }
 h1{font-size:16px;font-weight:700;margin:0 0 4px;color:var(--text)}
 .sub{margin:0 0 16px;color:var(--faint);font-size:12px}
@@ -173,20 +171,24 @@ summary{cursor:pointer;color:var(--faint);font-size:12px}
   font-family:inherit;
 }
 
-/* ---- 判定セクション(画面下部に固定) ---- */
+/* ---- 判定セクション(画面上部に固定。スクロールしても常に見える) ---- */
 #verdict-section{
-  position:fixed;left:0;right:0;bottom:0;z-index:900;
-  max-width:480px;margin:0 auto;
-  background:var(--card-bg);border-top:1px solid var(--card-border);
+  /* 上端にはサイト共通のツール切り替えバー(.toolnav-bar。同じくsticky top:0)が居るので、
+     その高さ(ui.jsが実測して--toolnav-hに入れる)だけ下に貼り付ける */
+  position:sticky;top:var(--toolnav-h,45px);z-index:900;
+  margin:0 -12px 12px;
+  background:var(--card-bg);border-bottom:1px solid var(--card-border);
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-  box-shadow:0 -6px 20px rgba(0,0,0,.25);
+  padding:8px 14px 6px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);
+  /* 提案を開いても画面を覆い尽くさないよう高さを抑え、はみ出た分は中でスクロールさせる */
+  max-height:60vh;overflow-y:auto;
 }
-#verdict-text{font-size:14px;font-weight:700;margin-bottom:8px}
+#verdict-text{font-size:14px;font-weight:700;margin-bottom:4px}
 .verdict-ok{color:var(--ok)}
 .verdict-pending{color:var(--faint)}
 .verdict-ng{color:var(--ng)}
-#verdict-bar{margin:14px 0 6px}
+#verdict-bar{margin:14px 0 4px}
 /* HPの目盛り(.hp-line)は.bar-trackの外側(.bar-wrap)に置く。.bar-trackはセグメントの
    角を丸めるためoverflow:hiddenが要るが、そのままだと上にはみ出す目盛りのラベルまで
    一緒に切り取られてしまうため、クリップされない兄弟要素として重ねる。 */
@@ -201,10 +203,11 @@ summary{cursor:pointer;color:var(--faint);font-size:12px}
   position:absolute;top:-13px;left:50%;transform:translateX(-50%);
   font-size:9px;color:var(--faint);white-space:nowrap;line-height:1;
 }
-#verdict-suggestions{font-size:11.5px;color:var(--faint);margin:6px 0}
+#verdict-suggestions{font-size:11.5px;color:var(--faint);margin:6px 0 2px}
 .suggest-title{margin:0 0 2px;font-weight:600;color:var(--text)}
-#verdict-suggestions ul{margin:0;padding-left:18px}
-.verdict-actions{margin-top:6px}
+summary.suggest-title{cursor:pointer}
+#verdict-suggestions ul{margin:2px 0 0;padding-left:18px}
+#page-footer-actions{margin-top:12px}
 #share-url-btn{width:auto;padding:6px 14px;cursor:pointer;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:12px}
 .scope-note{font-size:10px;color:var(--faint);margin:6px 0 0}
 

@@ -66,6 +66,8 @@ let expandedIdx = null;
 // <details>のネイティブなopen状態はDOM要素ごと消える。ここに覚えておいて
 // renderGlobalBuffs()が毎回復元する(expandedIdxと同じ考え方)。
 let globalBuffsOpen = false;
+// 判定欄(上部固定)の「撃破するには」を開いているか。render()を跨いで保持する。
+let verdictSuggestOpen = false;
 // P2 follow-up: 特殊強化のⓘ説明文が展開されている行のインデックス集合。
 // render()は#app丸ごと作り直すため、ここに覚えておいて復元する(globalBuffsOpenと同じ考え方)。
 const specialDescOpenIdx = new Set();
@@ -1292,9 +1294,10 @@ function renderVerdict() {
   if (!killed && state.rows.length > 0) {
     const suggestions = suggest(state, catalog);
     if (suggestions.length) {
-      suggestionsHtml = `<div id="verdict-suggestions"><p class="suggest-title">撃破するには:</p><ul>${suggestions
+      // 判定欄は上部に固定しているので、提案は既定で折りたたむ(開くと本文の上に広がる)。
+      suggestionsHtml = `<details id="verdict-suggestions"${verdictSuggestOpen ? " open" : ""}><summary class="suggest-title">撃破するには（${suggestions.length}件）</summary><ul>${suggestions
         .map((s) => `<li>${escapeHtml(describeSuggestion(s, catalog, state.rows))}</li>`)
-        .join("")}</ul></div>`;
+        .join("")}</ul></details>`;
     } else {
       // 上限(バフ+300%/Hit+3/防御・術耐性は敵の現在値まで)を超えないと撃破できない場合。
       // 非現実的な提案(「Hit数を+29増やす」等)を出すよりは、正直に諦めを伝える。
@@ -1311,9 +1314,15 @@ function renderVerdict() {
       <div class="hp-line" style="left:${hpLinePct}%"><span class="hp-line-label">HP</span></div>
     </div></div>
     ${suggestionsHtml}
-    <div class="verdict-actions">
-      <button type="button" id="share-url-btn" data-action="share">共有URLをコピー</button>
-    </div>
+  </section>`;
+}
+
+// ページ末尾の共有ボタンと対象範囲の注記(判定欄を上部固定にしたので、常に見える必要の
+// ないものはここへ分けた)。
+function renderPageFooter() {
+  return `
+  <section id="page-footer-actions">
+    <button type="button" id="share-url-btn" data-action="share">共有URLをコピー</button>
     <p class="scope-note">会心・確率発動・継続ダメージ・召喚物・オペ間デバフの順序依存は非対応。</p>
   </section>`;
 }
@@ -1322,7 +1331,8 @@ function renderVerdict() {
 
 function render() {
   withPreservedFocus(() => {
-    $("app").innerHTML = renderEnemy() + renderGlobalBuffs() + renderIndividualBuffLevelsSection() + renderRows() + renderVerdict();
+    $("app").innerHTML =
+      renderVerdict() + renderEnemy() + renderGlobalBuffs() + renderIndividualBuffLevelsSection() + renderRows() + renderPageFooter();
   });
   saveState();
 }
@@ -1778,12 +1788,21 @@ export async function initUi() {
   app.addEventListener("input", onAppInput);
   app.addEventListener("change", onAppChange);
   app.addEventListener("click", onAppClick);
+  // 判定欄(上部sticky)をツール切り替えバーの直下に貼り付けるため、バーの高さを実測して
+  // CSS変数に入れる(バーは折り返し無しだがフォント等で高さが変わり得るので決め打ちしない)。
+  const syncToolnavHeight = () => {
+    const nav = document.querySelector(".toolnav-bar");
+    document.documentElement.style.setProperty("--toolnav-h", `${nav ? nav.offsetHeight : 0}px`);
+  };
+  syncToolnavHeight();
+  window.addEventListener("resize", syncToolnavHeight);
   // <details id="global-buffs-details">をユーザーがsummary直クリックで開閉した場合、
   // その状態をrender()後も覚えておく(toggleイベントはbubbleしないためcapture:trueで拾う)。
   app.addEventListener(
     "toggle",
     (ev) => {
       if (ev.target && ev.target.id === "global-buffs-details") globalBuffsOpen = ev.target.open;
+      if (ev.target && ev.target.id === "verdict-suggestions") verdictSuggestOpen = ev.target.open;
     },
     true,
   );

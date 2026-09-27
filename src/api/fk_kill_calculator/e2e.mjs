@@ -264,6 +264,26 @@ async function runMainScenario(browser, baseUrl) {
     await page.fill('#enemy-hp', '5000'); // 以降のシナリオに影響しないよう戻す
     await page.waitForTimeout(150);
 
+    // --- 撃破提案は上部固定の判定欄で既定では折りたたまれ、開いた状態は再描画後も保たれる ---
+    // (与ダメ合計の1.2倍のHPにして、現実的な提案が出る状態を作る)
+    const verdictNow = await page.locator('#verdict-text').innerText();
+    const totalNow = Number((verdictNow.match(/\(([\d,]+) \//) || [])[1]?.replace(/,/g, '') || 0);
+    await page.fill('#enemy-hp', String(Math.round(totalNow * 1.2) || 5000));
+    await page.waitForTimeout(150);
+    const suggestDetails = page.locator('details#verdict-suggestions');
+    if (await suggestDetails.count()) {
+      ok('suggestions are collapsed by default in the pinned verdict', !(await suggestDetails.evaluate((el) => el.open)));
+      await suggestDetails.locator('summary').click();
+      await page.waitForTimeout(100);
+      await page.fill('#enemy-hp', String(Math.round(totalNow * 1.2) + 1));
+      await page.waitForTimeout(150);
+      ok('opened suggestions stay open after a re-render', await page.locator('details#verdict-suggestions').evaluate((el) => el.open));
+    } else {
+      ok('suggestions exist when HP is 1.2x the total (needed to test collapsing)', false, verdictNow);
+    }
+    await page.fill('#enemy-hp', '5000');
+    await page.waitForTimeout(150);
+
     // --- 複製して削除 ---
     const beforeDup = await page.locator('.row-card').count();
     await page.locator('[data-action="dup-row"]').first().click();
@@ -314,7 +334,15 @@ async function runMainScenario(browser, baseUrl) {
     const hasHScroll = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     ok('no horizontal scroll at 420px width', !hasHScroll);
 
-    // --- 判定セクションはスクロール後も画面内に留まる(sticky/fixed) ---
+    // --- 判定セクションはスクロール後も画面内に留まる(上部にsticky) ---
+    // ページを確実にスクロールできる長さにするため、#appの中に一時的な余白要素を足してから検証する
+    // (stickyは親の内容領域の中でだけ効くので、paddingではなく中身として足す)。
+    await page.evaluate(() => {
+      const spacer = document.createElement('div');
+      spacer.id = 'e2e-scroll-spacer';
+      spacer.style.height = '2000px';
+      document.getElementById('app').appendChild(spacer);
+    });
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(100);
     const verdictVisible = await page.locator('#verdict-section').isVisible();
@@ -322,6 +350,21 @@ async function runMainScenario(browser, baseUrl) {
     const viewportHeight = 900;
     ok('verdict section still visible after scrolling to bottom', verdictVisible);
     ok('verdict section stays within viewport after scroll', box && box.y + box.height <= viewportHeight + 2, box);
+    const navBottom = await page.evaluate(() => {
+      const nav = document.querySelector('.toolnav-bar');
+      return nav ? nav.getBoundingClientRect().bottom : 0;
+    });
+    ok('verdict section is pinned right below the tool nav bar after scroll (not hidden behind it)',
+      box && Math.abs(box.y - navBottom) <= 2, JSON.stringify({ box, navBottom }));
+    await page.evaluate(() => document.getElementById('e2e-scroll-spacer')?.remove());
+    // 共有ボタンは判定欄ではなくページ末尾(オペレーター欄より後)にある。
+    const shareInVerdict = await page.locator('#verdict-section #share-url-btn').count();
+    const shareAfterRows = await page.evaluate(() => {
+      const share = document.getElementById('share-url-btn');
+      const rows = document.getElementById('add-row-btn');
+      return !!share && !!rows && !!(rows.compareDocumentPosition(share) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    ok('share button lives in the page footer (after the operator rows), not in the pinned verdict', shareInVerdict === 0 && shareAfterRows);
 
     ok('no pageerror events', pageErrors.length === 0, pageErrors.join(' | '));
     ok('no console.error events', consoleErrors.length === 0, consoleErrors.join(' | '));
