@@ -1695,13 +1695,27 @@ async function shareUrl() {
   }
 }
 
+// datalistのサジェスト選択による"input"か。Chromium/Safariは
+// inputType="insertReplacementText"のInputEvent、Firefoxはinputの無い素のEventを投げる。
+// 手打ちで名前が完全一致しただけでは確定しない(「アーミヤ」→「アーミヤ（医療）」のように
+// 別オペレーター名の途中で確定してしまうため)。
+function isDatalistPick(ev) {
+  return typeof InputEvent === "undefined" || !(ev instanceof InputEvent) || ev.inputType === "insertReplacementText";
+}
+
 function onAppInput(ev) {
   const el = ev.target;
   if (!el.dataset) return;
   // オペレーター名入力は「値がop.nameから導出される」フィールドなので、毎キー入力で
   // 再描画してしまうと確定前の文字列がop.nameで即座に上書きされ、入力できなくなる。
-  // 確定は"change"（blur/datalist選択/Enter）に任せ、"input"では何もしない。
-  if (el.dataset.field === "opName") return;
+  // 確定は"change"（blur/Enter）に任せ、打鍵の"input"では何もしない。
+  // ただしdatalistのサジェストを選んだ時だけはその場で確定する(blurを待たない)。
+  if (el.dataset.field === "opName") {
+    if (isDatalistPick(ev) && catalog.operators.some((o) => o.name === el.value)) {
+      onRowFieldChange(el);
+    }
+    return;
+  }
   if (el.dataset.role === "enemy") onEnemyFieldChange(el);
   else if (el.dataset.role === "row" && el.tagName === "INPUT" && el.type !== "checkbox") onRowFieldChange(el);
   else if (el.dataset.role === "inspire" && el.tagName === "INPUT" && el.type !== "checkbox") onInspireFieldChange(el);
