@@ -1709,6 +1709,42 @@ async function runLinkedBuffScenario(browser, baseUrl) {
   }
 }
 
+async function runDatalistPickScenario(browser, baseUrl) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+    await page.click('#add-row-btn');
+    await page.waitForTimeout(50);
+    const nameInput = page.locator('[data-field="opName"]');
+
+    // --- 手打ちで名前が完全一致しただけでは確定しない(blur/Enterを待つ) ---
+    await nameInput.focus();
+    await page.keyboard.type('Ash');
+    await page.waitForTimeout(100);
+    ok('typing an exact operator name does not confirm the row yet',
+      (await page.locator('select[data-field="entryIdx"]:not([disabled])').count()) === 0);
+
+    // --- datalistのサジェスト選択(insertReplacementText)は即確定する ---
+    // (ネイティブのdatalistポップアップはPlaywrightから操作できないので、選択時に
+    // ブラウザが投げるのと同じInputEventを直接投げて模擬する)
+    await nameInput.evaluate((el) => {
+      el.value = 'ホルン';
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+    });
+    await page.waitForTimeout(100);
+    ok('picking a datalist suggestion confirms the row immediately',
+      (await page.locator('select[data-field="entryIdx"]:not([disabled])').count()) === 1
+        && (await page.locator('[data-field="opName"]').inputValue()) === 'ホルン');
+    ok('focus stays on the operator name input after the pick',
+      await page.evaluate(() => document.activeElement && document.activeElement.dataset.field === 'opName'));
+  } finally {
+    await context.close();
+  }
+}
+
 /* ========================================================================= *
  * main
  * ========================================================================= */
@@ -1757,6 +1793,7 @@ try {
   await runPotentialScenario(browser, baseUrl);
   await runFwSpecialScenario(browser, baseUrl);
   await runLinkedBuffScenario(browser, baseUrl);
+  await runDatalistPickScenario(browser, baseUrl);
 } catch (e) {
   fail++;
   console.log('FAIL  fatal -> ' + (e && e.stack ? e.stack : e));
