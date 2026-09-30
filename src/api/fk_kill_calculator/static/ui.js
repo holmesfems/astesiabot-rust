@@ -437,12 +437,11 @@ function catalogDefaults(entry, skillLevel) {
 }
 
 // P10(混合スキル): パーツ(entry.parts[partIndex])単位のカタログ既定値
-// (multiplier/hits/dmgTypeのみ。selfPct/dmgMultはパーツを持たない)。
+// (multiplier/dmgTypeのみ。Hit数は行で共通、selfPct/dmgMultはパーツを持たない)。
 function partCatalogDefaults(part, skillLevel) {
-  if (!part) return { multiplier: null, hits: null, dmgType: null };
+  if (!part) return { multiplier: null, dmgType: null };
   return {
     multiplier: valueAtLevel(part.multiplierByLevel, skillLevel),
-    hits: part.hits.value,
     dmgType: part.damageType.value,
   };
 }
@@ -461,7 +460,7 @@ function fieldBadges(entry, field, currentValue, idx, skillLevel, partIndex = 0)
   if (!entry) return "";
   const part = partIndex > 0 ? entry.parts && entry.parts[partIndex] : null;
   const sourceMap = part
-    ? { multiplier: part.multiplier, hits: part.hits, dmgType: part.damageType }
+    ? { multiplier: part.multiplier, dmgType: part.damageType }
     : { multiplier: entry.multiplier, selfPct: entry.selfAtkPct, hits: entry.hits, dmgType: entry.damageType };
   const src = sourceMap[field];
   const partAttr = partIndex ? ` data-part="${partIndex}"` : "";
@@ -698,8 +697,9 @@ function renderModuleUnusableHint(op, row) {
 // P10(混合スキル): ダメージ種別/倍率/[倍率候補。パーツ無し限定]/Hit数/ダメージ倍率%を
 // まとめて描く。`entry.parts`が無い/1件以下(=混合スキルではない通常エントリ)なら
 // 従来通りの単一ブロック(data-partは付けない=パーツ0扱いのまま)、2件以上あれば
-// パーツごとの小ブロック(見出し=パーツラベル。例: "物理"/"術")を並べる。倍率候補
-// セレクトはパーツ有りエントリでは出さない(overrideでキーが指定済みのため)。
+// 共通のHit数欄1つ + パーツごとの小ブロック(見出し=パーツラベル。例: "物理"/"術"。
+// 中身は倍率/ダメージ倍率%だけ)を並べる。ダメージ種別は見出しで自明なので選ばせず、
+// 倍率候補セレクトも出さない(overrideでキーが指定済みのため)。
 function renderDamagePartsSection(entry, row, idx) {
   const parts = (entry && entry.parts) || [];
   if (parts.length < 2) {
@@ -736,35 +736,29 @@ function renderDamagePartsSection(entry, row, idx) {
     </div>`;
   }
 
-  return parts
+  // Hit数は全パーツ共通(1回の攻撃で全パーツが同時に出るため)。row.hitsだけを持つ。
+  const sharedHits = `
+    <div class="row-grid2">
+      <label>Hit数（${escapeHtml(parts.map((p) => p.label).join("・"))}共通）
+        <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
+        ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
+      </label>
+    </div>`;
+  return sharedHits + parts
     .map((part, partIndex) => {
       const target = partIndex === 0 ? row : (row.extraParts && row.extraParts[partIndex - 1]) || {};
-      const dmgType = target.dmgType ?? part.damageType.value;
+      // ダメージ種別はパーツ見出し(ラベル。例: "物理"/"術")で自明なので選ばせない
+      // (カタログのpart.damageTypeのまま。row.dmgType/extraParts[i].dmgTypeに入っている)。
       const multiplier = target.multiplier ?? valueAtLevel(part.multiplierByLevel, row.skillLevel);
-      const hits = target.hits ?? part.hits.value;
       const dmgMult = target.dmgMult ?? 1;
       const partAttr = partIndex ? ` data-part="${partIndex}"` : "";
       return `
       <div class="row-part-block">
         <h4 class="row-part-heading">${escapeHtml(part.label)}</h4>
         <div class="row-grid2">
-          <label>ダメージ種別
-            <select data-role="row" data-field="dmgType" data-idx="${idx}"${partAttr}>
-              <option value="physical"${dmgType === "physical" ? " selected" : ""}>物理</option>
-              <option value="arts"${dmgType === "arts" ? " selected" : ""}>術</option>
-              <option value="true"${dmgType === "true" ? " selected" : ""}>真</option>
-            </select>
-            ${fieldBadges(entry, "dmgType", dmgType, idx, row.skillLevel, partIndex)}
-          </label>
           <label>倍率
             <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}"${partAttr} value="${trimNum(multiplier)}">
             ${fieldBadges(entry, "multiplier", multiplier, idx, row.skillLevel, partIndex)}
-          </label>
-        </div>
-        <div class="row-grid2">
-          <label>Hit数
-            <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}"${partAttr} value="${hits}">
-            ${fieldBadges(entry, "hits", hits, idx, row.skillLevel, partIndex)}
           </label>
           <label>ダメージ倍率%
             <input type="number" step="any" data-role="row" data-field="dmgMult" data-idx="${idx}"${partAttr} value="${fmtPct(dmgMult, 3)}">
@@ -888,7 +882,7 @@ function renderFormulaLine(op, row) {
   const lines = parts.map((d, i) => {
     const partLabel = isMulti && entry && entry.parts && entry.parts[i] ? `${entry.parts[i].label}: ` : "";
     const partMultiplier = i === 0 ? row.multiplier : ((row.extraParts && row.extraParts[i - 1] && row.extraParts[i - 1].multiplier) ?? 0);
-    const partHits = i === 0 ? row.hits : ((row.extraParts && row.extraParts[i - 1] && row.extraParts[i - 1].hits) ?? 0);
+    const partHits = row.hits; // Hit数は全パーツ共通
     const multiplierPart =
       specialMulFactor !== 1 ? `${fmtPct(partMultiplier)}% × ×${trimNum(specialMulFactor)}(${specialLabel})` : `${fmtPct(partMultiplier)}%`;
     // 鼓舞(固定値)は%適用後・倍率の前に足すので、鼓舞がある時は外側を括弧で囲んで
@@ -1506,14 +1500,14 @@ function onOperatorNameChange(idx, name) {
 }
 
 // P10(混合スキル): data-part(1以上)ならrow.extraParts[part-1]、それ以外(未指定/0)なら
-// row自身を対象にする共通ヘルパー。dmgType/multiplier/hits/dmgMultだけがdata-partを
+// row自身を対象にする共通ヘルパー。multiplier/dmgMultだけがdata-partを
 // 持ちうる(selfPct/buffPct/ignoreDef等は元々data-part無しの入力なので、このヘルパーを
 // 通しても常にrow自身が返る)。
 function partTarget(row, el) {
   const partIndex = el.dataset.part ? Number(el.dataset.part) : 0;
   if (partIndex <= 0) return row;
   if (!row.extraParts) row.extraParts = [];
-  if (!row.extraParts[partIndex - 1]) row.extraParts[partIndex - 1] = { multiplier: 0, hits: 0, dmgType: "physical", dmgMult: 1 };
+  if (!row.extraParts[partIndex - 1]) row.extraParts[partIndex - 1] = { multiplier: 0, dmgType: "physical", dmgMult: 1 };
   return row.extraParts[partIndex - 1];
 }
 
@@ -1634,7 +1628,7 @@ function onResetField(idx, field, partIndex = 0) {
     const defaults = partCatalogDefaults(part, row.skillLevel);
     if (defaults[field] === null || defaults[field] === undefined) return;
     if (!row.extraParts) row.extraParts = [];
-    if (!row.extraParts[partIndex - 1]) row.extraParts[partIndex - 1] = { multiplier: 0, hits: 0, dmgType: "physical", dmgMult: 1 };
+    if (!row.extraParts[partIndex - 1]) row.extraParts[partIndex - 1] = { multiplier: 0, dmgType: "physical", dmgMult: 1 };
     row.extraParts[partIndex - 1][field] = defaults[field];
     render();
     return;

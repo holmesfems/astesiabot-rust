@@ -1746,7 +1746,7 @@ async function runDatalistPickScenario(browser, baseUrl) {
 }
 
 // P10: 混合スキル(物理+術。ホルンS2)。FK対象の選択肢が「物理+術」1つにまとまっていること、
-// パーツ欄が2ブロック(見出し=物理/術)出ること、術パーツのHit数を打鍵で変えると合計
+// パーツ欄が2ブロック(見出し=物理/術)出ること、共通のHit数を打鍵で変えると合計
 // (式表示の"合計 = N")が更新されること、昇進を変えると両パーツ(共有ATK)に効くことを検証する。
 async function runMixedSkillPartsScenario(browser, baseUrl) {
   const context = await browser.newContext();
@@ -1775,20 +1775,24 @@ async function runMixedSkillPartsScenario(browser, baseUrl) {
     ok('multiplier-candidate select is hidden for parts entries',
       (await page.locator('.row-expanded select[data-field="multiplierCandidate"]').count()) === 0);
 
-    // --- 術パーツのHit数を打鍵で変えると合計(式表示の"合計 = N")が更新される ---
+    // --- ダメージ種別はパーツ見出しで自明なので選ばせない ---
+    ok('damage-type select is hidden for parts entries',
+      (await page.locator('.row-expanded select[data-field="dmgType"]').count()) === 0);
+
+    // --- Hit数は全パーツ共通の1欄だけ。打鍵で変えると合計(式表示の"合計 = N")が更新される ---
+    const hitsInputs = page.locator('.row-expanded input[data-field="hits"]');
+    ok('exactly one shared hits input (no per-part hits)', (await hitsInputs.count()) === 1);
+    ok('the shared hits input has no data-part attribute',
+      (await page.locator('.row-expanded input[data-field="hits"][data-part]').count()) === 0);
     const damageBeforeHits = lastEqualsNumber(await page.locator('.row-formula').innerText());
-    const artsHitsInput = page.locator('.row-expanded input[data-field="hits"][data-part="1"]');
-    ok('the 術(part1) hits input is addressable via data-part="1"', (await artsHitsInput.count()) === 1);
-    await artsHitsInput.fill('');
-    await artsHitsInput.pressSequentially('9');
+    await hitsInputs.fill('');
+    await hitsInputs.pressSequentially('9');
     await page.waitForTimeout(150);
     const damageAfterHits = lastEqualsNumber(await page.locator('.row-formula').innerText());
-    ok('typing into the 術 part hits field updates the combined total', damageAfterHits > damageBeforeHits, `${damageBeforeHits} -> ${damageAfterHits}`);
-
-    // 物理パーツ(パーツ0=トップレベル)のHit数入力はdata-partを持たず、術側の編集で変わらない。
-    const physicalHitsInput = page.locator('.row-expanded input[data-field="hits"]:not([data-part])');
-    ok('the 物理(part0) hits input has no data-part attribute and is unaffected by the 術 edit',
-      (await physicalHitsInput.inputValue()) === '5', await physicalHitsInput.inputValue());
+    ok('typing into the shared hits field updates the combined total', damageAfterHits > damageBeforeHits, `${damageBeforeHits} -> ${damageAfterHits}`);
+    const formulaAfterHits = await page.locator('.row-formula').innerText();
+    ok('both part lines use the shared hit count (×9Hit twice)',
+      (formulaAfterHits.match(/× 9Hit/g) || []).length === 2, formulaAfterHits);
 
     // --- 昇進を変えると両パーツ(共有ATK)に効く ---
     await page.locator('.row-expanded select[data-field="elite"]').selectOption('1'); // E2 -> E1

@@ -2108,14 +2108,18 @@ console.log("\n=== P10: 混合スキル(物理+術。例: ホルンS2)の複数�
     multiplier: 2,
     hits: 1,
     moduleId: null,
-    extraParts: [{ multiplier: 1, hits: 1, dmgType: "arts", dmgMult: 1 }],
+    extraParts: [{ multiplier: 1, dmgType: "arts", dmgMult: 1 }],
   });
 
   // --- expandRowParts: パーツ0=row自身、パーツ1=extraParts[0]で上書きした疑似行 ---
   {
     const expanded = expandRowParts(comboRow);
     check("expandRowParts: パーツ0はrow自身", expanded[0] === comboRow);
-    check("expandRowParts: パーツ1はdmgType/multiplier/hits/dmgMultだけ上書き", expanded[1].dmgType === "arts" && expanded[1].multiplier === 1 && expanded[1].hits === 1 && expanded[1].opId === "combo");
+    check("expandRowParts: パーツ1はdmgType/multiplier/dmgMultだけ上書き", expanded[1].dmgType === "arts" && expanded[1].multiplier === 1 && expanded[1].opId === "combo");
+    check("expandRowParts: Hit数は全パーツ共通(row.hits)", expanded[1].hits === comboRow.hits);
+    const staleHits = expandRowParts({ ...comboRow, hits: 3, extraParts: [{ multiplier: 1, hits: 99, dmgType: "arts", dmgMult: 1 }] });
+    check("expandRowParts: extraPartsに旧形のhitsが残っていても無視して行のhitsを使う", staleHits[1].hits === 3, staleHits[1].hits);
+    check("makeDefaultExtraPartsはhitsを持たない", !("hits" in makeDefaultExtraParts(comboOp.fkEntries[0], 10)[0]));
     check("expandRowParts: パーツを持たない行は[row]のみ", expandRowParts(row({ opId: "combo" })).length === 1);
   }
 
@@ -2157,23 +2161,17 @@ console.log("\n=== P10: 混合スキル(物理+術。例: ホルンS2)の複数�
     approxEqual(withBuff.parts[1].final, rowNoBuff.parts[1].final * 1.5, 1e-6, "共有selfPctは術パーツにも効く");
   }
 
-  // --- suggest: rowHitsの提案がpartIndex付きで出る ---
+  // --- suggest: Hit数は全パーツ共通なので、rowHitsの提案は行単位で1件だけ ---
   {
-    // 物理2000+術1000=3000。HPを4000にすると、物理Hit+1(→5000)でも術Hit+1(→4000)でも
-    // 撃破できるので、両方のpartIndexでrowHits提案が出るはず。
-    const state = { v: 1, enemy: { ...enemyNeutral, hp: 4000 }, rows: [comboRow], globalBuffIds: [] };
+    // 物理2000+術1000=3000/Hit。HPを5000にすると共通Hit+1(→6000)で撃破できる。
+    const state = { v: 1, enemy: { ...enemyNeutral, hp: 5000 }, rows: [comboRow], globalBuffIds: [] };
     const suggestions = suggest(state, comboCatalog);
-    const hits0 = suggestions.find((s) => s.kind === "rowHits" && s.partIndex === 0);
-    const hits1 = suggestions.find((s) => s.kind === "rowHits" && s.partIndex === 1);
-    check("パーツ0(物理)のHit数提案が出る", !!hits0, suggestions);
-    check("パーツ1(術)のHit数提案が出る", !!hits1, suggestions);
-    if (hits1) {
-      const desc = describeSuggestion(hits1, comboCatalog, [comboRow]);
-      check(`describeSuggestionがパーツラベル付きで出る: "${desc}"`, desc === "combo(術)のHit数を+1増やす", desc);
-    }
-    if (hits0) {
-      const desc0 = describeSuggestion(hits0, comboCatalog, [comboRow]);
-      check(`パーツ0はラベルを付けない: "${desc0}"`, desc0 === "comboのHit数を+1増やす", desc0);
+    const hitsSugs = suggestions.filter((s) => s.kind === "rowHits");
+    check("混合スキル行のHit数提案は1件だけ", hitsSugs.length === 1, suggestions);
+    if (hitsSugs[0]) {
+      check("Hit数提案は両パーツ合計で撃破できる最小値(+1)", hitsSugs[0].amount === 1, hitsSugs[0]);
+      const desc = describeSuggestion(hitsSugs[0], comboCatalog, [comboRow]);
+      check(`describeSuggestionはパーツラベルを付けない: "${desc}"`, desc === "comboのHit数を+1増やす", desc);
     }
   }
 
@@ -2193,7 +2191,7 @@ console.log("\n=== P10: 混合スキル(物理+術。例: ホルンS2)の複数�
     const expectedDefaults = makeDefaultExtraParts(comboOp.fkEntries[0], fixedRow.skillLevel);
     check("補修後の値がentry.parts[1]のカタログ既定値と一致する", JSON.stringify(fixedRow.extraParts) === JSON.stringify(expectedDefaults), fixedRow.extraParts);
 
-    const shapeBadState = { ...badState, rows: [{ ...comboRow, extraParts: [{ multiplier: "not-a-number", hits: 1, dmgType: "arts", dmgMult: 1 }] }] };
+    const shapeBadState = { ...badState, rows: [{ ...comboRow, extraParts: [{ multiplier: "not-a-number", dmgType: "arts", dmgMult: 1 }] }] };
     const { state: cleanedShape } = dropStaleRows(shapeBadState, comboCatalog);
     check(
       "extraPartsの形が壊れていても(multiplierが数値でない)補修される",
@@ -2201,11 +2199,11 @@ console.log("\n=== P10: 混合スキル(物理+術。例: ホルンS2)の複数�
       cleanedShape.rows[0].extraParts,
     );
 
-    const okState = { ...badState, rows: [{ ...comboRow, extraParts: [{ multiplier: 1.5, hits: 2, dmgType: "arts", dmgMult: 1 }] }] };
+    const okState = { ...badState, rows: [{ ...comboRow, extraParts: [{ multiplier: 1.5, dmgType: "arts", dmgMult: 1.2 }] }] };
     const { state: cleanedOk } = dropStaleRows(okState, comboCatalog);
     check(
       "正しい形のextraPartsはそのまま保持される",
-      cleanedOk.rows[0].extraParts[0].multiplier === 1.5 && cleanedOk.rows[0].extraParts[0].hits === 2,
+      cleanedOk.rows[0].extraParts[0].multiplier === 1.5 && cleanedOk.rows[0].extraParts[0].dmgMult === 1.2,
       cleanedOk.rows[0].extraParts,
     );
   }

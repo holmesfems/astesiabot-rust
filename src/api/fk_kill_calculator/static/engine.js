@@ -90,10 +90,11 @@
 
    P10で追加した「混合スキル」(`entry.parts`。例: ホルンS2の物理+術)。1回の攻撃で
    複数系統のダメージパーツを同時に与えるスキルは、育成・バフ設定(昇進/潜在/モジュール/
-   スキルLv/セルフ%/手入力バフ/防御無視/個別バフ/条件付きバフ/特殊強化/鼓舞)を1つだけ
-   共有し、パーツごとに違うのは倍率/Hit数/ダメージ種別/ダメージ倍率だけにする。
-   `row`自身が常にパーツ0(トップレベルのmultiplier/hits/dmgType/dmgMultがそのまま
-   パーツ0の値)で、2番目以降は`row.extraParts[i]`(`{multiplier, hits, dmgType, dmgMult}`)
+   スキルLv/セルフ%/手入力バフ/防御無視/Hit数/個別バフ/条件付きバフ/特殊強化/鼓舞)を1つだけ
+   共有し、パーツごとに違うのは倍率/ダメージ種別/ダメージ倍率だけにする(Hit数は1回の攻撃で
+   全パーツが同時に出るため共通。ダメージ種別はカタログ固定でUIからは選ばせない)。
+   `row`自身が常にパーツ0(トップレベルのmultiplier/dmgType/dmgMultがそのまま
+   パーツ0の値)で、2番目以降は`row.extraParts[i]`(`{multiplier, dmgType, dmgMult}`)
    に持つ(トップレベルへのミラーは作らない。同期問題を避けるため)。`expandRowParts(row)`が
    `[row, {...row,...extraParts[0]}, ...]`という疑似行配列を返し、`computeTotal`が
    各疑似行に`computeRowDamage`を適用してから合算する(バフ内訳/鼓舞/特殊強化は行で1回
@@ -170,8 +171,8 @@ function resolvePartMultiplierAtLevel(part, skillLevel) {
 
 /**
  * P10(混合スキル): `entry.parts[1..]`から、現在のスキルLvでの実効値を持つ
- * `row.extraParts`の既定配列を作る(倍率は`resolvePartMultiplierAtLevel`、Hit数/
- * ダメージ種別はそのパーツの値そのまま、ダメージ倍率は既定1)。`entryIdx`/`skillLevel`
+ * `row.extraParts`の既定配列を作る(倍率は`resolvePartMultiplierAtLevel`、
+ * ダメージ種別はそのパーツの値そのまま、ダメージ倍率は既定1。Hit数は行で共通なので持たない)。`entryIdx`/`skillLevel`
  * 変更時に`makeDefaultRow`と同じくこれで再スナップする。`entry.parts`が無い/1件以下
  * (=混合スキルではない通常エントリ)なら空配列。
  */
@@ -179,7 +180,6 @@ export function makeDefaultExtraParts(entry, skillLevel = 10) {
   const parts = (entry && entry.parts) || [];
   return parts.slice(1).map((p) => ({
     multiplier: resolvePartMultiplierAtLevel(p, skillLevel),
-    hits: p.hits.value,
     dmgType: p.damageType.value,
     dmgMult: 1,
   }));
@@ -187,15 +187,16 @@ export function makeDefaultExtraParts(entry, skillLevel = 10) {
 
 /**
  * P10(混合スキル): 行を「パーツごとの疑似行」配列に展開する。row自身が常にパーツ0
- * (multiplier/hits/dmgType/dmgMultはトップレベルのまま)、2番目以降は
- * `row.extraParts[i]`の値で上書きした疑似行(それ以外のフィールド=opId/entryIdx/
- * elite/level/trust/potential/moduleId/moduleLv/selfPct/buffPct/ignoreDef/buffIds/
- * specialOn/inspireOn等は行のまま共有する)。`computeTotal`/`suggest`がパーツ単位で
- * ダメージを計算する入口。`row.extraParts`が無ければ`[row]`(通常行と完全互換)。
+ * (multiplier/dmgType/dmgMultはトップレベルのまま)、2番目以降は
+ * `row.extraParts[i]`のmultiplier/dmgType/dmgMultだけで上書きした疑似行(それ以外の
+ * フィールド=opId/entryIdx/elite/level/trust/potential/moduleId/moduleLv/selfPct/
+ * buffPct/ignoreDef/hits/buffIds/specialOn/inspireOn等は行のまま共有する。extraPartsに
+ * 余計なフィールド[旧形のhits等]が残っていても拾わない)。`computeTotal`/`suggest`が
+ * パーツ単位でダメージを計算する入口。`row.extraParts`が無ければ`[row]`(通常行と完全互換)。
  */
 export function expandRowParts(row) {
   const extra = (row && row.extraParts) || [];
-  return [row, ...extra.map((p) => ({ ...row, ...p }))];
+  return [row, ...extra.map((p) => ({ ...row, multiplier: p.multiplier, dmgType: p.dmgType, dmgMult: p.dmgMult }))];
 }
 
 /**
@@ -1171,7 +1172,7 @@ function isValidExtraParts(extraParts, expectedLen) {
   if (expectedLen === 0) return !extraParts || extraParts.length === 0;
   if (!Array.isArray(extraParts) || extraParts.length !== expectedLen) return false;
   return extraParts.every(
-    (p) => p && typeof p.multiplier === "number" && typeof p.hits === "number" && typeof p.dmgType === "string" && typeof p.dmgMult === "number",
+    (p) => p && typeof p.multiplier === "number" && typeof p.dmgType === "string" && typeof p.dmgMult === "number",
   );
 }
 
@@ -1373,24 +1374,12 @@ export function suggest(state, catalog) {
       suggestions.push({ kind: "rowBuffPct", rowIndex: i, amount: buffNeeded, effort: buffNeeded });
     }
 
-    // P10(混合スキル): Hit数の提案はパーツごとに出す(partIndex。0ならトップレベルhits、
-    // 1以上なら`row.extraParts[partIndex-1].hits`)。パーツを持たない通常行は
-    // `r.parts.length === 1`なのでpartIndex=0の1回だけ試す(従来通り)。
-    const partCount = r.parts.length;
-    for (let partIndex = 0; partIndex < partCount; partIndex++) {
-      const hitsNeeded = minimalIntegerSatisfying(1, SUGGEST_CAP_HITS, (extraHits) =>
-        killsWith(
-          rows.map((row, j) => {
-            if (j !== i) return row;
-            if (partIndex === 0) return { ...row, hits: row.hits + extraHits };
-            const extraParts = (row.extraParts || []).map((p, k) => (k === partIndex - 1 ? { ...p, hits: p.hits + extraHits } : p));
-            return { ...row, extraParts };
-          }),
-        ),
-      );
-      if (hitsNeeded !== null) {
-        suggestions.push({ kind: "rowHits", rowIndex: i, partIndex, amount: hitsNeeded, effort: hitsNeeded + 1 });
-      }
+    // P10(混合スキル): Hit数は全パーツ共通(row.hits)なので、提案も行単位で1回だけ。
+    const hitsNeeded = minimalIntegerSatisfying(1, SUGGEST_CAP_HITS, (extraHits) =>
+      killsWith(rows.map((row, j) => (j === i ? { ...row, hits: row.hits + extraHits } : row))),
+    );
+    if (hitsNeeded !== null) {
+      suggestions.push({ kind: "rowHits", rowIndex: i, amount: hitsNeeded, effort: hitsNeeded + 1 });
     }
   });
 
@@ -1498,20 +1487,11 @@ export function describeSuggestion(sug, catalog, rows) {
     const op = findOperator(catalog, rows[idx].opId);
     return op ? op.name : "?";
   };
-  // P10(混合スキル): partIndexが1以上ならパーツラベル(例: "(術)")を付ける。
-  // パーツを持たない行/partIndex=0では何も付けない(従来通りの文言のまま)。
-  const partLabel = (idx, partIndex) => {
-    if (!partIndex) return "";
-    const op = findOperator(catalog, rows[idx].opId);
-    const entry = op ? findEntry(op, rows[idx].entryIdx) : null;
-    const part = entry && entry.parts && entry.parts[partIndex];
-    return part ? `(${part.label})` : "";
-  };
   switch (sug.kind) {
     case "rowBuffPct":
       return `${rowOpName(sug.rowIndex)}のバフを+${sug.amount}%増やす`;
     case "rowHits":
-      return `${rowOpName(sug.rowIndex)}${partLabel(sug.rowIndex, sug.partIndex)}のHit数を+${sug.amount}増やす`;
+      return `${rowOpName(sug.rowIndex)}のHit数を+${sug.amount}増やす`;
     case "enemyDefFlat":
       return `敵の防御を-${sug.amount}させる`;
     case "enemyResFlat":

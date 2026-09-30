@@ -485,7 +485,6 @@ fn build_combined_entry(
                 multiplier,
                 multiplier_by_level,
                 multiplier_fixed,
-                hits: Valued::from_override(variant.hits, default_hits),
                 damage_type: Valued::from_override(variant.damage_type, default_damage_type),
             }
         })
@@ -519,7 +518,8 @@ fn build_combined_entry(
         self_atk_pct,
         self_atk_pct_by_level,
         self_atk_pct_fixed,
-        head_part.hits,
+        // Hit数は全パーツ共通(1回の攻撃で全パーツが同時に出る)なので先頭バリアントの値だけを使う。
+        Valued::from_override(head.hits, default_hits),
         head_part.damage_type,
         tags_for_head,
         special,
@@ -810,6 +810,9 @@ pub fn validate_combined_variants(overrides: &Overrides) -> Vec<String> {
         for (i, variant) in variants.iter().enumerate().skip(1) {
             if variant.self_atk_pct.is_some() || variant.self_atk_pct_factor.is_some() {
                 bad.push(format!("{op_id}/{skill_num} (combinedバリアント{i}がself_atk_pct/self_atk_pct_factorを持っている。先頭バリアントのみ許可)"));
+            }
+            if variant.hits.is_some() {
+                bad.push(format!("{op_id}/{skill_num} (combinedバリアント{i}がhitsを持っている。Hit数は全パーツ共通なので先頭バリアントのみ許可)"));
             }
             if variant.special.is_some() {
                 bad.push(format!("{op_id}/{skill_num} (combinedバリアント{i}がspecialを持っている。先頭バリアントのみ許可)"));
@@ -1299,14 +1302,13 @@ mod tests {
         assert_eq!(physical.multiplier_by_level.first().copied(), Some(1.3));
         assert_eq!(physical.multiplier_by_level.last().copied(), Some(2.4));
         assert_eq!(physical.damage_type.value, dto::DamageType::Physical);
-        assert_eq!(physical.hits.value, 5);
+        assert_eq!(s2.hits.value, 5, "Hit数は全パーツ共通でFkEntry.hits(先頭バリアント)に持つ");
 
         let arts = &s2.parts[1];
         assert_eq!(arts.label, "術");
         assert_eq!(arts.multiplier_by_level.first().copied(), Some(0.3));
         assert_eq!(arts.multiplier_by_level.last().copied(), Some(0.6));
         assert_eq!(arts.damage_type.value, dto::DamageType::Arts);
-        assert_eq!(arts.hits.value, 5);
     }
 
     /// P10: overrides.yamlの`combined`(P10)が正しく使われていることのドリフト検知。

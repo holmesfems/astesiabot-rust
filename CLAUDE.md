@@ -807,34 +807,37 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   (どちらも「自身+ランダムな味方1名」に付与する効果のため)。
 - **fk_kill_calculatorの混合スキル(P10。物理+術を同時に与えるスキル。例: ホルンS2)は
   1行の中に複数のダメージパーツを持ち、育成・バフ設定は1つ(同じものを参照)、パーツごとに
-  違うのは倍率/Hit数/ダメージ種別/ダメージ倍率だけにする**: 従来は`overrides.yaml`で
+  違うのは倍率/ダメージ種別/ダメージ倍率だけにする**: 従来は`overrides.yaml`で
   「物理」「術」の2バリアント(別FKエントリ)に分けていたため、ユーザーが2行追加して
   昇進/潜在/モジュール/スキルLv/バフ等を両方に手で揃える必要があった。P10でこれを廃止し、
-  物理のみ/術のみの単独選択肢も無くした(オーナー承認済み)。
+  物理のみ/術のみの単独選択肢も無くした(オーナー承認済み)。**Hit数は全パーツ共通**
+  (1回の攻撃で全パーツが同時に出るため。オーナー指示)で、行の`hits`1つだけを持つ。
+  **ダメージ種別はカタログ固定でUIから選ばせない**(パーツ見出しで自明。オーナー指示)。
   - データ層: `overrides.yaml`の`OverrideVariant.combined: bool`(省略時false)。同じ
     skill_num内で`combined: true`のバリアント群を`build_catalog`(`build_combined_entry`)が
     1つの`FkEntry`にまとめる。先頭バリアントがパーツ0(`FkEntry`のトップレベル
-    multiplier/hits/damageType等 = このパーツの値そのもの)になり、self_atk_pct/special/
+    multiplier/hits/damageType等 = このパーツの値そのもの)になり、hits/self_atk_pct/special/
     tags/note/default_moduleは先頭バリアントのものだけを採用する(2番目以降がこれらを
     持っていない、defaultModuleを持つ場合は先頭と同値であることを`validate_combined_variants`
     [`cargo test`]が検証する)。`variant_label`はパーツラベルを"+"で連結する(例: "物理+術")。
-    `dto::FkPart`(`{label, multiplier, multiplierByLevel, multiplierFixed, hits, damageType}`)
+    `dto::FkPart`(`{label, multiplier, multiplierByLevel, multiplierFixed, damageType}`)
     が`FkEntry.parts`(先頭も含む全パーツ。通常エントリは空でJSONにも出さない)を持つ。
-  - 計算層(`engine.js`): 行のトップレベル(multiplier/hits/dmgType/dmgMult)が常にパーツ0
-    そのもので、2番目以降は`row.extraParts: [{multiplier, hits, dmgType, dmgMult}]`
+  - 計算層(`engine.js`): 行のトップレベル(multiplier/dmgType/dmgMult)が常にパーツ0
+    そのもので、2番目以降は`row.extraParts: [{multiplier, dmgType, dmgMult}]`
     (トップレベルへのミラーは作らない。同期問題を避けるため)。`makeDefaultRow`/entryIdx
     変更/skillLevel変更のたびに`makeDefaultExtraParts(entry, skillLevel)`で
     `entry.parts[1..]`から再スナップする。`expandRowParts(row)`(export)が
-    `[row, {...row, ...extraParts[0]}, ...]`という疑似行配列を返し、`computeTotal`は
+    `[row, {...row, multiplier/dmgType/dmgMultだけextraParts[0]の値}, ...]`という疑似行配列を
+    返し(extraPartsに余計なフィールドが残っていても拾わない)、`computeTotal`は
     行ごとに各パーツへ`computeRowDamage`を適用してから合算する(バフ内訳/鼓舞/特殊強化は
     行で1回だけ計算し全パーツ共通に使う。selfPct/buffPct/ignoreDefは元々行の共有フィールド
     なので、部分的にしか無い`extraParts`の対象にはならない)。結果は従来のフィールド
     (パーツ0の値)に加えて`parts: [dmg0, dmg1, ...]`を持つ。`suggest`のHit数提案は
-    パーツごとに出す(`partIndex`。0ならトップレベルhits、1以上ならextraParts)。
+    Hit数が共通なので行単位で1件だけ出す(通常行と同じ)。
     `dropStaleRows`は`extraParts`の長さ/形が`entry.parts`と合わなければ
     `makeDefaultExtraParts`で作り直す(プロトタイプなので丁寧な移行はしない)。
   - 表現層(`ui.js`): 共有設定は1回だけ描画し、パーツが2つ以上あるエントリだけ
-    `renderDamagePartsSection`がダメージ種別/倍率/Hit数/ダメージ倍率%をパーツごとの
+    `renderDamagePartsSection`が共通のHit数欄1つ + 倍率/ダメージ倍率%をパーツごとの
     小ブロック(`.row-part-block`。見出し=パーツラベル)で並べる(1件以下の通常エントリは
     従来通りの単一ブロック)。入力要素には`data-part="<n>"`(0は省略)を付け、
     `onRowFieldChange`/`renderLive`/`reset-field`はこれを見て`row`自身か
