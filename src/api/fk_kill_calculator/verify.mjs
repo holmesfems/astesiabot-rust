@@ -47,6 +47,10 @@ import {
   effectiveBuffLevels,
   computeEffectiveGlobalBuffLevels,
   autoEnableSourcedBuffs,
+  expandRowParts,
+  makeDefaultExtraParts,
+  findOperator,
+  findEntry,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -2040,6 +2044,178 @@ console.log("\n=== 初期モジュール(overrideのdefault_module) ===\n");
   check("存在しないdefaultModuleは無視して既定に戻る", defaultModuleId(hornLike, { defaultModule: "uniequip_999_x" }) === "uniequip_003_horn");
   const hornWithEntries = { ...hornLike, fkEntries: [{ skillNum: "1" }, { skillNum: "2", defaultModule: "uniequip_002_horn" }] };
   check("選んだエントリに指定が無くても、同じオペの他エントリのdefaultModuleを使う", defaultModuleId(hornWithEntries, hornWithEntries.fkEntries[0]) === "uniequip_002_horn");
+}
+
+console.log("\n=== P10: 混合スキル(物理+術。例: ホルンS2)の複数ダメージパーツ ===\n");
+{
+  // atkBase=1000・潜在/モジュール無しの単純なop。物理パーツ(倍率2)+術パーツ(倍率1)を
+  // combined:trueで1エントリにまとめた想定(Rust側のFkEntry.partsをそのまま模した最小形)。
+  const comboOp = {
+    id: "combo",
+    name: "combo",
+    tags: [],
+    atkBase: 1000,
+    atkPotential: 0,
+    modules: [],
+    fkEntries: [
+      {
+        skillNum: "2",
+        skillLabel: "テンペストオーダー",
+        variantLabel: "物理+術",
+        fkNum: "",
+        fkErr: "",
+        detail: "",
+        lastEdited: "",
+        multiplier: { value: 2, source: "manual" },
+        multiplierByLevel: [2],
+        multiplierFixed: true,
+        multiplierCandidates: [],
+        selfAtkPct: { value: 0, source: "auto" },
+        selfAtkPctByLevel: [0],
+        selfAtkPctFixed: false,
+        hits: { value: 1, source: "manual" },
+        damageType: { value: "physical", source: "manual" },
+        tags: [],
+        special: null,
+        defaultModule: null,
+        note: null,
+        parts: [
+          {
+            label: "物理",
+            multiplier: { value: 2, source: "manual" },
+            multiplierByLevel: [2],
+            multiplierFixed: true,
+            hits: { value: 1, source: "manual" },
+            damageType: { value: "physical", source: "manual" },
+          },
+          {
+            label: "術",
+            multiplier: { value: 1, source: "manual" },
+            multiplierByLevel: [1],
+            multiplierFixed: true,
+            hits: { value: 1, source: "manual" },
+            damageType: { value: "arts", source: "manual" },
+          },
+        ],
+      },
+    ],
+  };
+  const comboCatalog = { operators: [comboOp], buffers: [], inspireSources: [] };
+  const comboRow = row({
+    opId: "combo",
+    entryIdx: 0,
+    dmgType: "physical",
+    multiplier: 2,
+    hits: 1,
+    moduleId: null,
+    extraParts: [{ multiplier: 1, hits: 1, dmgType: "arts", dmgMult: 1 }],
+  });
+
+  // --- expandRowParts: パーツ0=row自身、パーツ1=extraParts[0]で上書きした疑似行 ---
+  {
+    const expanded = expandRowParts(comboRow);
+    check("expandRowParts: パーツ0はrow自身", expanded[0] === comboRow);
+    check("expandRowParts: パーツ1はdmgType/multiplier/hits/dmgMultだけ上書き", expanded[1].dmgType === "arts" && expanded[1].multiplier === 1 && expanded[1].hits === 1 && expanded[1].opId === "combo");
+    check("expandRowParts: パーツを持たない行は[row]のみ", expandRowParts(row({ opId: "combo" })).length === 1);
+  }
+
+  // --- 合計=各パーツの和。防御は物理だけ・術耐性は術だけに効く ---
+  {
+    const enemy = { ...enemyNeutral, def: 300, res: 30 };
+    const { results } = computeTotal(comboCatalog, [comboRow], enemy);
+    const r = results[0];
+    check("パーツは2件", r.parts.length === 2);
+    approxEqual(r.parts[0].rowDamage + r.parts[1].rowDamage, r.rowDamage, 1e-9, "rowDamageは各パーツの和");
+    // 物理パーツ: final=1000×2=2000、防御300で1700。術パーツ: final=1000×1=1000、
+    // 術耐性30%で700。防御は物理にだけ、術耐性は術にだけ効くことを確認する。
+    approxEqual(r.parts[0].perHit, 1700, 1e-6, "物理パーツは防御300の影響を受ける");
+    approxEqual(r.parts[1].perHit, 700, 1e-6, "術パーツは術耐性30の影響を受ける");
+    const enemyNoDef = { ...enemyNeutral, res: 30 };
+    const noDef = computeTotal(comboCatalog, [comboRow], enemyNoDef).results[0];
+    check("術パーツは防御の影響を受けない(defを0にしても値が変わらない)", noDef.parts[1].perHit === r.parts[1].perHit);
+    const enemyNoRes = { ...enemyNeutral, def: 300 };
+    const noRes = computeTotal(comboCatalog, [comboRow], enemyNoRes).results[0];
+    check("物理パーツは術耐性の影響を受けない(resを0にしても値が変わらない)", noRes.parts[0].perHit === r.parts[0].perHit);
+  }
+
+  // --- ignoreDef(共有)は物理パーツにだけ効く ---
+  {
+    const enemy = { ...enemyNeutral, def: 300 };
+    const withoutIgnore = computeTotal(comboCatalog, [comboRow], enemy).results[0];
+    const rowWithIgnore = { ...comboRow, ignoreDef: 100 };
+    const withIgnore = computeTotal(comboCatalog, [rowWithIgnore], enemy).results[0];
+    check("ignoreDefは物理パーツのperHitを増やす", withIgnore.parts[0].perHit > withoutIgnore.parts[0].perHit);
+    check("ignoreDefは術パーツに影響しない", withIgnore.parts[1].perHit === withoutIgnore.parts[1].perHit);
+  }
+
+  // --- 共有バフ%(selfPct)が両パーツに効く ---
+  {
+    const rowNoBuff = computeTotal(comboCatalog, [comboRow], enemyNeutral).results[0];
+    const rowWithBuff = { ...comboRow, selfPct: 0.5 };
+    const withBuff = computeTotal(comboCatalog, [rowWithBuff], enemyNeutral).results[0];
+    approxEqual(withBuff.parts[0].final, rowNoBuff.parts[0].final * 1.5, 1e-6, "共有selfPctは物理パーツにも効く");
+    approxEqual(withBuff.parts[1].final, rowNoBuff.parts[1].final * 1.5, 1e-6, "共有selfPctは術パーツにも効く");
+  }
+
+  // --- suggest: rowHitsの提案がpartIndex付きで出る ---
+  {
+    // 物理2000+術1000=3000。HPを4000にすると、物理Hit+1(→5000)でも術Hit+1(→4000)でも
+    // 撃破できるので、両方のpartIndexでrowHits提案が出るはず。
+    const state = { v: 1, enemy: { ...enemyNeutral, hp: 4000 }, rows: [comboRow], globalBuffIds: [] };
+    const suggestions = suggest(state, comboCatalog);
+    const hits0 = suggestions.find((s) => s.kind === "rowHits" && s.partIndex === 0);
+    const hits1 = suggestions.find((s) => s.kind === "rowHits" && s.partIndex === 1);
+    check("パーツ0(物理)のHit数提案が出る", !!hits0, suggestions);
+    check("パーツ1(術)のHit数提案が出る", !!hits1, suggestions);
+    if (hits1) {
+      const desc = describeSuggestion(hits1, comboCatalog, [comboRow]);
+      check(`describeSuggestionがパーツラベル付きで出る: "${desc}"`, desc === "combo(術)のHit数を+1増やす", desc);
+    }
+    if (hits0) {
+      const desc0 = describeSuggestion(hits0, comboCatalog, [comboRow]);
+      check(`パーツ0はラベルを付けない: "${desc0}"`, desc0 === "comboのHit数を+1増やす", desc0);
+    }
+  }
+
+  // --- dropStaleRows: extraPartsの長さ不一致を補修する ---
+  {
+    const badState = {
+      v: 1,
+      enemy: { ...enemyNeutral, hp: 0 },
+      rows: [{ ...comboRow, extraParts: [] }], // 本来2パーツ(=extraParts1件)必要なのに0件
+      globalBuffIds: [],
+      globalBuffLevels: {},
+      inspire: { sources: {} },
+    };
+    const { state: cleaned } = dropStaleRows(badState, comboCatalog);
+    const fixedRow = cleaned.rows[0];
+    check("extraPartsの長さ不一致がmakeDefaultExtraPartsの既定値で補修される", fixedRow.extraParts.length === 1);
+    const expectedDefaults = makeDefaultExtraParts(comboOp.fkEntries[0], fixedRow.skillLevel);
+    check("補修後の値がentry.parts[1]のカタログ既定値と一致する", JSON.stringify(fixedRow.extraParts) === JSON.stringify(expectedDefaults), fixedRow.extraParts);
+
+    const shapeBadState = { ...badState, rows: [{ ...comboRow, extraParts: [{ multiplier: "not-a-number", hits: 1, dmgType: "arts", dmgMult: 1 }] }] };
+    const { state: cleanedShape } = dropStaleRows(shapeBadState, comboCatalog);
+    check(
+      "extraPartsの形が壊れていても(multiplierが数値でない)補修される",
+      JSON.stringify(cleanedShape.rows[0].extraParts) === JSON.stringify(expectedDefaults),
+      cleanedShape.rows[0].extraParts,
+    );
+
+    const okState = { ...badState, rows: [{ ...comboRow, extraParts: [{ multiplier: 1.5, hits: 2, dmgType: "arts", dmgMult: 1 }] }] };
+    const { state: cleanedOk } = dropStaleRows(okState, comboCatalog);
+    check(
+      "正しい形のextraPartsはそのまま保持される",
+      cleanedOk.rows[0].extraParts[0].multiplier === 1.5 && cleanedOk.rows[0].extraParts[0].hits === 2,
+      cleanedOk.rows[0].extraParts,
+    );
+  }
+
+  // --- findEntry(op, entryIdx).parts / findOperatorが正しく解決できること(素通し確認) ---
+  {
+    const foundOp = findOperator(comboCatalog, "combo");
+    const foundEntry = findEntry(foundOp, 0);
+    check("findOperator/findEntry経由でもentry.partsが2件見える", !!foundEntry && foundEntry.parts.length === 2);
+  }
 }
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");

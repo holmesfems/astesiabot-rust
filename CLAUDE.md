@@ -142,7 +142,11 @@ src/
 │       │                build_inspire_sources/validate_inspire_sources（P3。
 │       │                buffers::raw_inspire_sources()+operator_combatをマージして
 │       │                Catalog.inspireSourcesを組み立てる。対象operatorが無ければ
-│       │                `skipped`に"inspire:<id>"として記録し静かに落とす）もここ
+│       │                `skipped`に"inspire:<id>"として記録し静かに落とす）、
+│       │                build_combined_entry/validate_combined_variants（P10。混合スキル
+│       │                [物理+術等]。同じskill_num内でoverrides.yamlの`combined: true`が
+│       │                付いたバリアント群を1つのFkEntryにまとめる。詳細は下記ポイント参照）
+│       │                もここ
 │       ├── conditional_source.rs … 条件付き/個別バフの「ゲームデータからの動的値解決」
 │       │                (P4で条件付き向けに追加、P5で個別バフにも対応)。
 │       │                buffers::raw_conditional_sourced()/raw_individual_sourced()
@@ -169,7 +173,8 @@ src/
 │       │                `scale`/`basePct`/`stage`/`maxTargetsByModule`、ConditionalSkillSource に
 │       │                `varies`、ConditionalSourceDefaultsに`stageIndex`を追加し、
 │       │                ConditionalStageSource/MaxTargetsByModuleを新設。個別バフにも
-│       │                同じDTOを使い回す)もここ
+│       │                同じDTOを使い回す)もここ。FkPart/FkEntry.parts(P10。混合スキル
+│       │                [物理+術等]の複数ダメージパーツ。詳細は下記ポイント参照)もここ
 │       ├── tags.rs    … profession/position/nationIdからタグ・ダメージ属性の初期値を推測する。
 │       │                tag_vocabulary()(P2。近距離/職業/勢力/弾薬スキルの全タグ語彙。
 │       │                overrides.yamlの手動tags・buffers.yamlのtargets/bonus.tagsの
@@ -179,7 +184,10 @@ src/
 │       │                   実行時ファイルI/Oなし）のロード。`Overrides::global()`でプロセス内
 │       │                   1回だけパースして使い回す。OverrideVariant.tags(P2。手動タグの加算)・
 │       │                   OverrideVariant.special(P2。特殊強化。label必須、multiplier/
-│       │                   self_atk_pct/dmg_mult/hitsは全て省略可能)もここ
+│       │                   self_atk_pct/dmg_mult/hitsは全て省略可能)・OverrideVariant.combined
+│       │                   (P10。省略時false。同じskill_num内でtrueのバリアント群を「同時発生
+│       │                   する複数ダメージパーツ」として1つのFkEntryにまとめる。詳細は
+│       │                   下記ポイント参照)もここ
 │       └── buffers.rs … data/fk_kill_calc/buffers.yaml（P2で追加。個別バフ/条件付きバフの
 │                         定義。同じくinclude_str!埋め込み）のロード。`buffers::global()`で
 │                         1回だけパースして使い回す。個別(individual)は行ごとにチップで選ぶ
@@ -296,7 +304,9 @@ src/
 │           │                     resolveConditionalValue(P4。`Buffer.source`(素質/スキルLv由来)
 │           │                     +選択中の昇進/潜在/モジュール/スキルLv/トグルから値を解決する。
 │           │                     Rust側が事前に解決した値テーブルを引くだけで、判定ロジック
-│           │                     自体はRust/JSに重複させない。詳細は下記ポイント参照)もここ
+│           │                     自体はRust/JSに重複させない。詳細は下記ポイント参照)、
+│           │                     expandRowParts/makeDefaultExtraParts(P10。混合スキル
+│           │                     [物理+術等]。詳細は下記ポイント参照)もここ
 │           ├── ui.js           … 表現層。カタログfetch・状態管理・DOM描画。状態はlocalStorageに
 │           │                     自動保存し、アドレスバーのURLは書き換えない（ページ自体を共有
 │           │                     しやすくするため）。#state=付きURLは「共有URLをコピー」時だけ
@@ -318,7 +328,12 @@ src/
 │           │                     全てselect/checkboxなので常にrender。renderConditionalSourceCard
 │           │                     が値が変わる軸だけをインライン表示する。dropStaleRowsが
 │           │                     デフォルト補完+旧(P2)形前衛アーミヤ2エントリの移行を兼ねる。
-│           │                     詳細は下記ポイント参照）もここ
+│           │                     詳細は下記ポイント参照）、row.extraParts（P10。混合スキル
+│           │                     [物理+術等]のパーツ1以降。renderDamagePartsSectionがパーツごとの
+│           │                     小ブロックを描き、onRowFieldChange/renderLive/reset-fieldは
+│           │                     `data-part`属性でrow自身[パーツ0]かrow.extraParts[n-1]かを
+│           │                     判定する。dropStaleRowsが長さ/形の不一致を補修する。詳細は
+│           │                     下記ポイント参照）もここ
 │           ├── style.css       … 420px想定の縦長1カラム。他ページ(home/lod_chest_solver)と
 │           │                     同じくダーク固定（配色トークンはhome_index.htmlの:rootを流用）。
 │           │                     判定欄(#verdict-section)は上部にsticky。サイト共通の
@@ -790,6 +805,44 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   `dropStaleRows`が移行する(`stainless_2`だった箇所が1つでもあれば共有`toggleOn`を
   trueにする)。血漿(plasma)・ドリアン(durian)はオーナー指示で`single_target`化した
   (どちらも「自身+ランダムな味方1名」に付与する効果のため)。
+- **fk_kill_calculatorの混合スキル(P10。物理+術を同時に与えるスキル。例: ホルンS2)は
+  1行の中に複数のダメージパーツを持ち、育成・バフ設定は1つ(同じものを参照)、パーツごとに
+  違うのは倍率/Hit数/ダメージ種別/ダメージ倍率だけにする**: 従来は`overrides.yaml`で
+  「物理」「術」の2バリアント(別FKエントリ)に分けていたため、ユーザーが2行追加して
+  昇進/潜在/モジュール/スキルLv/バフ等を両方に手で揃える必要があった。P10でこれを廃止し、
+  物理のみ/術のみの単独選択肢も無くした(オーナー承認済み)。
+  - データ層: `overrides.yaml`の`OverrideVariant.combined: bool`(省略時false)。同じ
+    skill_num内で`combined: true`のバリアント群を`build_catalog`(`build_combined_entry`)が
+    1つの`FkEntry`にまとめる。先頭バリアントがパーツ0(`FkEntry`のトップレベル
+    multiplier/hits/damageType等 = このパーツの値そのもの)になり、self_atk_pct/special/
+    tags/note/default_moduleは先頭バリアントのものだけを採用する(2番目以降がこれらを
+    持っていない、defaultModuleを持つ場合は先頭と同値であることを`validate_combined_variants`
+    [`cargo test`]が検証する)。`variant_label`はパーツラベルを"+"で連結する(例: "物理+術")。
+    `dto::FkPart`(`{label, multiplier, multiplierByLevel, multiplierFixed, hits, damageType}`)
+    が`FkEntry.parts`(先頭も含む全パーツ。通常エントリは空でJSONにも出さない)を持つ。
+  - 計算層(`engine.js`): 行のトップレベル(multiplier/hits/dmgType/dmgMult)が常にパーツ0
+    そのもので、2番目以降は`row.extraParts: [{multiplier, hits, dmgType, dmgMult}]`
+    (トップレベルへのミラーは作らない。同期問題を避けるため)。`makeDefaultRow`/entryIdx
+    変更/skillLevel変更のたびに`makeDefaultExtraParts(entry, skillLevel)`で
+    `entry.parts[1..]`から再スナップする。`expandRowParts(row)`(export)が
+    `[row, {...row, ...extraParts[0]}, ...]`という疑似行配列を返し、`computeTotal`は
+    行ごとに各パーツへ`computeRowDamage`を適用してから合算する(バフ内訳/鼓舞/特殊強化は
+    行で1回だけ計算し全パーツ共通に使う。selfPct/buffPct/ignoreDefは元々行の共有フィールド
+    なので、部分的にしか無い`extraParts`の対象にはならない)。結果は従来のフィールド
+    (パーツ0の値)に加えて`parts: [dmg0, dmg1, ...]`を持つ。`suggest`のHit数提案は
+    パーツごとに出す(`partIndex`。0ならトップレベルhits、1以上ならextraParts)。
+    `dropStaleRows`は`extraParts`の長さ/形が`entry.parts`と合わなければ
+    `makeDefaultExtraParts`で作り直す(プロトタイプなので丁寧な移行はしない)。
+  - 表現層(`ui.js`): 共有設定は1回だけ描画し、パーツが2つ以上あるエントリだけ
+    `renderDamagePartsSection`がダメージ種別/倍率/Hit数/ダメージ倍率%をパーツごとの
+    小ブロック(`.row-part-block`。見出し=パーツラベル)で並べる(1件以下の通常エントリは
+    従来通りの単一ブロック)。入力要素には`data-part="<n>"`(0は省略)を付け、
+    `onRowFieldChange`/`renderLive`/`reset-field`はこれを見て`row`自身か
+    `row.extraParts[n-1]`かを判定する(`partTarget`ヘルパー)。パーツ有りエントリでは
+    倍率候補セレクトを出さない(overrideでキーが指定済みのため)。補正バッジ(`fieldBadges`)
+    もパーツの`Valued`を見る(`partIndex`引数)。式表示(`renderFormulaLine`)はパーツごとに
+    1行ずつ、最後に合計行(`合計 = N`)を足す。折りたたみサマリー(`rowPlainSummary`)は
+    パーツ内訳(例: "物理 X + 術 Y")をtooltipに含める。
 - **サイトアイコンは元画像から生成して commit する**: 元画像は `assets/icon/`
   （通常版 PNG と simple版 SVG）。差し替えたら
   `& "C:\Program Files\nodejs\node.exe" assets/icon/generate.mjs` を回して

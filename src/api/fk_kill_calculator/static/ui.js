@@ -25,6 +25,7 @@ import {
   findEntry,
   findModule,
   makeDefaultRow,
+  makeDefaultExtraParts,
   resolveEntryValues,
   specialUiState,
   specialAddCanApply,
@@ -349,6 +350,11 @@ function rowPlainSummary(row) {
   const entry = findEntry(op, row.entryIdx);
   const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
   const r = results[0];
+  // P10(混合スキル): パーツが2つ以上あるエントリはパーツ内訳(例: "物理 1200 + 術 300")を出す。
+  if (entry && entry.parts && entry.parts.length > 1) {
+    const partsText = entry.parts.map((p, i) => `${p.label} ${fmtInt(r.parts[i].rowDamage)}`).join(" + ");
+    return `${op.name} ${eliteLevelLabel(row)} ${shortSkillRef(entry)}: ${partsText} → 実ダメ ${fmtInt(r.rowDamage)}`;
+  }
   return `${op.name} ${eliteLevelLabel(row)} ${shortSkillRef(entry)}: ${fmtInt(r.perHit)}×${row.hits}Hit → 実ダメ ${fmtInt(r.rowDamage)}`;
 }
 
@@ -430,6 +436,17 @@ function catalogDefaults(entry, skillLevel) {
   return { multiplier: values.multiplier, selfPct: values.selfPct, hits: values.hits, dmgType: values.dmgType };
 }
 
+// P10(混合スキル): パーツ(entry.parts[partIndex])単位のカタログ既定値
+// (multiplier/hits/dmgTypeのみ。selfPct/dmgMultはパーツを持たない)。
+function partCatalogDefaults(part, skillLevel) {
+  if (!part) return { multiplier: null, hits: null, dmgType: null };
+  return {
+    multiplier: valueAtLevel(part.multiplierByLevel, skillLevel),
+    hits: part.hits.value,
+    dmgType: part.damageType.value,
+  };
+}
+
 // P7: 「補正」バッジの文言。固定(Manualかつスキルレベルに追従しない)なら「補正(特化3固定)」、
 // スキルLvに追従するManual(multiplier_key/self_atk_pct_factor経由)ならただの「補正」。
 function manualBadgeLabel(field, entry) {
@@ -437,20 +454,27 @@ function manualBadgeLabel(field, entry) {
   return fixedMap[field] ? "補正(特化3固定)" : "補正";
 }
 
-function fieldBadges(entry, field, currentValue, idx, skillLevel) {
+// P10(混合スキル): `partIndex`が1以上ならentry.parts[partIndex](FkPart)を基準に
+// manual補正バッジ/↺リセットボタンを判定する(field=multiplier/hits/dmgTypeのみ)。
+// `partIndex`省略/0なら従来通りentry基準(selfPctも含む全フィールド対応)。
+function fieldBadges(entry, field, currentValue, idx, skillLevel, partIndex = 0) {
   if (!entry) return "";
-  const sourceMap = { multiplier: entry.multiplier, selfPct: entry.selfAtkPct, hits: entry.hits, dmgType: entry.damageType };
+  const part = partIndex > 0 ? entry.parts && entry.parts[partIndex] : null;
+  const sourceMap = part
+    ? { multiplier: part.multiplier, hits: part.hits, dmgType: part.damageType }
+    : { multiplier: entry.multiplier, selfPct: entry.selfAtkPct, hits: entry.hits, dmgType: entry.damageType };
   const src = sourceMap[field];
+  const partAttr = partIndex ? ` data-part="${partIndex}"` : "";
   // renderLiveが入力欄を作り直さずにバッジだけ差し替えられるよう、常にラッパーで包む。
-  let html = `<span class="field-badges" data-badges-for="${field}" data-idx="${idx}">`;
+  let html = `<span class="field-badges" data-badges-for="${field}" data-idx="${idx}"${partAttr}>`;
   if (src && src.source === "manual") {
-    const label = manualBadgeLabel(field, entry);
+    const label = part ? (field === "multiplier" && part.multiplierFixed ? "補正(特化3固定)" : "補正") : manualBadgeLabel(field, entry);
     html += `<span class="badge badge-manual" title="オーナーによる手動補正値">${escapeHtml(label)}</span>`;
   }
-  const defaults = catalogDefaults(entry, skillLevel);
+  const defaults = part ? partCatalogDefaults(part, skillLevel) : catalogDefaults(entry, skillLevel);
   const def = defaults[field];
   if (def !== null && def !== undefined && !valuesEqual(def, currentValue)) {
-    html += `<button type="button" class="badge badge-reset" data-action="reset-field" data-field="${field}" data-idx="${idx}" title="カタログ既定値に戻す" aria-label="カタログ既定値に戻す">↺</button>`;
+    html += `<button type="button" class="badge badge-reset" data-action="reset-field" data-field="${field}" data-idx="${idx}"${partAttr} title="カタログ既定値に戻す" aria-label="カタログ既定値に戻す">↺</button>`;
   }
   return html + `</span>`;
 }
@@ -671,6 +695,86 @@ function renderModuleUnusableHint(op, row) {
   return `<p class="special-hint">モジュール${escapeHtml(module.typeName)}は昇進${module.unlockPhase} Lv${module.unlockLevel}以上で装備可能（現在は加算されません）</p>`;
 }
 
+// P10(混合スキル): ダメージ種別/倍率/[倍率候補。パーツ無し限定]/Hit数/ダメージ倍率%を
+// まとめて描く。`entry.parts`が無い/1件以下(=混合スキルではない通常エントリ)なら
+// 従来通りの単一ブロック(data-partは付けない=パーツ0扱いのまま)、2件以上あれば
+// パーツごとの小ブロック(見出し=パーツラベル。例: "物理"/"術")を並べる。倍率候補
+// セレクトはパーツ有りエントリでは出さない(overrideでキーが指定済みのため)。
+function renderDamagePartsSection(entry, row, idx) {
+  const parts = (entry && entry.parts) || [];
+  if (parts.length < 2) {
+    return `
+    <div class="row-grid2">
+      <label>ダメージ種別
+        <select data-role="row" data-field="dmgType" data-idx="${idx}">
+          <option value="physical"${row.dmgType === "physical" ? " selected" : ""}>物理</option>
+          <option value="arts"${row.dmgType === "arts" ? " selected" : ""}>術</option>
+          <option value="true"${row.dmgType === "true" ? " selected" : ""}>真</option>
+        </select>
+        ${fieldBadges(entry, "dmgType", row.dmgType, idx, row.skillLevel)}
+      </label>
+      <label>倍率候補
+        <select data-role="row" data-field="multiplierCandidate" data-idx="${idx}" ${entry && entry.multiplierCandidates.length ? "" : "disabled"}>
+          ${entry ? multiplierCandidateOptions(entry, row.skillLevel) : '<option value="">候補から選ぶ…</option>'}
+        </select>
+      </label>
+    </div>
+    <div class="row-grid2">
+      <label>倍率
+        <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}" value="${trimNum(row.multiplier)}">
+        ${fieldBadges(entry, "multiplier", row.multiplier, idx, row.skillLevel)}
+      </label>
+      <label>Hit数
+        <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
+        ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
+      </label>
+    </div>
+    <div class="row-grid2">
+      <label>ダメージ倍率%
+        <input type="number" step="any" data-role="row" data-field="dmgMult" data-idx="${idx}" value="${fmtPct(row.dmgMult, 3)}">
+      </label>
+    </div>`;
+  }
+
+  return parts
+    .map((part, partIndex) => {
+      const target = partIndex === 0 ? row : (row.extraParts && row.extraParts[partIndex - 1]) || {};
+      const dmgType = target.dmgType ?? part.damageType.value;
+      const multiplier = target.multiplier ?? valueAtLevel(part.multiplierByLevel, row.skillLevel);
+      const hits = target.hits ?? part.hits.value;
+      const dmgMult = target.dmgMult ?? 1;
+      const partAttr = partIndex ? ` data-part="${partIndex}"` : "";
+      return `
+      <div class="row-part-block">
+        <h4 class="row-part-heading">${escapeHtml(part.label)}</h4>
+        <div class="row-grid2">
+          <label>ダメージ種別
+            <select data-role="row" data-field="dmgType" data-idx="${idx}"${partAttr}>
+              <option value="physical"${dmgType === "physical" ? " selected" : ""}>物理</option>
+              <option value="arts"${dmgType === "arts" ? " selected" : ""}>術</option>
+              <option value="true"${dmgType === "true" ? " selected" : ""}>真</option>
+            </select>
+            ${fieldBadges(entry, "dmgType", dmgType, idx, row.skillLevel, partIndex)}
+          </label>
+          <label>倍率
+            <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}"${partAttr} value="${trimNum(multiplier)}">
+            ${fieldBadges(entry, "multiplier", multiplier, idx, row.skillLevel, partIndex)}
+          </label>
+        </div>
+        <div class="row-grid2">
+          <label>Hit数
+            <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}"${partAttr} value="${hits}">
+            ${fieldBadges(entry, "hits", hits, idx, row.skillLevel, partIndex)}
+          </label>
+          <label>ダメージ倍率%
+            <input type="number" step="any" data-role="row" data-field="dmgMult" data-idx="${idx}"${partAttr} value="${fmtPct(dmgMult, 3)}">
+          </label>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
 function renderRowExpanded(row, idx, singleConflicts) {
   const op = findOperator(catalog, row.opId);
   const entry = op ? findEntry(op, row.entryIdx) : null;
@@ -686,6 +790,7 @@ function renderRowExpanded(row, idx, singleConflicts) {
   entrySelectHtml += `</select>`;
 
   const moduleDisabled = !op || !op.modules.length ? "disabled" : "";
+  const potentialHtml = op ? renderRowPotentialSelect(op, entry, row, idx) : "";
   const formula = op && entry ? renderFormulaLine(op, row) : "";
   const fkInfo = entry
     ? `<details class="row-fkinfo">
@@ -715,17 +820,7 @@ function renderRowExpanded(row, idx, singleConflicts) {
       ${entry ? renderSkillLevelWarning(row) : ""}
     </div>
     ${op ? renderEliteLevelTrustControls(op, row, idx) : ""}
-    <div class="row-grid2">
-      <label>ダメージ種別
-        <select data-role="row" data-field="dmgType" data-idx="${idx}">
-          <option value="physical"${row.dmgType === "physical" ? " selected" : ""}>物理</option>
-          <option value="arts"${row.dmgType === "arts" ? " selected" : ""}>術</option>
-          <option value="true"${row.dmgType === "true" ? " selected" : ""}>真</option>
-        </select>
-        ${fieldBadges(entry, "dmgType", row.dmgType, idx, row.skillLevel)}
-      </label>
-      ${op ? renderRowPotentialSelect(op, entry, row, idx) : ""}
-    </div>
+    ${potentialHtml ? `<div class="row-grid2">${potentialHtml}</div>` : ""}
     ${renderTagsChips(entry)}
     <div class="row-grid2">
       <label>モジュール
@@ -740,39 +835,20 @@ function renderRowExpanded(row, idx, singleConflicts) {
       </label>
     </div>
     <div class="module-hint-wrap" data-role="module-hint" data-idx="${idx}">${renderModuleUnusableHint(op, row)}</div>
-    <div class="row-grid2">
-      <label>倍率
-        <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}" value="${trimNum(row.multiplier)}">
-        ${fieldBadges(entry, "multiplier", row.multiplier, idx, row.skillLevel)}
-      </label>
-      <label>倍率候補
-        <select data-role="row" data-field="multiplierCandidate" data-idx="${idx}" ${entry && entry.multiplierCandidates.length ? "" : "disabled"}>
-          ${entry ? multiplierCandidateOptions(entry, row.skillLevel) : '<option value="">候補から選ぶ…</option>'}
-        </select>
-      </label>
-    </div>
+    ${renderDamagePartsSection(entry, row, idx)}
     <div class="row-grid2">
       <label>セルフ%
         <input type="number" step="any" data-role="row" data-field="selfPct" data-idx="${idx}" value="${fmtPct(row.selfPct, 3)}">
         ${fieldBadges(entry, "selfPct", row.selfPct, idx, row.skillLevel)}
       </label>
-      <label>Hit数
-        <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
-        ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
+      <label>手入力バフ+%
+        <input type="number" step="any" data-role="row" data-field="buffPct" data-idx="${idx}" value="${fmtPct(row.buffPct, 3)}">
       </label>
     </div>
     ${renderIndividualBuffChips(row, idx, singleConflicts)}
     ${renderConditionalStatusLine(r)}
     ${renderSpecialCheckbox(op, entry, row, idx)}
     ${renderRowInspireToggle(r, row, idx)}
-    <div class="row-grid2">
-      <label>手入力バフ+%
-        <input type="number" step="any" data-role="row" data-field="buffPct" data-idx="${idx}" value="${fmtPct(row.buffPct, 3)}">
-      </label>
-      <label>ダメージ倍率%
-        <input type="number" step="any" data-role="row" data-field="dmgMult" data-idx="${idx}" value="${fmtPct(row.dmgMult, 3)}">
-      </label>
-    </div>
     <div class="row-field">
       <label>防御無視（固定値）
         <input type="number" step="any" data-role="row" data-field="ignoreDef" data-idx="${idx}" value="${row.ignoreDef}">
@@ -788,9 +864,11 @@ function renderRowExpanded(row, idx, singleConflicts) {
 
 // フォーミュラ行(P2/P3): `691 ×(1 + セルフ0% + 個別150% + 条件0% + 手入力0%) × 400% = 6,910 /hit`。
 // 鼓舞(flat種バフ + P3の鼓舞ソースからの加算の合計)は0でない時だけ足す(仕様どおり)。
+// P10(混合スキル): パーツごとに1行ずつ式を組み立て、パーツが2つ以上ある時だけ
+// 最後に合計行を足す(パーツを持たない通常行は従来通り1行のまま)。
 function renderFormulaLine(op, row) {
   const entry = findEntry(op, row.entryIdx);
-  const { atk, final, perHit, rowDamage, atFloor, breakdown, specialAddPct, specialMulFactor, inspireApplied } = computeTotal(
+  const { rowDamage, breakdown, specialAddPct, specialMulFactor, inspireApplied, parts } = computeTotal(
     catalog,
     [row],
     state.enemy,
@@ -805,16 +883,25 @@ function renderFormulaLine(op, row) {
   const manualPart = `手入力${fmtPct(row.buffPct)}%`;
   const flatTotal = breakdown.individualFlat + breakdown.conditionalFlat + (inspireApplied ? inspireApplied.amount : 0);
   const inspirePart = flatTotal !== 0 ? ` + 鼓舞${fmtInt(flatTotal)}` : "";
-  const multiplierPart =
-    specialMulFactor !== 1 ? `${fmtPct(row.multiplier)}% × ×${trimNum(specialMulFactor)}(${specialLabel})` : `${fmtPct(row.multiplier)}%`;
-  // 鼓舞(固定値)は%適用後・倍率の前に足すので、鼓舞がある時は外側を括弧で囲んで
-  // 「鼓舞にだけ倍率が掛かる」ように読めないようにする。
-  const atkPart = `${fmtInt(atk)} ×(1 + ${selfPart} + ${individualPart} + ${conditionalPart} + ${manualPart})`;
-  const beforeMultiplier = inspirePart ? `(${atkPart}${inspirePart})` : atkPart;
-  const line1 = `${beforeMultiplier} × ${multiplierPart} = ${fmtInt(final)} /hit`;
-  const floorNote = atFloor ? `<span class="floor-note">（5%floor発動中）</span>` : "";
-  const line2 = `→ 実ダメ ${fmtInt(perHit)}/hit × ${row.hits}Hit = <b>${fmtInt(rowDamage)}</b> ${floorNote}`;
-  return `${escapeHtml(line1)}<br>${line2}`;
+  const isMulti = parts.length > 1;
+
+  const lines = parts.map((d, i) => {
+    const partLabel = isMulti && entry && entry.parts && entry.parts[i] ? `${entry.parts[i].label}: ` : "";
+    const partMultiplier = i === 0 ? row.multiplier : ((row.extraParts && row.extraParts[i - 1] && row.extraParts[i - 1].multiplier) ?? 0);
+    const partHits = i === 0 ? row.hits : ((row.extraParts && row.extraParts[i - 1] && row.extraParts[i - 1].hits) ?? 0);
+    const multiplierPart =
+      specialMulFactor !== 1 ? `${fmtPct(partMultiplier)}% × ×${trimNum(specialMulFactor)}(${specialLabel})` : `${fmtPct(partMultiplier)}%`;
+    // 鼓舞(固定値)は%適用後・倍率の前に足すので、鼓舞がある時は外側を括弧で囲んで
+    // 「鼓舞にだけ倍率が掛かる」ように読めないようにする。
+    const atkPart = `${fmtInt(d.atk)} ×(1 + ${selfPart} + ${individualPart} + ${conditionalPart} + ${manualPart})`;
+    const beforeMultiplier = inspirePart ? `(${atkPart}${inspirePart})` : atkPart;
+    const line1 = `${partLabel}${beforeMultiplier} × ${multiplierPart} = ${fmtInt(d.final)} /hit`;
+    const floorNote = d.atFloor ? `<span class="floor-note">（5%floor発動中）</span>` : "";
+    const line2 = `→ 実ダメ ${fmtInt(d.perHit)}/hit × ${partHits}Hit = <b>${fmtInt(d.rowDamage)}</b> ${floorNote}`;
+    return `${escapeHtml(line1)}<br>${line2}`;
+  });
+  const totalLine = isMulti ? `<br>合計 = <b>${fmtInt(rowDamage)}</b>` : "";
+  return lines.join("<br>") + totalLine;
 }
 
 /* ---------------- 描画: 鼓舞(インスパイア)ソース(P3) ---------------- */
@@ -1350,7 +1437,11 @@ function renderLive() {
       if (formula) formula.innerHTML = op && entry ? renderFormulaLine(op, row) : "";
       card.querySelectorAll(".field-badges").forEach((badges) => {
         const field = badges.dataset.badgesFor;
-        badges.outerHTML = fieldBadges(entry, field, row[field], idx, row.skillLevel);
+        // P10(混合スキル): data-part(1以上)が付いていればrow.extraParts[part-1]から
+        // 現在値を読む(0/未指定ならrow自身=パーツ0のまま)。
+        const partIndex = badges.dataset.part ? Number(badges.dataset.part) : 0;
+        const currentValue = partIndex > 0 ? (row.extraParts && row.extraParts[partIndex - 1] && row.extraParts[partIndex - 1][field]) : row[field];
+        badges.outerHTML = fieldBadges(entry, field, currentValue, idx, row.skillLevel, partIndex);
       });
       // P6: レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するよう
       // 差し替える(elite/moduleIdの変更は既にrender()で全体を作り直す)。
@@ -1414,6 +1505,18 @@ function onOperatorNameChange(idx, name) {
   render();
 }
 
+// P10(混合スキル): data-part(1以上)ならrow.extraParts[part-1]、それ以外(未指定/0)なら
+// row自身を対象にする共通ヘルパー。dmgType/multiplier/hits/dmgMultだけがdata-partを
+// 持ちうる(selfPct/buffPct/ignoreDef等は元々data-part無しの入力なので、このヘルパーを
+// 通しても常にrow自身が返る)。
+function partTarget(row, el) {
+  const partIndex = el.dataset.part ? Number(el.dataset.part) : 0;
+  if (partIndex <= 0) return row;
+  if (!row.extraParts) row.extraParts = [];
+  if (!row.extraParts[partIndex - 1]) row.extraParts[partIndex - 1] = { multiplier: 0, hits: 0, dmgType: "physical", dmgMult: 1 };
+  return row.extraParts[partIndex - 1];
+}
+
 function onRowFieldChange(el) {
   const idx = Number(el.dataset.idx);
   const field = el.dataset.field;
@@ -1439,6 +1542,8 @@ function onRowFieldChange(el) {
       row.dmgType = values.dmgType;
       row.dmgMult = values.dmgMult;
     }
+    // P10(混合スキル): パーツ1以降も新しいentryのカタログ既定値へ作り直す。
+    row.extraParts = makeDefaultExtraParts(entry, row.skillLevel);
     render();
     return;
   }
@@ -1456,6 +1561,8 @@ function onRowFieldChange(el) {
       row.dmgType = values.dmgType;
       row.dmgMult = values.dmgMult;
     }
+    // P10(混合スキル): パーツ1以降もこの時点のカタログ既定値へ再スナップする。
+    row.extraParts = makeDefaultExtraParts(entry, row.skillLevel);
     render();
     return;
   }
@@ -1501,22 +1608,37 @@ function onRowFieldChange(el) {
     return;
   }
   if (field === "dmgType") {
-    row.dmgType = el.value;
+    // P10(混合スキル): data-partが付いていればそのパーツ(row.extraParts[part-1])を、
+    // 無ければ従来通りrow自身(=パーツ0)を更新する。
+    partTarget(row, el).dmgType = el.value;
     render();
     return;
   }
   const isPercent = ROW_PERCENT_FIELDS.has(field);
   const value = readFieldValue(el, isPercent);
+  const target = partTarget(row, el);
   // 理由はonEnemyFieldChangeと同じ（blur時のchangeでクリック中のボタンを差し替えない）。
-  if (valuesEqual(row[field], value)) return;
-  row[field] = value;
+  if (valuesEqual(target[field], value)) return;
+  target[field] = value;
   renderLive();
 }
 
-function onResetField(idx, field) {
+function onResetField(idx, field, partIndex = 0) {
   const row = state.rows[idx];
   const op = findOperator(catalog, row.opId);
   const entry = op ? findEntry(op, row.entryIdx) : null;
+  // P10(混合スキル): partIndexが1以上ならentry.parts[partIndex]基準の既定値を
+  // row.extraParts[partIndex-1]へ書き戻す。
+  if (partIndex > 0) {
+    const part = entry && entry.parts && entry.parts[partIndex];
+    const defaults = partCatalogDefaults(part, row.skillLevel);
+    if (defaults[field] === null || defaults[field] === undefined) return;
+    if (!row.extraParts) row.extraParts = [];
+    if (!row.extraParts[partIndex - 1]) row.extraParts[partIndex - 1] = { multiplier: 0, hits: 0, dmgType: "physical", dmgMult: 1 };
+    row.extraParts[partIndex - 1][field] = defaults[field];
+    render();
+    return;
+  }
   const defaults = catalogDefaults(entry, row.skillLevel);
   if (defaults[field] === null || defaults[field] === undefined) return;
   row[field] = defaults[field];
@@ -1752,7 +1874,7 @@ function onAppClick(ev) {
       collapseRow();
       break;
     case "reset-field":
-      onResetField(idx, btn.dataset.field);
+      onResetField(idx, btn.dataset.field, btn.dataset.part ? Number(btn.dataset.part) : 0);
       break;
     case "share":
       shareUrl();

@@ -131,6 +131,23 @@ pub struct MultiplierCandidate {
     pub values_by_level: Vec<f64>,
 }
 
+/// 混合スキル(P10。例: ホルンS2の物理+術)の1ダメージパーツ分。同じskill_num内で
+/// `combined: true`のバリアントが1つずつこれになる。育成・バフ設定は`FkEntry`側で共有し、
+/// パーツごとに違うのは倍率/Hit数/ダメージ種別/ダメージ倍率だけ(ダメージ倍率=`row.dmgMult`は
+/// カタログには存在しないJS側だけの概念なのでここには無い)。`FkEntry.parts[0]`は
+/// `FkEntry`のトップレベルフィールド(multiplier/hits/damageType等)と同じ値を持つ
+/// (`build_catalog`が組み立てる。詳細はそちらのコメント参照)。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct FkPart {
+    pub label: String,
+    pub multiplier: Valued<f64>,
+    pub multiplier_by_level: Vec<f64>,
+    pub multiplier_fixed: bool,
+    pub hits: Valued<u32>,
+    pub damage_type: Valued<DamageType>,
+}
+
 /// フレームキル情報1件分(スキル1つのバリアント1つ)。
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -178,6 +195,12 @@ pub struct FkEntry {
     /// フロントの既定(`engine.js::defaultModuleId`)。
     pub default_module: Option<String>,
     pub note: Option<String>,
+    /// 混合スキル(P10)のダメージパーツ一覧。通常のエントリは空(`skip_serializing_if`で
+    /// JSONにも出さない)。2件以上ある時だけ`parts[0]`はトップレベルの
+    /// multiplier/hits/damageType等と同じ値を持つ「パーツ0」として先頭に入る
+    /// (`build_catalog`が組み立てる。詳細はそちらのコメント参照)。
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<FkPart>,
 }
 
 /// モジュール1種分(カタログ表示用。素材コストは持たない)。

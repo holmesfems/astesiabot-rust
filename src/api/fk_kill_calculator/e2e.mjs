@@ -1745,6 +1745,75 @@ async function runDatalistPickScenario(browser, baseUrl) {
   }
 }
 
+// P10: 混合スキル(物理+術。ホルンS2)。FK対象の選択肢が「物理+術」1つにまとまっていること、
+// パーツ欄が2ブロック(見出し=物理/術)出ること、術パーツのHit数を打鍵で変えると合計
+// (式表示の"合計 = N")が更新されること、昇進を変えると両パーツ(共有ATK)に効くことを検証する。
+async function runMixedSkillPartsScenario(browser, baseUrl) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+
+    // --- FK対象の選択肢は「物理」「術」の2つではなく「物理+術」1つにまとまっている ---
+    await addOperator(page, 'ホルン', '物理+術');
+    const entryLabels = await page.locator('.row-expanded select[data-field="entryIdx"] option').allTextContents();
+    const s2Labels = entryLabels.filter((l) => l.includes('テンペストオーダー'));
+    ok('Horn S2 has exactly one FK target option (merged 物理+術, not two separate variants)',
+      s2Labels.length === 1 && s2Labels[0].includes('物理+術'), entryLabels);
+
+    await page.fill('#enemy-hp', '100');
+    await page.fill('#enemy-def', '0');
+    await page.waitForTimeout(150);
+
+    // --- パーツ欄が2ブロック(見出し=物理/術)出る。倍率候補セレクトは出ない ---
+    const partBlocks = page.locator('.row-expanded .row-part-block');
+    ok('two damage-part blocks are rendered', (await partBlocks.count()) === 2);
+    const headings = await page.locator('.row-expanded .row-part-heading').allInnerTexts();
+    ok('part headings are 物理/術', JSON.stringify(headings) === JSON.stringify(['物理', '術']), headings);
+    ok('multiplier-candidate select is hidden for parts entries',
+      (await page.locator('.row-expanded select[data-field="multiplierCandidate"]').count()) === 0);
+
+    // --- 術パーツのHit数を打鍵で変えると合計(式表示の"合計 = N")が更新される ---
+    const damageBeforeHits = lastEqualsNumber(await page.locator('.row-formula').innerText());
+    const artsHitsInput = page.locator('.row-expanded input[data-field="hits"][data-part="1"]');
+    ok('the 術(part1) hits input is addressable via data-part="1"', (await artsHitsInput.count()) === 1);
+    await artsHitsInput.fill('');
+    await artsHitsInput.pressSequentially('9');
+    await page.waitForTimeout(150);
+    const damageAfterHits = lastEqualsNumber(await page.locator('.row-formula').innerText());
+    ok('typing into the 術 part hits field updates the combined total', damageAfterHits > damageBeforeHits, `${damageBeforeHits} -> ${damageAfterHits}`);
+
+    // 物理パーツ(パーツ0=トップレベル)のHit数入力はdata-partを持たず、術側の編集で変わらない。
+    const physicalHitsInput = page.locator('.row-expanded input[data-field="hits"]:not([data-part])');
+    ok('the 物理(part0) hits input has no data-part attribute and is unaffected by the 術 edit',
+      (await physicalHitsInput.inputValue()) === '5', await physicalHitsInput.inputValue());
+
+    // --- 昇進を変えると両パーツ(共有ATK)に効く ---
+    await page.locator('.row-expanded select[data-field="elite"]').selectOption('1'); // E2 -> E1
+    await page.waitForTimeout(150);
+    const damageAfterElite = lastEqualsNumber(await page.locator('.row-formula').innerText());
+    ok('lowering elite changes the combined total (shared atk affects both parts)',
+      damageAfterElite !== damageAfterHits, `${damageAfterHits} -> ${damageAfterElite}`);
+    const formulaText = await page.locator('.row-formula').innerText();
+    ok('formula shows per-part lines (物理/術) plus a combined total (合計)',
+      formulaText.includes('物理') && formulaText.includes('術') && formulaText.includes('合計'), formulaText);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  mixed-skill-parts scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+    try {
+      const shotPath = path.join(HERE, 'e2e_fail_mixed_skill_parts.png');
+      await page.screenshot({ path: shotPath, fullPage: true });
+      console.log(`  screenshot saved: ${shotPath}`);
+    } catch (shotErr) {
+      console.log(`  screenshot failed: ${shotErr}`);
+    }
+  } finally {
+    await context.close();
+  }
+}
+
 /* ========================================================================= *
  * main
  * ========================================================================= */
@@ -1794,6 +1863,7 @@ try {
   await runFwSpecialScenario(browser, baseUrl);
   await runLinkedBuffScenario(browser, baseUrl);
   await runDatalistPickScenario(browser, baseUrl);
+  await runMixedSkillPartsScenario(browser, baseUrl);
 } catch (e) {
   fail++;
   console.log('FAIL  fatal -> ' + (e && e.stack ? e.stack : e));

@@ -25,6 +25,13 @@
 # 提供の参照スプレッドシート/実ゲームデータ(character_table.json talents、
 # battle_equip_table.json blackboard)を出典とする補正であり、ゲームデータ更新で
 # 機械側の値が変わったら見直すこと。
+#
+# `combined: true`(省略時false): 同じskill_num内でcombined:trueのバリアントは、
+# 個別に選ぶ選択肢ではなく「同時に発生する複数のダメージパーツ」として1つのFkEntryに
+# まとめる(例: ホルンS2の物理+術)。1つ目のバリアントがパーツ0(FkEntryのトップレベル
+# multiplier/hits/damageType等はこのパーツの値)になり、self_atk_pct/special/tags/note
+# は先頭バリアントのものだけを使う(2番目以降が持っていてはいけない。持たせるとドリフト
+# 検知テストが落ちる)。default_moduleは先頭と同値なら2番目以降が持っていてもよい。
 
 # Ash(char_456_ash) スキル3「ブリーチング弾」: 直撃/貫通後の爆発/高台への直撃、という
 # 3種類のダメージ判定を1スキルで持つ。blackboardの`atk_scale`(直撃)は機械側の自動判定と
@@ -55,10 +62,13 @@ char_456_ash:
 # default_module: モジュールYの方がATK加算は大きい(Lv3 +120 vs Xの+100)が、重装バフ
 # 「軍事要塞」を強化するのはXだけ(E2潜在6で23%→X Lv3で31%)。実効ATKはX(約1488)がY
 # (約1422)を上回り、参照シートもホルン(X)前提なので、追加時の初期モジュールをXにする。
+# P10: 物理/術は「どちらかを選ぶバリアント」ではなく「同時に発生する2つのダメージパーツ」
+# なので`combined: true`で1つのFkEntry(parts2件)にまとめる(2番目の「術」はself_atk_pct/
+# special/tags/noteを持たない。先頭の「物理」だけが使われる)。
 char_4039_horn:
   "2":
-    - { label: "物理", multiplier_key: "attack@s2.atk_scale", damage_type: physical, hits: 5, default_module: uniequip_002_horn }
-    - { label: "術",   multiplier_key: "attack@s2.magic_atk_scale", damage_type: arts,     hits: 5, default_module: uniequip_002_horn }
+    - { label: "物理", multiplier_key: "attack@s2.atk_scale", damage_type: physical, hits: 5, default_module: uniequip_002_horn, combined: true }
+    - { label: "術",   multiplier_key: "attack@s2.magic_atk_scale", damage_type: arts,     hits: 5, default_module: uniequip_002_horn, combined: true }
 
 # ブレイズ(char_017_huang) スキル3「ボイリングバースト」: blackboardのダメージ倍率キーが
 # `atk_scale`ではなく`damage_by_atk_scale`(値4.0)。この名前は末尾が"atk_scale"のため

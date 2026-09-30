@@ -24,7 +24,7 @@ use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::fk_data_search::search::skill_id_by_num;
 use buffers::RawInspireSource;
 use dto::{
-    CatalogModule, CatalogOperator, DamageType, FkEntry, InspireModuleOverride, InspireSelfPart, InspireSkillRatio, InspireSource,
+    CatalogModule, CatalogOperator, DamageType, FkEntry, FkPart, InspireModuleOverride, InspireSelfPart, InspireSkillRatio, InspireSource,
     MultiplierCandidate, PhaseAtk, Special, Valued,
 };
 use indexmap::IndexMap;
@@ -135,6 +135,28 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
             }
 
             match overrides.variants_for(op_id, &row.skill_num) {
+                // P10: 同じskill_num内でcombined:trueのバリアント群は「同時発生する
+                // 複数ダメージパーツ」として1つのFkEntryにまとめる(選択肢を増やさない)。
+                Some(variants) if !variants.is_empty() && variants[0].combined => {
+                    fk_entries.push(build_combined_entry(
+                        row,
+                        &skill_label,
+                        variants,
+                        &default_multiplier_by_level,
+                        default_multiplier,
+                        blackboard_by_level,
+                        num_levels,
+                        &multiplier_candidates,
+                        &default_self_atk_pct_by_level,
+                        default_self_atk_pct,
+                        default_hits,
+                        default_damage_type,
+                        &entry_tags,
+                        combat_op,
+                        &mut skipped,
+                        op_id,
+                    ));
+                }
                 Some(variants) if !variants.is_empty() => {
                     for variant in variants {
                         let mut tags_for_variant = entry_tags.clone();
@@ -425,7 +447,87 @@ fn build_entry(
         special,
         default_module: None,
         note,
+        parts: Vec::new(),
     }
+}
+
+/// P10: 同じskill_num内の`combined: true`バリアント群を1つのFkEntryにまとめる。
+/// トップレベルのmultiplier/multiplier_by_level/hits/damage_type等 = 先頭バリアント
+/// (=パーツ0)。self_atk_pct/special/tags/default_module/noteも先頭バリアントのものを
+/// 使う(2番目以降がこれらを持っていないことは`validate_combined_variants`が検証する)。
+/// `variant_label`はパーツラベルを"+"で連結する(例: "物理+術")。
+#[allow(clippy::too_many_arguments)]
+fn build_combined_entry(
+    row: &FkSheetRow,
+    skill_label: &str,
+    variants: &[OverrideVariant],
+    default_multiplier_by_level: &[f64],
+    default_multiplier: f64,
+    blackboard_by_level: Option<&[IndexMap<String, f64>]>,
+    num_levels: usize,
+    multiplier_candidates: &[MultiplierCandidate],
+    default_self_atk_pct_by_level: &[f64],
+    default_self_atk_pct: f64,
+    default_hits: u32,
+    default_damage_type: DamageType,
+    entry_tags: &[String],
+    combat_op: &RawOperatorCombat,
+    skipped: &mut Vec<String>,
+    op_id: &str,
+) -> FkEntry {
+    let parts: Vec<FkPart> = variants
+        .iter()
+        .map(|variant| {
+            let (multiplier, multiplier_by_level, multiplier_fixed) =
+                resolve_variant_multiplier(variant, default_multiplier_by_level, default_multiplier, blackboard_by_level, num_levels);
+            FkPart {
+                label: variant.label.clone().unwrap_or_default(),
+                multiplier,
+                multiplier_by_level,
+                multiplier_fixed,
+                hits: Valued::from_override(variant.hits, default_hits),
+                damage_type: Valued::from_override(variant.damage_type, default_damage_type),
+            }
+        })
+        .collect();
+
+    let head = &variants[0];
+    let mut tags_for_head = entry_tags.to_vec();
+    if let Some(extra) = &head.tags {
+        tags_for_head.extend(extra.iter().cloned());
+    }
+    let (self_atk_pct, self_atk_pct_by_level, self_atk_pct_fixed) =
+        resolve_variant_self_atk_pct(head, default_self_atk_pct_by_level, default_self_atk_pct, num_levels);
+    let special = head.special.as_ref().and_then(|s| match to_special_dto(s, combat_op) {
+        Some(dto) => Some(dto),
+        None => {
+            skipped.push(format!("special:{op_id}/{}", row.skill_num));
+            None
+        }
+    });
+    let variant_label = Some(variants.iter().filter_map(|v| v.label.clone()).collect::<Vec<_>>().join("+"));
+    let head_part = parts[0].clone();
+
+    let mut entry = build_entry(
+        row,
+        skill_label.to_string(),
+        variant_label,
+        head_part.multiplier,
+        head_part.multiplier_by_level,
+        head_part.multiplier_fixed,
+        multiplier_candidates.to_vec(),
+        self_atk_pct,
+        self_atk_pct_by_level,
+        self_atk_pct_fixed,
+        head_part.hits,
+        head_part.damage_type,
+        tags_for_head,
+        special,
+        head.note.clone(),
+    );
+    entry.default_module = head.default_module.clone();
+    entry.parts = parts;
+    entry
 }
 
 /// blackboardから倍率のデフォルト値と候補一覧を作る。
@@ -683,6 +785,48 @@ pub fn validate_override_level_fields(overrides: &Overrides, ops: &OperatorData,
     bad
 }
 
+/// overrides.yamlの`combined`(P10)が正しく使われているかを検証する:
+///   (a) 同じskill_num内でcombinedが一部のバリアントだけtrueになっていないこと
+///   (b) combinedの2番目以降のバリアントがself_atk_pct/self_atk_pct_factor/special/tagsを
+///       持たないこと(default_moduleは先頭と同値なら可)
+/// 不一致の一覧を返す(空ならOK)。`cargo test`のドリフト検知用。
+pub fn validate_combined_variants(overrides: &Overrides) -> Vec<String> {
+    let mut bad = Vec::new();
+    for (op_id, skill_num) in overrides.all_keys() {
+        let Some(variants) = overrides.variants_for(op_id, skill_num) else { continue };
+        if variants.len() < 2 {
+            continue;
+        }
+        let any_combined = variants.iter().any(|v| v.combined);
+        let all_combined = variants.iter().all(|v| v.combined);
+        if any_combined && !all_combined {
+            bad.push(format!("{op_id}/{skill_num} (combinedが一部のバリアントだけtrueになっている。全バリアントで揃えること)"));
+            continue;
+        }
+        if !all_combined {
+            continue;
+        }
+        let head = &variants[0];
+        for (i, variant) in variants.iter().enumerate().skip(1) {
+            if variant.self_atk_pct.is_some() || variant.self_atk_pct_factor.is_some() {
+                bad.push(format!("{op_id}/{skill_num} (combinedバリアント{i}がself_atk_pct/self_atk_pct_factorを持っている。先頭バリアントのみ許可)"));
+            }
+            if variant.special.is_some() {
+                bad.push(format!("{op_id}/{skill_num} (combinedバリアント{i}がspecialを持っている。先頭バリアントのみ許可)"));
+            }
+            if variant.tags.is_some() {
+                bad.push(format!("{op_id}/{skill_num} (combinedバリアント{i}がtagsを持っている。先頭バリアントのみ許可)"));
+            }
+            if let Some(dm) = &variant.default_module {
+                if Some(dm) != head.default_module.as_ref() {
+                    bad.push(format!("{op_id}/{skill_num} (combinedバリアント{i}のdefault_moduleが先頭と異なる)"));
+                }
+            }
+        }
+    }
+    bad
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -880,13 +1024,14 @@ mod tests {
     }
 
     /// ホルン(異格。char_4039_horn)S2「テンペストオーダー」は`durationType == "AMMO"`の
-    /// 弾薬スキルなので、両バリアントとも機械タグ"弾薬スキル"を持つこと(P2)。
+    /// 弾薬スキルなので、機械タグ"弾薬スキル"を持つこと(P2)。P10で物理/術は1エントリ
+    /// (parts2件)にまとまったので、タグは統合後のエントリ1件が持つ。
     #[test]
     fn horn_s2_entries_are_tagged_ammo_skill() {
         let result = build_from_seeds();
         let horn = result.catalog.operators.iter().find(|op| op.name == "ホルン").expect("ホルンがカタログに存在すること");
         let s2_entries: Vec<_> = horn.fk_entries.iter().filter(|e| e.skill_num == "2").collect();
-        assert_eq!(s2_entries.len(), 2, "ホルンのS2は物理/術の2バリアントのはず");
+        assert_eq!(s2_entries.len(), 1, "P10でホルンのS2は物理+術の1エントリ(parts2件)にまとまるはず");
         for e in &s2_entries {
             assert!(e.tags.contains(&tags::AMMO_SKILL_TAG.to_string()), "ホルンS2/{:?}に弾薬スキルタグが無い: {:?}", e.variant_label, e.tags);
         }
@@ -1125,31 +1270,50 @@ mod tests {
         assert_eq!(v800.multiplier_by_level.last().copied(), Some(8.0), "800%の特化3");
     }
 
-    /// P7: ホルンS2の物理/術バリアントは`multiplier_key`でスキルLv別に追従する。
-    /// P9: 固定self_atk_pct(0.31)はconditionalバフ「horn」(素質「軍事要塞」)へ移設した
-    /// ため、self_atk_pctはAuto=0になる(ホルンS2のskill_table.jsonのblackboardに
-    /// "atk"キーが無いため。実データ確認済み)。旧0.31相当は
+    /// P7: ホルンS2の物理/術パーツは`multiplier_key`でスキルLv別に追従する。P9: 固定
+    /// self_atk_pct(0.31)はconditionalバフ「horn」(素質「軍事要塞」)へ移設したため、
+    /// self_atk_pctはAuto=0になる(ホルンS2のskill_table.jsonのblackboardに"atk"キーが
+    /// 無いため。実データ確認済み)。旧0.31相当は
     /// `conditional_source_default_values_match_verified_gamedata`の`horn`バフで検証する。
+    /// P10: 物理/術は1エントリ・parts2件にまとまり、トップレベル(=パーツ0)は物理の値を持つ。
     #[test]
     fn horn_s2_multiplier_follows_skill_level_and_self_atk_pct_is_auto_zero() {
         let result = build_from_seeds();
         let horn = result.catalog.operators.iter().find(|op| op.name == "ホルン").expect("ホルンがカタログに存在すること");
-        let physical = horn.fk_entries.iter().find(|e| e.skill_num == "2" && e.variant_label.as_deref() == Some("物理")).unwrap();
+        let s2 = horn.fk_entries.iter().find(|e| e.skill_num == "2").expect("ホルンのS2が存在すること");
+        assert_eq!(s2.variant_label.as_deref(), Some("物理+術"));
+        assert_eq!(s2.parts.len(), 2, "ホルンS2は物理+術の2パーツのはず");
+
+        // トップレベル(=パーツ0)は物理の値。
+        assert_eq!(s2.multiplier_by_level.first().copied(), Some(1.3));
+        assert_eq!(s2.multiplier_by_level.last().copied(), Some(2.4));
+        assert_eq!(s2.damage_type.value, dto::DamageType::Physical);
+        assert_eq!(s2.default_module.as_deref(), Some("uniequip_002_horn"));
+        assert_eq!(s2.self_atk_pct.source, dto::ValueSource::Auto, "self_atk_pctのoverrideは撤去済み(P9でバフ側へ移設)のはずAuto");
+        assert_eq!(s2.self_atk_pct.value, 0.0);
+        assert!(!s2.self_atk_pct_fixed, "Auto(non-override)なのでfixed=falseのはず");
+        assert!(s2.self_atk_pct_by_level.iter().all(|v| *v == 0.0), "atkキーが無いのでスキルLv別配列も全て0のはず");
+
+        let physical = &s2.parts[0];
+        assert_eq!(physical.label, "物理");
         assert_eq!(physical.multiplier_by_level.first().copied(), Some(1.3));
         assert_eq!(physical.multiplier_by_level.last().copied(), Some(2.4));
-        // 重装バフ「軍事要塞」を強化するモジュールXを初期モジュールにする(overrideのdefault_module)。
-        for entry in horn.fk_entries.iter().filter(|e| e.skill_num == "2") {
-            assert_eq!(entry.default_module.as_deref(), Some("uniequip_002_horn"));
-        }
-        assert_eq!(physical.self_atk_pct.source, dto::ValueSource::Auto, "self_atk_pctのoverrideは撤去済み(P9でバフ側へ移設)のはずAuto");
-        assert_eq!(physical.self_atk_pct.value, 0.0);
-        assert!(!physical.self_atk_pct_fixed, "Auto(non-override)なのでfixed=falseのはず");
-        assert!(physical.self_atk_pct_by_level.iter().all(|v| *v == 0.0), "atkキーが無いのでスキルLv別配列も全て0のはず");
+        assert_eq!(physical.damage_type.value, dto::DamageType::Physical);
+        assert_eq!(physical.hits.value, 5);
 
-        let arts = horn.fk_entries.iter().find(|e| e.skill_num == "2" && e.variant_label.as_deref() == Some("術")).unwrap();
+        let arts = &s2.parts[1];
+        assert_eq!(arts.label, "術");
         assert_eq!(arts.multiplier_by_level.first().copied(), Some(0.3));
         assert_eq!(arts.multiplier_by_level.last().copied(), Some(0.6));
-        assert_eq!(arts.self_atk_pct.source, dto::ValueSource::Auto);
+        assert_eq!(arts.damage_type.value, dto::DamageType::Arts);
+        assert_eq!(arts.hits.value, 5);
+    }
+
+    /// P10: overrides.yamlの`combined`(P10)が正しく使われていることのドリフト検知。
+    #[test]
+    fn every_combined_variant_group_is_consistent() {
+        let bad = validate_combined_variants(Overrides::global());
+        assert!(bad.is_empty(), "overrides.yamlのcombinedバリアントに問題がある:\n{}", bad.join("\n"));
     }
 
     /// P7: ブレイズS3のself_atk_pct_factor(0.89)がAutoのスキルレベル別セルフ%(atk)に
