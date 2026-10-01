@@ -94,6 +94,8 @@ summary{cursor:pointer;color:var(--faint);font-size:12px}
 .row-formula{font-size:11.5px;color:var(--faint);background:rgba(127,127,127,.08);border-radius:5px;padding:6px 8px;margin:8px 0}
 .row-formula b{color:var(--text)}
 .floor-note{color:var(--ng)}
+.row-actions-top{text-align:right;margin-bottom:6px}
+.row-actions-top button{width:auto;padding:3px 10px;font-size:12px;cursor:pointer;border-radius:5px;border:1px solid var(--input-border);background:transparent;color:var(--text)}
 .row-actions-expanded{text-align:right;margin-top:6px}
 .row-actions-expanded button{width:auto;padding:6px 14px;cursor:pointer;border-radius:5px;border:1px solid var(--input-border);background:transparent;color:var(--text)}
 #add-row-btn{margin-top:4px;padding:10px;cursor:pointer;border:1px dashed var(--input-border);border-radius:6px;background:transparent;color:var(--accent);font-weight:600}
@@ -222,3 +224,9 @@ summary.suggest-title{cursor:pointer}
 
 footer{margin-top:16px;text-align:center;font-size:10.5px;color:var(--faint)}
 footer a{color:var(--accent)}
+
+/* 判定に応じて画面の縁を光らせる(#31)。クリックを妨げないようpointer-events:none。 */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:1000;opacity:0;box-shadow:inset 0 0 40px 6px rgba(121,226,208,.55);transition:opacity .25s,box-shadow .25s}
+body.verdict-glow-ok::after{opacity:1;box-shadow:inset 0 0 40px 6px rgba(121,226,208,.55)}
+body.verdict-glow-ng::after{opacity:1;box-shadow:inset 0 0 40px 6px rgba(232,116,138,.55)}
+@media (prefers-reduced-motion: reduce){body::after{transition:none}}

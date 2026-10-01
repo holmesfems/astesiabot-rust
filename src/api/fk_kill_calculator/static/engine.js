@@ -15,7 +15,9 @@
               specialAddPctはP2 follow-upで追加した特殊強化(加算系)のΣ。
               `computeBuffBreakdown`/`resolveSpecialAddPct`が計算し、
               `computeTotal`経由で流し込む）
-     final  = (atk × (1 + pct) + inspireFlat) × multiplier × specialMulFactor
+     final  = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × specialMulFactor
+              （buffFlat=手入力の基礎攻撃力加算。%バフの前に足す。行自身のダメージにだけ効き、
+              鼓舞ソースのATKには乗らない）
               （inspireFlatはP1では常に0。P2でflat種のバフ(Σ鼓舞)をここに足す。
               specialMulFactorはP2 follow-upで追加した特殊強化(乗算系)の係数。
               無ければ1＝影響なし。`resolveSpecialMultiplierFactor`が計算する）
@@ -94,7 +96,7 @@
  *            resFlat:number, vulnPct:number}} EnemyState
  * @typedef {{opId:string, entryIdx:number, dmgType:('physical'|'arts'|'true'), potential:boolean,
  *            moduleId:(string|null), moduleLv:number, multiplier:number, selfPct:number,
- *            hits:number, buffPct:number, dmgMult:number, ignoreDef:number}} RowState
+ *            hits:number, buffPct:number, buffFlat:number, dmgMult:number, ignoreDef:number}} RowState
  */
 
 /** カタログからoperatorIdでオペレーターを引く。無ければnull。 */
@@ -330,6 +332,7 @@ export function makeDefaultRow(op, entryIdx) {
     selfPct: values.selfPct,
     hits: values.hits,
     buffPct: 0,
+    buffFlat: 0, // 手入力 基礎攻撃力+(%バフの前に足す)
     dmgMult: values.dmgMult,
     ignoreDef: 0,
     buffIds: [], // P2: 個別バフ(行ごとに選ぶ)
@@ -1014,7 +1017,8 @@ export function computeInspireForRow(catalog, row, inspireSourceStates, globalBu
 export function computeRowDamage(op, row, enemy, inspireFlat = 0, extraPct = 0, multiplierFactor = 1) {
   const atk = resolveAtk(op, row);
   const pct = row.selfPct + row.buffPct + extraPct;
-  const final = (atk * (1 + pct) + inspireFlat) * row.multiplier * multiplierFactor;
+  const buffFlat = Number.isFinite(row.buffFlat) ? row.buffFlat : 0;
+  const final = ((atk + buffFlat) * (1 + pct) + inspireFlat) * row.multiplier * multiplierFactor;
   const defEff = resolveDefEff(enemy, row.ignoreDef);
   const resEff = resolveResEff(enemy);
 
@@ -1134,6 +1138,7 @@ export function dropStaleRows(state, catalog) {
         level,
         trust: row.trust != null ? row.trust : 100,
         skillLevel: row.skillLevel != null ? row.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
+        buffFlat: Number.isFinite(row.buffFlat) ? row.buffFlat : 0, // 手入力 基礎攻撃力+ (#29)
         // P8: `potential`は旧来のboolean(攻撃凸チェックボックス)から潜在ランク(0〜5の数値)へ
         // 仕様変更した。プロトタイプ段階のため丁寧な移行はせず、数値でなければ単純に
         // 既定値(5=潜在6)へリセットする(オーナー指示)。

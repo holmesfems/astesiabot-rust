@@ -121,6 +121,25 @@ console.log("=== オーナー参照スプレッドシートの実測値(最終AT
   approxEqual(final, 17249, 1, "FW S2");
 }
 
+console.log("\n=== #29 手入力 基礎攻撃力+(buffFlat) ===\n");
+{
+  // 基礎攻撃力+は%バフの前に足す: ((atk+buffFlat)×(1+pct)+inspireFlat)×multiplier
+  const o = op(1000, 0, null);
+  const r = row({ moduleId: null, multiplier: 2, selfPct: 0.5, buffPct: 0.5, buffFlat: 150 });
+  const { final } = computeRowDamage(o, r, enemyNeutral, 100);
+  approxEqual(final, ((1000 + 150) * (1 + 1.0) + 100) * 2, 0.001, "buffFlat=150は%の前に加算");
+  const { final: finalNoFlat } = computeRowDamage(o, { ...r, buffFlat: 0 }, enemyNeutral, 100);
+  check("buffFlat=0なら従来式と一致", finalNoFlat === (1000 * 2 + 100) * 2, finalNoFlat);
+  const { final: finalMissing } = computeRowDamage(o, { ...r, buffFlat: undefined }, enemyNeutral, 100);
+  check("buffFlat未定義でも0扱いで計算できる", finalMissing === finalNoFlat, finalMissing);
+  const oldRow = { ...row({ moduleId: null }) };
+  delete oldRow.buffFlat;
+  const catalog = { operators: [{ ...op(1000, 0, null), id: "op", fkEntries: [{ tags: [] }] }], buffers: [] };
+  const { state: cleaned } = dropStaleRows({ v: 1, enemy: enemyNeutral, rows: [oldRow, { ...oldRow, buffFlat: "x" }, { ...oldRow, buffFlat: 150 }] }, catalog);
+  check("buffFlat無し/非数の行はdropStaleRowsで0が補われる", cleaned.rows[0].buffFlat === 0 && cleaned.rows[1].buffFlat === 0, cleaned.rows);
+  check("buffFlatが有限数ならそのまま保たれる", cleaned.rows[2].buffFlat === 150, cleaned.rows[2]);
+}
+
 console.log("\n=== 手計算のダメージケース ===\n");
 {
   // 物理: final=1000, 防御300 -> 700 (floorの5%=50より大きいのでfloor未発動)

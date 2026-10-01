@@ -136,6 +136,7 @@ function blankRow() {
     selfPct: 0,
     hits: 1,
     buffPct: 0,
+    buffFlat: 0, // 手入力 基礎攻撃力+
     dmgMult: 1,
     ignoreDef: 0,
     buffIds: [], // P2: 個別バフ(行ごとに選ぶ)
@@ -700,6 +701,9 @@ function renderRowExpanded(row, idx, singleConflicts) {
     : "";
 
   return `
+    <div class="row-actions-top">
+      <button type="button" data-action="collapse-row" data-idx="${idx}">▲ 折りたたむ</button>
+    </div>
     <div class="row-field">
       <label>オペレーター
         <input type="text" list="operator-datalist" data-role="row" data-field="opName" data-idx="${idx}"
@@ -769,11 +773,14 @@ function renderRowExpanded(row, idx, singleConflicts) {
       <label>手入力バフ+%
         <input type="number" step="any" data-role="row" data-field="buffPct" data-idx="${idx}" value="${fmtPct(row.buffPct, 3)}">
       </label>
+      <label>手入力 基礎攻撃力+
+        <input type="number" step="any" data-role="row" data-field="buffFlat" data-idx="${idx}" value="${trimNum(row.buffFlat || 0)}">
+      </label>
+    </div>
+    <div class="row-grid2">
       <label>ダメージ倍率%
         <input type="number" step="any" data-role="row" data-field="dmgMult" data-idx="${idx}" value="${fmtPct(row.dmgMult, 3)}">
       </label>
-    </div>
-    <div class="row-field">
       <label>防御無視（固定値）
         <input type="number" step="any" data-role="row" data-field="ignoreDef" data-idx="${idx}" value="${row.ignoreDef}">
       </label>
@@ -809,7 +816,9 @@ function renderFormulaLine(op, row) {
     specialMulFactor !== 1 ? `${fmtPct(row.multiplier)}% × ×${trimNum(specialMulFactor)}(${specialLabel})` : `${fmtPct(row.multiplier)}%`;
   // 鼓舞(固定値)は%適用後・倍率の前に足すので、鼓舞がある時は外側を括弧で囲んで
   // 「鼓舞にだけ倍率が掛かる」ように読めないようにする。
-  const atkPart = `${fmtInt(atk)} ×(1 + ${selfPart} + ${individualPart} + ${conditionalPart} + ${manualPart})`;
+  const buffFlat = row.buffFlat || 0;
+  const atkText = buffFlat !== 0 ? `(${fmtInt(atk)}${buffFlat > 0 ? "+" : "-"}${fmtInt(Math.abs(buffFlat))})` : fmtInt(atk);
+  const atkPart = `${atkText} ×(1 + ${selfPart} + ${individualPart} + ${conditionalPart} + ${manualPart})`;
   const beforeMultiplier = inspirePart ? `(${atkPart}${inspirePart})` : atkPart;
   const line1 = `${beforeMultiplier} × ${multiplierPart} = ${fmtInt(final)} /hit`;
   const floorNote = atFloor ? `<span class="floor-note">（5%floor発動中）</span>` : "";
@@ -1317,6 +1326,15 @@ function renderVerdict() {
   </section>`;
 }
 
+// 判定に応じて画面の縁を光らせる(#31)。OK=緑/NG=赤/HP未入力=光らせない。
+// renderVerdictはHTMLを返すだけなので、bodyのクラス切り替えはここで別に行う。
+function updateVerdictGlow() {
+  const { killed } = computeTotal(catalog, state.rows, state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
+  const pending = state.enemy.hp <= 0;
+  document.body.classList.toggle("verdict-glow-ok", !pending && killed);
+  document.body.classList.toggle("verdict-glow-ng", !pending && !killed);
+}
+
 // ページ末尾の共有ボタンと対象範囲の注記(判定欄を上部固定にしたので、常に見える必要の
 // ないものはここへ分けた)。
 function renderPageFooter() {
@@ -1334,6 +1352,7 @@ function render() {
     $("app").innerHTML =
       renderVerdict() + renderEnemy() + renderGlobalBuffs() + renderIndividualBuffLevelsSection() + renderRows() + renderPageFooter();
   });
+  updateVerdictGlow();
   saveState();
 }
 
@@ -1374,6 +1393,7 @@ function renderLive() {
     if (moduleHint) moduleHint.innerHTML = renderModuleUnusableHint(source, cfg);
   });
   $("verdict-section").outerHTML = renderVerdict();
+  updateVerdictGlow();
   saveState();
 }
 
