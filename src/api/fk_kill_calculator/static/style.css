@@ -91,6 +91,12 @@ summary{cursor:pointer;color:var(--faint);font-size:12px}
 .level-with-max input{flex:1;min-width:0}
 .level-max-hint{flex-shrink:0;font-size:11.5px;color:var(--faint);white-space:nowrap}
 .badge-elite{background:rgba(228,231,240,.10);color:var(--faint);border:1px solid var(--card-border);flex-shrink:0}
+/* ---- 混合スキル(P10。例: ホルンS2の物理+術)のパーツごとの小ブロック ---- */
+.row-part-block{
+  border:1px solid var(--card-border);border-radius:6px;
+  padding:6px 8px 2px;margin-bottom:8px;background:rgba(127,127,127,.04);
+}
+.row-part-heading{margin:0 0 6px;font-size:11.5px;font-weight:700;color:var(--faint)}
 .row-formula{font-size:11.5px;color:var(--faint);background:rgba(127,127,127,.08);border-radius:5px;padding:6px 8px;margin:8px 0}
 .row-formula b{color:var(--text)}
 .floor-note{color:var(--ng)}

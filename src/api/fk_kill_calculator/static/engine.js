@@ -89,6 +89,19 @@
    そこから更に手動で上書きできる)。`maxSkillLevelForElite`/`skillLevelWarning`が
    「E0はSLv4まで、E1はSLv7まで、特化1〜3は昇進2が必要」というゲーム側の一般ルールを
    判定する(既存のskillUnlockWarningと同じく、警告を出しても計算自体は続行する)。
+
+   P10で追加した「混合スキル」(`entry.parts`。例: ホルンS2の物理+術)。1回の攻撃で
+   複数系統のダメージパーツを同時に与えるスキルは、育成・バフ設定(昇進/潜在/モジュール/
+   スキルLv/セルフ%/手入力バフ/防御無視/Hit数/個別バフ/条件付きバフ/特殊強化/鼓舞)を1つだけ
+   共有し、パーツごとに違うのは倍率/ダメージ種別/ダメージ倍率だけにする(Hit数は1回の攻撃で
+   全パーツが同時に出るため共通。ダメージ種別はカタログ固定でUIからは選ばせない)。
+   `row`自身が常にパーツ0(トップレベルのmultiplier/dmgType/dmgMultがそのまま
+   パーツ0の値)で、2番目以降は`row.extraParts[i]`(`{multiplier, dmgType, dmgMult}`)
+   に持つ(トップレベルへのミラーは作らない。同期問題を避けるため)。`expandRowParts(row)`が
+   `[row, {...row,...extraParts[0]}, ...]`という疑似行配列を返し、`computeTotal`が
+   各疑似行に`computeRowDamage`を適用してから合算する(バフ内訳/鼓舞/特殊強化は行で1回
+   だけ計算して全パーツ共通に使う)。`entry.parts`を持たない通常のスキルは
+   `extraParts`が空/無いままなので、この機構は完全に後方互換。
    ============================================================ */
 
 /**
@@ -149,6 +162,43 @@ export function resolveSelfAtkPctAtLevel(entry, skillLevel) {
   const arr = entry.selfAtkPctByLevel;
   if (!arr || !arr.length) return entry.selfAtkPct.value;
   return valueAtLevel(arr, skillLevel);
+}
+
+/** P10: `entry.parts[i]`(FkPart)から現在のスキルLvの倍率を引く(`resolveMultiplierAtLevel`のパーツ版)。 */
+function resolvePartMultiplierAtLevel(part, skillLevel) {
+  const arr = part.multiplierByLevel;
+  if (!arr || !arr.length) return part.multiplier.value;
+  return valueAtLevel(arr, skillLevel);
+}
+
+/**
+ * P10(混合スキル): `entry.parts[1..]`から、現在のスキルLvでの実効値を持つ
+ * `row.extraParts`の既定配列を作る(倍率は`resolvePartMultiplierAtLevel`、
+ * ダメージ種別はそのパーツの値そのまま、ダメージ倍率は既定1。Hit数は行で共通なので持たない)。`entryIdx`/`skillLevel`
+ * 変更時に`makeDefaultRow`と同じくこれで再スナップする。`entry.parts`が無い/1件以下
+ * (=混合スキルではない通常エントリ)なら空配列。
+ */
+export function makeDefaultExtraParts(entry, skillLevel = 10) {
+  const parts = (entry && entry.parts) || [];
+  return parts.slice(1).map((p) => ({
+    multiplier: resolvePartMultiplierAtLevel(p, skillLevel),
+    dmgType: p.damageType.value,
+    dmgMult: 1,
+  }));
+}
+
+/**
+ * P10(混合スキル): 行を「パーツごとの疑似行」配列に展開する。row自身が常にパーツ0
+ * (multiplier/dmgType/dmgMultはトップレベルのまま)、2番目以降は
+ * `row.extraParts[i]`のmultiplier/dmgType/dmgMultだけで上書きした疑似行(それ以外の
+ * フィールド=opId/entryIdx/elite/level/trust/potential/moduleId/moduleLv/selfPct/
+ * buffPct/ignoreDef/hits/buffIds/specialOn/inspireOn等は行のまま共有する。extraPartsに
+ * 余計なフィールド[旧形のhits等]が残っていても拾わない)。`computeTotal`/`suggest`が
+ * パーツ単位でダメージを計算する入口。`row.extraParts`が無ければ`[row]`(通常行と完全互換)。
+ */
+export function expandRowParts(row) {
+  const extra = (row && row.extraParts) || [];
+  return [row, ...extra.map((p) => ({ ...row, multiplier: p.multiplier, dmgType: p.dmgType, dmgMult: p.dmgMult }))];
 }
 
 /**
@@ -338,6 +388,7 @@ export function makeDefaultRow(op, entryIdx) {
     buffIds: [], // P2: 個別バフ(行ごとに選ぶ)
     specialOn: true, // P2: 特殊強化トグル(デフォルトON。entry.specialが無ければ意味を持たない)
     inspireOn: true, // P3: 鼓舞トグル(デフォルトON。鼓舞ソースが無ければ意味を持たない)
+    extraParts: makeDefaultExtraParts(entry, skillLevel), // P10: 混合スキルのパーツ1以降(通常エントリは空)
   };
 }
 
@@ -1052,7 +1103,11 @@ export function computeRowDamage(op, row, enemy, inspireFlat = 0, extraPct = 0, 
  * `globalBuffLevels`(P4。省略時は`{}`=P1〜P3互換)は`state.globalBuffLevels`
  * (buffId→昇進/潜在/モジュール/スキルLv/トグルの選択)をそのまま渡す想定で、
  * `source`付き条件付きバフの値解決(`resolveConditionalValue`)に使う。
- * @returns {{results:(Array<null|{row:RowState, op:object, breakdown:object, inspireApplied:object}&ReturnType<typeof computeRowDamage>>),
+ * P10(混合スキル): `results[i]`はパーツ0(=`entry.parts`が無い通常行はその行自身)の
+ * 値を従来通りトップレベルに持ちつつ、`parts`(各パーツの`computeRowDamage`結果+`dmgType`)
+ * と、全パーツの合計である`rowDamage`を追加で持つ。
+ * @returns {{results:(Array<null|{row:RowState, op:object, breakdown:object, inspireApplied:object,
+ *            parts:Array<{dmgType:string}&ReturnType<typeof computeRowDamage>>}&ReturnType<typeof computeRowDamage>>),
  *            total:number, killed:boolean}}
  */
 export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSourceStates = {}, globalBuffLevels = {}) {
@@ -1065,8 +1120,17 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSo
     const specialMulFactor = resolveSpecialMultiplierFactor(op, entry, row);
     const inspireApplied = computeInspireForRow(catalog, row, inspireSourceStates, globalBuffIds, globalBuffLevels);
     const inspireFlat = breakdown.extraFlat + (inspireApplied ? inspireApplied.amount : 0);
-    const dmg = computeRowDamage(op, row, enemy, inspireFlat, breakdown.extraPct + specialAddPct, specialMulFactor);
-    return { row, op, breakdown, specialAddPct, specialMulFactor, inspireApplied, ...dmg };
+    const extraPct = breakdown.extraPct + specialAddPct;
+    // P10(混合スキル): 行をパーツ(`entry.parts`が無ければ`[row]`自身のみ)に展開し、
+    // バフ内訳/鼓舞/特殊強化(上で1回だけ計算した値)を全パーツ共通に適用してから合算する。
+    const partRows = expandRowParts(row);
+    const parts = partRows.map((partRow) => ({
+      dmgType: partRow.dmgType,
+      ...computeRowDamage(op, partRow, enemy, inspireFlat, extraPct, specialMulFactor),
+    }));
+    const rowDamage = parts.reduce((sum, d) => sum + d.rowDamage, 0);
+    const head = parts[0];
+    return { row, op, breakdown, specialAddPct, specialMulFactor, inspireApplied, ...head, rowDamage, parts };
   });
   const total = results.reduce((sum, r) => sum + (r ? r.rowDamage : 0), 0);
   return { results, total, killed: total >= enemy.hp };
@@ -1096,8 +1160,26 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSo
  * 単純に既定値(5=潜在6)へリセットする(オーナー指示)。旧`talentPotential`フィールドは
  * 素質凸境目をデータ駆動化(`talentPotentialRank`)したため`potential`に統合し、cfgから
  * 削除する。
+ * P10(混合スキル): `row.extraParts`の長さが`entry.parts`の2番目以降の数と合わない、
+ * または要素の形(multiplier/hits/dmgType/dmgMultを持つ)が壊れていれば、
+ * `makeDefaultExtraParts`でentry既定値から作り直す(プロトタイプなので丁寧な移行は
+ * しない。旧stateでホルンの「術」エントリ[entryIdx]を指していた行が範囲外/別エントリに
+ * なるのも既存の扱いに任せる)。
  * @returns {{state:object, dropped:number}}
  */
+/**
+ * P10: `extraParts`が「`entry.parts`の2番目以降の数だけ、正しい形の要素を持つ配列」かを
+ * 検証する(`dropStaleRows`が壊れていれば作り直すために使う。プロトタイプなので詳細な
+ * 移行はしない: 形が合わなければ丸ごとentry既定値で作り直す)。
+ */
+function isValidExtraParts(extraParts, expectedLen) {
+  if (expectedLen === 0) return !extraParts || extraParts.length === 0;
+  if (!Array.isArray(extraParts) || extraParts.length !== expectedLen) return false;
+  return extraParts.every(
+    (p) => p && typeof p.multiplier === "number" && typeof p.dmgType === "string" && typeof p.dmgMult === "number",
+  );
+}
+
 export function dropStaleRows(state, catalog) {
   const opById = new Map(catalog.operators.map((o) => [o.id, o]));
   const buffers = catalog.buffers || [];
@@ -1128,16 +1210,23 @@ export function dropStaleRows(state, catalog) {
     })
     .map((row) => {
       const op = opById.get(row.opId);
+      const entry = op.fkEntries[row.entryIdx];
       // P6: 昇進/レベル/信頼度が無い古い形(P1〜P5)のstate/共有URLを補完する
       // (`makeDefaultRow`と同じ既定: 最大昇進・その最大レベル・信頼度100)。
       const elite = row.elite != null ? row.elite : maxEliteFor(op);
       const level = row.level != null ? row.level : maxLevelForElite(op, elite);
+      const skillLevel = row.skillLevel != null ? row.skillLevel : 10; // P7: 旧(P1〜P6)形の補完
+      // P10: extraPartsの形/長さがentry.partsの2番目以降と合わなければ作り直す。
+      const expectedExtraLen = Math.max(((entry && entry.parts && entry.parts.length) || 0) - 1, 0);
+      const extraParts = isValidExtraParts(row.extraParts, expectedExtraLen)
+        ? row.extraParts
+        : makeDefaultExtraParts(entry, skillLevel);
       return {
         ...row,
         elite,
         level,
         trust: row.trust != null ? row.trust : 100,
-        skillLevel: row.skillLevel != null ? row.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
+        skillLevel,
         buffFlat: Number.isFinite(row.buffFlat) ? row.buffFlat : 0, // 手入力 基礎攻撃力+ (#29)
         // P8: `potential`は旧来のboolean(攻撃凸チェックボックス)から潜在ランク(0〜5の数値)へ
         // 仕様変更した。プロトタイプ段階のため丁寧な移行はせず、数値でなければ単純に
@@ -1146,6 +1235,7 @@ export function dropStaleRows(state, catalog) {
         buffIds: migrateStainlessIds(row.buffIds || []).filter((id) => validBuffIds.has(id)),
         specialOn: row.specialOn !== false,
         inspireOn: row.inspireOn !== false,
+        extraParts,
       };
     });
 
@@ -1289,6 +1379,7 @@ export function suggest(state, catalog) {
       suggestions.push({ kind: "rowBuffPct", rowIndex: i, amount: buffNeeded, effort: buffNeeded });
     }
 
+    // P10(混合スキル): Hit数は全パーツ共通(row.hits)なので、提案も行単位で1回だけ。
     const hitsNeeded = minimalIntegerSatisfying(1, SUGGEST_CAP_HITS, (extraHits) =>
       killsWith(rows.map((row, j) => (j === i ? { ...row, hits: row.hits + extraHits } : row))),
     );
@@ -1299,7 +1390,9 @@ export function suggest(state, catalog) {
 
   // 防御/術耐性の-固定は「敵の現在値を超えて下げる提案はしない」という上限を持つ
   // （0以下にはできない探索区間にする。現在値が0ならそもそも探索しない＝提案を出さない）。
-  const hasNonFloorPhysical = results.some((r) => r && r.row.dmgType === "physical" && !r.atFloor);
+  // P10(混合スキル): 「非floorの物理/術があるか」はパーツまで見る(entry.dmgTypeは
+  // パーツ0の属性でしかないため、r.partsの各dmgType/atFloorを確認する)。
+  const hasNonFloorPhysical = results.some((r) => r && r.parts.some((d) => d.dmgType === "physical" && !d.atFloor));
   const defCap = Math.floor(enemy.def);
   if (hasNonFloorPhysical && defCap > 0) {
     const defNeeded = minimalIntegerSatisfying(1, defCap, (extra) =>
@@ -1310,7 +1403,7 @@ export function suggest(state, catalog) {
     }
   }
 
-  const hasNonFloorArts = results.some((r) => r && r.row.dmgType === "arts" && !r.atFloor);
+  const hasNonFloorArts = results.some((r) => r && r.parts.some((d) => d.dmgType === "arts" && !d.atFloor));
   const resCap = Math.floor(enemy.res);
   if (hasNonFloorArts && resCap > 0) {
     const resNeeded = minimalIntegerSatisfying(1, resCap, (extra) =>

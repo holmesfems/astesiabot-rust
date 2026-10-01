@@ -71,6 +71,14 @@
 //!         モジュールY(`uniequip_002_milu`)Lv1=E2基礎値のまま(素質強化が付かない)/
 //!         Lv2=1.45,1.5/Lv3=1.5,1.55(潜在1〜4/5〜6)。E0は素質自体が未解放(値0→factor 1)。
 //!   - `note`: 補足コメント(フロント表示用)
+//!   - `combined`: 省略時false(P10)。同じskill_num内で`combined: true`のバリアントは
+//!     個別に選ぶ選択肢ではなく「同時に発生する複数のダメージパーツ」として1つのFkEntryに
+//!     まとめる(例: ホルンS2の物理+術)。先頭バリアントがパーツ0(FkEntryのトップレベル
+//!     multiplier/hits/damage_type等はこのパーツの値)になり、self_atk_pct/special/tags/note
+//!     は先頭バリアントのものだけを採用する(`build_catalog`が組み立てる。詳細はそちらの
+//!     コメント参照)。同じskill_num内でcombinedが一部のバリアントだけtrueになっている、
+//!     または2番目以降がself_atk_pct/special/tagsを持つのはデータの誤りとして
+//!     `validate_combined_variants`(`cargo test`)が検知する。
 //!
 //! ここに載せる値は機械データの自動判定と食い違う実測値であり、オーナーの参照
 //! スプレッドシートを出典とする手動補正である。ゲームデータ更新で機械側の値が
@@ -146,6 +154,10 @@ pub struct OverrideVariant {
     /// 重装バフ「軍事要塞」を強化するXの方が実効ATKが高い)。
     pub default_module: Option<String>,
     pub note: Option<String>,
+    /// 同じskill_num内でtrueのバリアントを「同時発生する複数パーツ」として1つのFkEntryに
+    /// まとめる(P10)。省略時false。詳細はファイル冒頭コメント参照。
+    #[serde(default)]
+    pub combined: bool,
 }
 
 /// operator_id -> skill_num -> バリアント一覧。
