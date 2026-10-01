@@ -621,7 +621,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 - fk_kill_calculatorのstate/URLのバックワード互換は`v:1`のまま、`row.buffIds`/
   `row.specialOn`/`state.globalBuffIds`/`row.inspireOn`/`state.inspire.sources`/
   `state.globalBuffLevels`(P4)/`row.elite`・`row.level`・`row.trust`・鼓舞ソースcfgの
-  同名フィールド(P6)/`row.skillLevel`・鼓舞ソースcfgの同名フィールド(P7)を
+  同名フィールド(P6)/`row.skillLevel`・鼓舞ソースcfgの同名フィールド(P7)・
+  `row.buffFlat`(#29。手入力の基礎攻撃力加算。無ければ0で補完)を
   省略可能フィールドとして追加し、`dropStaleRows`が
   旧(P1/P2)形の補完＋未知バフid・未知の鼓舞ソースid/パーツidの静かな除去、および
   旧(P2)形前衛アーミヤ2エントリ(`amiya_guard_normal`/`amiya_guard_skill`。
@@ -805,6 +806,15 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   `dropStaleRows`が移行する(`stainless_2`だった箇所が1つでもあれば共有`toggleOn`を
   trueにする)。血漿(plasma)・ドリアン(durian)はオーナー指示で`single_target`化した
   (どちらも「自身+ランダムな味方1名」に付与する効果のため)。
+- **fk_killの手入力 基礎攻撃力+(`row.buffFlat`。#29)は行自身の%バフ前加算**:
+  `final = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × ...`。鼓舞ソースの
+  ATKには乗らない(ソースcfgにこのフィールドは無い)。フォーミュラ行は0でなければ
+  `(691+150)`と表示する。ui.jsの入力は`buffPct`と同じrenderLive経由だが%換算はしない
+  (`ROW_PERCENT_FIELDS`に入れない)。
+- **fk_kill_calculatorの判定グロー(#31)と上部の折りたたみボタン(#30)**:
+  `ui.js::updateVerdictGlow`が`render`/`renderLive`の後でbodyに`verdict-glow-ok`/`-ng`を
+  付け外しする(HP未入力は両方無し)。`style.css`の`body::after`(pointer-events:none)が
+  縁を光らせる。展開ビュー先頭にも`collapse-row`ボタン(`.row-actions-top`)がある。
 - **fk_kill_calculatorの混合スキル(P10。物理+術を同時に与えるスキル。例: ホルンS2)は
   1行の中に複数のダメージパーツを持ち、育成・バフ設定は1つ(同じものを参照)、パーツごとに
   違うのは倍率/ダメージ種別/ダメージ倍率だけにする**: 従来は`overrides.yaml`で

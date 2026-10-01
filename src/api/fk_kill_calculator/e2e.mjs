@@ -211,6 +211,42 @@ async function runMainScenario(browser, baseUrl) {
     await page.fill('#enemy-def', '0');
     await page.waitForTimeout(150);
 
+    // --- #29 手入力 基礎攻撃力+: 打鍵中にフォーミュラ行へ(atk+150)が反映される ---
+    const flatInput = page.locator('input[data-field="buffFlat"]');
+    ok('expanded row has the buffFlat input', (await flatInput.count()) === 1);
+    await flatInput.fill('');
+    await flatInput.pressSequentially('150');
+    await page.waitForTimeout(100);
+    const flatFormula = await page.locator('.row-formula').innerText();
+    ok('typing buffFlat=150 shows "+150" in the formula line', flatFormula.includes('+150'), flatFormula);
+    await flatInput.fill('0');
+    await page.waitForTimeout(100);
+    ok('buffFlat=0 removes the "+150" from the formula line', !(await page.locator('.row-formula').innerText()).includes('+150'),
+      await page.locator('.row-formula').innerText());
+
+    // --- #31 判定に応じた画面縁のグロー(body class) ---
+    const bodyClass = () => page.evaluate(() => document.body.className);
+    await page.fill('#enemy-hp', '1');
+    await page.waitForTimeout(100);
+    ok('killable verdict adds body.verdict-glow-ok (and not -ng)',
+      (await bodyClass()).includes('verdict-glow-ok') && !(await bodyClass()).includes('verdict-glow-ng'), await bodyClass());
+    await page.fill('#enemy-hp', '99999999');
+    await page.waitForTimeout(100);
+    ok('unkillable verdict adds body.verdict-glow-ng (and not -ok)',
+      (await bodyClass()).includes('verdict-glow-ng') && !(await bodyClass()).includes('verdict-glow-ok'), await bodyClass());
+    await page.fill('#enemy-hp', '');
+    await page.waitForTimeout(100);
+    ok('pending verdict (no HP) has neither glow class', !(await bodyClass()).includes('verdict-glow'), await bodyClass());
+    await page.fill('#enemy-hp', '5000');
+    await page.waitForTimeout(150);
+
+    // --- #30 展開ビュー上部の「折りたたむ」ボタン ---
+    await page.locator('.row-actions-top [data-action="collapse-row"]').click();
+    await page.waitForTimeout(100);
+    ok('top collapse button collapses the expanded row', (await page.locator('.row-expanded').count()) === 0);
+    await page.locator('[data-action="edit-row"]').first().click();
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+
     // --- 折りたたんで2人目を追加 ---
     await page.click('[data-action="collapse-row"]');
     await page.waitForTimeout(100);
