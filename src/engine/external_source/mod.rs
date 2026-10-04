@@ -81,15 +81,15 @@ impl ExternalSourceRegistry {
             self.skill_data.refresh(),
             self.item_names.refresh(),
             self.zones.refresh(),
-            //self.ark_stages.refresh(), //2hごとに読み取り駆動で再fetchするため、デイリー更新対象から外す
-            //self.ark_matrix.refresh(), //2hごとに読み取り駆動で再fetchするため、デイリー更新対象から外す
+            //self.ark_stages.refresh(), //RiseiCalculatorEngine::refreshが2hごとに再fetchするため、デイリー更新対象から外す
+            //self.ark_matrix.refresh(), //RiseiCalculatorEngine::refreshが2hごとに再fetchするため、デイリー更新対象から外す
             self.formulas.refresh(),
         );
     }
 
     /// 名前を指定して1つだけ再fetchする（機能側からのオンデマンド更新用。
-    /// risei_calculator_engine が自前のキャッシュ期限切れ時に ark_stages /
-    /// ark_matrix を再fetchする用途を想定）。
+    /// risei_calculator_engine は`RiseiCalculatorEngine::refresh`で ark_stages /
+    /// ark_matrix を直接再fetchしているため、現状これを使う箇所は無い）。
     /// 該当する情報源が無ければ `None`。
     #[allow(dead_code)]
     pub async fn refresh_by_name(&self, name: &str) -> Option<bool> {

@@ -8,8 +8,7 @@ use super::server::{item_rarity2, item_rarity3};
 use super::values::RiseiValues;
 use super::{RiseiCalculatorEngine, Server};
 use crate::engine::external_source::item_names::ItemNames;
-use crate::engine::external_source::ExternalSourceRegistry;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;
 
@@ -79,6 +78,7 @@ fn price_cc() -> &'static Vec<CCExchangeItem> {
 
 /// 理性/時間価値一覧の1項目(Python版は`(String,f64,f64)`のタプルだったが、各値の
 /// 意味が読み手から追えるよう名前付きにした)。
+#[derive(Serialize)]
 pub struct ValueEntry {
     pub name_ja: String,
     pub value: f64,
@@ -86,6 +86,7 @@ pub struct ValueEntry {
 }
 
 /// 資格証・CC等の交換効率一覧の1項目。
+#[derive(Serialize)]
 pub struct TicketEfficiency {
     pub name_ja: String,
     pub efficiency: f64,
@@ -129,13 +130,13 @@ fn exchange_efficiency_list(items: &[CCExchangeItem], values: &RiseiValues) -> V
 
 impl RiseiCalculatorEngine {
     /// riseilists(basemaps)相当。
-    pub async fn base_maps(&self, outer_source: &ExternalSourceRegistry, server: Server) -> BTreeMap<String, String> {
-        self.snapshot(server, outer_source).await.base_stage_display
+    pub async fn base_maps(&self, server: Server) -> BTreeMap<String, String> {
+        self.snapshot(server).await.base_stage_display
     }
 
     /// riseilists(san_value_lists)相当。
-    pub async fn value_list(&self, outer_source: &ExternalSourceRegistry, server: Server) -> Vec<ValueEntry> {
-        let snapshot = self.snapshot(server, outer_source).await;
+    pub async fn value_list(&self, server: Server) -> Vec<ValueEntry> {
+        let snapshot = self.snapshot(server).await;
         snapshot
             .values
             .value_target
@@ -149,28 +150,28 @@ impl RiseiCalculatorEngine {
     }
 
     /// riseilists(te2list)相当。
-    pub async fn te2_list(&self, outer_source: &ExternalSourceRegistry, server: Server) -> Vec<TicketEfficiency> {
-        let snapshot = self.snapshot(server, outer_source).await;
+    pub async fn te2_list(&self, server: Server) -> Vec<TicketEfficiency> {
+        let snapshot = self.snapshot(server).await;
         ticket_efficiency_list(&item_rarity2(server), price(), &snapshot.values)
     }
 
     /// riseilists(te3list)相当。
-    pub async fn te3_list(&self, outer_source: &ExternalSourceRegistry, server: Server) -> Vec<TicketEfficiency> {
-        let snapshot = self.snapshot(server, outer_source).await;
+    pub async fn te3_list(&self, server: Server) -> Vec<TicketEfficiency> {
+        let snapshot = self.snapshot(server).await;
         ticket_efficiency_list(&item_rarity3(server), price(), &snapshot.values)
     }
 
     /// riseilists(special_list)相当。初級・上級両方の資格証対象アイテムを特別引換証価格で評価する。
-    pub async fn special_list(&self, outer_source: &ExternalSourceRegistry, server: Server) -> Vec<TicketEfficiency> {
-        let snapshot = self.snapshot(server, outer_source).await;
+    pub async fn special_list(&self, server: Server) -> Vec<TicketEfficiency> {
+        let snapshot = self.snapshot(server).await;
         let mut items = item_rarity2(server);
         items.extend(item_rarity3(server));
         ticket_efficiency_list(&items, price_special(), &snapshot.values)
     }
 
     /// riseilists(cclist)相当。
-    pub async fn cc_list(&self, outer_source: &ExternalSourceRegistry, server: Server) -> Vec<TicketEfficiency> {
-        let snapshot = self.snapshot(server, outer_source).await;
+    pub async fn cc_list(&self, server: Server) -> Vec<TicketEfficiency> {
+        let snapshot = self.snapshot(server).await;
         exchange_efficiency_list(price_cc(), &snapshot.values)
     }
 }

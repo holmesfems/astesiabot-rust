@@ -10,13 +10,13 @@ pub mod static_data;
 pub mod values;
 
 pub use lists::{TicketEfficiency, ValueEntry, CC_NUMBER};
-pub use search::{MaterialSearchResult, MaterialStageInfo, StageCategoryEfficiency, StageEfficiencyInfo, StageSearchResult};
+pub use search::{EventStageInfo, MaterialSearchResult, MaterialStageInfo, StageCategoryEfficiency, StageEfficiencyInfo, StageSearchResult};
 pub use server::Server;
 pub use stage::StageItem;
 
 use crate::engine::external_source::ExternalSourceRegistry;
 use calculator::Calculator;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use stage_info::{CategoryInstance, DEFAULT_SHOW_MIN_TIMES};
 use static_data::StaticData;
 use std::collections::{BTreeMap, HashSet};
@@ -27,14 +27,18 @@ use values::RiseiValues;
 /// risei_calculator_engine ドメイン共通のエラー型（bot にも api にも依存しない）。
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
-/// 理性価値表の再計算に使う基準（Python `DEFAULT_CACHE_TIME`）。
-const CACHE_MINUTES: i64 = 120;
+/// 理性価値表をバックグラウンドで再計算する間隔（Python `DEFAULT_CACHE_TIME`=120分）。
+/// Python版は「リクエスト時にキャッシュが古ければ再計算」だったが、Rust版は更新と応答を
+/// 切り分け、main.rsのループがこの間隔で[`RiseiCalculatorEngine::refresh`]を呼ぶ。
+/// リクエスト側([`RiseiCalculatorEngine::snapshot`])は常にキャッシュを読むだけ。
+pub const REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(120 * 60);
 /// 基準マップとして選ばれるために必要な最小試行数（Python版コマンドのデフォルト値）。
 const DEFAULT_BASE_MIN_TIMES: i64 = 3000;
 
 /// 理性価値表の計算エンジン（Python `CalculatorManager`相当のfacade）。
 /// bot/api には依存しない。グローバル版・大陸版それぞれの計算結果を
-/// 内部で保持し、キャッシュ期限切れ時に自動で再計算する。
+/// 内部で保持する。参照([`Self::snapshot`])と更新([`Self::refresh`]。main.rsが
+/// [`REFRESH_INTERVAL`]毎に呼ぶ)は切り分けてあり、参照側は再計算を起こさない。
 pub struct RiseiCalculatorEngine {
     static_data: StaticData,
     global: RwLock<Calculator>,
@@ -61,32 +65,27 @@ impl RiseiCalculatorEngine {
         }
     }
 
-    /// キャッシュが古ければ ark_stages/ark_matrix を再fetchしてから丸ごと再計算する
-    /// （Python `Calculator.tryReInit`相当。再計算に失敗した場合は既存の値を
-    /// 保持したまま継続する。`outer_source::Source::refresh`と同じ方針）。
-    async fn ensure_fresh(&self, server: Server, outer_source: &ExternalSourceRegistry) {
-        let stale = {
-            let calc = self.lock_for(server).read().await;
-            Utc::now() - calc.last_updated > chrono::Duration::minutes(CACHE_MINUTES)
-        };
-        if !stale {
-            return;
-        }
+    /// ark_stages/ark_matrix を再fetchしてから両サーバ分を丸ごと再計算する
+    /// （Python `Calculator.tryReInit`相当。main.rsの定期ループから[`REFRESH_INTERVAL`]毎に呼ぶ）。
+    /// 再計算に失敗したサーバは既存の値を保持したまま継続する（`outer_source::Source::refresh`と
+    /// 同じ方針）。計算中もリクエストは旧スナップショットを読み続け、完成後に一瞬で差し替える。
+    pub async fn refresh(&self, outer_source: &ExternalSourceRegistry) {
         tokio::join!(outer_source.ark_stages.refresh(), outer_source.ark_matrix.refresh());
-        match build_calculator(server, outer_source, &self.static_data).await {
-            Ok(new_calc) => {
-                *self.lock_for(server).write().await = new_calc;
-            }
-            Err(e) => {
-                eprintln!("[risei_calculator_engine] 再計算に失敗、既存の理性価値表を保持します: {e}");
+        for server in [Server::Global, Server::Mainland] {
+            match build_calculator(server, outer_source, &self.static_data).await {
+                Ok(new_calc) => {
+                    *self.lock_for(server).write().await = new_calc;
+                }
+                Err(e) => {
+                    eprintln!("[risei_calculator_engine] {server:?}の再計算に失敗、既存の理性価値表を保持します: {e}");
+                }
             }
         }
     }
 
-    /// 表示・検索に必要な情報一式のスナップショットを取得する
-    /// （必要ならキャッシュ更新してから）。
-    pub async fn snapshot(&self, server: Server, outer_source: &ExternalSourceRegistry) -> EngineSnapshot {
-        self.ensure_fresh(server, outer_source).await;
+    /// 表示・検索に必要な情報一式のスナップショットを取得する。常にキャッシュを読むだけで、
+    /// fetchや再計算は行わない（更新は[`Self::refresh`]の責務）。
+    pub async fn snapshot(&self, server: Server) -> EngineSnapshot {
         let calc = self.lock_for(server).read().await;
         EngineSnapshot {
             stage_info: calc.stage_info.clone(),
@@ -98,7 +97,13 @@ impl RiseiCalculatorEngine {
                 .map(|item| item.stage.stage_id.clone())
                 .collect(),
             base_stage_display: calc.base_stage_matrix.to_ja_display_map(),
+            last_updated: calc.last_updated,
         }
+    }
+
+    /// 指定サーバの理性価値表を計算した時刻（REST APIの`updated_at`用）。
+    pub async fn last_updated(&self, server: Server) -> DateTime<Utc> {
+        self.lock_for(server).read().await.last_updated
     }
 
     /// カテゴリ定義一式（`new`カテゴリを含むかどうかの判定・オートコンプリート等に使う
@@ -140,6 +145,8 @@ pub struct EngineSnapshot {
     pub values: RiseiValues,
     base_stage_ids: HashSet<String>,
     pub base_stage_display: BTreeMap<String, String>,
+    /// この理性価値表を計算した時刻。
+    pub last_updated: DateTime<Utc>,
 }
 
 /// カテゴリのmainItem/subItemドロップ率を`120秒`あたりの入手数に換算する
@@ -223,7 +230,7 @@ mod tests {
             .expect("engine should build against real network data");
 
         for server in [Server::Global, Server::Mainland] {
-            let snapshot = engine.snapshot(server, &outer_source).await;
+            let snapshot = engine.snapshot(server).await;
             assert!(
                 snapshot.values.get_value_from_zh("龙门币1000").is_finite(),
                 "龙门币1000 value should be finite for {server:?}"

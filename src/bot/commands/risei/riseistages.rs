@@ -15,7 +15,7 @@ async fn autocomplete_stage(ctx: Context<'_>, partial: &str) -> Vec<serenity::Au
     let state = ctx.data().state.clone();
     let snapshot = state
         .risei_calculator
-        .snapshot(Server::Mainland, &state.external_source)
+        .snapshot(Server::Mainland)
         .await;
     snapshot
         .auto_complete_main_stage(partial, 25)
@@ -42,7 +42,7 @@ pub async fn riseistages(
 
     let (reply, attachment) = match state
         .risei_calculator
-        .stage_search(&state.external_source, requested_server, &stage)
+        .stage_search(requested_server, &stage)
         .await
     {
         Err(msg) => (EmbedReply::error(&msg), None),
@@ -93,7 +93,7 @@ pub async fn riseistages(
             let attachment = if csv_file.unwrap_or(false) {
                 let snapshot = state
                     .risei_calculator
-                    .snapshot(result.effective_server, &state.external_source)
+                    .snapshot(result.effective_server)
                     .await;
                 let category_dict =
                     stage_category_dict(state.risei_calculator.stage_category(), result.effective_server);

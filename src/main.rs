@@ -54,9 +54,11 @@ async fn main() {
     // 外部サイト情報も起動時に一括fetch（失敗時の扱いは Source::load 参照）。
     let external_source = engine::external_source::ExternalSourceRegistry::load(debug).await;
     // 理性価値表もここで一括計算（グローバル版・大陸版とも）。
-    let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&external_source)
-        .await
-        .expect("理性価値表の初期計算に失敗");
+    let risei_calculator = Arc::new(
+        engine::risei_calculator_engine::RiseiCalculatorEngine::load(&external_source)
+            .await
+            .expect("理性価値表の初期計算に失敗"),
+    );
     let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
     let uranai = astesiabot_rust::bot::services::uranai::UranaiState::from_env();
     let state = Arc::new(AppState {
@@ -75,6 +77,17 @@ async fn main() {
             loop {
                 tokio::time::sleep(duration_until_next_refresh_jst()).await;
                 refresh_state.external_source.refresh_all().await;
+            }
+        });
+
+        // 理性価値表の定期再計算。リクエスト側(snapshot)は常にキャッシュを読むだけで、
+        // 更新はこのループだけが行う（更新と応答の切り分け）。
+        let risei_state = state.clone();
+        tokio::spawn(async move {
+            let interval = engine::risei_calculator_engine::REFRESH_INTERVAL;
+            loop {
+                tokio::time::sleep(interval).await;
+                risei_state.risei_calculator.refresh(&risei_state.external_source).await;
             }
         });
     }

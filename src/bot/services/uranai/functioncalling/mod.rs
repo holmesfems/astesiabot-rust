@@ -171,7 +171,7 @@ mod tests {
             recruit,
             moderation,
             external_source: outer_source,
-            risei_calculator,
+            risei_calculator: std::sync::Arc::new(risei_calculator),
             fk_data_search,
             uranai,
         }
