@@ -12,12 +12,16 @@
 //!   渡して「グローバル版のつもりが…」という取り違えを防ぐため)。
 //! - riseikakin(課金パック)は手動メンテ中心で陳腐化しやすいため対象外(オーナー判断)。
 //!
+//! アクセス方法のskill(`src/api/risei_skill/SKILL.md`)は`GET /api/risei/skill.zip`で配布する
+//! (トップページのカードからリンク)。こちらは状態を持たないので[`skill_router`]として
+//! `web_ui_router()`側に載せる(serve_webでも見えるように)。
+//!
 //! ルート一覧・引数の定義は[`ENDPOINTS`]が単一の正本で、`GET /api/risei`(使い方一覧)・
 //! 引数チェック・存在しないパスへのサジェストが全てここから組み立てる。
 
 use crate::engine::risei_calculator_engine::{RiseiCalculatorEngine, Server, CC_NUMBER};
 use axum::extract::{OriginalUri, Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
@@ -27,6 +31,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub const PREFIX: &str = "/api/risei";
+pub const SKILL_ZIP_PATH: &str = "/api/risei/skill.zip";
+/// zip内のフォルダ名(=skill名)。展開してそのまま`.claude/skills/`に置ける形にする。
+const SKILL_NAME: &str = "arknights-risei-api";
+const SKILL_MD_PATH: &str = "src/api/risei_skill/SKILL.md";
 const MAX_SUGGESTIONS: usize = 5;
 
 struct ParamSpec {
@@ -195,6 +203,52 @@ where
         .nest(PREFIX, inner)
 }
 
+/// skill配布(`GET /api/risei/skill.zip`)だけのルーター。状態に依存しないので
+/// `web_ui_router()`に載せる。`/api/risei`の他のルート([`router`])とはパスが重ならない
+/// (静的パスはnestのワイルドカードより優先される)。
+pub fn skill_router<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    Router::new().route(SKILL_ZIP_PATH, get(skill_zip))
+}
+
+/// skillのzipをリクエストごとにディスクから組み立てる(test_runnerのskill.zipと同じ方式。
+/// SKILL.mdを直しても再ビルド不要で、配布物が古くなることも無い)。
+fn build_skill_zip() -> std::io::Result<Vec<u8>> {
+    use std::io::{Cursor, Write};
+    use zip::write::SimpleFileOptions;
+    use zip::CompressionMethod;
+
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let data = std::fs::read(SKILL_MD_PATH)?;
+    writer
+        .start_file(format!("{SKILL_NAME}/SKILL.md"), options)
+        .map_err(std::io::Error::other)?;
+    writer.write_all(&data)?;
+    Ok(writer.finish().map_err(std::io::Error::other)?.into_inner())
+}
+
+async fn skill_zip() -> Response {
+    match build_skill_zip() {
+        Ok(bytes) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "application/zip".to_string()),
+                (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{SKILL_NAME}.zip\"")),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Err(e) => {
+            // デプロイ事故（ファイル欠落等）を黙って隠さない。
+            eprintln!("risei skill.zip の組み立てに失敗しました: {e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, "failed to build skill.zip").into_response()
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // ハンドラ
 // ---------------------------------------------------------------------------
@@ -226,6 +280,7 @@ async fn index(State(engine): State<Arc<RiseiCalculatorEngine>>) -> Json<Value> 
             "エラー時は {error, did_you_mean?, usage?} を返す。did_you_mean は近い候補",
         ],
         "endpoints": ENDPOINTS.iter().map(|e| endpoint_usage(e)).collect::<Vec<_>>(),
+        "skill": SKILL_ZIP_PATH,
         "servers": ["global", "mainland"],
         "material_categories": material_categories,
         "list_kinds": list_kinds_json(),
@@ -689,6 +744,37 @@ mod tests {
         let (status, body) = get("/api/risei/material").await;
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert_eq!(body["did_you_mean"][0], "/api/risei/materials");
+    }
+
+    /// run_apiと同じく web_ui_router()(skill_routerを含む) と router() を merge しても
+    /// パスが衝突せず、skill.zip と API の両方に届くこと。
+    #[tokio::test]
+    async fn skill_zip_coexists_with_api_router() {
+        let app = crate::api::web_ui_router::<()>().merge(router::<()>(engine().await));
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(SKILL_ZIP_PATH).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[header::CONTENT_TYPE], "application/zip");
+        assert_eq!(
+            response.headers()[header::CONTENT_DISPOSITION],
+            "attachment; filename=\"arknights-risei-api.zip\""
+        );
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec())).expect("valid zip");
+        assert_eq!(archive.len(), 1);
+        let mut entry = archive.by_name("arknights-risei-api/SKILL.md").unwrap();
+        let mut in_zip = Vec::new();
+        std::io::Read::read_to_end(&mut entry, &mut in_zip).unwrap();
+        assert_eq!(in_zip, std::fs::read(SKILL_MD_PATH).unwrap(), "zip内のSKILL.mdは正本とバイト一致する");
+
+        let response = app
+            .oneshot(Request::builder().uri("/api/risei/stages?stage=1-7").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[test]
