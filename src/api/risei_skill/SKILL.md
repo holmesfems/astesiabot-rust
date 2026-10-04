@@ -42,6 +42,17 @@ curl -sG https://astesiabot.com/api/risei/events -d stage=SV-8 -d server=mainlan
 curl -s  https://astesiabot.com/api/risei/lists/te2
 ```
 
+**Windows（Git Bash / PowerShell）の curl は日本語の引数を UTF-8 で送らない**（システムのコードページで
+化けて「不明な素材カテゴリです: �u��」のような404になる）。Windows では UTF-8 で
+パーセントエンコードしたものを URL に直接書くこと:
+
+```bash
+q=$(python -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' 砥石)
+curl -s "https://astesiabot.com/api/risei/materials?target=$q&limit=5"
+```
+
+日本語名の代わりにキー（中国語名）を使っても同じ問題が起きるので、エンコードは必須。
+
 ## 値の読み方
 
 - 効率・ドロップ率などの比率は **1.0 = 100%**（例: `0.857` → 85.7%）。表示時は%に直す
