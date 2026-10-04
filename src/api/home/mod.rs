@@ -72,6 +72,7 @@ mod tests {
         assert!(html.contains("href=\"/EFRecipeCalculator\""));
         assert!(html.contains("href=\"/LodChestSolver\""));
         assert!(html.contains("href=\"/TestRunner\""));
+        assert!(html.contains(r#"href="/api/risei/skill.zip" download"#));
         assert!(html.contains("<h2>エンドフィールド</h2>"));
         assert!(html.contains("<h2>他の趣味ツール</h2>"));
         assert!(html.contains(r#"<script src="/static/starfield.js" defer></script>"#));

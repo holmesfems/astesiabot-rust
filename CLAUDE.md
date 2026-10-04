@@ -221,7 +221,10 @@ src/
 │   │                        エラーは常にJSONで did_you_mean / usage を添える。AppStateに依存せず
 │   │                        `router(Arc<RiseiCalculatorEngine>)` を run_api が merge する
 │   │                        （serve_web には載らない）。riseikakin は対象外（手動メンテで陳腐化しやすい）。
-│   │                        アクセス方法のskillは `src/api/risei_skill/` が正本
+│   │                        アクセス方法のskillは `src/api/risei_skill/SKILL.md` が正本で、
+│   │                        `GET /api/risei/skill.zip`（`skill_router()`。状態不要なので
+│   │                        こちらは web_ui_router() に載せる）がリクエスト毎にzip化して配る。
+│   │                        トップページ「アークナイツ」のカードからリンク
 │   ├── legacy_host_redirect.rs … 旧ホスト（*.herokuapp.com / www.）の GET/HEAD を
 │   │                        PUBLIC_BASE_URL へ 301 するミドルウェア（run_api のみに掛ける）
 │   ├── site_icons/        … サイト共通アイコンをルート直下で配信（/favicon.ico・/favicon.svg・
