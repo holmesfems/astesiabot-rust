@@ -31,8 +31,8 @@ pub async fn build_context(state: &AppState) -> (AllOperatorsInfo, ValueSet) {
         formulas,
     };
 
-    let global_snapshot = state.risei_calculator.snapshot(Server::Global, &state.external_source).await;
-    let mainland_snapshot = state.risei_calculator.snapshot(Server::Mainland, &state.external_source).await;
+    let global_snapshot = state.risei_calculator.snapshot(Server::Global).await;
+    let mainland_snapshot = state.risei_calculator.snapshot(Server::Mainland).await;
     let values = ValueSet {
         global: global_snapshot.values.clone(),
         mainland: mainland_snapshot.values.clone(),

@@ -73,20 +73,20 @@ impl ToolFunction for RiseiLists {
         let server = Server::Global;
         let body = match target {
             RiseiListTarget::BaseMaps => {
-                let map = engine.base_maps(&ctx.external_source, server).await;
+                let map = engine.base_maps(server).await;
                 json!(map)
             }
             RiseiListTarget::SanValueList => {
-                let values = engine.value_list(&ctx.external_source, server).await;
+                let values = engine.value_list(server).await;
                 json!(values
                     .iter()
                     .map(|v| json!({ "name": v.name_ja, "value": v.value, "std_dev": v.std_dev }))
                     .collect::<Vec<_>>())
             }
-            RiseiListTarget::Te2List => ticket_list_json(engine.te2_list(&ctx.external_source, server).await),
-            RiseiListTarget::Te3List => ticket_list_json(engine.te3_list(&ctx.external_source, server).await),
-            RiseiListTarget::SpecialList => ticket_list_json(engine.special_list(&ctx.external_source, server).await),
-            RiseiListTarget::CcList => ticket_list_json(engine.cc_list(&ctx.external_source, server).await),
+            RiseiListTarget::Te2List => ticket_list_json(engine.te2_list(server).await),
+            RiseiListTarget::Te3List => ticket_list_json(engine.te3_list(server).await),
+            RiseiListTarget::SpecialList => ticket_list_json(engine.special_list(server).await),
+            RiseiListTarget::CcList => ticket_list_json(engine.cc_list(server).await),
         };
 
         ToolResponse::Ok(json!({

@@ -215,6 +215,13 @@ src/
 │   │                        UIのルートはここに足せば run_api にも serve_web にも自動で
 │   │                        反映される。片方にだけ書かないこと
 │   ├── recruitment.rs     … POST /recruitment/ （Python の doRecruitment と完全一致）
+│   ├── risei.rs           … GET /api/risei/*（理性価値計算 riseimaterials/stages/events/lists の
+│   │                        REST API。理性効率動画づくりでClaudeが叩く用途。認証なし公開）。
+│   │                        engine DTO をそのままJSONで返す。`GET /api/risei` が使い方一覧。
+│   │                        エラーは常にJSONで did_you_mean / usage を添える。AppStateに依存せず
+│   │                        `router(Arc<RiseiCalculatorEngine>)` を run_api が merge する
+│   │                        （serve_web には載らない）。riseikakin は対象外（手動メンテで陳腐化しやすい）。
+│   │                        アクセス方法のskillは `src/api/risei_skill/` が正本
 │   ├── legacy_host_redirect.rs … 旧ホスト（*.herokuapp.com / www.）の GET/HEAD を
 │   │                        PUBLIC_BASE_URL へ 301 するミドルウェア（run_api のみに掛ける）
 │   ├── site_icons/        … サイト共通アイコンをルート直下で配信（/favicon.ico・/favicon.svg・
@@ -427,6 +434,14 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   順に実行して `data/seed/*.json` を書き換える）を手元で実行し、差分を
   `git commit`/`push` してリポジトリに含める運用。push前に思い出したタイミングで
   都度実行すればよい（自動化はしていない）。
+- **理性価値表は「更新」と「参照」を切り分ける**: `RiseiCalculatorEngine::snapshot()`
+  （および material_search / stage_search / event_search / lists 系）は常にメモリ上の
+  計算済みキャッシュを読むだけで、fetch・再計算はしない。更新は main.rs のループが
+  `REFRESH_INTERVAL`（120分）毎に `RiseiCalculatorEngine::refresh()` を呼ぶ
+  （ark_stages/ark_matrix を再fetch → 両サーバ再計算 → 成功したものだけ差し替え。
+  失敗時は旧値を保持）。Python版の「リクエスト時に期限切れなら再計算」方式は踏襲しない
+  （Discordコマンド/REST APIの応答が再計算待ちで遅くならないようにするため）。
+  `--debug` 起動時はこのループを起動しない。
 - **fetchの共通戦略**: `engine/external_source/http.rs` の `client()` /
   `fetch_json_with_retry()`（7sタイムアウト・最大3回リトライ）が全情報源共通。
   新しい情報源を足すときもこれを使い、fetch fn ごとに個別のタイムアウト/リトライ
@@ -894,6 +909,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
    - `http://localhost:3000/FrameKillCalculator`（日本語専用） /
      `/FrameKillCalculator/catalog.json`
    - `http://localhost:3000/robots.txt` / `/sitemap.xml`
+   - `http://localhost:3000/api/risei`（理性価値計算 REST API の使い方一覧。本番は
+     `https://astesiabot.com/api/risei`）
    - `http://localhost:3000/TestRunner/skill.zip` … 手順書整形AIエージェント用スキル
      （test-procedure-formatter）の配布zip。ダウンロードして展開すると
      `test-procedure-formatter/` フォルダができるので、そのまま `.claude/skills/`

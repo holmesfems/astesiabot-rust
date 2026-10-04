@@ -24,24 +24,6 @@ fn material_categories() -> Vec<String> {
     file.main.values().chain(file.new.values()).map(|c| c.to_ja.clone()).collect()
 }
 
-/// enumの`to_ja`表記からカテゴリキー(`main_x`/`new_x`)を解決する。完全一致優先、
-/// 無ければ部分一致(Python版`estimateCategoryFromJPName`の`current in to_ja or to_ja in current`
-/// 相当)でGPTの表記ゆれを吸収する。
-fn resolve_category_key(ctx: &AppState, target: &str) -> Option<String> {
-    let file = ctx.risei_calculator.stage_category();
-    let entries: Vec<(&String, &str)> = file
-        .main
-        .iter()
-        .chain(file.new.iter())
-        .map(|(key, info)| (key, info.to_ja.as_str()))
-        .collect();
-    entries
-        .iter()
-        .find(|(_, to_ja)| *to_ja == target)
-        .or_else(|| entries.iter().find(|(_, to_ja)| target.contains(*to_ja) || to_ja.contains(target)))
-        .map(|(key, _)| (*key).clone())
-}
-
 impl ToolArgs for Args {
     fn schema_properties() -> Value {
         json!({
@@ -79,13 +61,13 @@ impl ToolFunction for RiseiMaterials {
             Ok(a) => a,
             Err(e) => return ToolResponse::Error(e),
         };
-        let Some(key) = resolve_category_key(ctx, &parsed.target) else {
+        let Some(key) = ctx.risei_calculator.resolve_category_key(&parsed.target) else {
             return ToolResponse::Error(format!("不明な素材カテゴリです: {}", parsed.target));
         };
 
         // Python版と同じくGPTからの呼び出しは常にグローバル版基準
         // (newカテゴリ指定時は material_search 内部で自動的に大陸版へ切り替わる)。
-        match ctx.risei_calculator.material_search(&ctx.external_source, Server::Global, &key).await {
+        match ctx.risei_calculator.material_search(Server::Global, &key).await {
             Err(msg) => ToolResponse::Error(msg),
             Ok(result) => {
                 let stages: Vec<Value> = result

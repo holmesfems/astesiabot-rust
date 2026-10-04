@@ -67160,6 +67160,19 @@
       "is_ammo_skill": false,
       "name": "「おもてなし」"
     },
+    "sktok_tchray": {
+      "blackboard": {
+        "value": 3500.0
+      },
+      "blackboard_by_level": [
+        {
+          "value": 3500.0
+        }
+      ],
+      "description": "パッシブ ⌚10.0秒\n“再度绽放”部署后会持续引导10秒，持续使其中的敌人停顿并每秒造成3500点真实伤害",
+      "is_ammo_skill": false,
+      "name": "消杀程序"
+    },
     "sktok_tfalco": {
       "blackboard": {
         "cnt": 1.0,

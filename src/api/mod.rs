@@ -4,6 +4,7 @@ mod home;
 mod legacy_host_redirect;
 mod lod_chest_solver;
 mod recruitment;
+pub mod risei;
 mod site_icons;
 mod test_runner;
 mod wl_battery_simulator;
@@ -37,8 +38,9 @@ pub struct AppState {
     pub moderation: ModerationState,
     /// 外部サイトから取得する情報のレジストリ（operator_data など）。
     pub external_source: ExternalSourceRegistry,
-    /// 理性価値表の計算エンジン（グローバル版・大陸版）。
-    pub risei_calculator: RiseiCalculatorEngine,
+    /// 理性価値表の計算エンジン（グローバル版・大陸版）。REST API(`/api/risei`)の
+    /// ルーターにも単体で渡すためArcで持つ。
+    pub risei_calculator: Arc<RiseiCalculatorEngine>,
     /// FK情報スプレッドシートの鮮度管理（読み取り駆動で1時間毎に再fetch）。
     pub fk_data_search: FkDataSearchEngine,
     /// 占い館（OpenAIチャット）の会話セッション・課金ロール判定・APIクライアント。
@@ -210,6 +212,7 @@ pub async fn run_api(state: Arc<AppState>) {
     let mut app = web_ui_router::<Arc<AppState>>()
         .merge(fk_kill_calculator::catalog_router::<Arc<AppState>>(catalog_provider))
         .route("/recruitment/", post(recruitment::do_recruitment)) // Python と同じパス
+        .merge(risei::router(state.risei_calculator.clone()))
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .fallback(not_found)
         .with_state(state);

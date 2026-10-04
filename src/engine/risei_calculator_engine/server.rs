@@ -1,9 +1,10 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// 大陸版(CN)基準かグローバル版基準かの計算軸
 /// （Python の `isGlobal:bool` 相当。bool blindness を避けるためenumにした）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Server {
     Global,
     Mainland,
