@@ -1,6 +1,7 @@
 pub mod calculator;
 pub mod formula;
 pub mod item_array;
+pub mod kakin;
 pub mod lists;
 pub mod search;
 pub mod server;

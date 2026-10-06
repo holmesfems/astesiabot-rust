@@ -23,6 +23,10 @@ valueDict["★6印交換券"] = valueDict["スカウト券"]*69.2
 valueDict["10回スカウト券"] = valueDict["スカウト券"]*10
 valueDict["10回中堅スカウト券"] = valueDict["スカウト券"]*10
 valueDict["中堅スカウト券"] = valueDict["スカウト券"]
+#招聘指名券はリストから好きな★6を1体選べる。ピックアップで狙った★6を引くのと同じ扱い(★6印交換券と同じ)
+#69.2 = ★6が出るまでの期待値34.6連(天井込み) × ピックアップ率50%の逆数2
+valueDict["中堅★6招聘指名券"] = valueDict["スカウト券"]*69.2
+valueDict["感謝祭記念★6招聘指名券"] = valueDict["スカウト券"]*69.2
 valueDict["★5特訓装置"] = EXPVALUE_1000*495 + LMDVALUE_1000*447.378
 valueDict["★6特訓装置"] = EXPVALUE_1000*750 + LMDVALUE_1000*744.955
 valueDict["テンニンカ指名契約"] = valueDict["スカウト券"]

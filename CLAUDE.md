@@ -220,7 +220,10 @@ src/
 │   │                        engine DTO をそのままJSONで返す。`GET /api/risei` が使い方一覧。
 │   │                        エラーは常にJSONで did_you_mean / usage を添える。AppStateに依存せず
 │   │                        `router(Arc<RiseiCalculatorEngine>)` を run_api が merge する
-│   │                        （serve_web には載らない）。riseikakin は対象外（手動メンテで陳腐化しやすい）。
+│   │                        （serve_web には載らない）。
+│   │                        `GET /api/risei/lists/kakin` は /riseikakin の全体比較(グローバル版のみ。
+│   │                        mainlandは400)で、`items`の代わりに`baselines`/`packs`を返す。
+│   │                        計算は engine/risei_calculator_engine/kakin.rs を bot と共有する。
 │   │                        アクセス方法のskillは `src/api/risei_skill/SKILL.md` が正本で、
 │   │                        `GET /api/risei/skill.zip`（`skill_router()`。状態不要なので
 │   │                        こちらは web_ui_router() に載せる）がリクエスト毎にzip化して配る。
