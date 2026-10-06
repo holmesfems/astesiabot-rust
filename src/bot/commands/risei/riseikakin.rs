@@ -2,123 +2,24 @@ use super::send_reply_with_attachment;
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
 use crate::bot::utils::xlsx::{build_kakin_export_xlsx, KakinExportPack};
+use crate::engine::risei_calculator_engine::kakin::{
+    build_kakin_pack, constant_packs, kakin_list, limited_packs, KakinPack,
+};
 use crate::engine::risei_calculator_engine::values::RiseiValues;
 use crate::engine::risei_calculator_engine::Server;
-use indexmap::IndexMap;
 use poise::serenity_prelude as serenity;
-use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
+use std::collections::HashSet;
 
 const KAKIN_XLSX_FILENAME: &str = "kakinList.xlsx";
 /// [`value_block`]と同じ並び順(Python `KakinPack.targetValueList`)。
 const KAKIN_TARGET_COLUMNS: [&str; 7] =
     ["総合効率", "ガチャ効率", "パック値段", "合計理性価値", "純正源石換算", "マネー換算", "ガチャ数"];
 
-// このファイルは課金パック調査(riseikakin)専用の関心事のため、理性価値計算エンジン
-// (risei_calculator_engine)には置かず、コマンド層に閉じている。riseilistsが使う
-// 契約賞金引換証(CC)は複数コマンドから使われる共有ロジックのためengine側に残っている
-// （`engine/risei_calculator_engine/cc_exchange.rs`）。
-
-const KAKIN_LIST_PATH: &str = "data/risei/price_kakin.yaml";
-const CONST_GACHA_PATH: &str = "data/risei/const_gacha.yaml";
-
-/// 課金パック一覧の基準として使う恒常パック名（Python `KakinPack.__init__` の`basicPackName`）。
-/// グローバル版のみ対応のため固定値。Mainland版の課金パック対応は元々使用頻度が低くオミット済み
-/// （`ref_python/RiseiCalculatorBot-main/riseicalculator2/Design.md`参照）。
-const BASIC_PACK_NAME: &str = "10000円恒常パック";
+// 計算(価格表の読み込み・パック効率)は`engine/risei_calculator_engine/kakin.rs`にある
+// （REST API `GET /api/risei/lists/kakin` と共有するため）。ここは embed / xlsx への整形だけを持つ。
 
 /// riseikakinのtarget="全体比較(グローバル)"相当（Python `totalJATuple`）。
 const TOTAL_TARGETS: [&str; 2] = ["全体比較(グローバル)", "Total_Global"];
-
-/// `data/risei/price_kakin.yaml` の1パック分（Python `getKakinList`の値側）。
-#[derive(Debug, Clone, Deserialize)]
-struct KakinPackDef {
-    price: f64,
-    #[serde(rename = "isConstant")]
-    is_constant: bool,
-    /// 日本語名→個数。順序は表示順に使うため`IndexMap`でYAML記載順を保持する。
-    contents: IndexMap<String, f64>,
-}
-
-/// 軽量な価格表のみ依存。起動時ロードのengine::StaticDataとは別に、初回アクセス時に
-/// 一度だけ読み込む（Design.md「autoCompletion_riseikakinのみ価格表依存で早く動く」の通り、
-/// このコマンドは理性価値計算エンジンの重いドロップデータに触れる必要が無い）。
-fn kakin_list() -> &'static IndexMap<String, KakinPackDef> {
-    static LIST: OnceLock<IndexMap<String, KakinPackDef>> = OnceLock::new();
-    LIST.get_or_init(|| {
-        let s = std::fs::read_to_string(KAKIN_LIST_PATH)
-            .expect("price_kakin.yamlの読み込みに失敗しました");
-        serde_yaml::from_str(&s).expect("price_kakin.yamlのパースに失敗しました")
-    })
-}
-
-fn const_gacha() -> &'static HashMap<String, f64> {
-    static GACHA: OnceLock<HashMap<String, f64>> = OnceLock::new();
-    GACHA.get_or_init(|| {
-        let s = std::fs::read_to_string(CONST_GACHA_PATH)
-            .expect("const_gacha.yamlの読み込みに失敗しました");
-        serde_yaml::from_str(&s).expect("const_gacha.yamlのパースに失敗しました")
-    })
-}
-
-/// 計算済みの課金パック理性効率（Python `CalculatorManager.KakinPack`）。
-#[derive(Clone)]
-struct KakinPack {
-    name: String,
-    price: f64,
-    contents: Vec<(String, f64)>,
-    total_value: f64,
-    total_originium: f64,
-    total_real_money: f64,
-    total_efficiency: f64,
-    gacha_count: f64,
-    gacha_efficiency: f64,
-}
-
-fn pack_value(contents: &IndexMap<String, f64>, values: &RiseiValues) -> f64 {
-    contents
-        .iter()
-        .map(|(ja, count)| values.get_value_from_ja(ja) * count)
-        .sum()
-}
-
-fn pack_gacha_count(contents: &IndexMap<String, f64>) -> f64 {
-    contents
-        .iter()
-        .map(|(ja, count)| const_gacha().get(ja).copied().unwrap_or(0.0) * count)
-        .sum()
-}
-
-/// Python `KakinPack.__init__`。基準パック(`BASIC_PACK_NAME`)は`price_kakin.yaml`に
-/// 必ず存在する前提。
-fn build_kakin_pack(name: &str, def: &KakinPackDef, values: &RiseiValues) -> KakinPack {
-    let total_value = pack_value(&def.contents, values);
-    let total_originium = total_value / values.get_value_from_ja("純正源石");
-
-    let basic = kakin_list()
-        .get(BASIC_PACK_NAME)
-        .expect("price_kakin.yamlに基準パック'10000円恒常パック'が存在しません");
-    let basic_value = pack_value(&basic.contents, values);
-    let total_real_money = total_value / basic_value * basic.price;
-    let total_efficiency = total_real_money / def.price;
-
-    let gacha_count = pack_gacha_count(&def.contents);
-    let basic_gacha_count = pack_gacha_count(&basic.contents);
-    let gacha_efficiency = gacha_count / def.price * basic.price / basic_gacha_count;
-
-    KakinPack {
-        name: name.to_string(),
-        price: def.price,
-        contents: def.contents.iter().map(|(k, v)| (k.clone(), *v)).collect(),
-        total_value,
-        total_originium,
-        total_real_money,
-        total_efficiency,
-        gacha_count,
-        gacha_efficiency,
-    }
-}
 
 /// riseikakin の target 引数のオートコンプリート相当（Python `autoCompletion_riseikakin`）。
 /// まず期間限定パック名(+全体比較)を部分一致で探し、何も無ければ恒常パック名にフォールバックする。
@@ -195,6 +96,16 @@ fn constant_block(constants: &[KakinPack]) -> String {
     format!("参考用課金効率:```\n{}\n```", lines.join("\n"))
 }
 
+/// 全体比較(グローバル)のembed本文。期間限定パック(総合効率の降順)→参考用課金効率の順。
+fn total_comparison_chunks(limited: &[KakinPack], constants: &[KakinPack]) -> Vec<String> {
+    let mut chunks: Vec<String> = limited
+        .iter()
+        .map(|pack| format!("{}:{}", pack.name, value_block(pack)))
+        .collect();
+    chunks.push(constant_block(constants));
+    chunks
+}
+
 /// xlsx出力(`csv_file`オプション)用にKakinPackを畳み込む（Python `KakinPack.targetValueList`相当）。
 fn to_export_pack(pack: &KakinPack) -> KakinExportPack {
     KakinExportPack {
@@ -255,25 +166,11 @@ pub async fn riseikakin(
     let values = &snapshot.values;
     let want_csv = csv_file.unwrap_or(false);
 
-    let constants: Vec<KakinPack> = kakin_list()
-        .iter()
-        .filter(|(_, def)| def.is_constant)
-        .map(|(name, def)| build_kakin_pack(name, def, values))
-        .collect();
+    let constants = constant_packs(values);
 
     let (reply, attachment) = if TOTAL_TARGETS.contains(&target.as_str()) {
-        let mut limited: Vec<KakinPack> = kakin_list()
-            .iter()
-            .filter(|(_, def)| !def.is_constant)
-            .map(|(name, def)| build_kakin_pack(name, def, values))
-            .collect();
-        limited.sort_by(|a, b| b.total_efficiency.total_cmp(&a.total_efficiency));
-
-        let mut chunks: Vec<String> = limited
-            .iter()
-            .map(|pack| format!("{}:{}", pack.name, value_block(pack)))
-            .collect();
-        chunks.push(constant_block(&constants));
+        let limited = limited_packs(values);
+        let chunks = total_comparison_chunks(&limited, &constants);
         let attachment = if want_csv {
             let all_packs: Vec<KakinPack> = limited.iter().chain(constants.iter()).cloned().collect();
             Some(build_kakin_attachment(&all_packs, values)?)
@@ -315,4 +212,116 @@ pub async fn riseikakin(
         }
     };
     send_reply_with_attachment(ctx, reply, attachment).await
+}
+
+#[cfg(test)]
+mod tests {
+    //! `/riseikakin`(全体比較・グローバル)のembed本文と`GET /api/risei/lists/kakin`の応答が
+    //! 同じ理性価値表から全パック一致することの照合。embedは表示用に丸めた文字列なので、
+    //! APIの生の値をembedと同じ書式で丸めて文字列比較する。
+    use super::*;
+    use crate::engine::external_source::ExternalSourceRegistry;
+    use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
+    use axum::body::Body;
+    use axum::http::Request;
+    use serde_json::Value;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    /// embedの1チャンク(`name:```...```\n`)→(パック名, 項目名→値文字列)。
+    fn parse_pack_chunk(chunk: &str) -> (String, HashMap<String, String>) {
+        let (name, block) = chunk.split_once(":```\n").expect("パックのチャンク");
+        let fields = block
+            .lines()
+            .filter_map(|line| line.split_once(": "))
+            .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
+            .collect();
+        (name.to_string(), fields)
+    }
+
+    async fn compare(debug: bool) {
+        let outer_source = ExternalSourceRegistry::load(debug).await;
+        let engine = Arc::new(RiseiCalculatorEngine::load(&outer_source).await.expect("理性価値表を計算できる"));
+
+        // Discord側: コマンドと同じ関数で本文を組み立てる
+        let values = engine.snapshot(Server::Global).await.values;
+        let chunks = total_comparison_chunks(&limited_packs(&values), &constant_packs(&values));
+        let (constant_chunk, pack_chunks) = chunks.split_last().unwrap();
+
+        // API側: curlと同じくHTTPで叩く
+        let response = crate::api::risei::router::<()>(engine.clone())
+            .oneshot(Request::builder().uri("/api/risei/lists/kakin").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body: Value = serde_json::from_slice(&bytes).unwrap();
+        let packs = body["packs"].as_array().unwrap();
+        assert_eq!(packs.len(), pack_chunks.len(), "パック数");
+
+        println!("updated_at={} effective_server={}", body["updated_at"], body["effective_server"]);
+        println!("| # | パック | 総合効率 bot / API | ガチャ効率 bot / API | 値段 bot / API | マネー換算 bot / API | 一致 |");
+        println!("|---|---|---|---|---|---|---|");
+        let pct = |v: &Value| format!("{:.2}%", v.as_f64().unwrap() * 100.0);
+        let mut all_ok = true;
+        for (i, (chunk, pack)) in pack_chunks.iter().zip(packs).enumerate() {
+            let (name, bot) = parse_pack_chunk(chunk);
+            let api = [
+                ("総合効率", pct(&pack["total_efficiency"])),
+                ("ガチャ効率", pct(&pack["gacha_efficiency"])),
+                ("パック値段", format!("{:.0}円", pack["price_jpy"].as_f64().unwrap())),
+                ("マネー換算", format!("{:.2}円", pack["value_jpy"].as_f64().unwrap())),
+                ("合計理性価値", format!("{:.2}", pack["total_value"].as_f64().unwrap())),
+                ("純正源石換算", format!("{:.2}", pack["total_originium"].as_f64().unwrap())),
+                ("ガチャ数", format!("{:.2}", pack["gacha_count"].as_f64().unwrap())),
+            ];
+            let ok = name == pack["name"].as_str().unwrap() && api.iter().all(|(k, v)| bot.get(*k) == Some(v));
+            all_ok &= ok;
+            println!(
+                "| {} | {} | {} / {} | {} / {} | {} / {} | {} / {} | {} |",
+                i + 1,
+                name,
+                bot["総合効率"], api[0].1,
+                bot["ガチャ効率"], api[1].1,
+                bot["パック値段"], api[2].1,
+                bot["マネー換算"], api[3].1,
+                if ok { "✅" } else { "❌" },
+            );
+            // contentsの換算額の合計はパックのマネー換算と一致する
+            let sum: f64 = pack["contents"].as_array().unwrap().iter().map(|c| c["value_jpy"].as_f64().unwrap()).sum();
+            assert!((sum - pack["value_jpy"].as_f64().unwrap()).abs() < 1e-6, "{name}: contents合計");
+        }
+
+        println!();
+        println!("| 比較用(恒常) | bot | API | 一致 |");
+        println!("|---|---|---|---|");
+        let bot_constants: Vec<(String, String)> = constant_chunk
+            .lines()
+            .filter_map(|line| line.rsplit_once(": "))
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        let baselines = body["baselines"].as_array().unwrap();
+        assert_eq!(bot_constants.len(), baselines.len(), "恒常パック数");
+        for ((bot_name, bot_pct), base) in bot_constants.iter().zip(baselines) {
+            let api_pct = pct(&base["total_efficiency"]);
+            let ok = bot_name == base["name"].as_str().unwrap() && *bot_pct == api_pct;
+            all_ok &= ok;
+            println!("| {bot_name} | {bot_pct} | {api_pct} | {} |", if ok { "✅" } else { "❌" });
+        }
+        assert!(all_ok, "/riseikakin と API が一致しない項目がある");
+    }
+
+    #[tokio::test]
+    async fn api_matches_discord_embed_on_seed() {
+        compare(true).await;
+    }
+
+    /// 実データ(ネットワークfetch)で照合する。`cargo test api_matches_discord_embed_live -- --ignored --nocapture`
+    #[tokio::test]
+    #[ignore]
+    async fn api_matches_discord_embed_live() {
+        dotenvy::dotenv().ok();
+        compare(false).await;
+    }
 }

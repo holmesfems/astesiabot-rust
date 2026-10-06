@@ -10,7 +10,8 @@
 //!   `did_you_mean`(近い候補)と`usage`(そのエンドポイントの引数一覧)を添える。
 //!   未知のクエリ引数も黙って無視せず400にする(`is_global=false`のような旧コマンド引数を
 //!   渡して「グローバル版のつもりが…」という取り違えを防ぐため)。
-//! - riseikakin(課金パック)は手動メンテ中心で陳腐化しやすいため対象外(オーナー判断)。
+//! - riseikakin(課金パック)は全体比較(グローバル版)だけを`lists/kakin`として返す。
+//!   `/riseikakin`自体がグローバル版専用なので、`server=mainland`は400にする。
 //!
 //! アクセス方法のskill(`src/api/risei_skill/SKILL.md`)は`GET /api/risei/skill.zip`で配布する
 //! (トップページのカードからリンク)。こちらは状態を持たないので[`skill_router`]として
@@ -19,6 +20,7 @@
 //! ルート一覧・引数の定義は[`ENDPOINTS`]が単一の正本で、`GET /api/risei`(使い方一覧)・
 //! 引数チェック・存在しないパスへのサジェストが全てここから組み立てる。
 
+use crate::engine::risei_calculator_engine::kakin::kakin_comparison;
 use crate::engine::risei_calculator_engine::{RiseiCalculatorEngine, Server, CC_NUMBER};
 use axum::extract::{OriginalUri, Path, Query, State};
 use axum::http::{header, StatusCode};
@@ -109,7 +111,8 @@ const EVENTS: EndpointSpec = EndpointSpec {
 };
 const LISTS: EndpointSpec = EndpointSpec {
     path: "/api/risei/lists/{kind}",
-    description: "各種効率表(/riseilists)。kindは list_kinds 参照。効率表は効率の降順",
+    description: "各種効率表(/riseilists)。kindは list_kinds 参照。効率表は効率の降順。\
+                  kind=kakin は課金パック効率(/riseikakin の全体比較)で、server=global のみ対応",
     params: &[SERVER_PARAM],
 };
 
@@ -124,10 +127,12 @@ enum ListKind {
     Te3,
     Special,
     Cc,
+    Kakin,
 }
 
 impl ListKind {
-    const ALL: [ListKind; 6] = [Self::BaseMaps, Self::Values, Self::Te2, Self::Te3, Self::Special, Self::Cc];
+    const ALL: [ListKind; 7] =
+        [Self::BaseMaps, Self::Values, Self::Te2, Self::Te3, Self::Special, Self::Cc, Self::Kakin];
 
     fn key(self) -> &'static str {
         match self {
@@ -137,6 +142,7 @@ impl ListKind {
             Self::Te3 => "te3",
             Self::Special => "special",
             Self::Cc => "cc",
+            Self::Kakin => "kakin",
         }
     }
 
@@ -148,6 +154,7 @@ impl ListKind {
             Self::Te3 => "上級資格証効率表".to_string(),
             Self::Special => "特別引換証効率表".to_string(),
             Self::Cc => format!("契約賞金引換効率表(CC#{CC_NUMBER})"),
+            Self::Kakin => "課金パック効率(グローバル版。期間限定パックを総合効率の降順＋比較用の恒常パック)".to_string(),
         }
     }
 
@@ -267,7 +274,7 @@ async fn index(State(engine): State<Arc<RiseiCalculatorEngine>>) -> Json<Value> 
 
     Json(json!({
         "name": "astesiabot 理性価値計算 API",
-        "description": "Discord bot の /riseimaterials /riseistages /riseievents /riseilists と同じ計算結果をJSONで返す。\
+        "description": "Discord bot の /riseimaterials /riseistages /riseievents /riseilists /riseikakin(全体比較のみ) と同じ計算結果をJSONで返す。\
                         値はサーバー内のキャッシュで、120分ごとにpenguin-statsのドロップデータから再計算される",
         "notes": [
             "効率・ドロップ率などの比率は 1.0 = 100% の生の値",
@@ -373,6 +380,9 @@ async fn lists(
     check_params(&params, &LISTS)?;
     let server = parse_server(&params, &LISTS)?;
 
+    if let ListKind::Kakin = kind {
+        return kakin(&engine, server).await;
+    }
     let items = match kind {
         ListKind::BaseMaps => {
             // キーは中国語のカテゴリキーなので、materialsのcategoryと同じ日本語名を添える。
@@ -392,6 +402,7 @@ async fn lists(
         ListKind::Te3 => json!(engine.te3_list(server).await),
         ListKind::Special => json!(engine.special_list(server).await),
         ListKind::Cc => json!(engine.cc_list(server).await),
+        ListKind::Kakin => unreachable!("上で処理済み"),
     };
     let updated_at = engine.last_updated(server).await;
     Ok(Json(envelope(
@@ -399,6 +410,30 @@ async fn lists(
         updated_at,
         json!({ "kind": kind.key(), "title": kind.title() }),
         &json!({ "effective_server": server, "items": items }),
+    )))
+}
+
+/// `lists/kakin`。他の効率表と違い`items`ではなく`baselines`/`packs`を返す
+/// （`/riseikakin`の全体比較が「期間限定パック一覧＋参考用の恒常パック」の2部構成のため）。
+async fn kakin(engine: &RiseiCalculatorEngine, server: Server) -> ApiResult {
+    if server != Server::Global {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "kakin(課金パック効率)はグローバル版のみ対応です。server を省略するか global にしてください",
+        )
+        .with("did_you_mean", ["global"])
+        .with("usage", endpoint_usage(&LISTS)));
+    }
+    // updated_atは計算に使った理性価値表そのものの時刻を出す(別途last_updatedを読むと、
+    // 間に再計算が挟まったときに値と時刻がずれ得るため)。
+    let snapshot = engine.snapshot(server).await;
+    let comparison = kakin_comparison(&snapshot.values);
+    let kind = ListKind::Kakin;
+    Ok(Json(envelope(
+        server,
+        snapshot.last_updated,
+        json!({ "kind": kind.key(), "title": kind.title() }),
+        &json!({ "effective_server": server, "baselines": comparison.baselines, "packs": comparison.packs }),
     )))
 }
 
@@ -711,6 +746,9 @@ mod tests {
     #[tokio::test]
     async fn lists_return_every_kind() {
         for kind in ListKind::ALL {
+            if let ListKind::Kakin = kind {
+                continue; // items ではなく baselines/packs。kakin_returns_global_comparison で見る
+            }
             let (status, body) = get(&format!("/api/risei/lists/{}", kind.key())).await;
             assert_eq!(status, StatusCode::OK, "{}", kind.key());
             assert!(!body["items"].as_array().unwrap().is_empty(), "{}", kind.key());
@@ -718,6 +756,27 @@ mod tests {
         let (status, body) = get("/api/risei/lists/te").await;
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert!(body["did_you_mean"].as_array().unwrap().contains(&json!("te2")));
+    }
+
+    #[tokio::test]
+    async fn kakin_returns_global_comparison() {
+        let (status, body) = get("/api/risei/lists/kakin").await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["effective_server"], "global");
+        assert!(body["updated_at"].is_string());
+        assert_eq!(body["baselines"][0]["name"], "10000円恒常パック");
+        assert_eq!(body["baselines"][0]["total_efficiency"], 1.0);
+        // 期間限定パックは販売状況次第で0件もあり得る(price_kakin.yamlで全部コメントアウト)ので、
+        // 件数には依存しない
+        let packs = body["packs"].as_array().unwrap();
+        let efficiencies: Vec<f64> = packs.iter().map(|p| p["total_efficiency"].as_f64().unwrap()).collect();
+        assert!(efficiencies.windows(2).all(|w| w[0] >= w[1]), "総合効率の降順");
+        assert!(packs.iter().all(|p| p["contents"].as_array().is_some_and(|c| !c.is_empty())));
+        assert!(packs.iter().all(|p| p.get("note").is_none()));
+
+        let (status, body) = get(&uri("/api/risei/lists/kakin", "server=mainland")).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert!(body["usage"]["params"].is_array());
     }
 
     #[tokio::test]
