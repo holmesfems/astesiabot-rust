@@ -31,11 +31,6 @@ pub struct KakinPackDef {
     pub is_constant: bool,
     /// 日本語名→個数。順序は表示順に使うため`IndexMap`でYAML記載順を保持する。
     pub contents: IndexMap<String, f64>,
-    /// `contents`のうち本当に理性価値0のアイテム（コスメ等）。計算には使わない
-    /// （価値0のアイテムは元々0として足されるだけ）。名前の誤字や理性価値表に無いアイテムが
-    /// 黙って0扱いになるのを`cargo test`(`every_pack_item_has_risei_value`)で検出するための明示。
-    #[serde(rename = "zeroValue", default)]
-    pub zero_value: Vec<String>,
 }
 
 /// 軽量な価格表のみ依存。起動時ロードのStaticDataとは別に、初回アクセス時に一度だけ読み込む
@@ -219,34 +214,41 @@ mod tests {
     use crate::engine::external_source::ExternalSourceRegistry;
     use crate::engine::risei_calculator_engine::{RiseiCalculatorEngine, Server};
 
+    /// 理性価値0と分かっているアイテム名(コスメ等)の一覧。テストでしか使わない
+    /// (計算では価値0のアイテムは元々0として足されるだけなので、実行時に読む必要が無い)。
+    const ZERO_VALUE_ITEMS_PATH: &str = "data/risei/zero_value_items.yaml";
+
     /// `get_value_from_ja`は知らない名前を黙って0にするため、YAMLの誤字や理性価値表に無い
-    /// アイテムで効率が低く出ても気づけない。価値0は`zeroValue`での明示を必須にする。
+    /// アイテムで効率が低く出ても気づけない。価値0は`zero_value_items.yaml`での明示を必須にする。
     #[tokio::test]
     async fn every_pack_item_has_risei_value() {
+        let zero_value_items: Vec<String> = serde_yaml::from_str(
+            &std::fs::read_to_string(ZERO_VALUE_ITEMS_PATH).expect("zero_value_items.yamlを読める"),
+        )
+        .expect("zero_value_items.yamlは文字列のリスト");
         let outer_source = ExternalSourceRegistry::load(true).await;
         let engine = RiseiCalculatorEngine::load(&outer_source).await.expect("seedから理性価値表を計算できる");
         let values = engine.snapshot(Server::Global).await.values;
+
         let mut problems = Vec::new();
         for (pack, def) in kakin_list() {
-            for (item, _) in &def.contents {
-                let value = values.get_value_from_ja(item);
-                let declared = def.zero_value.contains(item);
-                if value <= 0.0 && !declared {
+            for item in def.contents.keys() {
+                if values.get_value_from_ja(item) <= 0.0 && !zero_value_items.contains(item) {
                     problems.push(format!(
-                        "{pack}: 「{item}」の理性価値が0。コスメなら zeroValue に追加、\
+                        "price_kakin.yaml {pack}: 「{item}」の理性価値が0。コスメなら {ZERO_VALUE_ITEMS_PATH} に追加、\
                          そうでなければ名前の誤字か const_values.yaml への追加漏れ"
                     ));
                 }
-                if value > 0.0 && declared {
-                    problems.push(format!("{pack}: 「{item}」は理性価値{value}があるのに zeroValue にある"));
-                }
-            }
-            for item in &def.zero_value {
-                if !def.contents.contains_key(item) {
-                    problems.push(format!("{pack}: zeroValue の「{item}」が contents に無い"));
-                }
             }
         }
-        assert!(problems.is_empty(), "price_kakin.yaml:\n{}", problems.join("\n"));
+        // 一覧が陳腐化していないこと(理性価値が付いたアイテムが残っていると、そのアイテムの
+        // 名前の誤字を見逃す原因になる)
+        for item in &zero_value_items {
+            let value = values.get_value_from_ja(item);
+            if value > 0.0 {
+                problems.push(format!("{ZERO_VALUE_ITEMS_PATH}: 「{item}」は理性価値{value}があるので一覧から消す"));
+            }
+        }
+        assert!(problems.is_empty(), "\n{}", problems.join("\n"));
     }
 }
