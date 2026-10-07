@@ -7,9 +7,9 @@
 #   似ていても照合・流用はしない（同じ名前・値段でも中身が微妙に違うことがある）
 # ・アークナイツ公式サイトはJS描画のSPAで WebFetch/curl では内容を取得できないため参照しない
 # ・値段はスクショに無いことが多い。憶測で書かず、ユーザーに確認すること
-# ・期間限定パックは isConstant: false。恒常パック（下の #constant）は isConstant: true
-# ・全作業の終了を告知されたら、今回のスクショ一式に含まれなかった期間限定パックは
-#   種類を問わず（訓練パック系も含む）削除する。#constant は触らない
+# ・期間限定パックは isConstant: false。恒常パック（上の #constant）は isConstant: true
+# ・スクショを受け取る前に、まず販売終了した期間限定パックを #limited から消す。
+#   #constant は触らない
 # ・龍門幣は1000単位で書く（例: 龍門幣×260,000 → 龍門幣1000: 260）
 # ・アイテム名は理性価値表の日本語名と完全一致させる。理性価値が0になる名前は
 #   cargo test（kakin.rs の every_pack_item_has_risei_value）で落ちる。
@@ -19,8 +19,89 @@
 #   （data/risei/const_values.yaml への追加が必要）なので、ユーザーに確認すること。
 #   コスメではないが理性価値を付けないと決めたもの（例: データ補完チップ/マシン）は
 #   const_values.yaml に明示的に 0 で書く（明示されていればテストは通る）
-# ・期間限定パックは #limited に price 昇順で並べる
+# ・並び順は計算結果に影響しない（表示は効率順にソートされる）。書きやすさ優先で、
+#   #constant を上、#limited を下に置き、期間限定パックはスクショの順に末尾へ書き足す
+#   （price順に並べ替えない）
 # --------------------------------
+
+#constant
+10000円恒常パック:
+  price: 10000
+  isConstant: true
+  contents:
+    純正源石: 175
+
+10000円初回パック:
+  price: 10000
+  isConstant: true
+  contents:
+    純正源石: 250
+
+月間スカウトパック:
+  price: 2600
+  isConstant: true
+  contents:
+    純正源石: 42
+    10回スカウト券: 1
+
+月パス:
+  price: 650
+  isConstant: true
+  contents:
+    純正源石: 6
+    合成玉: 6000
+    初級理性回復剤+: 30
+
+初心者応援パック:
+  price: 160
+  isConstant: true
+  contents:
+    #テンニンカの価値=1ガチャで計算
+    テンニンカ指名契約: 1
+    スカウト券: 1
+    龍門幣1000: 10
+    入門作戦記録: 20
+
+初心者月パスパック:
+  price: 350
+  isConstant: true
+  contents:
+    スカウト券: 3
+
+初心者特訓パック:
+  price: 2600
+  isConstant: true
+  contents:
+    ★6特訓招待状: 1
+    ★5特訓招待状: 1
+    ★4特訓招待状: 2
+
+初心者支援パック:
+  price: 160
+  isConstant: true
+  contents:
+    純正源石: 1
+    SoCセルフプリンター: 1
+    初級作戦記録: 50
+    合成玉: 600
+    アーツ学Ⅱ: 30
+    中級作戦記録: 20
+    アーツ学Ⅲ: 10
+    龍門幣1000: 80
+
+月間資金パック:
+  price: 480
+  isConstant: true
+  contents:
+    龍門幣1000: 240
+
+月間作戦記録パック:
+  price: 650
+  isConstant: true
+  contents:
+    上級作戦記録: 80
+    中級作戦記録: 100
+    初級作戦記録: 160
 
 #limited
 ダック卿の小銭入れ:
@@ -130,82 +211,3 @@
     モジュールデータ: 6
     データ補完マシン: 30
     データ補完チップ: 90
-
-#constant
-10000円恒常パック:
-  price: 10000
-  isConstant: true
-  contents:
-    純正源石: 175
-
-10000円初回パック:
-  price: 10000
-  isConstant: true
-  contents:
-    純正源石: 250
-
-月間スカウトパック:
-  price: 2600
-  isConstant: true
-  contents:
-    純正源石: 42
-    10回スカウト券: 1
-
-月パス:
-  price: 650
-  isConstant: true
-  contents:
-    純正源石: 6
-    合成玉: 6000
-    初級理性回復剤+: 30
-
-初心者応援パック:
-  price: 160
-  isConstant: true
-  contents:
-    #テンニンカの価値=1ガチャで計算
-    テンニンカ指名契約: 1
-    スカウト券: 1
-    龍門幣1000: 10
-    入門作戦記録: 20
-
-初心者月パスパック:
-  price: 350
-  isConstant: true
-  contents:
-    スカウト券: 3
-
-初心者特訓パック:
-  price: 2600
-  isConstant: true
-  contents:
-    ★6特訓招待状: 1
-    ★5特訓招待状: 1
-    ★4特訓招待状: 2
-
-初心者支援パック:
-  price: 160
-  isConstant: true
-  contents:
-    純正源石: 1
-    SoCセルフプリンター: 1
-    初級作戦記録: 50
-    合成玉: 600
-    アーツ学Ⅱ: 30
-    中級作戦記録: 20
-    アーツ学Ⅲ: 10
-    龍門幣1000: 80
-
-月間資金パック:
-  price: 480
-  isConstant: true
-  contents:
-    龍門幣1000: 240
-
-月間作戦記録パック:
-  price: 650
-  isConstant: true
-  contents:
-    上級作戦記録: 80
-    中級作戦記録: 100
-    初級作戦記録: 160
