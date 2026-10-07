@@ -181,9 +181,9 @@ pub async fn cost_list_reply(
             };
             let title = format!("星{star}の特化統計情報");
             match cost_list_master_stats(&info, &values, star, only_recent) {
-                Err(msg) => EmbedReply {
+                Err(e) => EmbedReply {
                     title,
-                    chunks: vec![msg],
+                    chunks: vec![e.to_string()],
                     msg_type: MsgType::Err,
                     reply_marker: None,
                 },

@@ -1,4 +1,4 @@
-use super::{build_context, fmt_item_block, send_reply};
+use super::{build_context, mastery_ranking_text, fmt_item_block, send_reply};
 use crate::api::AppState;
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
@@ -15,9 +15,9 @@ pub async fn master_cost_reply(
 ) -> EmbedReply {
     let (info, values) = build_context(state).await;
     match skill_master_cost(&info, &values, operator_name, skill_num) {
-        Err(msg) => EmbedReply {
+        Err(e) => EmbedReply {
             title: BASE_TITLE.to_string(),
-            chunks: vec![msg],
+            chunks: vec![e.to_string()],
             msg_type: MsgType::Err,
             reply_marker: None,
         },
@@ -41,8 +41,8 @@ pub async fn master_cost_reply(
                 "合計  中級換算{}",
                 fmt_item_block(&dto.total_r2_items, false)
             ));
-            if let Some(text) = &dto.ranking_text {
-                chunks.push(text.clone());
+            if let Some(ranking) = &dto.ranking {
+                chunks.push(mastery_ranking_text(ranking));
             }
             EmbedReply {
                 title: format!("{BASE_TITLE}: {}", dto.skill_name),

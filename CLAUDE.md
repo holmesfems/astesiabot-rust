@@ -112,7 +112,10 @@ src/
 │   │   ├── model.rs   … ItemCost（アイテムID→個数。挿入順保持のIndexMapで、Pythonのdict
 │   │   │                挿入順セマンティクスを再現。タイ項目の並び順一致に必須）、FormulaMap
 │   │   ├── aggregate.rs … OperatorCosts相当の集計（totalPhaseCost/totalSkillMasterCost等）
-│   │   ├── dto.rs     … 4コマンド分のDTO（ItemCostView等）。整形はしない
+│   │   ├── dto.rs     … 4コマンド分のDTO（ItemCostView等。全て`Serialize`。素材列は
+│   │                [{name,count}]）。整形はしない。順位は`RankingPosition{star,rank,total}`で
+│   │                持ち、文言化はbot側（`mastery_ranking_text`/`elite_ranking_text`）。
+│   │                エラーは`OperatorCostError`（OperatorNotFound/Other。Displayはbot表示文言）
 │   │   └── calc.rs    … DTOを返す計算関数（skill_master_cost/operator_elite_cost/
 │   │                     operator_module_cost/cost_list_*）
 │   ├── recruit/   … ★求人ドメインの純粋ロジック（bot にも api にも依存しない）
@@ -215,12 +218,16 @@ src/
 │   │                        UIのルートはここに足せば run_api にも serve_web にも自動で
 │   │                        反映される。片方にだけ書かないこと
 │   ├── recruitment.rs     … POST /recruitment/ （Python の doRecruitment と完全一致）
-│   ├── risei.rs           … GET /api/risei/*（理性価値計算 riseimaterials/stages/events/lists の
-│   │                        REST API。理性効率動画づくりでClaudeが叩く用途。認証なし公開）。
+│   ├── risei/             … GET /api/risei/*（理性価値計算 riseimaterials/stages/events/lists と
+│   │                        オペレーター消費素材 operator*cost の REST API。理性効率動画づくりで
+│   │                        Claudeが叩く用途。認証なし公開）。mod.rs=ルーター・ENDPOINTS表・
+│   │                        ApiError/suggest/引数チェック等の共通部、operator_cost.rs=
+│   │                        `/api/risei/operators/{mastery,elite,module,lists/{kind}}`のハンドラ。
 │   │                        engine DTO をそのままJSONで返す。`GET /api/risei` が使い方一覧。
 │   │                        エラーは常にJSONで did_you_mean / usage を添える。AppStateに依存せず
-│   │                        `router(Arc<RiseiCalculatorEngine>)` を run_api が merge する
-│   │                        （serve_web には載らない）。
+│   │                        `router(RiseiApiState { risei, external_source })` を run_api が merge する
+│   │                        （serve_web には載らない）。operators/* は`server`引数を持たず、botと同じく
+│   │                        `cn_only`で換算サーバを切り替える（応答の`cn_only`/`values_server`）。
 │   │                        `GET /api/risei/lists/kakin` は /riseikakin の全体比較(グローバル版のみ。
 │   │                        mainlandは400)で、`items`の代わりに`baselines`/`packs`を返す。
 │   │                        計算は engine/risei_calculator_engine/kakin.rs を bot と共有する。
@@ -371,7 +378,7 @@ src/
     │   │                           （Python版autoCompleteの非対称性を踏襲）
     │   ├── risei/                … 理性価値計算コマンド群（riseimaterials等）
     │   └── operator_cost_calc/    … オペレーター消費素材コマンド群（Python charmaterials.py相当）
-    │       ├── mod.rs             … build_context（AllOperatorsInfo+ValueSet構築）、
+    │       ├── mod.rs             … build_context（実体は engine の `AllOperatorsInfo::snapshot` を呼ぶ薄いラッパー）、ranking文言整形（mastery_ranking_text/elite_ranking_text）、
     │       │                        send_reply、fmt_item_block等の整形共通部
     │       ├── operatormastercost.rs … スキル特化消費素材（skillMasterCost）
     │       ├── operatorelitecost.rs  … 昇進消費素材（operatorEliteCost）

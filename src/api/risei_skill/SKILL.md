@@ -1,6 +1,6 @@
 ---
 name: arknights-risei-api
-description: アークナイツ（明日方舟 / Arknights）の理性効率・理性価値を astesiabot の REST API（https://astesiabot.com/api/risei）から取得する。Discord bot の /riseimaterials /riseistages /riseievents /riseilists /riseikakin（全体比較・グローバル版）と同じ計算結果をJSONで返す。「理性効率」「理性価値」「◯◯はどこで掘る」「◯◯の周回ステージ」「1-7の効率」「イベントステージの効率」「資格証効率」「特別引換証」「契約賞金(CC)」「基準マップ」「課金パック効率」「パックはお得か」のように、素材の集め方やステージ・交換所の効率の話が出たら、理性効率動画の台本づくり・ファクトチェック中であっても必ずこのスキルを使うこと。記憶やWiki知識で効率の数値を答えず、必ずAPIを叩くこと。
+description: アークナイツ（明日方舟 / Arknights）の理性効率・理性価値を astesiabot の REST API（https://astesiabot.com/api/risei）から取得する。Discord bot の /riseimaterials /riseistages /riseievents /riseilists /riseikakin（全体比較・グローバル版）と同じ計算結果をJSONで返す。「理性効率」「理性価値」「◯◯はどこで掘る」「◯◯の周回ステージ」「1-7の効率」「イベントステージの効率」「資格証効率」「特別引換証」「契約賞金(CC)」「基準マップ」「課金パック効率」「パックはお得か」、さらにオペレーターの育成コスト（bot の /operatormastercost /operatorelitecost /operatormodulecost /operatorcostlist と同じ結果）として「昇進素材」「特化素材」「特化の消費」「モジュール素材」「育成コスト」「◯◯の特化重い?」「消費が重い特化ランキング」「未実装オペレーターの消費合計」のように、素材の集め方やステージ・交換所の効率の話が出たら、理性効率動画の台本づくり・ファクトチェック中であっても必ずこのスキルを使うこと。記憶やWiki知識で効率の数値を答えず、必ずAPIを叩くこと。
 ---
 
 # astesiabot 理性価値計算 API
@@ -27,11 +27,17 @@ curl -s https://astesiabot.com/api/risei
 | `/api/risei/stages` | 恒常ステージ（メイン・恒常サイスト）の効率 | `stage`（前方一致・大文字小文字区別 例: `1-7`, `12-`, `R8-`） |
 | `/api/risei/events` | 期間限定イベントステージ（過去・未開催含む） | `stage`（前方一致 例: `SV-8`, `IW-`） |
 | `/api/risei/lists/{kind}` | 各種効率表 | なし。`kind` = `base_maps` / `values` / `te2` / `te3` / `special` / `cc` / `kakin` |
+| `/api/risei/operators/mastery` | オペレーターのスキル特化1〜3の消費素材 | `operator`（日本語名 例: `ブレイズ`）, `skill`（1〜3） |
+| `/api/risei/operators/elite` | オペレーターの昇進1・2の消費素材 | `operator` |
+| `/api/risei/operators/module` | オペレーターのモジュール消費素材 | `operator` |
+| `/api/risei/operators/lists/{kind}` | 育成コストのランキング・統計 | `kind` = `elite` / `mastery`（どちらも `star`=4〜6 必須、任意で `only_recent=true`）/ `unimplemented_total` / `implemented_total`（引数なし） |
 
 共通の任意引数:
 
 - `server=global`（既定。グローバル版＝日本版基準）/ `server=mainland`（大陸版基準。新ステージ・新素材込み）
 - `limit=N`（materials/stages/events のステージ数上限。省略時は全件）
+
+`operators/*` に `server` 引数は無い（付けると400）。換算サーバはオペレーターごとに自動で決まる（後述）。
 
 日本語は URL エンコードする（`curl -G --data-urlencode` が楽）:
 
@@ -40,6 +46,12 @@ curl -sG https://astesiabot.com/api/risei/materials --data-urlencode "target=砥
 curl -sG https://astesiabot.com/api/risei/stages -d stage=1-7
 curl -sG https://astesiabot.com/api/risei/events -d stage=SV-8 -d server=mainland
 curl -s  https://astesiabot.com/api/risei/lists/te2
+curl -sG https://astesiabot.com/api/risei/operators/mastery --data-urlencode "operator=ブレイズ" -d skill=2
+curl -sG https://astesiabot.com/api/risei/operators/elite --data-urlencode "operator=ブレイズ"
+curl -sG https://astesiabot.com/api/risei/operators/module --data-urlencode "operator=ブレイズ"
+curl -s  "https://astesiabot.com/api/risei/operators/lists/mastery?star=6"
+curl -s  "https://astesiabot.com/api/risei/operators/lists/elite?star=5&only_recent=true"
+curl -s  https://astesiabot.com/api/risei/operators/lists/implemented_total
 ```
 
 **Windows（Git Bash / PowerShell）の curl は日本語の引数を UTF-8 で送らない**（システムのコードページで
@@ -83,6 +95,29 @@ Discord の /riseikakin「全体比較(グローバル)」と同じ値。**グ�
 - `baselines`: 比較用の恒常パック（Discord 版の「参考用課金効率」。10000円恒常/初回・月間スカウト・月パス・初心者向け等）
 - パックの登録・値段は手動メンテ。販売終了したパックは載らないが、反映が遅れることはある
 
+### オペレーター育成コスト（`/api/risei/operators/*`）
+
+- 素材リストは `[{name, count}]`（botと同じ並び順）。`risei_value` は **理性換算した価値**
+  （素材の個数 × 各素材の理性価値の合計）。`total_r2_items` は合計を **中級素材に換算** した個数
+- `mastery`: `masteries` は特化1・2・3の配列、`total` は3段階の合計。`ranking` は
+  `{star, rank, total}`（同じ星の全特化中の順位。`rank` が小さいほど重い。理性価値が0以下で対象外なら `null`）
+- `elite`: `phases` は昇進1・2。`ranking` は★5/6の非昇格オペレーターだけ（他は `null`）
+- `module`: `modules` はモジュールごと（`header` が種別名）。`phases` の `stage` 1〜3 が Stage.1〜3 の消費。
+  `total_*` は3段階の合計。大陸版限定モジュールは `cn_only: true`
+- 換算サーバはbotと同じ: **`cn_only: true`（大陸版先行・未実装）のオペレーターは大陸版の理性価値で換算**。
+  応答の `values_server`（`global` / `mainland`。ランキングやモジュール混在は `mixed`）で確認する。
+  `updated_at` は使った理性価値表の更新時刻
+- `lists/elite`: 昇進素材の理性価値の降順。`entries[].rank` は絞り込み前の全体順位（`only_recent` でも詰めない）
+- `lists/mastery`: `only_recent` なし（`mode: "full"`）は最も重い/軽い特化と Top10・平均、
+  あり（`mode: "recent"`）は直近実装オペレーターの順位表
+- `lists/unimplemented_total`（大陸版価値）/ `implemented_total`（グローバル版価値）: 全昇進・全特化の合計
+  `total_items`、モジュール合計 `eq_items`、全合計の中級換算 `combined_r2_items`、`total_risei_value`。
+  Discord 版の表記は「補完チップ系抜き」で、理性価値の付かない素材（職SoC等）は価値0として入っている。
+  Discord 版が併記する **源石換算 = `total_risei_value ÷ 135`**、**日本円換算 = 源石換算 ÷ 175 × 10000**
+  はAPIには含まれないので、必要なら自分で計算する
+- オペレーター名が違うと404で `did_you_mean` に近い名前が返る。★3の特化・スキルの無いオペレーター・
+  モジュールの無いオペレーターは404（`error` はbotと同じ文言）
+
 ## 間違えたとき
 
 エラーは常に JSON で `{error, did_you_mean?, usage?, hint?}` を返す。読んで直して再試行すればよい。
@@ -91,6 +126,7 @@ Discord の /riseikakin「全体比較(グローバル)」と同じ値。**グ�
   `hint` に正しいエンドポイントが入る
 - 素材カテゴリが無い → `available` に全カテゴリ
 - 未知の引数（例: Discord 版の `is_global`）や `server` の値違い → 400 と `usage`
+- オペレーター名が無い → 404 と `did_you_mean`（近い名前）。`skill`/`star` の範囲違い・未指定 → 400 と `usage`
 - 存在しないパス → `did_you_mean` に近いエンドポイント
 
 ## 注意

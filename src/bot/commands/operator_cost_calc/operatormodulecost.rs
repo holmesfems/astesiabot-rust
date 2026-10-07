@@ -13,9 +13,9 @@ const BASE_TITLE: &str = "モジュール必要素材検索";
 pub async fn module_cost_reply(state: &AppState, operator_name: &str) -> EmbedReply {
     let (info, values) = build_context(state).await;
     match operator_module_cost(&info, &values, operator_name) {
-        Err(msg) => EmbedReply {
+        Err(e) => EmbedReply {
             title: BASE_TITLE.to_string(),
-            chunks: vec![msg],
+            chunks: vec![e.to_string()],
             msg_type: MsgType::Err,
             reply_marker: None,
         },
