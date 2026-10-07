@@ -57,12 +57,16 @@ impl RiseiValues {
         }
     }
 
+    /// value_target外は日本語名のまま定数辞書を引く。`get_value_from_zh`経由で
+    /// zh→jaへ戻すと、同じzh名を持つ大陸版限定の新idに解決されて日本語名を失い
+    /// 0になることがある（例: 中堅★6招聘指名券 = 中坚高级干员调用凭证）。
     pub fn get_value_from_ja(&self, ja: &str) -> f64 {
-        match self.item_names.ja_to_id(ja) {
-            Some(id) => {
-                let zh = self.item_names.get_zh(id).to_string();
-                self.get_value_from_zh(&zh)
-            }
+        let in_target = self
+            .item_names
+            .ja_to_id(ja)
+            .and_then(|id| self.index_of(self.item_names.get_zh(id)));
+        match in_target {
+            Some(idx) => self.value_array[idx],
             None => self.const_values.get(ja).copied().unwrap_or(0.0),
         }
     }

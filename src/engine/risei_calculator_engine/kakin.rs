@@ -233,7 +233,11 @@ mod tests {
         let mut problems = Vec::new();
         for (pack, def) in kakin_list() {
             for item in def.contents.keys() {
-                if values.get_value_from_ja(item) <= 0.0 && !zero_value_items.contains(item) {
+                // const_values.yamlに明示的に書かれていれば0でもよい（意図して0と定義したもの）
+                if values.get_value_from_ja(item) <= 0.0
+                    && !zero_value_items.contains(item)
+                    && !values.const_values.contains_key(item.as_str())
+                {
                     problems.push(format!(
                         "price_kakin.yaml {pack}: 「{item}」の理性価値が0。コスメなら {ZERO_VALUE_ITEMS_PATH} に追加、\
                          そうでなければ名前の誤字か const_values.yaml への追加漏れ"
