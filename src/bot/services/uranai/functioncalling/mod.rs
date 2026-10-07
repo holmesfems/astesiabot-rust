@@ -170,7 +170,7 @@ mod tests {
         AppState {
             recruit,
             moderation,
-            external_source: outer_source,
+            external_source: std::sync::Arc::new(outer_source),
             risei_calculator: std::sync::Arc::new(risei_calculator),
             fk_data_search,
             uranai,

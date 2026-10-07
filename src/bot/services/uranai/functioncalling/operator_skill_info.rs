@@ -1,6 +1,6 @@
 use super::{items_to_json, operator_typo_correction, wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
 use crate::api::AppState;
-use crate::bot::commands::operator_cost_calc::build_context;
+use crate::bot::commands::operator_cost_calc::{build_context, mastery_ranking_text};
 use crate::engine::operator_cost_calc::calc::skill_master_cost;
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -65,7 +65,7 @@ impl ToolFunction for OperatorSkillInfo {
         let resolved = operator_typo_correction(&resolved);
 
         match skill_master_cost(&info, &values, &resolved, parsed.skillnum as u32) {
-            Err(msg) => ToolResponse::Error(msg),
+            Err(e) => ToolResponse::Error(e.to_string()),
             Ok(dto) => {
                 let masteries: Vec<Value> = dto
                     .masteries
@@ -81,7 +81,7 @@ impl ToolFunction for OperatorSkillInfo {
                     "total_risei_value": dto.total.risei_value,
                     "total_items": items_to_json(&dto.total.items),
                     "total_items_converted_to_medium_grade": items_to_json(&dto.total_r2_items),
-                    "ranking_note": dto.ranking_text,
+                    "ranking_note": dto.ranking.as_ref().map(mastery_ranking_text),
                 }))
             }
         }

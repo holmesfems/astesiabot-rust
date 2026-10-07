@@ -37,9 +37,9 @@ pub struct AppState {
     pub recruit: RecruitEngine,
     pub moderation: ModerationState,
     /// 外部サイトから取得する情報のレジストリ（operator_data など）。
-    pub external_source: ExternalSourceRegistry,
+    pub external_source: Arc<ExternalSourceRegistry>,
     /// 理性価値表の計算エンジン（グローバル版・大陸版）。REST API(`/api/risei`)の
-    /// ルーターにも単体で渡すためArcで持つ。
+    /// ルーターにも単体で渡すためArcで持つ（`external_source`も同じ理由でArc）。
     pub risei_calculator: Arc<RiseiCalculatorEngine>,
     /// FK情報スプレッドシートの鮮度管理（読み取り駆動で1時間毎に再fetch）。
     pub fk_data_search: FkDataSearchEngine,
@@ -213,7 +213,10 @@ pub async fn run_api(state: Arc<AppState>) {
     let mut app = web_ui_router::<Arc<AppState>>()
         .merge(fk_kill_calculator::catalog_router::<Arc<AppState>>(catalog_provider))
         .route("/recruitment/", post(recruitment::do_recruitment)) // Python と同じパス
-        .merge(risei::router(state.risei_calculator.clone()))
+        .merge(risei::router(risei::RiseiApiState {
+            risei: state.risei_calculator.clone(),
+            external_source: state.external_source.clone(),
+        }))
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .fallback(not_found)
         .with_state(state);

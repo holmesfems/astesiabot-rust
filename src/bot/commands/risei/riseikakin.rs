@@ -241,7 +241,7 @@ mod tests {
     }
 
     async fn compare(debug: bool) {
-        let outer_source = ExternalSourceRegistry::load(debug).await;
+        let outer_source = Arc::new(ExternalSourceRegistry::load(debug).await);
         let engine = Arc::new(RiseiCalculatorEngine::load(&outer_source).await.expect("理性価値表を計算できる"));
 
         // Discord側: コマンドと同じ関数で本文を組み立てる
@@ -250,7 +250,10 @@ mod tests {
         let (constant_chunk, pack_chunks) = chunks.split_last().unwrap();
 
         // API側: curlと同じくHTTPで叩く
-        let response = crate::api::risei::router::<()>(engine.clone())
+        let response = crate::api::risei::router::<()>(crate::api::risei::RiseiApiState {
+            risei: engine.clone(),
+            external_source: outer_source.clone(),
+        })
             .oneshot(Request::builder().uri("/api/risei/lists/kakin").body(Body::empty()).unwrap())
             .await
             .unwrap();

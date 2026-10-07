@@ -57,7 +57,7 @@ impl ToolFunction for OperatorModuleCost {
         let resolved = operator_typo_correction(&resolved);
 
         match operator_module_cost(&info, &values, &resolved) {
-            Err(msg) => ToolResponse::Error(msg),
+            Err(e) => ToolResponse::Error(e.to_string()),
             Ok(dto) => {
                 let modules: Vec<Value> = dto
                     .modules

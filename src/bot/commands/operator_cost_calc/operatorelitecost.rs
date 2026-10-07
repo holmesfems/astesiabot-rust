@@ -1,4 +1,4 @@
-use super::{build_context, fmt_item_block, send_reply};
+use super::{build_context, elite_ranking_text, fmt_item_block, send_reply};
 use crate::api::AppState;
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
@@ -11,9 +11,9 @@ const BASE_TITLE: &str = "昇進必要素材検索";
 pub async fn elite_cost_reply(state: &AppState, operator_name: &str) -> EmbedReply {
     let (info, values) = build_context(state).await;
     match operator_elite_cost(&info, &values, operator_name) {
-        Err(msg) => EmbedReply {
+        Err(e) => EmbedReply {
             title: BASE_TITLE.to_string(),
-            chunks: vec![msg],
+            chunks: vec![e.to_string()],
             msg_type: MsgType::Err,
             reply_marker: None,
         },
@@ -36,8 +36,8 @@ pub async fn elite_cost_reply(state: &AppState, operator_name: &str) -> EmbedRep
                 "合計  中級換算{}",
                 fmt_item_block(&dto.total_r2_items, false)
             ));
-            if let Some(text) = &dto.ranking_text {
-                chunks.push(text.clone());
+            if let Some(ranking) = &dto.ranking {
+                chunks.push(elite_ranking_text(ranking));
             }
             EmbedReply {
                 title: format!("{BASE_TITLE}: {}", dto.operator_name),

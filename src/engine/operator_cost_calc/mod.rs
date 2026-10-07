@@ -8,7 +8,9 @@ use crate::engine::external_source::operator_data::{OperatorData, RawOperatorCos
 use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::risei_calculator_engine::server::Server;
 use crate::engine::risei_calculator_engine::values::RiseiValues;
-use model::{FormulaMap, ItemCost};
+use crate::engine::external_source::ExternalSourceRegistry;
+use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
+use model::{build_formula_map, FormulaMap, ItemCost};
 use std::sync::Arc;
 
 /// charmaterials.py 側の`EPSILON = 1e-6`。ランキング掲載の閾値・数値表示の
@@ -79,6 +81,29 @@ pub struct AllOperatorsInfo {
 }
 
 impl AllOperatorsInfo {
+    /// bot/REST APIが共有する計算コンテキストの構築（Python版`OperatorCostsCalculator.operatorInfo`
+    /// + `CalculatorManager.getValues`相当）。外部ソースと理性価値表の現在のキャッシュを
+    /// 読むだけでfetch・再計算はしない。`FormulaMap`は呼び出しごとに`formulas`から再構築する。
+    pub async fn snapshot(
+        external_source: &ExternalSourceRegistry,
+        risei: &RiseiCalculatorEngine,
+    ) -> (AllOperatorsInfo, ValueSet) {
+        let data = external_source.operator_data.get().await;
+        let item_names = external_source.item_names.get().await;
+        let skill_data = external_source.skill_data.get().await;
+        let formulas_raw = external_source.formulas.get().await;
+        let formulas = build_formula_map(&formulas_raw.formulas, &item_names);
+        let info = AllOperatorsInfo { data, item_names, skill_data, formulas };
+
+        let global_snapshot = risei.snapshot(Server::Global).await;
+        let mainland_snapshot = risei.snapshot(Server::Mainland).await;
+        let values = ValueSet {
+            global: global_snapshot.values.clone(),
+            mainland: mainland_snapshot.values.clone(),
+        };
+        (info, values)
+    }
+
     pub fn get_by_name(&self, name: &str) -> Option<&RawOperatorCost> {
         self.data.get_by_name(name)
     }

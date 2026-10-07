@@ -2,8 +2,9 @@
 //! Discord embed整形は`bot/commands/operator_cost_calc`側の責務。
 
 use super::dto::{
-    CostSummaryDto, EliteCostDto, EliteRankingDto, ItemCostView, ModuleCostDto, ModuleEntryDto, ModulePhaseView,
-    MasterStatsDto, MasterStatsFullDto, MasterStatsRecentDto, RankedEntry, SkillMasterCostDto,
+    CostSummaryDto, EliteCostDto, EliteRankingDto, ItemCostView, MasterStatsDto, MasterStatsFullDto,
+    MasterStatsRecentDto, ModuleCostDto, ModuleEntryDto, ModulePhaseView, OperatorCostError, RankedEntry,
+    RankingPosition, SkillMasterCostDto,
 };
 use super::model::ItemCost;
 use super::{AllOperatorsInfo, SkillCostInfo, ValueSet, EPSILON};
@@ -11,18 +12,18 @@ use crate::engine::external_source::operator_data::RawOperatorCost;
 use super::aggregate;
 
 /// Python `OperatorCostsCalculator.skillMasterCost`。
-pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str, skill_num: u32) -> Result<SkillMasterCostDto, String> {
+pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str, skill_num: u32) -> Result<SkillMasterCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
-        return Err(format!("オペレーター【{operator_name}】は存在しません"));
+        return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
     };
     if op.skills.is_empty() {
-        return Err(format!("オペレーター【{operator_name}】はスキルが存在しません"));
+        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】はスキルが存在しません")));
     }
     if skill_num == 0 || skill_num as usize > op.skills.len() {
-        return Err(format!("オペレーター【{operator_name}】のスキル{skill_num}は存在しません"));
+        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】のスキル{skill_num}は存在しません")));
     }
     if op.stars <= 3 {
-        return Err(format!("オペレーター【{operator_name}】はスキルの特化は存在しません"));
+        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】はスキルの特化は存在しません")));
     }
 
     let skill = &op.skills[(skill_num - 1) as usize];
@@ -45,30 +46,32 @@ pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_na
         .ordered_name_counts(&info.item_names);
 
     let ranking = info.sorted_skill_cost(op.stars, values);
-    let ranking_text = ranking
+    let ranking = ranking
         .iter()
         .position(|c| c.operator_id == op.id && c.skill_id == skill.skill_id)
-        .map(|idx| format!("星{}スキル{}個中、第{}位の消費です", op.stars, ranking.len(), idx + 1));
+        .map(|idx| RankingPosition { star: op.stars, rank: idx + 1, total: ranking.len() });
 
     let description = info.skill_data.get_description(&skill.skill_id).to_string();
     Ok(SkillMasterCostDto {
+        operator_name: op.name.clone(),
+        cn_only: op.cn_only,
         skill_name: info.skill_data.get_str(&skill.skill_id).to_string(),
         skill_num,
         description,
         masteries,
         total,
         total_r2_items,
-        ranking_text,
+        ranking,
     })
 }
 
 /// Python `OperatorCostsCalculator.operatorEliteCost`。
-pub fn operator_elite_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str) -> Result<EliteCostDto, String> {
+pub fn operator_elite_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str) -> Result<EliteCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
-        return Err(format!("オペレーター【{operator_name}】は存在しません"));
+        return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
     };
     if op.phases.is_empty() {
-        return Err(format!("オペレーター【{operator_name}】の昇進は存在しません"));
+        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】の昇進は存在しません")));
     }
 
     let values_for_op = values.for_cn_only(op.cn_only);
@@ -89,31 +92,33 @@ pub fn operator_elite_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_
         .rare3and4_to_rare2(&info.item_names, &info.formulas)
         .ordered_name_counts(&info.item_names);
 
-    let ranking_text = if !op.is_patch && (op.stars == 5 || op.stars == 6) {
+    let ranking = if !op.is_patch && (op.stars == 5 || op.stars == 6) {
         let ranking = info.sorted_by_elite_cost(op.stars, values);
-        ranking.iter().position(|(candidate, _)| candidate.id == op.id).map(|idx| {
-            format!("星{}オペレーター{}名中、第{}位の消費です", op.stars, ranking.len(), idx + 1)
-        })
+        ranking
+            .iter()
+            .position(|(candidate, _)| candidate.id == op.id)
+            .map(|idx| RankingPosition { star: op.stars, rank: idx + 1, total: ranking.len() })
     } else {
         None
     };
 
     Ok(EliteCostDto {
         operator_name: op.name.clone(),
+        cn_only: op.cn_only,
         phases,
         total,
         total_r2_items,
-        ranking_text,
+        ranking,
     })
 }
 
 /// Python `OperatorCostsCalculator.operatorModuleCost`。
-pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str) -> Result<ModuleCostDto, String> {
+pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str) -> Result<ModuleCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
-        return Err(format!("オペレーター【{operator_name}】は存在しません"));
+        return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
     };
     if op.modules.is_empty() {
-        return Err(format!("オペレーター【{operator_name}】のモジュールは存在しません"));
+        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】のモジュールは存在しません")));
     }
 
     let modules = op
@@ -140,6 +145,7 @@ pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator
             let total_cost = ItemCost::sum(&phase_costs);
             ModuleEntryDto {
                 header,
+                cn_only: module.cn_only,
                 phases,
                 total_risei_value: total_cost.to_risei_value_only_value_target(values_for_module, &info.item_names),
                 total_items: total_cost.ordered_name_counts(&info.item_names),
@@ -152,6 +158,7 @@ pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator
 
     Ok(ModuleCostDto {
         operator_name: op.name.clone(),
+        cn_only: op.cn_only,
         modules,
     })
 }
@@ -234,7 +241,7 @@ fn skill_cost_item_view(item: &SkillCostInfo, values: &ValueSet, info: &AllOpera
 }
 
 /// Python `getMasterCostStatistics` / `getMasterCostStatistics_OnlyRecent`。
-pub fn cost_list_master_stats(info: &AllOperatorsInfo, values: &ValueSet, star: u32, only_recent: bool) -> Result<MasterStatsDto, String> {
+pub fn cost_list_master_stats(info: &AllOperatorsInfo, values: &ValueSet, star: u32, only_recent: bool) -> Result<MasterStatsDto, OperatorCostError> {
     let ranking = info.sorted_skill_cost(star, values);
 
     if only_recent {
@@ -257,7 +264,7 @@ pub fn cost_list_master_stats(info: &AllOperatorsInfo, values: &ValueSet, star: 
 
     let skill_nums = ranking.len();
     if skill_nums == 0 {
-        return Err(format!("星{star}の特化データがありません"));
+        return Err(OperatorCostError::Other(format!("星{star}の特化データがありません")));
     }
 
     let heaviest = &ranking[0];

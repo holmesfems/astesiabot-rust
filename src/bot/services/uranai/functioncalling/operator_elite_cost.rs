@@ -1,6 +1,6 @@
 use super::{items_to_json, operator_typo_correction, wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
 use crate::api::AppState;
-use crate::bot::commands::operator_cost_calc::build_context;
+use crate::bot::commands::operator_cost_calc::{build_context, elite_ranking_text};
 use crate::engine::operator_cost_calc::calc::operator_elite_cost;
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -57,7 +57,7 @@ impl ToolFunction for OperatorEliteCost {
         let resolved = operator_typo_correction(&resolved);
 
         match operator_elite_cost(&info, &values, &resolved) {
-            Err(msg) => ToolResponse::Error(msg),
+            Err(e) => ToolResponse::Error(e.to_string()),
             Ok(dto) => {
                 let phases: Vec<Value> = dto
                     .phases
@@ -71,7 +71,7 @@ impl ToolFunction for OperatorEliteCost {
                     "total_risei_value": dto.total.risei_value,
                     "total_items": items_to_json(&dto.total.items),
                     "total_items_converted_to_medium_grade": items_to_json(&dto.total_r2_items),
-                    "ranking_note": dto.ranking_text,
+                    "ranking_note": dto.ranking.as_ref().map(elite_ranking_text),
                 }))
             }
         }

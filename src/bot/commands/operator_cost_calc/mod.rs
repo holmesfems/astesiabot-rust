@@ -6,38 +6,27 @@ pub mod operatormodulecost;
 use crate::api::AppState;
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{to_embed_batches, EmbedReply};
-use crate::engine::operator_cost_calc::model::build_formula_map;
+use crate::engine::operator_cost_calc::dto::RankingPosition;
 use crate::engine::operator_cost_calc::{AllOperatorsInfo, ValueSet};
-use crate::engine::risei_calculator_engine::Server;
 
 /// charmaterials.py側の`EPSILON = 1e-6`。個数表示の整数/小数丸め判定に使う
 /// （`engine::operator_cost_calc::EPSILON`と同一値だが、こちらは表示整形専用として
 /// コマンド層に置く。理性価値の閾値判定は既にengine層のランキング関数側で適用済み）。
 const DISPLAY_EPSILON: f64 = 1e-6;
 
-/// 4コマンド共通の計算コンテキストを構築する（Python版`OperatorCostsCalculator.operatorInfo`
-/// + `CalculatorManager.getValues`相当）。`FormulaMap`はコマンド呼び出しごとに
-/// `outer_source.formulas`のスナップショットから再構築する。
+/// 4コマンド共通の計算コンテキストを構築する。実体は`AllOperatorsInfo::snapshot`（REST APIと共有）。
 pub async fn build_context(state: &AppState) -> (AllOperatorsInfo, ValueSet) {
-    let data = state.external_source.operator_data.get().await;
-    let item_names = state.external_source.item_names.get().await;
-    let skill_data = state.external_source.skill_data.get().await;
-    let formulas_raw = state.external_source.formulas.get().await;
-    let formulas = build_formula_map(&formulas_raw.formulas, &item_names);
-    let info = AllOperatorsInfo {
-        data,
-        item_names,
-        skill_data,
-        formulas,
-    };
+    AllOperatorsInfo::snapshot(&state.external_source, &state.risei_calculator).await
+}
 
-    let global_snapshot = state.risei_calculator.snapshot(Server::Global).await;
-    let mainland_snapshot = state.risei_calculator.snapshot(Server::Mainland).await;
-    let values = ValueSet {
-        global: global_snapshot.values.clone(),
-        mainland: mainland_snapshot.values.clone(),
-    };
-    (info, values)
+/// Python `星{star}スキル{nums}個中、第{index}位の消費です`。
+pub fn mastery_ranking_text(ranking: &RankingPosition) -> String {
+    format!("星{}スキル{}個中、第{}位の消費です", ranking.star, ranking.total, ranking.rank)
+}
+
+/// 昇進素材のランキング文言（Python版と同じ）。
+pub fn elite_ranking_text(ranking: &RankingPosition) -> String {
+    format!("星{}オペレーター{}名中、第{}位の消費です", ranking.star, ranking.total, ranking.rank)
 }
 
 /// EmbedReply をスラッシュコマンドの応答として送信する（`bot/commands/risei/mod.rs`の
