@@ -9,5 +9,5 @@
 #      - shortcutVersion 無し（版を送らない旧ショートカット）→ `update` に加えて
 #        `reply` の末尾にも通知文を足す（旧ショートカットは `reply` しか表示しないため）
 #      0 の間は通知しない（版を送るショートカットの公開前）
-latest_version: 0
-url: https://www.icloud.com/shortcuts/3d125afe01584343a6cedf3cfa12b804
+latest_version: 1
+url: https://www.icloud.com/shortcuts/5caf3e1a8b8842b2beaeaa9993e7b9a1
