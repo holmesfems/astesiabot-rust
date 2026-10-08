@@ -217,7 +217,11 @@ src/
 │   │                        （AppStateに依存しないUIルートだけを束ねる公開関数）もここ。
 │   │                        UIのルートはここに足せば run_api にも serve_web にも自動で
 │   │                        反映される。片方にだけ書かないこと
-│   ├── recruitment.rs     … POST /recruitment/ （Python の doRecruitment と完全一致）
+│   ├── recruitment.rs     … POST /recruitment/ （Python の doRecruitment と完全一致）。
+│   │                        Rust版で応答に`tagCount`（計算に使ったタグ数）と、iOSショートカットの
+│   │                        更新通知`update`（リクエストの`shortcutVersion`が
+│   │                        data/recruitment/shortcut.yamlの最新版より古い時だけ。
+│   │                        版を送らない旧ショートカットには`reply`末尾にも通知文を足す）を追加
 │   ├── risei/             … GET /api/risei/*（理性価値計算 riseimaterials/stages/events/lists と
 │   │                        オペレーター消費素材 operator*cost の REST API。理性効率動画づくりで
 │   │                        Claudeが叩く用途。認証なし公開）。mod.rs=ルーター・ENDPOINTS表・
@@ -397,7 +401,9 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 ├── recruitment/               … 求人ドメイン（engine/recruit が読む）
 │   ├── operators.json         … オペレーターDB（main 153体 + future プール）
 │   ├── tagList.json           … タグ種別定義
-│   └── tagJaToJa.yaml / tagEnToJa.yaml / tagZhToJa.yaml … 3言語辞書
+│   ├── tagJaToJa.yaml / tagEnToJa.yaml / tagZhToJa.yaml … 3言語辞書
+│   └── shortcut.yaml          … iOS公開求人ショートカットの最新版番号とURL（include_str!埋め込み。
+│                                  urlが空なら更新通知は無効）
 ├── birthdayRev.yaml           … 日付→誕生日オペレーター(中国語名)一覧
 ├── customOperatorZhToJa.yaml  … オペレーターCN→JA名前フォールバック（JP未実装オペレーター用の仮訳）
 ├── customItemId.yaml          … 理性価値計算で使う特殊アイテムのID補完（例外用の予備ファイル）

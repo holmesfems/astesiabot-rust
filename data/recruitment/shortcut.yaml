@@ -1,0 +1,10 @@
+# iOS 公開求人ショートカットの最新版情報（POST /recruitment/ の更新通知に使う）。
+# include_str! でビルド時に埋め込むので、書き換えたら再ビルド＋デプロイが必要。
+#
+# ショートカットはリクエストの `shortcutVersion`（整数。省略可）で自分の版を送る。
+# - shortcutVersion < latest_version → 応答の `update` に最新版情報を載せる
+# - shortcutVersion 無し（版を送らない旧ショートカット）→ `update` に加えて
+#   `reply` の末尾にも通知文を足す（旧ショートカットは `reply` しか表示しないため）
+# url が空なら通知は無効。
+latest_version: 1
+url: ""

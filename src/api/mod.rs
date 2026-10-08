@@ -28,7 +28,11 @@ use utoipa_swagger_ui::SwaggerUi;
 #[derive(OpenApi)]
 #[openapi(
     paths(recruitment::do_recruitment),
-    components(schemas(recruitment::OcrRawData, recruitment::TagReplyData))
+    components(schemas(
+        recruitment::OcrRawData,
+        recruitment::TagReplyData,
+        recruitment::ShortcutUpdate
+    ))
 )]
 struct ApiDoc;
 
