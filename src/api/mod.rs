@@ -161,6 +161,7 @@ where
         .merge(home::router())
         .merge(site_icons::router())
         .merge(risei::skill_router())
+        .merge(recruitment::shortcut_router())
         .route("/health", get(|| async { "ok" }))
         .route("/robots.txt", get(robots))
         .route("/sitemap.xml", get(sitemap))
