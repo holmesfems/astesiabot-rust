@@ -74,13 +74,23 @@ pub(crate) fn base_url(headers: &HeaderMap) -> String {
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| {
-            if host.starts_with("localhost") || host.starts_with("127.0.0.1") {
+            // localhost や IP アドレス直指定（LAN 内の実機確認など）は TLS 無しの dev サーバー
+            if is_plain_http_host(host) {
                 "http"
             } else {
                 "https"
             }
         });
     format!("{scheme}://{host}")
+}
+
+/// `Host` ヘッダ（ポート付き可）が localhost か IP アドレスか。
+fn is_plain_http_host(host: &str) -> bool {
+    let name = match host.strip_prefix('[') {
+        Some(rest) => rest.split(']').next().unwrap_or(""),
+        None => host.split(':').next().unwrap_or(""),
+    };
+    name == "localhost" || name.parse::<std::net::IpAddr>().is_ok()
 }
 
 /// サーバーレンダリングしているツール類だけをクローラに拾わせる。
@@ -255,6 +265,16 @@ mod tests {
     use axum::body::Body;
     use axum::http::Request;
     use tower::ServiceExt;
+
+    #[test]
+    fn plain_http_only_for_localhost_and_ip_hosts() {
+        for host in ["localhost:3000", "127.0.0.1:3000", "192.168.11.39:3000", "[::1]:3000", "10.0.0.5"] {
+            assert!(is_plain_http_host(host), "{host}");
+        }
+        for host in ["astesiabot.com", "discordbot-riseicalculator.herokuapp.com", "localhost.example.com"] {
+            assert!(!is_plain_http_host(host), "{host}");
+        }
+    }
 
     async fn get_html(path: &str) -> String {
         let response = web_ui_router::<()>()
