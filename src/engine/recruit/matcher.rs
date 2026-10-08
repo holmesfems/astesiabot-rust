@@ -36,7 +36,8 @@ impl Matcher {
             (r"補助...?", "補助"),
             (r"狙撃...?", "狙撃"),
             (r"前衛...?", "前衛"),
-            (r"COST[OE]?", "COST回復"),
+            // iOS のスクショで「COST回復」が COSTELE / COSTEE と読まれる例あり
+            (r"COST[OEL]{0,3}", "COST回復"),
             (r"防御.", "防御"),
             (r"重装...?", "重装"),
             (r"上級エリード", "上級エリート"),
@@ -185,4 +186,19 @@ fn compile_pairs(pairs: &[(&str, &str)]) -> Result<Vec<(Regex, String)>, Error> 
         out.push((Regex::new(pat)?, rep.to_string()));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cost_recovery_ocr_typos() {
+        let m = Matcher::load().unwrap();
+        for typo in ["COST", "COSTO", "COSTE", "COSTEE", "COSTELE"] {
+            let text = format!("狙撃タイプ\n火力\n減速\n範囲攻撃\n{typo}");
+            let r = m.match_tag(&text);
+            assert!(r.matches.contains("COST回復"), "{typo}: {:?}", r.matches);
+        }
+    }
 }
