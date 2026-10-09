@@ -174,8 +174,8 @@ fn detect(state: &ModerationState, msg: &serenity::Message) -> Detection {
     }
 }
 
-// 注: タイムアウト反映前の遅延メッセージで再発火し、通報が重複することがある。
-//     実害はない（タイムアウトは冪等、purgeは空振り）ため許容している。
+// 注: タイムアウト/BAN反映前の遅延メッセージで再発火し、通報が重複することがある。
+//     実害はない（タイムアウト・BANは冪等、purgeは空振り）ため許容している。
 //     うるさくなったら処断済みユーザーのクールダウンHashMapを足す。
 fn detect_rate_spam(state: &ModerationState, msg: &serenity::Message) -> SpamKind {
     let user_id = msg.author.id;
@@ -255,9 +255,9 @@ async fn dispatch(
 
 // ===== 実行層（種類ごとの差し替え可能なアクション） =====
 
-// TODO: 誤検知が無いと確認できたら、MultiChannel/SameChannel も ban_and_report へ
-//       差し替え可能。検知層・ディスパッチ層には触れず、ここのmatch armを
-//       変えるだけでよい。
+// MultiChannel は運用で誤検知が無いと確認できたためミュートからBANへ引き上げた。
+// SameChannel も同様に確認できたら、ここのmatch armを ban_and_report へ
+// 差し替えるだけでよい（検知層・ディスパッチ層には触れない）。
 async fn execute(
     ctx: &serenity::Context,
     msg: &serenity::Message,
@@ -266,11 +266,45 @@ async fn execute(
     reason: &str,
 ) -> Result<(), Error> {
     match kind {
-        SpamKind::TrapChannel | SpamKind::MassMention => ban_and_report(ctx, msg, state, reason).await,
-        SpamKind::MultiChannel | SpamKind::SameChannel => {
-            mute_and_report(ctx, msg, state, kind, reason).await
+        SpamKind::TrapChannel | SpamKind::MassMention => {
+            ban_and_report(ctx, msg, state, reason, &[msg.channel_id]).await
         }
+        SpamKind::MultiChannel => {
+            // BAN自体が過去7日分のメッセージを全チャンネルから消すので遡及削除は不要。
+            // 通報に「どこに撒かれたか」を載せるため、履歴だけ取り出してクリアする。
+            let channels = take_spread_channels(state, msg);
+            ban_and_report(ctx, msg, state, reason, &channels).await
+        }
+        SpamKind::SameChannel => mute_and_report(ctx, msg, state, kind, reason).await,
         SpamKind::None => Ok(()),
+    }
+}
+
+/// multi_ch_history から該当ユーザーが撒いた先のチャンネル一覧を取り出し、
+/// 連投/爆撃の履歴をクリアする（遅延メッセージでの二重処断を減らすため）。
+fn take_spread_channels(
+    state: &ModerationState,
+    msg: &serenity::Message,
+) -> Vec<serenity::ChannelId> {
+    let user_id = msg.author.id;
+    let spread: HashSet<serenity::ChannelId> = state
+        .multi_ch_history
+        .lock()
+        .unwrap()
+        .remove(&user_id)
+        .into_iter()
+        .flatten()
+        .map(|(_, ch)| ch)
+        .collect();
+    state
+        .same_ch_history
+        .lock()
+        .unwrap()
+        .retain(|(uid, _), _| *uid != user_id);
+    if spread.is_empty() {
+        vec![msg.channel_id]
+    } else {
+        spread.into_iter().collect()
     }
 }
 
@@ -322,13 +356,15 @@ async fn mute_and_report(
     Ok(())
 }
 
-/// TrapChannel/MassMention の実処断。MultiChannel/SameChannel を将来BANに
+/// TrapChannel/MassMention/MultiChannel の実処断。SameChannel を将来BANに
 /// 切り替える場合も、この関数をそのまま execute の呼び先に使う。
+/// channels は通報文に載せる「投稿があったチャンネル」。
 async fn ban_and_report(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
     reason: &str,
+    channels: &[serenity::ChannelId],
 ) -> Result<(), Error> {
     if let Some(guild_id) = msg.guild_id {
         guild_id
@@ -340,7 +376,7 @@ async fn ban_and_report(
         state,
         &format!("{reason}。自動BANを実行しました"),
         Some(msg),
-        &[msg.channel_id],
+        channels,
     )
     .await?;
     Ok(())
@@ -351,6 +387,8 @@ async fn ban_and_report(
 /// 対象チャンネルは検知種別で絞る:
 ///   - SameChannel : メッセージが来たチャンネル1つ
 ///   - MultiChannel: multi_ch_history に記録された channel_id 群（撒かれた先のみ）
+///     ※現在 MultiChannel はBAN（メッセージ削除込み）で処断するため、ここには来ない。
+///       ミュートへ戻す場合に備えて分岐は残している
 ///
 /// 検知は Instant（単調クロック）だが、purge の範囲指定はDiscord APIの都合上
 /// 実時計でしか行えない。数秒の誤差はスパム判定が出ている以上割り切る。
