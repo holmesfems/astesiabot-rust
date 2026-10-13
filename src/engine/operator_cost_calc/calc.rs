@@ -170,7 +170,7 @@ pub fn cost_list_by_elite(info: &AllOperatorsInfo, values: &ValueSet, star: u32,
     let entries = ranking
         .iter()
         .enumerate()
-        .filter(|(_, (op, risei))| (!only_recent || op.is_recent) && *risei > EPSILON)
+        .filter(|(_, (op, risei))| (!only_recent || info.is_recent(op)) && *risei > EPSILON)
         .map(|(idx, (op, risei))| RankedEntry {
             rank: idx + 1,
             name: op.name.clone(),

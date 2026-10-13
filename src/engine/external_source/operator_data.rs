@@ -4,7 +4,7 @@ use super::{BoxFuture, FetchError};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
 const CHAR_TABLE_URL_CN: &str = "https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/zh_CN/gamedata/excel/character_table.json";
 const CHAR_TABLE_URL_JP: &str = "https://raw.githubusercontent.com/ArknightsAssets/ArknightsGamedata/refs/heads/master/jp/gamedata/excel/character_table.json";
@@ -74,8 +74,6 @@ pub struct RawOperatorCost {
     pub cn_only: bool,
     /// 昇格オペレーター(前衛/医療アーミヤ等)か。
     pub is_patch: bool,
-    /// 直近実装判定（Python `isRecent`。`cn_only || cn_name が customOperatorZhToJa にある`）。
-    pub is_recent: bool,
     /// 昇進1,2に必要な素材（`evolveCost`の`[1..]`。Python `OperatorCosts.phases`）。
     pub phases: Vec<Vec<CostEntry>>,
     pub skills: Vec<RawSkill>,
@@ -143,14 +141,13 @@ async fn fetch_impl() -> Result<OperatorData, FetchError> {
         Ok(s) => serde_yaml::from_str(&s).unwrap_or_default(),
         Err(_) => BTreeMap::new(),
     };
-    let custom_keys: HashSet<&str> = custom.keys().map(String::as_str).collect();
 
     let mut operators: IndexMap<String, RawOperatorCost> = IndexMap::new();
     let mut cn_to_ja: HashMap<String, String> = HashMap::new();
     let mut name_to_id: HashMap<String, String> = HashMap::new();
 
-    build_characters(&cn_table, &jp_table, &custom, &custom_keys, &mut operators, &mut cn_to_ja, &mut name_to_id);
-    build_patches(&cn_patch, &jp_patch, &custom_keys, &operators.clone(), &mut operators, &mut name_to_id);
+    build_characters(&cn_table, &jp_table, &custom, &mut operators, &mut cn_to_ja, &mut name_to_id);
+    build_patches(&cn_patch, &jp_patch, &operators.clone(), &mut operators, &mut name_to_id);
     build_modules(&cn_uniequip, &jp_uniequip, &mut operators);
 
     Ok(OperatorData {
@@ -228,7 +225,6 @@ fn build_characters(
     cn_table: &Value,
     jp_table: &Value,
     custom: &BTreeMap<String, String>,
-    custom_keys: &HashSet<&str>,
     operators: &mut IndexMap<String, RawOperatorCost>,
     cn_to_ja: &mut HashMap<String, String>,
     name_to_id: &mut HashMap<String, String>,
@@ -261,7 +257,6 @@ fn build_characters(
             None => (cn_value, true),
         };
         let name = ja_name.map(str::to_string).unwrap_or_else(|| cn_name.to_string());
-        let is_recent = cn_only || custom_keys.contains(cn_name);
 
         let raw = RawOperatorCost {
             id: key.clone(),
@@ -270,7 +265,6 @@ fn build_characters(
             stars: parse_stars(source_value),
             cn_only,
             is_patch: false,
-            is_recent,
             phases: parse_phases(source_value),
             skills: parse_skills(source_value),
             all_skill_lvlup: parse_all_skill_lvlup(source_value),
@@ -286,7 +280,6 @@ fn build_characters(
 fn build_patches(
     cn_patch: &Value,
     jp_patch: &Value,
-    custom_keys: &HashSet<&str>,
     base_operators: &IndexMap<String, RawOperatorCost>,
     operators: &mut IndexMap<String, RawOperatorCost>,
     name_to_id: &mut HashMap<String, String>,
@@ -325,7 +318,6 @@ fn build_patches(
         let (original_name, original_cn_name) = find_original(key).unwrap_or(("", ""));
         let name = format!("{original_name}({job})");
         let cn_name = format!("{original_cn_name}({job})");
-        let is_recent = cn_only || custom_keys.contains(cn_name.as_str());
 
         let raw = RawOperatorCost {
             id: key.clone(),
@@ -334,7 +326,6 @@ fn build_patches(
             stars: parse_stars(source_value),
             cn_only,
             is_patch: true,
-            is_recent,
             phases: parse_phases(source_value),
             skills: parse_skills(source_value),
             all_skill_lvlup: parse_all_skill_lvlup(source_value),
@@ -466,5 +457,42 @@ mod tests {
         assert_eq!(module_types("char_002_amiya"), vec!["Y"], "術師アーミヤに派生形のモジュールが混入していないこと");
         assert_eq!(module_types("char_1001_amiya2"), vec!["X"], "前衛アーミヤにモジュールXがあること");
         assert_eq!(module_types("char_1037_amiya3"), vec!["X"], "医療アーミヤにモジュールXがあること");
+    }
+
+    /// data/customOperatorZhToJa.yaml（JP未実装オペレーターの仮訳）の手入れが必要かを教える
+    /// （オフライン。Seedを直接読む。`regen_seeds`でSeedが新しくなった後に落ちたら、
+    /// メッセージに従ってYAMLを直す）。
+    #[test]
+    fn custom_operator_names_need_no_tidying() {
+        let json = std::fs::read_to_string(SEED_PATH)
+            .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
+        let data: OperatorData = serde_json::from_str(&json).expect("seedがOperatorDataとしてparseできること");
+        let custom: BTreeMap<String, String> =
+            serde_yaml::from_str(&std::fs::read_to_string("data/customOperatorZhToJa.yaml").expect("yaml should exist"))
+                .expect("yaml should parse");
+
+        let ops: Vec<&RawOperatorCost> = data.operators.values().filter(|op| !op.is_patch).collect();
+        let unknown: Vec<&str> = custom
+            .keys()
+            .filter(|k| !ops.iter().any(|op| op.cn_name == **k))
+            .map(String::as_str)
+            .collect();
+        let implemented: Vec<String> = ops
+            .iter()
+            .filter(|op| !op.cn_only && custom.contains_key(&op.cn_name))
+            .map(|op| format!("{}({})", op.cn_name, op.name))
+            .collect();
+        let missing: Vec<&str> = ops
+            .iter()
+            .filter(|op| op.cn_only && !custom.contains_key(&op.cn_name))
+            .map(|op| op.cn_name.as_str())
+            .collect();
+        assert!(
+            unknown.is_empty() && implemented.is_empty() && missing.is_empty(),
+            "data/customOperatorZhToJa.yaml の手入れが必要です:\n  \
+             CNのオペレーター名に無いキー（誤字？）: {unknown:?}\n  \
+             JP実装済みなので消してよい: {implemented:?}\n  \
+             仮訳の無いCN限定オペレーター（追加する）: {missing:?}"
+        );
     }
 }

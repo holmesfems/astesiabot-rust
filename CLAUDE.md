@@ -60,6 +60,10 @@ src/
 │   │   │                    ExternalSourceRegistry::refresh_all（日次バッチ）には含めない
 │   │   │                    （engine/fk_data_search が自前の1時間TTLで読み取り駆動更新するため）。
 │   │   │                    SEED_PATH = data/seed/fk_data.json
+│   │   ├── jp_first_seen.rs … オペレーターがJPのゲームデータに初めて現れた日の記録
+│   │   │                       （data/seed/jp_first_seen.json。直近実装の判定用）。Source ではなく、
+│   │   │                       regen_seeds（SEED_JOBS）だけが更新し、実行時は include_str! で埋め込んだ
+│   │   │                       記録を読むだけ（GitHubへアクセスしない）。詳細は下記ポイント参照
 │   │   ├── operator_birthdays.rs … オペレーターの誕生日（bot の誕生日お祝い用）。CNの
 │   │   │                       handbook_info_table.json（プロフィール「基础档案」の【生日】/
 │   │   │                       ロボットは【出厂日】）から読み、char_meta_table.json の spCharGroups で
@@ -123,7 +127,8 @@ src/
 │   │                              即して正しく表示する（詳細はファイル冒頭コメント参照）
 │   ├── operator_cost_calc/ … ★オペレーター消費素材ドメインの純粋ロジック+DTO（bot にも api にも
 │   │   │                      依存しない。Python charmaterials.py 相当）
-│   │   ├── mod.rs     … AllOperatorsInfo（検索・ランキング）、ValueSet（グローバル/大陸版の
+│   │   ├── mod.rs     … AllOperatorsInfo（検索・ランキング。直近実装の判定 is_recent もここ。
+│   │   │                CN限定 or JP初登場から RECENT_DAYS=180日以内）、ValueSet（グローバル/大陸版の
 │   │   │                RiseiValuesを束ねる）、SkillCostInfo
 │   │   ├── model.rs   … ItemCost（アイテムID→個数。挿入順保持のIndexMapで、Pythonのdict
 │   │   │                挿入順セマンティクスを再現。タイ項目の並び順一致に必須）、FormulaMap
@@ -428,7 +433,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 │   ├── tagJaToJa.yaml / tagEnToJa.yaml / tagZhToJa.yaml … 3言語辞書
 │   └── shortcut.yaml          … iOS公開求人ショートカットの最新版番号とiCloudリンク（include_str!
 │                                  埋め込み。latest_versionが0の間は更新通知を出さない）
-├── customOperatorZhToJa.yaml  … オペレーターCN→JA名前フォールバック（JP未実装オペレーター用の仮訳）
+├── customOperatorZhToJa.yaml  … オペレーターCN→JA名前フォールバック（JP未実装オペレーター用の仮訳。
+│                                  手入れが必要になると operator_data.rs のテストが落ちて教える）
 ├── customItemId.yaml          … 理性価値計算で使う特殊アイテムのID補完（例外用の予備ファイル）
 ├── customItemZhToJa.yaml      … アイテムCN→JA名前フォールバック（customOperatorZhToJaのアイテム版）
 ├── fk_kill_calc/
@@ -449,7 +455,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     ├── skill_data.json
     ├── fk_data.json
     ├── recruit_pool.json
-    └── operator_birthdays.json
+    ├── operator_birthdays.json
+    └── jp_first_seen.json     … Seedではなく regen_seeds が差分だけ追記する記録（下記ポイント参照）
 ```
 
 依存方向: external_source は何にも依存しない。recruit は external_source::recruit_pool の
@@ -458,6 +465,21 @@ DTO（公開求人のプール）だけに依存する純粋ロジック。bot �
 
 ## 設計上の重要ポイント（壊さないこと）
 
+- **直近実装の判定はJPの初登場日から自動で決める**: `/operatorcostlist`の「直近実装/将来実装
+  オペレータのみ表示」に使う`is_recent`は、`AllOperatorsInfo::is_recent`が
+  「CN限定、またはJPのゲームデータに初めて現れてから180日（`RECENT_DAYS`）以内」で判定する。
+  期限は参照の都度JSTの今日で決まるので、手で外す作業は無い（旧方式の「customOperatorZhToJa.yaml
+  に載っているJP実装済み＝直近実装」は廃止。`operator_data`の`RawOperatorCost.is_recent`も削除）。
+  初登場日は`data/seed/jp_first_seen.json`で、`regen_seeds`が`jp_first_seen::update_seed`で
+  更新する: ArknightsAssetsの`jp/.../char_meta_table.json`（約75KB。JPで入手可能なオペレーターが
+  全員載る）のコミット一覧をGitHub API（`since=checked_at`で前回以降だけ。GITHUB_TOKENがあれば使う）で
+  取り、最新版に載っていて記録に無いキャラだけを新しいコミットの範囲で二分探索する（ダウンロードは
+  キャラ間で共有）。新しいコミットが無ければAPI 1回で終わる。履歴の最初（2023-12-24）から載っている
+  キャラはその日付。昇格オペレーターは載らないので直近実装にならない。実行時は`include_str!`で
+  埋め込んだ記録を読むだけで、Source（起動時fetch/日次更新）ではない。
+  `customOperatorZhToJa.yaml`は名前の仮訳専用になり、`operator_data.rs`の
+  `custom_operator_names_need_no_tidying`（Seedを読むテスト）が、誤字のキー・JP実装済みで
+  消してよい行・仮訳の無いCN限定オペレーターを検出して落ちる（regen_seeds後に落ちたら直す）。
 - **オペレーターの誕生日はゲームデータのプロフィールから作る**: 旧`data/birthdayRev.yaml`
   （手入力。CN名）は廃止した。`external_source::operator_birthdays`がCNの
   `handbook_info_table.json`から読む（JP未実装のオペレーターもお祝いするためCN。CN/JP両方に
