@@ -1,5 +1,7 @@
-use super::model::{Operator, OperatorDb, Tag, TagList, TagType};
+use super::jp_release::JpReleaseSchedule;
+use super::model::{Tag, TagList, TagType};
 use super::Error;
+use crate::engine::external_source::recruit_pool::{PoolOperator, RecruitPool};
 use itertools::Itertools;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use chrono::{NaiveDate, LocalResult, TimeZone, Utc};
@@ -16,12 +18,21 @@ pub struct OperatorRef {
     pub stars: u8,
 }
 
-/// future オペレーターのキャッシュ内表現。実装時刻を持つ。
+/// future（CNで先に追加され、JPのゲームデータにはまだ無い）オペレーターのキャッシュ内表現。
 #[derive(Debug, Clone)]
 struct FutureOperatorRef {
     op: OperatorRef,
-    /// 実装時刻（Asia/Tokyo、指定 hour:00:00）
-    release: chrono::DateTime<chrono_tz::Tz>,
+    /// JP反映時刻（jp_release.yaml の日付の RECRUIT_FUTURE_HOUR 時、Asia/Tokyo）。
+    /// 未設定なら None（大陸版でだけ対象）。
+    release: Option<chrono::DateTime<chrono_tz::Tz>>,
+}
+
+impl FutureOperatorRef {
+    /// 反映時刻を過ぎていればグローバル版でも対象。大陸版（is_global=false）なら常に対象
+    /// （Python の Mainland 相当）。
+    fn is_available(&self, now: &chrono::DateTime<chrono_tz::Tz>, is_global: bool) -> bool {
+        !is_global || self.release.is_some_and(|r| *now >= r)
+    }
 }
 
 /// タグ名から種別を判定（Python の tagType 相当）。
@@ -36,12 +47,12 @@ fn tag_type_of(tag_list: &TagList, name: &str) -> TagType {
     }
 }
 
-/// 起動時に一度読み込んで保持するデータ。
+/// 公開求人のプールから組み立てて保持するデータ。
 ///
-/// タグ組み合わせ→該当オペレーターのマップ（main_map / future_map）は起動時に1回だけ構築する
-/// （Python 版の GlobalTagMap / FutureTagMap 相当）。future の実装時刻フィルタは、この
-/// 事前計算済みマップを引いた後に、都度「今実装済みか」だけを軽くチェックする形にしているため、
-/// 実装タイミングを監視して再計算するような仕組みは不要。
+/// タグ組み合わせ→該当オペレーターのマップ（main_map / future_map）はプールを受け取った時
+/// （起動時と日次更新時）に1回だけ構築する（Python 版の GlobalTagMap / FutureTagMap 相当）。
+/// future の反映時刻フィルタは、この事前計算済みマップを引いた後に、都度「今反映済みか」
+/// だけを軽くチェックする形にしているため、反映タイミングを監視して再計算するような仕組みは不要。
 pub struct RecruitData {
     tag_list: TagList,
     /// tagList の全タグを定義順に並べたもの（入力の並べ替え・フィルタに使う）
@@ -49,24 +60,16 @@ pub struct RecruitData {
     tag_name_order: Vec<String>,
     /// タグ組み合わせ（定義順タプル）→ 満たす main オペレーター一覧。
     main_map: HashMap<Vec<String>, Vec<OperatorRef>>,
-    /// 同上。future 分（実装時刻は問わず全件含む。時刻での絞り込みは calculate() 側で行う）。
+    /// 同上。future（CN追加）分（反映時刻は問わず全件含む。時刻での絞り込みは calculate() 側で行う）。
     future_map: HashMap<Vec<String>, Vec<FutureOperatorRef>>,
 }
 
 impl RecruitData {
-    /// data/ 以下の2ファイルを読み込む。
-    pub fn load() -> Result<Self, Error> {
-        let db_text = std::fs::read_to_string("data/recruitment/operators.json")?;
-        let db: OperatorDb = serde_json::from_str(&db_text)?;
-
+    /// 公開求人のプール（main = JP分、future = CN追加分）と埋め込みのJP反映日から組み立てる。
+    /// タグ一覧は data/recruitment/tagList.json を読む。
+    pub fn build(pool: &RecruitPool) -> Result<Self, Error> {
         let tag_text = std::fs::read_to_string("data/recruitment/tagList.json")?;
         let tag_list: TagList = serde_json::from_str(&tag_text)?;
-
-        let mut tag_name_order = Vec::new();
-        tag_name_order.extend(tag_list.job_tags.iter().cloned());
-        tag_name_order.extend(tag_list.position_tags.iter().cloned());
-        tag_name_order.extend(tag_list.elite_tags.iter().cloned());
-        tag_name_order.extend(tag_list.other_tags.iter().cloned());
 
         // configurable hour via env RECRUIT_FUTURE_HOUR (0-23), default 16
         let future_hour: u32 = env::var("RECRUIT_FUTURE_HOUR")
@@ -75,17 +78,39 @@ impl RecruitData {
             .filter(|&h| h < 24)
             .unwrap_or(16);
 
-        let mut future_releases: Vec<(chrono::DateTime<chrono_tz::Tz>, Vec<Operator>)> = Vec::new();
-        for fe in db.future.into_iter() {
-            match Self::parse_future_date(&fe.yyyymmdd, future_hour) {
-                Some(release) => future_releases.push((release, fe.op_list)),
-                None => {
-                    eprintln!("warning: failed to parse future date '{}', skipping", fe.yyyymmdd);
-                }
-            }
-        }
+        let schedule = JpReleaseSchedule::global();
+        let data = Self::build_with(pool, schedule, tag_list, future_hour);
 
-        // 全タグ（定義順）を Tag 化し、1〜3個の全組み合わせを起動時に1回だけ生成する。
+        println!("[recruit] 公開求人プール: JP {}体 / CN追加分 {}体", pool.jp.len(), pool.cn_only.len());
+        let undated: Vec<String> = pool
+            .cn_only
+            .iter()
+            .filter(|op| schedule.date_for(op).is_none())
+            .map(|op| format!("{}({})", op.name, op.cn_name))
+            .collect();
+        if !undated.is_empty() {
+            println!(
+                "[recruit] JP反映日が未設定のCN追加分（大陸版でだけ対象。data/recruitment/jp_release.yaml）: {}",
+                undated.join(", ")
+            );
+        }
+        Ok(data)
+    }
+
+    fn build_with(pool: &RecruitPool, schedule: &JpReleaseSchedule, tag_list: TagList, future_hour: u32) -> Self {
+        let mut tag_name_order = Vec::new();
+        tag_name_order.extend(tag_list.job_tags.iter().cloned());
+        tag_name_order.extend(tag_list.position_tags.iter().cloned());
+        tag_name_order.extend(tag_list.elite_tags.iter().cloned());
+        tag_name_order.extend(tag_list.other_tags.iter().cloned());
+
+        let future_releases: Vec<(Option<chrono::DateTime<chrono_tz::Tz>>, &PoolOperator)> = pool
+            .cn_only
+            .iter()
+            .map(|op| (schedule.date_for(op).and_then(|d| Self::release_at(d, future_hour)), op))
+            .collect();
+
+        // 全タグ（定義順）を Tag 化し、1〜3個の全組み合わせを組み立て時に1回だけ生成する。
         let all_tags: Vec<Tag> = tag_name_order
             .iter()
             .map(|name| Tag {
@@ -103,8 +128,8 @@ impl RecruitData {
         let mut main_map: HashMap<Vec<String>, Vec<OperatorRef>> = HashMap::new();
         let mut future_map: HashMap<Vec<String>, Vec<FutureOperatorRef>> = HashMap::new();
         for combo in &all_combos {
-            let main_satisfied: Vec<OperatorRef> = db
-                .main
+            let main_satisfied: Vec<OperatorRef> = pool
+                .jp
                 .iter()
                 .filter(|op| satisfy_tags(op, combo))
                 .map(|op| OperatorRef {
@@ -113,18 +138,17 @@ impl RecruitData {
                 })
                 .collect();
 
-            let mut future_satisfied: Vec<FutureOperatorRef> = Vec::new();
-            for (release, operators) in &future_releases {
-                for op in operators.iter().filter(|op| satisfy_tags(op, combo)) {
-                    future_satisfied.push(FutureOperatorRef {
-                        op: OperatorRef {
-                            name: op.name.clone(),
-                            stars: op.stars,
-                        },
-                        release: release.clone(),
-                    });
-                }
-            }
+            let future_satisfied: Vec<FutureOperatorRef> = future_releases
+                .iter()
+                .filter(|(_, op)| satisfy_tags(op, combo))
+                .map(|(release, op)| FutureOperatorRef {
+                    op: OperatorRef {
+                        name: op.name.clone(),
+                        stars: op.stars,
+                    },
+                    release: *release,
+                })
+                .collect();
 
             if main_satisfied.is_empty() && future_satisfied.is_empty() {
                 continue;
@@ -138,20 +162,17 @@ impl RecruitData {
             }
         }
 
-        Ok(Self {
+        Self {
             tag_list,
             tag_name_order,
             main_map,
             future_map,
-        })
+        }
     }
 
-    /// Parse a yyyymmdd or yymmdd string and return a Local datetime at the given hour.
-    fn parse_future_date(s: &str, hour: u32) -> Option<chrono::DateTime<chrono_tz::Tz>> {
-        // try YYYYMMDD then YYMMDD
-        let parsed_date = NaiveDate::parse_from_str(s, "%Y%m%d")
-            .or_else(|_| NaiveDate::parse_from_str(s, "%y%m%d")).ok()?;
-        let naive_dt = parsed_date.and_hms_opt(hour, 0, 0)?;
+    /// 反映日の指定 hour:00（Asia/Tokyo）。
+    fn release_at(date: NaiveDate, hour: u32) -> Option<chrono::DateTime<chrono_tz::Tz>> {
+        let naive_dt = date.and_hms_opt(hour, 0, 0)?;
         match Tokyo.from_local_datetime(&naive_dt) {
             LocalResult::Single(dt) => Some(dt.with_timezone(&Tokyo)),
             LocalResult::Ambiguous(dt1, _) => Some(dt1.with_timezone(&Tokyo)),
@@ -164,7 +185,7 @@ impl RecruitData {
         tag_type_of(&self.tag_list, name)
     }
 
-    /// テスト専用: ファイルI/O無しで tag_list だけから RecruitData を組み立てる。
+    /// テスト専用: プール無しで tag_list だけから RecruitData を組み立てる。
     /// edit.rs のユニットテスト（is_known_tag のみを使い、main_map/future_map は
     /// 使わない）向け。
     #[cfg(test)]
@@ -235,7 +256,7 @@ impl RecruitData {
             }
         }
 
-        // future は実装済みかどうかを現在時刻で都度判定する（キャッシュ自体は時刻に依存しない）。
+        // future は反映済みかどうかを現在時刻で都度判定する（キャッシュ自体は時刻に依存しない）。
         let now = Utc::now().with_timezone(&Tokyo);
 
         // minStar==4 のとき showRobot=true（Python の recruitDoProcess）
@@ -249,9 +270,7 @@ impl RecruitData {
                 self.main_map.get(&key).cloned().unwrap_or_default();
             if let Some(future_ops) = self.future_map.get(&key) {
                 for fop in future_ops {
-                    // 実装済み → main 相当（is_global に関わらず対象）
-                    // 未実装 → is_global=false のときだけ対象（Python の Mainland 相当）
-                    if now >= fop.release || !is_global {
+                    if fop.is_available(&now, is_global) {
                         satisfied.push(fop.op.clone());
                     }
                 }
@@ -316,7 +335,7 @@ impl RecruitData {
             let mut satisfied: Vec<OperatorRef> = self.main_map.get(&key).cloned().unwrap_or_default();
             if let Some(future_ops) = self.future_map.get(&key) {
                 for fop in future_ops {
-                    if now >= fop.release || !is_global {
+                    if fop.is_available(&now, is_global) {
                         satisfied.push(fop.op.clone());
                     }
                 }
@@ -363,7 +382,7 @@ pub struct MatchItem {
 }
 
 /// オペレーターが全タグを満たすか（Python の satisfyTags）。
-fn satisfy_tags(op: &Operator, combo: &[&Tag]) -> bool {
+fn satisfy_tags(op: &PoolOperator, combo: &[&Tag]) -> bool {
     let need_elite = op.stars == 6;
     let mut has_elite = false;
     for tag in combo {
@@ -472,5 +491,60 @@ mod guaranteed_star_tags_tests {
     fn no_match_returns_empty_list() {
         let data = make_data();
         assert!(data.guaranteed_star_tags(6, true).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod jp_release_tests {
+    use super::*;
+
+    fn op(name: &str) -> PoolOperator {
+        PoolOperator {
+            char_id: format!("char_{name}"),
+            name: name.to_string(),
+            cn_name: format!("cn_{name}"),
+            job: "狙撃".to_string(),
+            tags: vec!["遠距離".to_string(), "火力".to_string()],
+            stars: 5,
+        }
+    }
+
+    fn names_for(data: &RecruitData, is_global: bool) -> Vec<String> {
+        let results = data.calculate(&["火力".to_string()], is_global, 1, None);
+        assert_eq!(results.len(), 1);
+        results[0].operators.iter().map(|o| o.name.clone()).collect()
+    }
+
+    /// JP分は常に対象。CN追加分は、反映日を過ぎていればJPのゲームデータに無くても
+    /// グローバル版で対象、反映日前・未設定なら大陸版でだけ対象。
+    #[test]
+    fn cn_additions_follow_jp_release_date() {
+        let pool = RecruitPool {
+            jp: vec![op("JP分")],
+            cn_only: vec![op("反映済み"), op("反映前"), op("日付なし")],
+        };
+        // CN名でも当たること（反映前はCN名で指定）。
+        let schedule = JpReleaseSchedule::parse(
+            "- date: 2000-01-01\n  operators: [反映済み]\n- date: 2999-01-01\n  operators: [cn_反映前]\n",
+        )
+        .unwrap();
+        let tag_list = TagList {
+            elite_tags: vec!["上級エリート".to_string(), "エリート".to_string()],
+            job_tags: vec!["狙撃".to_string()],
+            position_tags: vec!["遠距離".to_string()],
+            other_tags: vec!["火力".to_string()],
+        };
+        let data = RecruitData::build_with(&pool, &schedule, tag_list, 16);
+
+        assert_eq!(names_for(&data, true), vec!["JP分", "反映済み"]);
+        assert_eq!(names_for(&data, false), vec!["JP分", "反映済み", "反映前", "日付なし"]);
+    }
+
+    /// Seedのプール + 埋め込みのjp_release.yamlで組み立てられること（tagList.jsonとの整合）。
+    #[test]
+    fn builds_from_seed_pool() {
+        let engine = crate::engine::recruit::RecruitEngine::load_from_seed();
+        let results = engine.data().calculate(&["上級エリート".to_string()], true, 6, None);
+        assert!(!results.is_empty());
     }
 }

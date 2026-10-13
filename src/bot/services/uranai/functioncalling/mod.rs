@@ -159,9 +159,10 @@ mod tests {
 
     async fn build_state() -> AppState {
         dotenvy::dotenv().ok();
-        let recruit = engine::recruit::RecruitEngine::load().expect("recruit data should load");
         let moderation = ModerationState::from_env();
         let outer_source = engine::external_source::ExternalSourceRegistry::load(false).await;
+        let recruit = engine::recruit::RecruitEngine::load(&*outer_source.recruit_pool.get().await)
+            .expect("recruit data should load");
         let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
             .await
             .expect("risei engine should build against real network data");

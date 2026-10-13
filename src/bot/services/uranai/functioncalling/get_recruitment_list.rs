@@ -56,7 +56,7 @@ impl ToolFunction for GetRecruitmentList {
             return ToolResponse::Error(format!("starは4か5を指定してください: {}", parsed.star));
         }
 
-        let combos = ctx.recruit.data.guaranteed_star_tags(parsed.star as u8, parsed.is_global);
+        let combos = ctx.recruit.data().guaranteed_star_tags(parsed.star as u8, parsed.is_global);
         if combos.is_empty() {
             return ToolResponse::Ok(json!({
                 "star": parsed.star,

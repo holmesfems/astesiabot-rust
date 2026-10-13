@@ -7,6 +7,7 @@ pub mod http;
 pub mod item_names;
 pub mod operator_combat;
 pub mod operator_data;
+pub mod recruit_pool;
 pub mod skill_data;
 pub mod zones;
 
@@ -49,6 +50,9 @@ pub struct ExternalSourceRegistry {
     /// `engine::fk_data_search::FkDataSearchEngine` が読み取り駆動で行うため、
     /// ここでの日次一括更新（[`refresh_all`](Self::refresh_all)）の対象には含めない。
     pub fk_data: Source<fk_data::FkSheetData>,
+    /// 公開求人のプール（JPの募集可能一覧 + CNで先に追加された分）。日次更新後に
+    /// `RecruitEngine::rebuild`で求人計算のタグ→オペレーター表を作り直す（main.rs）。
+    pub recruit_pool: Source<recruit_pool::RecruitPool>,
 }
 
 impl ExternalSourceRegistry {
@@ -69,6 +73,7 @@ impl ExternalSourceRegistry {
             ark_matrix: Source::load("ark_matrix", Some(ark_matrix::SEED_PATH), ark_matrix::fetch, debug).await,
             formulas: Source::load("formulas", Some(formulas::SEED_PATH), formulas::fetch, debug).await,
             fk_data: Source::load("fk_data", Some(fk_data::SEED_PATH), fk_data::fetch, debug).await,
+            recruit_pool: Source::load("recruit_pool", Some(recruit_pool::SEED_PATH), recruit_pool::fetch, debug).await,
         }
     }
 
@@ -84,6 +89,7 @@ impl ExternalSourceRegistry {
             //self.ark_stages.refresh(), //RiseiCalculatorEngine::refreshが2hごとに再fetchするため、デイリー更新対象から外す
             //self.ark_matrix.refresh(), //RiseiCalculatorEngine::refreshが2hごとに再fetchするため、デイリー更新対象から外す
             self.formulas.refresh(),
+            self.recruit_pool.refresh(),
         );
     }
 
@@ -102,6 +108,7 @@ impl ExternalSourceRegistry {
             "ark_stages" => Some(self.ark_stages.refresh().await),
             "ark_matrix" => Some(self.ark_matrix.refresh().await),
             "formulas" => Some(self.formulas.refresh().await),
+            "recruit_pool" => Some(self.recruit_pool.refresh().await),
             _ => None,
         }
     }
@@ -161,5 +168,10 @@ pub const SEED_JOBS: &[SeedJob] = &[
         name: "fk_data",
         path: fk_data::SEED_PATH,
         update: fk_data::update_seed,
+    },
+    SeedJob {
+        name: "recruit_pool",
+        path: recruit_pool::SEED_PATH,
+        update: recruit_pool::update_seed,
     },
 ];

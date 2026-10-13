@@ -51,7 +51,9 @@ src/
 │   │   │                    無ければpanic。起動後の再fetch失敗→直前のメモリを保持したまま継続。
 │   │   │                    Seedの書き込み（write_seed_file）は実行時には呼ばない
 │   │   │                    （regen_seeds からのみ使う。理由は下記ポイント参照）
-│   │   ├── http.rs       … 全情報源共通のfetch戦略（7sタイムアウト・最大3回リトライ）
+│   │   ├── http.rs       … 全情報源共通のfetch戦略（7sタイムアウト・最大3回リトライ）。
+│   │   │                    巨大JSONから一部だけ使う情報源向けに、Valueを経由せず構造体へ
+│   │   │                    直接デシリアライズする型付き版 fetch_typed_with_retry もある
 │   │   ├── fk_data.rs    … FK情報スプレッドシート(Google Sheets API v4)の生データ。
 │   │   │                    スキル名解決はせず行データ(オペレーター名→行一覧)のみ保持。
 │   │   │                    FK_SHEETS_API_KEY/FK_SHEETS_SPREADSHEET_ID(.env)を使用。
@@ -90,6 +92,15 @@ src/
 │   │   │                       `tmplId.unwrap_or(charId)`で振り分け先を決める(`charId`だけで
 │   │   │                       振り分けると派生形専用のモジュールが基礎オペレーターに付いて
 │   │   │                       しまう回帰があった)。SEED_PATH = data/seed/operator_combat.json
+│   │   ├── recruit_pool.rs … 公開求人のプール（募集可能オペレーター一覧）。CN/JPの
+│   │   │                       gacha_table.json の recruitDetail（ゲーム内「公開求人説明」の文章）から
+│   │   │                       名前と★を、character_table.json から職業・位置・タグを引き、
+│   │   │                       `jp`（JPの一覧に載っている分）と`cn_only`（CNで先に追加された分）に
+│   │   │                       分ける。CN/JPの突き合わせはcharIdで行う（名前だと表記変更で別人扱い
+│   │   │                       になる）。JPのcharacter_tableに無いオペレーターはCNのタグを
+│   │   │                       tagZhToJa.yamlで訳し、名前はcustomOperatorZhToJa.yamlの仮訳を使う。
+│   │   │                       character_tableは型付きfetch（必要なフィールドだけ）で読む。
+│   │   │                       詳細は下記ポイント参照。SEED_PATH = data/seed/recruit_pool.json
 │   │   └── skill_data/      … スキルID→表示名+説明文+blackboard+is_ammo_skill
 │   │       │                  （skill_table.json をfetch）。
 │   │       ├── mod.rs          … SkillData（旧skill_names.rsのSkillNamesを統合）。get_str/
@@ -118,10 +129,14 @@ src/
 │   │                エラーは`OperatorCostError`（OperatorNotFound/Other。Displayはbot表示文言）
 │   │   └── calc.rs    … DTOを返す計算関数（skill_master_cost/operator_elite_cost/
 │   │                     operator_module_cost/cost_list_*）
-│   ├── recruit/   … ★求人ドメインの純粋ロジック（bot にも api にも依存しない）
-│   │   ├── mod.rs     … RecruitEngine。process_from_ocr（API用）/ process_for_embed（bot用）
-│   │   ├── model.rs   … Operator, Tag, TagType
-│   │   ├── calc.rs    … タグ計算エンジン（ピックアップ対応、future オペレーター実装済み）
+│   ├── recruit/   … ★求人ドメインの純粋ロジック（bot にも api にも依存しない。入力の
+│   │   │              プールは external_source::recruit_pool のDTOを受け取る）
+│   │   ├── mod.rs     … RecruitEngine。matcher + 計算用データ（`data()`でArcのスナップショットを
+│   │   │                返す。日次更新時に`rebuild(pool)`で丸ごと差し替える）
+│   │   ├── model.rs   … TagList, Tag, TagType
+│   │   ├── jp_release.rs … CN追加分のJP反映日（data/recruitment/jp_release.yaml。include_str!埋め込み）
+│   │   ├── calc.rs    … タグ計算エンジン（ピックアップ対応。プールのjp=main、cn_only=future。
+│   │   │                futureは反映日を過ぎればグローバル版でも対象）
 │   │   ├── matcher.rs … OCR生テキスト → タグ抽出（fancy-regex、3言語辞書＋誤字補正）
 │   │   └── format.rs  … 出力整形（display_chunks / response_for_ai / make_title / 分割）
 │   ├── fk_data_search/ … ★FK情報検索ドメインのDTO+検索ロジック（bot にも api にも依存しない。
@@ -402,7 +417,8 @@ src/
 
 data/  … 実行時に読み込む（カレントディレクトリ基準なのでプロジェクトルートで実行）
 ├── recruitment/               … 求人ドメイン（engine/recruit が読む）
-│   ├── operators.json         … オペレーターDB（main 153体 + future プール）
+│   ├── jp_release.yaml        … CNで公開求人に追加されたオペレーターのJP反映日（手動設定。
+│   │                              include_str!埋め込み。書き方・運用はファイル冒頭コメント参照）
 │   ├── tagList.json           … タグ種別定義
 │   ├── tagJaToJa.yaml / tagEnToJa.yaml / tagZhToJa.yaml … 3言語辞書
 │   └── shortcut.yaml          … iOS公開求人ショートカットの最新版番号とiCloudリンク（include_str!
@@ -427,14 +443,34 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     │                             ゴールデン参照として意図的に残置している
     ├── operator_combat.json
     ├── skill_data.json
-    └── fk_data.json
+    ├── fk_data.json
+    └── recruit_pool.json
 ```
 
-依存方向: recruit / external_source は何にも依存しない純粋ロジック。bot と api が
-これらに依存する。これにより求人計算ロジックや外部情報を bot でも web API でも共有できる。
+依存方向: external_source は何にも依存しない。recruit は external_source::recruit_pool の
+DTO（公開求人のプール）だけに依存する純粋ロジック。bot と api がこれらに依存する。
+これにより求人計算ロジックや外部情報を bot でも web API でも共有できる。
 
 ## 設計上の重要ポイント（壊さないこと）
 
+- **公開求人のプールはゲームデータから作り、CN追加分のJP反映日だけ手動で持つ**:
+  旧`data/recruitment/operators.json`（手入力のmain + future）は廃止した。
+  `external_source::recruit_pool`がCN/JPの`recruitDetail`からプールを作り、
+  `jp`がmain、`cn_only`（CNにあってJPに無い）がfutureになる。futureをいつグローバル版の
+  対象にするかは`data/recruitment/jp_release.yaml`（日付の`RECRUIT_FUTURE_HOUR`時、
+  既定16:00 JST）が決め、**反映日を過ぎたらJPのゲームデータに無くてもJPとして扱う**
+  （データ更新の遅れ対策）。反映日の前・未設定の間は大陸版でだけ対象。JPのデータが
+  追いつけば自動でjp側に移るので、YAMLに残った行は無視される。
+  `recruitDetail`は人が書いた表示用の文章で表記ゆれがある（CNは改行が文字の`\n`、JPは
+  `/`前後のスペース抜けや全角スペース）ので、パーサーはそれを吸収する。一方、名前が
+  character_tableで引けない・知らないタグ（tagList.jsonに無い）・★の食い違いは
+  **fetch失敗として扱う**（黙ってそのオペレーターを落とすと計算結果が気づかれずに
+  間違うため。失敗なら`Source`が直前の値/Seedを使い続ける）。新しいタグがゲームに
+  追加されたらtagList.json（とOCR辞書）に足すこと。`RecruitEngine`は起動時と日次の
+  `refresh_all`後（main.rs）に計算用データを作り直す。同じ★の中の表示順は
+  ゲームの掲載順（JP分→CN追加分）で、旧operators.jsonの並びとは一致しない
+  （オーナー承認済み）。jp_release.yamlの名前がプールに無い（タイプミス）・同じ
+  オペレーターを2回書いた場合は`cargo test`が落ちる。
 - **Python 完全一致が要件**。calc.rs / format.rs / matcher.rs のロジックは
   Python 版と1文字レベルで出力一致するよう移植済み。挙動を変えないこと。
 - **文字数 vs バイト数**: format.rs の分割処理は Python の len()（文字数）に
@@ -465,7 +501,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
   （Discordコマンド/REST APIの応答が再計算待ちで遅くならないようにするため）。
   `--debug` 起動時はこのループを起動しない。
 - **fetchの共通戦略**: `engine/external_source/http.rs` の `client()` /
-  `fetch_json_with_retry()`（7sタイムアウト・最大3回リトライ）が全情報源共通。
+  `fetch_json_with_retry()`（7sタイムアウト・最大3回リトライ。型付き版の
+  `fetch_typed_with_retry()`も同じリトライ処理を共有する）が全情報源共通。
   新しい情報源を足すときもこれを使い、fetch fn ごとに個別のタイムアウト/リトライ
   ロジックを実装しないこと。
 - **責務分離の意識**: 計算層と表現層を分ける。計算関数はDTOを返し、整形（Discord Embed / AI向け文字列など）は各呼び出し側に置く。pythonの設計（例: RCReplyが両出力を1型に詰める形）は踏襲せず、適切な形を優先して良い。

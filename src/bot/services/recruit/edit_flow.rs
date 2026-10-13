@@ -12,14 +12,14 @@ pub async fn build(
     msg: &serenity::Message,
     data: &Data,
 ) -> Result<Option<EmbedReply>, Error> {
-    let engine_data = &data.state.recruit.data;
+    let engine_data = data.state.recruit.data();
 
-    let parsed = match reply_target::resolve(ctx, msg, engine_data).await? {
+    let parsed = match reply_target::resolve(ctx, msg, &engine_data).await? {
         Resolution::Ignore => return Ok(None),
         Resolution::Ready(parsed) => parsed,
     };
 
-    let tags = match edit::apply_edit_commands(engine_data, &parsed.tags, &msg.content) {
+    let tags = match edit::apply_edit_commands(&engine_data, &parsed.tags, &msg.content) {
         Ok(tags) => tags,
         Err(EditError::UnknownTags(tags)) => {
             return Ok(Some(EmbedReply::error(&format!(
