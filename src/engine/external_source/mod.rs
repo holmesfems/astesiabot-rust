@@ -5,6 +5,7 @@ pub mod fk_data;
 pub mod formulas;
 pub mod http;
 pub mod item_names;
+pub mod operator_birthdays;
 pub mod operator_combat;
 pub mod operator_data;
 pub mod recruit_pool;
@@ -53,6 +54,8 @@ pub struct ExternalSourceRegistry {
     /// 公開求人のプール（JPの募集可能一覧 + CNで先に追加された分）。日次更新後に
     /// `RecruitEngine::rebuild`で求人計算のタグ→オペレーター表を作り直す（main.rs）。
     pub recruit_pool: Source<recruit_pool::RecruitPool>,
+    /// オペレーターの誕生日（bot の誕生日お祝い用。プロフィールの「生日」から作る）。
+    pub operator_birthdays: Source<operator_birthdays::OperatorBirthdays>,
 }
 
 impl ExternalSourceRegistry {
@@ -74,6 +77,7 @@ impl ExternalSourceRegistry {
             formulas: Source::load("formulas", Some(formulas::SEED_PATH), formulas::fetch, debug).await,
             fk_data: Source::load("fk_data", Some(fk_data::SEED_PATH), fk_data::fetch, debug).await,
             recruit_pool: Source::load("recruit_pool", Some(recruit_pool::SEED_PATH), recruit_pool::fetch, debug).await,
+            operator_birthdays: Source::load("operator_birthdays", Some(operator_birthdays::SEED_PATH), operator_birthdays::fetch, debug).await,
         }
     }
 
@@ -90,6 +94,7 @@ impl ExternalSourceRegistry {
             //self.ark_matrix.refresh(), //RiseiCalculatorEngine::refreshが2hごとに再fetchするため、デイリー更新対象から外す
             self.formulas.refresh(),
             self.recruit_pool.refresh(),
+            self.operator_birthdays.refresh(),
         );
     }
 
@@ -109,6 +114,7 @@ impl ExternalSourceRegistry {
             "ark_matrix" => Some(self.ark_matrix.refresh().await),
             "formulas" => Some(self.formulas.refresh().await),
             "recruit_pool" => Some(self.recruit_pool.refresh().await),
+            "operator_birthdays" => Some(self.operator_birthdays.refresh().await),
             _ => None,
         }
     }
@@ -173,5 +179,10 @@ pub const SEED_JOBS: &[SeedJob] = &[
         name: "recruit_pool",
         path: recruit_pool::SEED_PATH,
         update: recruit_pool::update_seed,
+    },
+    SeedJob {
+        name: "operator_birthdays",
+        path: operator_birthdays::SEED_PATH,
+        update: operator_birthdays::update_seed,
     },
 ];

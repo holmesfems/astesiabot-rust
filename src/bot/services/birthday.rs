@@ -1,10 +1,8 @@
 use crate::api::AppState;
-use crate::bot::data::Error;
 use crate::bot::reply::{send_embed_reply, EmbedReply, MsgType};
-use crate::engine::external_source::operator_data::OperatorData;
+use crate::engine::external_source::operator_birthdays::OperatorBirthdays;
 use chrono::{DateTime, Datelike, FixedOffset, TimeZone, Utc};
 use poise::serenity_prelude as serenity;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 /// 個別の反映先名（Python の reflectDict 相当）。
@@ -12,23 +10,8 @@ const REFLECT_DICT: &[(&str, &str)] = &[("アステシア", "私"), ("アステ�
 /// 「さん」ではなく「ちゃん」付けするオペレーター（Python の chanList 相当）。
 const CHAN_LIST: &[&str] = &["スズラン", "ポプカル", "シャマレ", "バブル"];
 
-/// 日付（"N月N日"）→ 誕生日オペレーターの中国語名リスト。
-/// happybirthday.py の birthdayRevDict 相当。
-pub struct BirthdayData {
-    by_date: HashMap<String, Vec<String>>,
-}
-
-impl BirthdayData {
-    pub fn load() -> Result<Self, Error> {
-        let by_date: HashMap<String, Vec<String>> =
-            serde_yaml::from_str(&std::fs::read_to_string("data/birthdayRev.yaml")?)?;
-        Ok(Self { by_date })
-    }
-}
-
-/// Python の reflectName 相当。中国語名→表示名（日本語化＋敬称付け）。
-fn reflect_name(names: &OperatorData, cn_name: &str) -> String {
-    let ja_name = names.to_ja(cn_name);
+/// Python の reflectName 相当。表示名（日本語）に敬称を付ける。
+fn reflect_name(ja_name: &str) -> String {
     if let Some((_, reflect)) = REFLECT_DICT.iter().find(|(name, _)| *name == ja_name) {
         return reflect.to_string();
     }
@@ -52,21 +35,14 @@ fn mention_str(names: &[String]) -> String {
 }
 
 /// Python の checkBirthday 相当。該当者がいなければ None。
-pub fn check_birthday(
-    data: &BirthdayData,
-    names: &OperatorData,
-    now: DateTime<FixedOffset>,
-) -> Option<EmbedReply> {
-    let key = format!("{}月{}日", now.month(), now.day());
-    let birth_operators = data.by_date.get(&key)?;
-    if birth_operators.is_empty() {
+pub fn check_birthday(birthdays: &OperatorBirthdays, now: DateTime<FixedOffset>) -> Option<EmbedReply> {
+    let reflected: Vec<String> = birthdays
+        .on(now.month(), now.day())
+        .map(|op| reflect_name(&op.name))
+        .collect();
+    if reflected.is_empty() {
         return None;
     }
-
-    let reflected: Vec<String> = birth_operators
-        .iter()
-        .map(|cn_name| reflect_name(names, cn_name))
-        .collect();
 
     let title = ":birthday:お誕生日:birthday:おめでとう:tada:！！".to_string();
     let message = format!(
@@ -102,22 +78,14 @@ fn duration_until_next_midnight_jst() -> std::time::Duration {
 /// 毎日 JST 0:00 に誕生日をチェックして送信し続けるループ（Python の
 /// `@tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=JST))` 相当）。
 /// bot起動中ずっと動き続ける想定なので、呼び出し側は `tokio::spawn` すること。
-/// オペレーター名は `state.outer_source` がメモリに保持する最新の変換辞書を
+/// 誕生日は `state.external_source` がメモリに保持する最新の一覧を
 /// チェックの都度参照する（定期fetchで更新されればここにも反映される）。
 pub async fn run(ctx: serenity::Context, channel_id: serenity::ChannelId, state: Arc<AppState>) {
-    let data = match BirthdayData::load() {
-        Ok(d) => d,
-        Err(e) => {
-            eprintln!("[birthday] birthdayRev.yaml の読み込みに失敗しました: {e}");
-            return;
-        }
-    };
-
     loop {
         tokio::time::sleep(duration_until_next_midnight_jst()).await;
         let now_jst = Utc::now().with_timezone(&jst());
-        let names = state.external_source.operator_data.get().await;
-        if let Some(reply) = check_birthday(&data, &names, now_jst) {
+        let birthdays = state.external_source.operator_birthdays.get().await;
+        if let Some(reply) = check_birthday(&birthdays, now_jst) {
             if let Err(e) = send_embed_reply(&ctx, channel_id, &reply).await {
                 eprintln!("[birthday] 誕生日メッセージの送信に失敗しました: {e}");
             }
@@ -128,9 +96,20 @@ pub async fn run(ctx: serenity::Context, channel_id: serenity::ChannelId, state:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engine::external_source::operator_birthdays::{BirthdayOperator, SEED_PATH};
 
-    fn names() -> OperatorData {
-        OperatorData::empty_for_test()
+    fn op(name: &str, month: u8, day: u8) -> BirthdayOperator {
+        BirthdayOperator {
+            char_id: format!("char_{name}"),
+            name: name.to_string(),
+            cn_name: name.to_string(),
+            month,
+            day,
+        }
+    }
+
+    fn at(month: u32, day: u32) -> DateTime<FixedOffset> {
+        jst().with_ymd_and_hms(2026, month, day, 0, 0, 0).single().unwrap()
     }
 
     #[test]
@@ -153,37 +132,45 @@ mod tests {
 
     #[test]
     fn reflect_name_applies_chan_and_overrides() {
-        let names = names();
-        assert_eq!(reflect_name(&names, "バブル"), "バブルちゃん");
-        assert_eq!(reflect_name(&names, "アステシア"), "私");
-        assert_eq!(reflect_name(&names, "リード"), "リードさん");
+        assert_eq!(reflect_name("バブル"), "バブルちゃん");
+        assert_eq!(reflect_name("アステシア"), "私");
+        assert_eq!(reflect_name("リード"), "リードさん");
     }
 
     #[test]
-    fn check_birthday_reads_real_data_and_matches_python_format() {
-        let data = BirthdayData::load().expect("data/birthdayRev.yaml should load");
-        let names = names();
-        // data/birthdayRev.yaml の "1月1日: [重岳, 奥达]" に対応
-        // （CN→JA変換は空辞書なのでCN名のまま2件連結される）。
-        let jan1 = jst()
-            .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
-            .single()
-            .unwrap();
-        let reply = check_birthday(&data, &names, jan1).expect("Jan 1 has birthdays");
+    fn check_birthday_matches_python_format() {
+        let birthdays = OperatorBirthdays {
+            operators: vec![op("チョンユエ", 1, 1), op("オッダ", 1, 1), op("バブル", 1, 2)],
+        };
+        let reply = check_birthday(&birthdays, at(1, 1)).expect("Jan 1 has birthdays");
         assert_eq!(
             reply.title,
             ":birthday:お誕生日:birthday:おめでとう:tada:！！"
         );
         assert_eq!(
             reply.chunks,
-            vec!["今日は重岳さんと奥达さんの誕生日よ！みんなでお祝い:tada:しましょ！".to_string()]
+            vec!["今日はチョンユエさんとオッダさんの誕生日よ！みんなでお祝い:tada:しましょ！".to_string()]
+        );
+        let reply = check_birthday(&birthdays, at(1, 2)).expect("Jan 2 has birthdays");
+        assert_eq!(
+            reply.chunks,
+            vec!["今日はバブルちゃんの誕生日よ！みんなでお祝い:tada:しましょ！".to_string()]
         );
 
-        // 誕生日オペレーターがいない日は None（1月6日はdata/birthdayRev.yamlに無い）
-        let no_birthday_day = jst()
-            .with_ymd_and_hms(2026, 1, 6, 0, 0, 0)
-            .single()
-            .unwrap();
-        assert!(check_birthday(&data, &names, no_birthday_day).is_none());
+        // 誕生日オペレーターがいない日は None
+        assert!(check_birthday(&birthdays, at(1, 6)).is_none());
+    }
+
+    /// Seedの実データで、1月1日（チョンユエ・オッダ）がお祝いされること。
+    #[test]
+    fn check_birthday_reads_seed() {
+        let json = std::fs::read_to_string(SEED_PATH)
+            .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
+        let birthdays: OperatorBirthdays = serde_json::from_str(&json).expect("seed should parse");
+        let reply = check_birthday(&birthdays, at(1, 1)).expect("Jan 1 has birthdays");
+        assert_eq!(
+            reply.chunks,
+            vec!["今日はチョンユエさんとオッダさんの誕生日よ！みんなでお祝い:tada:しましょ！".to_string()]
+        );
     }
 }

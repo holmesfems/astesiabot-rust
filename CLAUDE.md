@@ -41,7 +41,7 @@ src/
 ├── engine/
 │   ├── external_source/ … 外部サイトから取得する情報のレジストリ（bot にも api にも
 │   │   │                依存しない）。起動時に一括fetchしてメモリ保持し、以後は
-│   │   │                機能側がそこから参照する（例: birthday.rs が operator_data を参照）
+│   │   │                機能側がそこから参照する（例: birthday.rs が operator_birthdays を参照）
 │   │   ├── mod.rs        … ExternalSourceRegistry。load / refresh_all（定期実行用の一括fetch）/
 │   │   │                    refresh_by_name（機能側からの個別オンデマンド更新用）。
 │   │   │                    SEED_JOBS（regen_seeds が使うSeed生成ジョブ一覧）もここ。
@@ -60,6 +60,11 @@ src/
 │   │   │                    ExternalSourceRegistry::refresh_all（日次バッチ）には含めない
 │   │   │                    （engine/fk_data_search が自前の1時間TTLで読み取り駆動更新するため）。
 │   │   │                    SEED_PATH = data/seed/fk_data.json
+│   │   ├── operator_birthdays.rs … オペレーターの誕生日（bot の誕生日お祝い用）。CNの
+│   │   │                       handbook_info_table.json（プロフィール「基础档案」の【生日】/
+│   │   │                       ロボットは【出厂日】）から読み、char_meta_table.json の spCharGroups で
+│   │   │                       異格をまとめる。表示名はcharIdからJP名→customOperatorZhToJa→CN名。
+│   │   │                       詳細は下記ポイント参照。SEED_PATH = data/seed/operator_birthdays.json
 │   │   ├── operator_data.rs … オペレーターCN→JA名変換 +
 │   │   │                       昇進/スキル特化/モジュール消費素材の生データ。character_table.json /
 │   │   │                       uniequip_table.json / char_patch_table.json をまとめて1回のfetchで
@@ -409,7 +414,7 @@ src/
     └── services/
         ├── moderation.rs  … スパム検知・連投/爆撃対応・罠チャンネル自動削除・全体通知BAN（実装済み）
         ├── anniversary.rs … 周年ロール付与など
-        ├── birthday.rs    … オペレーター誕生日自動お祝い（毎日 JST 0:00、operator_data を利用）
+        ├── birthday.rs    … オペレーター誕生日自動お祝い（毎日 JST 0:00、operator_birthdays を利用）
         ├── uranai.rs      … 占い館（骨組みのみ、未実装。ChatGPT API連携が必要）
         └── koukai_kyujin/ … 公開求人
             ├── mod.rs … OCR → process_for_embed → embed 送信
@@ -423,7 +428,6 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
 │   ├── tagJaToJa.yaml / tagEnToJa.yaml / tagZhToJa.yaml … 3言語辞書
 │   └── shortcut.yaml          … iOS公開求人ショートカットの最新版番号とiCloudリンク（include_str!
 │                                  埋め込み。latest_versionが0の間は更新通知を出さない）
-├── birthdayRev.yaml           … 日付→誕生日オペレーター(中国語名)一覧
 ├── customOperatorZhToJa.yaml  … オペレーターCN→JA名前フォールバック（JP未実装オペレーター用の仮訳）
 ├── customItemId.yaml          … 理性価値計算で使う特殊アイテムのID補完（例外用の予備ファイル）
 ├── customItemZhToJa.yaml      … アイテムCN→JA名前フォールバック（customOperatorZhToJaのアイテム版）
@@ -444,7 +448,8 @@ data/  … 実行時に読み込む（カレントディレクトリ基準なの
     ├── operator_combat.json
     ├── skill_data.json
     ├── fk_data.json
-    └── recruit_pool.json
+    ├── recruit_pool.json
+    └── operator_birthdays.json
 ```
 
 依存方向: external_source は何にも依存しない。recruit は external_source::recruit_pool の
@@ -453,6 +458,15 @@ DTO（公開求人のプール）だけに依存する純粋ロジック。bot �
 
 ## 設計上の重要ポイント（壊さないこと）
 
+- **オペレーターの誕生日はゲームデータのプロフィールから作る**: 旧`data/birthdayRev.yaml`
+  （手入力。CN名）は廃止した。`external_source::operator_birthdays`がCNの
+  `handbook_info_table.json`から読む（JP未実装のオペレーターもお祝いするためCN。CN/JP両方に
+  いるオペレーターの日付は全員一致）。日付は先頭の`M月D日`だけ読み、注記は無視する
+  （GALLUS²の`5月4日（…推算）`等）。「未公开」等の日付が無いオペレーターは対象外。
+  入手不可でもプロフィールに日付があれば対象（予備隊員）。**異格は元のオペレーターと
+  同じ日付なら元の1件にまとめ、元に日付が無ければ異格側を残す**（凯尔希·思衡托・烛煌）。
+  誕生日を1件も読めなければfetch失敗（書式変更で全員が消えるのを防ぐ）。同じ日の
+  並び順はcharId順。敬称・文面（`reflect_name`/`mention_str`）はbot側のまま。
 - **公開求人のプールはゲームデータから作り、CN追加分のJP反映日だけ手動で持つ**:
   旧`data/recruitment/operators.json`（手入力のmain + future）は廃止した。
   `external_source::recruit_pool`がCN/JPの`recruitDetail`からプールを作り、
