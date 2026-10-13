@@ -87,8 +87,7 @@ pub struct RawOperatorCost {
 
 /// オペレーター消費素材データ一式（Python `AllOperatorsInfo`相当）。
 /// `cn_to_ja` は旧`operator_names::OperatorNames`と同一ロジックで構築しており、
-/// birthday.rs等の中国語名→日本語名変換はここから取得する
-/// （char_table.jsonのfetchをこのソース1つに集約するため）。
+/// 中国語名→日本語名変換（`to_ja`）に使う。
 #[derive(Serialize, Deserialize, Default)]
 pub struct OperatorData {
     cn_to_ja: HashMap<String, String>,
