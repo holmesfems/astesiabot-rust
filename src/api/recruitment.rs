@@ -134,9 +134,10 @@ fn build_tag_reply(engine: &RecruitEngine, ocr_text: &str, pickup: Option<&[Stri
     }
 
     let is_global = matched.is_global;
-    let results = engine.data.calculate(&matches, is_global, 4, pickup);
+    let data = engine.data();
+    let results = data.calculate(&matches, is_global, 4, pickup);
 
-    let sorted_input = engine.data.normalize_names(&matches);
+    let sorted_input = data.normalize_names(&matches);
     let title = format::make_title(&sorted_input, is_global, true);
 
     let reply = if results.is_empty() {
@@ -183,7 +184,7 @@ mod tests {
 
     #[test]
     fn tag_count_reflects_matched_tags() {
-        let engine = RecruitEngine::load().expect("recruit data should load");
+        let engine = RecruitEngine::load_from_seed();
 
         let reply = build_tag_reply(&engine, "狙撃タイプ\n工リート\n範囲攻撃\n火力\n減速", None);
         assert_eq!(reply.tag_count, 5);

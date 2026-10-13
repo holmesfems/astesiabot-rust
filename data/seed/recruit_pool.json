@@ -1,0 +1,1883 @@
+{
+  "cn_only": [
+    {
+      "char_id": "char_4227_gallus",
+      "cn_name": "GALLUS²",
+      "job": "術師",
+      "name": "GALLUS²",
+      "stars": 1,
+      "tags": [
+        "遠距離",
+        "ロボット",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_421_crow",
+      "cn_name": "羽毛笔",
+      "job": "前衛",
+      "name": "ラ・プルマ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_485_pallas",
+      "cn_name": "帕拉斯",
+      "job": "前衛",
+      "name": "パラス",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_437_mizuki",
+      "cn_name": "水月",
+      "job": "特殊",
+      "name": "ミヅキ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "牽制"
+      ]
+    }
+  ],
+  "jp": [
+    {
+      "char_id": "char_285_medic2",
+      "cn_name": "Lancet-2",
+      "job": "医療",
+      "name": "Lancet-2",
+      "stars": 1,
+      "tags": [
+        "遠距離",
+        "ロボット",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_286_cast3",
+      "cn_name": "Castle-3",
+      "job": "前衛",
+      "name": "Castle-3",
+      "stars": 1,
+      "tags": [
+        "近距離",
+        "ロボット",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_376_therex",
+      "cn_name": "THRM-EX",
+      "job": "特殊",
+      "name": "THRM-EX",
+      "stars": 1,
+      "tags": [
+        "近距離",
+        "ロボット",
+        "爆発力"
+      ]
+    },
+    {
+      "char_id": "char_4000_jnight",
+      "cn_name": "正义骑士号",
+      "job": "狙撃",
+      "name": "ジャスティスナイト",
+      "stars": 1,
+      "tags": [
+        "遠距離",
+        "ロボット",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_4093_frston",
+      "cn_name": "Friston-3",
+      "job": "重装",
+      "name": "Friston-3",
+      "stars": 1,
+      "tags": [
+        "近距離",
+        "ロボット",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_4136_phonor",
+      "cn_name": "PhonoR-0",
+      "job": "補助",
+      "name": "PhonoR-0",
+      "stars": 1,
+      "tags": [
+        "遠距離",
+        "ロボット",
+        "元素"
+      ]
+    },
+    {
+      "char_id": "char_4188_confes",
+      "cn_name": "CONFESS-47",
+      "job": "先鋒",
+      "name": "CONFESS-47",
+      "stars": 1,
+      "tags": [
+        "近距離",
+        "ロボット",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_502_nblade",
+      "cn_name": "夜刀",
+      "job": "先鋒",
+      "name": "ヤトウ",
+      "stars": 2,
+      "tags": [
+        "近距離",
+        "初期"
+      ]
+    },
+    {
+      "char_id": "char_500_noirc",
+      "cn_name": "黑角",
+      "job": "重装",
+      "name": "ノイルホーン",
+      "stars": 2,
+      "tags": [
+        "近距離",
+        "初期"
+      ]
+    },
+    {
+      "char_id": "char_503_rang",
+      "cn_name": "巡林者",
+      "job": "狙撃",
+      "name": "レンジャー",
+      "stars": 2,
+      "tags": [
+        "遠距離",
+        "初期"
+      ]
+    },
+    {
+      "char_id": "char_501_durin",
+      "cn_name": "杜林",
+      "job": "術師",
+      "name": "ドゥリン",
+      "stars": 2,
+      "tags": [
+        "遠距離",
+        "初期"
+      ]
+    },
+    {
+      "char_id": "char_009_12fce",
+      "cn_name": "12F",
+      "job": "術師",
+      "name": "12F",
+      "stars": 2,
+      "tags": [
+        "遠距離",
+        "初期"
+      ]
+    },
+    {
+      "char_id": "char_211_adnach",
+      "cn_name": "安德切尔",
+      "job": "狙撃",
+      "name": "アドナキエル",
+      "stars": 3,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_123_fang",
+      "cn_name": "芬",
+      "job": "先鋒",
+      "name": "フェン",
+      "stars": 3,
+      "tags": [
+        "近距離",
+        "COST回復"
+      ]
+    },
+    {
+      "char_id": "char_240_wyvern",
+      "cn_name": "香草",
+      "job": "先鋒",
+      "name": "バニラ",
+      "stars": 3,
+      "tags": [
+        "近距離",
+        "COST回復"
+      ]
+    },
+    {
+      "char_id": "char_192_falco",
+      "cn_name": "翎羽",
+      "job": "先鋒",
+      "name": "プリュム",
+      "stars": 3,
+      "tags": [
+        "近距離",
+        "火力",
+        "COST回復"
+      ]
+    },
+    {
+      "char_id": "char_208_melan",
+      "cn_name": "玫兰莎",
+      "job": "前衛",
+      "name": "メランサ",
+      "stars": 3,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_122_beagle",
+      "cn_name": "米格鲁",
+      "job": "重装",
+      "name": "ビーグル",
+      "stars": 3,
+      "tags": [
+        "近距離",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_124_kroos",
+      "cn_name": "克洛丝",
+      "job": "狙撃",
+      "name": "クルース",
+      "stars": 3,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_121_lava",
+      "cn_name": "炎熔",
+      "job": "術師",
+      "name": "ラヴァ",
+      "stars": 3,
+      "tags": [
+        "遠距離",
+        "範囲攻撃"
+      ]
+    },
+    {
+      "char_id": "char_120_hibisc",
+      "cn_name": "芙蓉",
+      "job": "医療",
+      "name": "ハイビスカス",
+      "stars": 3,
+      "tags": [
+        "遠距離",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_212_ansel",
+      "cn_name": "安赛尔",
+      "job": "医療",
+      "name": "アンセル",
+      "stars": 3,
+      "tags": [
+        "遠距離",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_210_stward",
+      "cn_name": "史都华德",
+      "job": "術師",
+      "name": "スチュワード",
+      "stars": 3,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_278_orchid",
+      "cn_name": "梓兰",
+      "job": "補助",
+      "name": "オーキッド",
+      "stars": 3,
+      "tags": [
+        "遠距離",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_282_catap",
+      "cn_name": "空爆",
+      "job": "狙撃",
+      "name": "カタパルト",
+      "stars": 3,
+      "tags": [
+        "遠距離",
+        "範囲攻撃"
+      ]
+    },
+    {
+      "char_id": "char_283_midn",
+      "cn_name": "月见夜",
+      "job": "前衛",
+      "name": "ミッドナイト",
+      "stars": 3,
+      "tags": [
+        "近距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_281_popka",
+      "cn_name": "泡普卡",
+      "job": "前衛",
+      "name": "ポプカル",
+      "stars": 3,
+      "tags": [
+        "近距離",
+        "範囲攻撃",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_284_spot",
+      "cn_name": "斑点",
+      "job": "重装",
+      "name": "スポット",
+      "stars": 3,
+      "tags": [
+        "近距離",
+        "防御",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_127_estell",
+      "cn_name": "艾丝黛尔",
+      "job": "前衛",
+      "name": "エステル",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "範囲攻撃",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_385_finlpp",
+      "cn_name": "清流",
+      "job": "医療",
+      "name": "セイリュウ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "治療",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_141_nights",
+      "cn_name": "夜烟",
+      "job": "術師",
+      "name": "ヘイズ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_109_fmout",
+      "cn_name": "远山",
+      "job": "術師",
+      "name": "ギターノ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "範囲攻撃"
+      ]
+    },
+    {
+      "char_id": "char_235_jesica",
+      "cn_name": "杰西卡",
+      "job": "狙撃",
+      "name": "ジェシカ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_126_shotst",
+      "cn_name": "流星",
+      "job": "狙撃",
+      "name": "メテオ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_118_yuki",
+      "cn_name": "白雪",
+      "job": "狙撃",
+      "name": "シラユキ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_149_scave",
+      "cn_name": "清道夫",
+      "job": "先鋒",
+      "name": "スカベンジャー",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_290_vigna",
+      "cn_name": "红豆",
+      "job": "先鋒",
+      "name": "ヴィグナ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "火力",
+        "COST回復"
+      ]
+    },
+    {
+      "char_id": "char_130_doberm",
+      "cn_name": "杜宾",
+      "job": "前衛",
+      "name": "ドーベルマン",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "火力",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_289_gyuki",
+      "cn_name": "缠丸",
+      "job": "前衛",
+      "name": "マトイマル",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "生存",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_193_frostl",
+      "cn_name": "霜叶",
+      "job": "前衛",
+      "name": "フロストリーフ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "減速",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_185_frncat",
+      "cn_name": "慕斯",
+      "job": "前衛",
+      "name": "ムース",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_237_gravel",
+      "cn_name": "砾",
+      "job": "特殊",
+      "name": "グラベル",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "高速再配置",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_236_rope",
+      "cn_name": "暗索",
+      "job": "特殊",
+      "name": "ロープ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "強制移動"
+      ]
+    },
+    {
+      "char_id": "char_117_myrrh",
+      "cn_name": "末药",
+      "job": "医療",
+      "name": "ミルラ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_181_flower",
+      "cn_name": "调香师",
+      "job": "医療",
+      "name": "パフューマー",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_199_yak",
+      "cn_name": "角峰",
+      "job": "重装",
+      "name": "マッターホルン",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_150_snakek",
+      "cn_name": "蛇屠箱",
+      "job": "重装",
+      "name": "クオーラ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_196_sunbr",
+      "cn_name": "古米",
+      "job": "重装",
+      "name": "グム",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "防御",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_183_skgoat",
+      "cn_name": "地灵",
+      "job": "補助",
+      "name": "アーススピリット",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_277_sqrrel",
+      "cn_name": "阿消",
+      "job": "特殊",
+      "name": "ショウ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "強制移動"
+      ]
+    },
+    {
+      "char_id": "char_137_brownb",
+      "cn_name": "猎蜂",
+      "job": "前衛",
+      "name": "ビーハンター",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_253_greyy",
+      "cn_name": "格雷伊",
+      "job": "術師",
+      "name": "グレイ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_298_susuro",
+      "cn_name": "苏苏洛",
+      "job": "医療",
+      "name": "ススーロ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_151_myrtle",
+      "cn_name": "桃金娘",
+      "job": "先鋒",
+      "name": "テンニンカ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_190_clour",
+      "cn_name": "红云",
+      "job": "狙撃",
+      "name": "ヴァーミル",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_133_mm",
+      "cn_name": "梅",
+      "job": "狙撃",
+      "name": "メイ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_302_glaze",
+      "cn_name": "安比尔",
+      "job": "狙撃",
+      "name": "アンブリエル",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_337_utage",
+      "cn_name": "宴",
+      "job": "前衛",
+      "name": "ウタゲ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_301_cutter",
+      "cn_name": "刻刀",
+      "job": "前衛",
+      "name": "カッター",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "爆発力",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_258_podego",
+      "cn_name": "波登可",
+      "job": "補助",
+      "name": "ポデンコ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "減速",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_328_cammou",
+      "cn_name": "卡达",
+      "job": "術師",
+      "name": "カシャ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_272_strong",
+      "cn_name": "孑",
+      "job": "特殊",
+      "name": "ジェイ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "高速再配置",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_366_acdrop",
+      "cn_name": "酸糖",
+      "job": "狙撃",
+      "name": "アシッドドロップ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_271_spikes",
+      "cn_name": "芳汀",
+      "job": "前衛",
+      "name": "アレーン",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_381_bubble",
+      "cn_name": "泡泡",
+      "job": "重装",
+      "name": "バブル",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_347_jaksel",
+      "cn_name": "杰克",
+      "job": "前衛",
+      "name": "ジャッキー",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_440_pinecn",
+      "cn_name": "松果",
+      "job": "狙撃",
+      "name": "パインコーン",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_452_bstalk",
+      "cn_name": "豆苗",
+      "job": "先鋒",
+      "name": "ビーンストーク",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "COST回復",
+        "召喚"
+      ]
+    },
+    {
+      "char_id": "char_469_indigo",
+      "cn_name": "深靛",
+      "job": "術師",
+      "name": "インディゴ",
+      "stars": 4,
+      "tags": [
+        "遠距離",
+        "火力",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_155_tiger",
+      "cn_name": "因陀罗",
+      "job": "前衛",
+      "name": "インドラ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_163_hpsts",
+      "cn_name": "火神",
+      "job": "重装",
+      "name": "ヴァルカン",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "生存",
+        "防御",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_128_plosis",
+      "cn_name": "白面鸮",
+      "job": "医療",
+      "name": "フィリオプシス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "治療",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_115_headbr",
+      "cn_name": "凛冬",
+      "job": "先鋒",
+      "name": "ズィマー",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_102_texas",
+      "cn_name": "德克萨斯",
+      "job": "先鋒",
+      "name": "テキサス",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_143_ghost",
+      "cn_name": "幽灵鲨",
+      "job": "前衛",
+      "name": "スペクター",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "範囲攻撃",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_129_bluep",
+      "cn_name": "蓝毒",
+      "job": "狙撃",
+      "name": "アズリウス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_204_platnm",
+      "cn_name": "白金",
+      "job": "狙撃",
+      "name": "プラチナ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_219_meteo",
+      "cn_name": "陨星",
+      "job": "狙撃",
+      "name": "メテオリーテ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_242_otter",
+      "cn_name": "梅尔",
+      "job": "補助",
+      "name": "メイヤー",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "召喚",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_108_silent",
+      "cn_name": "赫默",
+      "job": "医療",
+      "name": "サイレンス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_171_bldsk",
+      "cn_name": "华法琳",
+      "job": "医療",
+      "name": "ワルファリン",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "治療",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_148_nearl",
+      "cn_name": "临光",
+      "job": "重装",
+      "name": "ニアール",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "防御",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_144_red",
+      "cn_name": "红",
+      "job": "特殊",
+      "name": "レッド",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "高速再配置",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_107_liskam",
+      "cn_name": "雷蛇",
+      "job": "重装",
+      "name": "リスカム",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "防御",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_201_moeshd",
+      "cn_name": "可颂",
+      "job": "重装",
+      "name": "クロワッサン",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "防御",
+        "強制移動"
+      ]
+    },
+    {
+      "char_id": "char_145_prove",
+      "cn_name": "普罗旺斯",
+      "job": "狙撃",
+      "name": "プロヴァンス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_158_milu",
+      "cn_name": "守林人",
+      "job": "狙撃",
+      "name": "ファイヤーウォッチ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力",
+        "爆発力"
+      ]
+    },
+    {
+      "char_id": "char_173_slchan",
+      "cn_name": "崖心",
+      "job": "特殊",
+      "name": "クリフハート",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "強制移動",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_174_slbell",
+      "cn_name": "初雪",
+      "job": "補助",
+      "name": "プラマニクス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_195_glassb",
+      "cn_name": "真理",
+      "job": "補助",
+      "name": "イースチナ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "減速",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_215_mantic",
+      "cn_name": "狮蝎",
+      "job": "特殊",
+      "name": "マンティコア",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_241_panda",
+      "cn_name": "食铁兽",
+      "job": "特殊",
+      "name": "エフイーター",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "強制移動",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_164_nightm",
+      "cn_name": "夜魔",
+      "job": "術師",
+      "name": "ナイトメア",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力",
+        "治療",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_308_swire",
+      "cn_name": "诗怀雅",
+      "job": "前衛",
+      "name": "スワイヤー",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "火力",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_326_glacus",
+      "cn_name": "格劳克斯",
+      "job": "補助",
+      "name": "グラウコス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "減速",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_274_astesi",
+      "cn_name": "星极",
+      "job": "前衛",
+      "name": "アステシア",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "火力",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_279_excu",
+      "cn_name": "送葬人",
+      "job": "狙撃",
+      "name": "イグゼキュター",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "範囲攻撃"
+      ]
+    },
+    {
+      "char_id": "char_243_waaifu",
+      "cn_name": "槐琥",
+      "job": "特殊",
+      "name": "ワイフー",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "高速再配置",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_367_swllow",
+      "cn_name": "灰喉",
+      "job": "狙撃",
+      "name": "グレースロート",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_261_sddrag",
+      "cn_name": "苇草",
+      "job": "先鋒",
+      "name": "リード",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_356_broca",
+      "cn_name": "布洛卡",
+      "job": "前衛",
+      "name": "ブローカ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "範囲攻撃",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_226_hmau",
+      "cn_name": "吽",
+      "job": "重装",
+      "name": "ウン",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "防御",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_306_leizi",
+      "cn_name": "惊蛰",
+      "job": "術師",
+      "name": "レイズ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_379_sesa",
+      "cn_name": "慑砂",
+      "job": "狙撃",
+      "name": "シェーシャ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_254_vodfox",
+      "cn_name": "巫恋",
+      "job": "補助",
+      "name": "シャマレ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_401_elysm",
+      "cn_name": "极境",
+      "job": "先鋒",
+      "name": "エリジウム",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_378_asbest",
+      "cn_name": "石棉",
+      "job": "重装",
+      "name": "アスベストス",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "防御",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_343_tknogi",
+      "cn_name": "月禾",
+      "job": "補助",
+      "name": "ツキノギ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "支援",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_373_lionhd",
+      "cn_name": "莱恩哈特",
+      "job": "術師",
+      "name": "レオンハルト",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "爆発力"
+      ]
+    },
+    {
+      "char_id": "char_294_ayer",
+      "cn_name": "断崖",
+      "job": "前衛",
+      "name": "エアースカーペ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "火力",
+        "範囲攻撃"
+      ]
+    },
+    {
+      "char_id": "char_218_cuttle",
+      "cn_name": "安哲拉",
+      "job": "狙撃",
+      "name": "アンドレアナ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力",
+        "減速"
+      ]
+    },
+    {
+      "char_id": "char_349_chiave",
+      "cn_name": "贾维",
+      "job": "先鋒",
+      "name": "キアーベ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_344_beewax",
+      "cn_name": "蜜蜡",
+      "job": "術師",
+      "name": "ビーズワクス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_415_flint",
+      "cn_name": "燧石",
+      "job": "前衛",
+      "name": "フリント",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_365_aprl",
+      "cn_name": "四月",
+      "job": "狙撃",
+      "name": "エイプリル",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_346_aosta",
+      "cn_name": "奥斯塔",
+      "job": "狙撃",
+      "name": "アオスタ",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "範囲攻撃"
+      ]
+    },
+    {
+      "char_id": "char_436_whispr",
+      "cn_name": "絮雨",
+      "job": "医療",
+      "name": "ウィスパーレイン",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_214_kafka",
+      "cn_name": "卡夫卡",
+      "job": "特殊",
+      "name": "カフカ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "高速再配置",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_338_iris",
+      "cn_name": "爱丽丝",
+      "job": "術師",
+      "name": "アイリス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_455_nothin",
+      "cn_name": "乌有",
+      "job": "特殊",
+      "name": "ウユウ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "高速再配置",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_363_toddi",
+      "cn_name": "熔泉",
+      "job": "狙撃",
+      "name": "トギフォンス",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_475_akafyu",
+      "cn_name": "赤冬",
+      "job": "前衛",
+      "name": "アカフユ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "生存",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_478_kirara",
+      "cn_name": "绮良",
+      "job": "特殊",
+      "name": "キララ",
+      "stars": 5,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_103_angel",
+      "cn_name": "能天使",
+      "job": "狙撃",
+      "name": "エクシア",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_112_siege",
+      "cn_name": "推进之王",
+      "job": "先鋒",
+      "name": "シージ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_134_ifrit",
+      "cn_name": "伊芙利特",
+      "job": "術師",
+      "name": "イフリータ",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "弱化"
+      ]
+    },
+    {
+      "char_id": "char_147_shining",
+      "cn_name": "闪灵",
+      "job": "医療",
+      "name": "シャイニング",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "治療",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_179_cgbird",
+      "cn_name": "夜莺",
+      "job": "医療",
+      "name": "ナイチンゲール",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "治療",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_136_hsguma",
+      "cn_name": "星熊",
+      "job": "重装",
+      "name": "ホシグマ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "防御",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_202_demkni",
+      "cn_name": "塞雷娅",
+      "job": "重装",
+      "name": "サリア",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "防御",
+        "治療",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_172_svrash",
+      "cn_name": "银灰",
+      "job": "前衛",
+      "name": "シルバーアッシュ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "支援"
+      ]
+    },
+    {
+      "char_id": "char_263_skadi",
+      "cn_name": "斯卡蒂",
+      "job": "前衛",
+      "name": "スカジ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_010_chen",
+      "cn_name": "陈",
+      "job": "前衛",
+      "name": "チェン",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "爆発力",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_340_shwaz",
+      "cn_name": "黑",
+      "job": "狙撃",
+      "name": "シュヴァルツ",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_188_helage",
+      "cn_name": "赫拉格",
+      "job": "前衛",
+      "name": "ヘラグ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_248_mgllan",
+      "cn_name": "麦哲伦",
+      "job": "補助",
+      "name": "マゼラン",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "支援",
+        "減速",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_213_mostma",
+      "cn_name": "莫斯提马",
+      "job": "術師",
+      "name": "モスティマ",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "支援",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_017_huang",
+      "cn_name": "煌",
+      "job": "前衛",
+      "name": "ブレイズ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_225_haak",
+      "cn_name": "阿",
+      "job": "特殊",
+      "name": "ア",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "支援",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_2013_cerber",
+      "cn_name": "刻俄柏",
+      "job": "術師",
+      "name": "ケオベ",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "火力",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_222_bpipe",
+      "cn_name": "风笛",
+      "job": "先鋒",
+      "name": "バグパイプ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_250_phatom",
+      "cn_name": "傀影",
+      "job": "特殊",
+      "name": "ファントム",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "高速再配置",
+        "牽制",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_400_weedy",
+      "cn_name": "温蒂",
+      "job": "特殊",
+      "name": "ウィーディ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "強制移動",
+        "火力",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_197_poca",
+      "cn_name": "早露",
+      "job": "狙撃",
+      "name": "ロサ",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "火力",
+        "牽制"
+      ]
+    },
+    {
+      "char_id": "char_358_lisa",
+      "cn_name": "铃兰",
+      "job": "補助",
+      "name": "スズラン",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "減速",
+        "支援",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_293_thorns",
+      "cn_name": "棘刺",
+      "job": "前衛",
+      "name": "ソーンズ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_416_zumama",
+      "cn_name": "森蚺",
+      "job": "重装",
+      "name": "ユーネクテス",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存",
+        "防御"
+      ]
+    },
+    {
+      "char_id": "char_350_surtr",
+      "cn_name": "史尔特尔",
+      "job": "前衛",
+      "name": "スルト",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_423_blemsh",
+      "cn_name": "瑕光",
+      "job": "重装",
+      "name": "ブレミシャイン",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "防御",
+        "治療",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_311_mudrok",
+      "cn_name": "泥岩",
+      "job": "重装",
+      "name": "マドロック",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "生存",
+        "防御",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_264_f12yin",
+      "cn_name": "山",
+      "job": "前衛",
+      "name": "マウンテン",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "生存"
+      ]
+    },
+    {
+      "char_id": "char_332_archet",
+      "cn_name": "空弦",
+      "job": "狙撃",
+      "name": "アルケット",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_362_saga",
+      "cn_name": "嵯峨",
+      "job": "先鋒",
+      "name": "サガ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_472_pasngr",
+      "cn_name": "异客",
+      "job": "術師",
+      "name": "パッセンジャー",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "火力"
+      ]
+    },
+    {
+      "char_id": "char_003_kalts",
+      "cn_name": "凯尔希",
+      "job": "医療",
+      "name": "ケルシー",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "召喚",
+        "治療"
+      ]
+    },
+    {
+      "char_id": "char_426_billro",
+      "cn_name": "卡涅利安",
+      "job": "術師",
+      "name": "カーネリアン",
+      "stars": 6,
+      "tags": [
+        "遠距離",
+        "範囲攻撃",
+        "防御"
+      ]
+    }
+  ]
+}

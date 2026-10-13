@@ -1,4 +1,5 @@
 use super::FetchError;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::time::Duration;
 
@@ -17,7 +18,14 @@ pub fn client() -> reqwest::Client {
 /// URLからJSONをfetchする共通ヘルパー。最大 [`FETCH_RETRIES`] 回まで
 /// リトライする（各回のタイムアウトは `client` 生成時に設定した7s）。
 pub async fn fetch_json_with_retry(client: &reqwest::Client, url: &str) -> Result<Value, FetchError> {
-    fetch_json_with_retry_headers(client, url, &[]).await
+    fetch_with_retry(client, url, &[]).await
+}
+
+/// [`fetch_json_with_retry`] の型付き版。巨大なJSON（character_table.json等）から
+/// 一部のフィールドだけ使う場合、`Value`を経由せず必要な構造体へ直接デシリアライズして
+/// メモリを抑えるために使う（リトライ戦略は共通）。
+pub async fn fetch_typed_with_retry<T: DeserializeOwned>(client: &reqwest::Client, url: &str) -> Result<T, FetchError> {
+    fetch_with_retry(client, url, &[]).await
 }
 
 /// [`fetch_json_with_retry`] にヘッダー指定を足したもの。penguin-stats系の
@@ -29,6 +37,14 @@ pub async fn fetch_json_with_retry_headers(
     url: &str,
     headers: &[(&str, &str)],
 ) -> Result<Value, FetchError> {
+    fetch_with_retry(client, url, headers).await
+}
+
+async fn fetch_with_retry<T: DeserializeOwned>(
+    client: &reqwest::Client,
+    url: &str,
+    headers: &[(&str, &str)],
+) -> Result<T, FetchError> {
     let mut last_err: Option<FetchError> = None;
     for i in 0..FETCH_RETRIES {
         let mut req = client.get(url);
@@ -40,7 +56,7 @@ pub async fn fetch_json_with_retry_headers(
         }
         match req.send().await {
             Ok(resp) => match resp.error_for_status() {
-                Ok(resp) => match resp.json::<Value>().await {
+                Ok(resp) => match resp.json::<T>().await {
                     Ok(json) => return Ok(json),
                     Err(e) => last_err = Some(Box::new(e)),
                 },
