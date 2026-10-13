@@ -4,18 +4,29 @@ pub mod dto;
 pub mod model;
 
 use crate::engine::external_source::item_names::ItemNames;
+use crate::engine::external_source::jp_first_seen::JpFirstSeen;
 use crate::engine::external_source::operator_data::{OperatorData, RawOperatorCost};
 use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::risei_calculator_engine::server::Server;
 use crate::engine::risei_calculator_engine::values::RiseiValues;
 use crate::engine::external_source::ExternalSourceRegistry;
 use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
+use chrono::{FixedOffset, NaiveDate, Utc};
 use model::{build_formula_map, FormulaMap, ItemCost};
 use std::sync::Arc;
 
 /// charmaterials.py 側の`EPSILON = 1e-6`。ランキング掲載の閾値・数値表示の
 /// 整数丸め判定に使う（`model::ItemCost`内部の`normalize()`用ε=0.0001とは別物）。
 pub const EPSILON: f64 = 1e-6;
+
+/// 直近実装扱いにする期間（JPのゲームデータに初めて現れてからの日数）。
+pub const RECENT_DAYS: i64 = 180;
+
+/// 直近実装か。大陸版限定、またはJPに初めて現れた日が`recent_since`以降。
+/// 初登場日が記録に無い（昇格オペレーター等）ものは直近実装ではない。
+fn is_recent_by(cn_only: bool, first_seen: Option<NaiveDate>, recent_since: NaiveDate) -> bool {
+    cn_only || first_seen.is_some_and(|d| d >= recent_since)
+}
 
 /// グローバル版・大陸版の`RiseiValues`をまとめて保持する。オペレーターごとに
 /// `cnOnly`に応じて参照するサーバを切り替える必要がある(Python各所の
@@ -78,6 +89,9 @@ pub struct AllOperatorsInfo {
     pub item_names: Arc<ItemNames>,
     pub skill_data: Arc<SkillData>,
     pub formulas: FormulaMap,
+    /// この日以降にJPへ初めて現れたオペレーターを直近実装扱いにする（スナップショット時点の
+    /// JSTの今日 − [`RECENT_DAYS`]日）。参照の都度今日の日付で決めるので、期限は自動で切れる。
+    pub recent_since: NaiveDate,
 }
 
 impl AllOperatorsInfo {
@@ -93,7 +107,9 @@ impl AllOperatorsInfo {
         let skill_data = external_source.skill_data.get().await;
         let formulas_raw = external_source.formulas.get().await;
         let formulas = build_formula_map(&formulas_raw.formulas, &item_names);
-        let info = AllOperatorsInfo { data, item_names, skill_data, formulas };
+        let today_jst = Utc::now().with_timezone(&FixedOffset::east_opt(9 * 3600).expect("valid JST offset")).date_naive();
+        let recent_since = today_jst - chrono::Duration::days(RECENT_DAYS);
+        let info = AllOperatorsInfo { data, item_names, skill_data, formulas, recent_since };
 
         let global_snapshot = risei.snapshot(Server::Global).await;
         let mainland_snapshot = risei.snapshot(Server::Mainland).await;
@@ -106,6 +122,12 @@ impl AllOperatorsInfo {
 
     pub fn get_by_name(&self, name: &str) -> Option<&RawOperatorCost> {
         self.data.get_by_name(name)
+    }
+
+    /// 直近実装か（`/operatorcostlist`の「直近実装/将来実装オペレータのみ表示」）。
+    /// 大陸版限定、またはJPに初めて現れてから[`RECENT_DAYS`]日以内（`data/seed/jp_first_seen.json`）。
+    pub fn is_recent(&self, op: &RawOperatorCost) -> bool {
+        is_recent_by(op.cn_only, JpFirstSeen::embedded().first_seen(&op.id), self.recent_since)
     }
 
     /// Python `getSortedCostDict_ByEliteCost`。指定した星の非昇格オペレーターを
@@ -137,7 +159,7 @@ impl AllOperatorsInfo {
                     operator_id: op.id.clone(),
                     operator_name: op.name.clone(),
                     cn_only: op.cn_only,
-                    is_recent: op.is_recent,
+                    is_recent: self.is_recent(op),
                     skill_id: skill.skill_id.clone(),
                     skill_name: self.skill_data.get_str(&skill.skill_id).to_string(),
                     index: i + 1,
@@ -176,5 +198,21 @@ impl AllOperatorsInfo {
     /// Python `autoCompleteForModuleCost`。
     pub fn autocomplete_module_cost(&self, partial: &str, limit: usize) -> Vec<String> {
         self.autocomplete(partial, limit, aggregate::has_unique_eq)
+    }
+}
+
+#[cfg(test)]
+mod recent_tests {
+    use super::*;
+
+    #[test]
+    fn recent_is_cn_only_or_first_seen_on_or_after_boundary() {
+        let since = NaiveDate::from_ymd_opt(2026, 4, 16).unwrap();
+        let day = |m, d| NaiveDate::from_ymd_opt(2026, m, d);
+        assert!(is_recent_by(true, None, since), "大陸版限定は常に直近実装");
+        assert!(is_recent_by(false, day(4, 16), since), "境界の日は含む");
+        assert!(is_recent_by(false, day(9, 16), since));
+        assert!(!is_recent_by(false, day(4, 15), since), "境界の前日は含まない");
+        assert!(!is_recent_by(false, None, since), "初登場日の記録が無いものは直近実装ではない");
     }
 }

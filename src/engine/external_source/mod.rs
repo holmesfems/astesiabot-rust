@@ -5,6 +5,7 @@ pub mod fk_data;
 pub mod formulas;
 pub mod http;
 pub mod item_names;
+pub mod jp_first_seen;
 pub mod operator_birthdays;
 pub mod operator_combat;
 pub mod operator_data;
@@ -184,5 +185,11 @@ pub const SEED_JOBS: &[SeedJob] = &[
         name: "operator_birthdays",
         path: operator_birthdays::SEED_PATH,
         update: operator_birthdays::update_seed,
+    },
+    // Source ではない（実行時はfetchしない）。JPに初めて現れた日の記録を差分だけ追記する。
+    SeedJob {
+        name: "jp_first_seen",
+        path: jp_first_seen::SEED_PATH,
+        update: jp_first_seen::update_seed,
     },
 ];
