@@ -12878,6 +12878,313 @@
       "is_ammo_skill": false,
       "name": "我無"
     },
+    "skchr_clemnt_1": {
+      "blackboard": {
+        "atk_scale": 2.9,
+        "ep_damage_ratio": 0.35
+      },
+      "blackboard_by_level": [
+        {
+          "atk_scale": 1.9,
+          "ep_damage_ratio": 0.2
+        },
+        {
+          "atk_scale": 1.95,
+          "ep_damage_ratio": 0.2
+        },
+        {
+          "atk_scale": 2.0,
+          "ep_damage_ratio": 0.2
+        },
+        {
+          "atk_scale": 2.05,
+          "ep_damage_ratio": 0.25
+        },
+        {
+          "atk_scale": 2.1,
+          "ep_damage_ratio": 0.25
+        },
+        {
+          "atk_scale": 2.15,
+          "ep_damage_ratio": 0.25
+        },
+        {
+          "atk_scale": 2.25,
+          "ep_damage_ratio": 0.3
+        },
+        {
+          "atk_scale": 2.5,
+          "ep_damage_ratio": 0.3
+        },
+        {
+          "atk_scale": 2.65,
+          "ep_damage_ratio": 0.35
+        },
+        {
+          "atk_scale": 2.9,
+          "ep_damage_ratio": 0.35
+        }
+      ],
+      "description": "攻撃回復/自動発動\n▶0 ⚡2\n下次攻击的攻击力提高至290%并造成相当于物理伤害35%的侵蚀损伤",
+      "is_ammo_skill": false,
+      "name": "冲蚀"
+    },
+    "skchr_clemnt_2": {
+      "blackboard": {
+        "attack@aoe_atk_scale": 2.5,
+        "attack@max_passenger_cnt": 15.0,
+        "attack@max_passenger_mass": 8.0,
+        "attack@max_target": 5.0,
+        "attack@move_speed": -0.7,
+        "attack@physical_atk_scale": 3.0,
+        "attack@water_element": 200.0,
+        "attack_speed": 100.0
+      },
+      "blackboard_by_level": [
+        {
+          "attack@aoe_atk_scale": 2.0,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.5,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.0,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.55,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.0,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.6,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.2,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.65,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.2,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.7,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.2,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.8,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.3,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.85,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.3,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.9,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.35,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 2.95,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        },
+        {
+          "attack@aoe_atk_scale": 2.5,
+          "attack@max_passenger_cnt": 15.0,
+          "attack@max_passenger_mass": 8.0,
+          "attack@max_target": 5.0,
+          "attack@move_speed": -0.7,
+          "attack@physical_atk_scale": 3.0,
+          "attack@water_element": 200.0,
+          "attack_speed": 100.0
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚16.0秒\n▶15 ⚡20\n攻击范围扩大，攻击速度+100，每次攻击对目标及其周围最多5名地面敌人造成相当于攻击力250%的物理伤害；向前方召唤浮游放逐舱，放逐舱使周围累计不超过8重量的最多15名地面敌人不断向前移动；放逐舱在移动3格后消失并留下漩涡，处于漩涡的所有敌人移动速度-70%且每秒受到200点侵蚀损伤和相当于攻击力300%的物理伤害",
+      "is_ammo_skill": false,
+      "name": "风暴潮"
+    },
+    "skchr_clemnt_3": {
+      "blackboard": {
+        "attack@atk_scale": 2.35,
+        "attack@ep_break_duration": 1.0,
+        "attack@ep_damage_ratio": 0.2,
+        "attack@max_target": 3.0,
+        "audio_trigger_cnt": 3.0,
+        "ep_break_duration": 1.0,
+        "ep_damage_scale": 2.5,
+        "projectile_life_time": 5.0,
+        "s3_atk_scale": 3.0,
+        "trigger_time": 10.0
+      },
+      "blackboard_by_level": [
+        {
+          "attack@atk_scale": 1.5,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 1.5,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.0,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 1.6,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 1.5,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.0,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 1.7,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 1.5,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.3,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 1.8,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 1.8,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.5,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 1.85,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 1.8,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.5,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 1.9,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 1.8,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.5,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 2.0,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 2.0,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.7,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 2.2,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 2.1,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.8,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 2.3,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 2.3,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 2.9,
+          "trigger_time": 10.0
+        },
+        {
+          "attack@atk_scale": 2.35,
+          "attack@ep_break_duration": 1.0,
+          "attack@ep_damage_ratio": 0.2,
+          "attack@max_target": 3.0,
+          "audio_trigger_cnt": 3.0,
+          "ep_break_duration": 1.0,
+          "ep_damage_scale": 2.5,
+          "projectile_life_time": 5.0,
+          "s3_atk_scale": 3.0,
+          "trigger_time": 10.0
+        }
+      ],
+      "description": "自然回復/手動発動\n▶30 ⚡42\n攻击范围扩大，攻击目标数+2，每次攻击对目标造成相当于攻击力235%的物理伤害并额外造成相当于物理伤害20%的侵蚀损伤；当全场有敌人侵蚀损伤爆发时，消耗1发弹药对目标所在位置及其周围四格内所有地面敌人造成3次相当于攻击力300%的物理伤害与相当于攻击力250%的元素伤害\n技能装有10发弹药，打完后结束（可随时停止技能）",
+      "is_ammo_skill": true,
+      "name": "与海为敌"
+    },
     "skchr_closur_1": {
       "blackboard": {
         "cost": 3.0,
@@ -22558,6 +22865,196 @@
       "description": "自然回復/手動発動 ⌚8.0秒\n▶10 ⚡18\n範囲内の敵最大2体に1秒ごとに攻撃力の170%の術ダメージを与え、その対象の移動速度を-45%にする",
       "is_ammo_skill": false,
       "name": "業の救済"
+    },
+    "skchr_hbound_1": {
+      "blackboard": {
+        "atk_scale": 0.8,
+        "interval": 1.0,
+        "move_speed": -0.5,
+        "projectile_delay_time": 10.0,
+        "projectile_range": 1.5
+      },
+      "blackboard_by_level": [
+        {
+          "atk_scale": 0.25,
+          "interval": 1.0,
+          "move_speed": -0.2,
+          "projectile_delay_time": 8.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.3,
+          "interval": 1.0,
+          "move_speed": -0.2,
+          "projectile_delay_time": 8.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.35,
+          "interval": 1.0,
+          "move_speed": -0.2,
+          "projectile_delay_time": 8.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.4,
+          "interval": 1.0,
+          "move_speed": -0.3,
+          "projectile_delay_time": 8.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.45,
+          "interval": 1.0,
+          "move_speed": -0.3,
+          "projectile_delay_time": 8.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.5,
+          "interval": 1.0,
+          "move_speed": -0.3,
+          "projectile_delay_time": 8.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.6,
+          "interval": 1.0,
+          "move_speed": -0.4,
+          "projectile_delay_time": 9.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.65,
+          "interval": 1.0,
+          "move_speed": -0.45,
+          "projectile_delay_time": 9.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.7,
+          "interval": 1.0,
+          "move_speed": -0.45,
+          "projectile_delay_time": 10.0,
+          "projectile_range": 1.5
+        },
+        {
+          "atk_scale": 0.8,
+          "interval": 1.0,
+          "move_speed": -0.5,
+          "projectile_delay_time": 10.0,
+          "projectile_range": 1.5
+        }
+      ],
+      "description": "自然回復/手動発動\n▶6 ⚡16\n投掷一个炼金单元，在10秒内使落点周围的地面敌人移动速度-50%，每秒受到相当于攻击力80%的法术伤害\n可充能2次",
+      "is_ammo_skill": false,
+      "name": "触礁"
+    },
+    "skchr_hbound_2": {
+      "blackboard": {
+        "atk_scale": 0.2,
+        "heavy_atk_scale": 1.8,
+        "interval": 1.0,
+        "move_speed": -0.7,
+        "projectile_delay_time": 35.0,
+        "projectile_range": 2.0,
+        "value": 3.0
+      },
+      "blackboard_by_level": [
+        {
+          "atk_scale": 0.11,
+          "heavy_atk_scale": 0.9,
+          "interval": 1.0,
+          "move_speed": -0.5,
+          "projectile_delay_time": 30.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.12,
+          "heavy_atk_scale": 1.0,
+          "interval": 1.0,
+          "move_speed": -0.5,
+          "projectile_delay_time": 30.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.13,
+          "heavy_atk_scale": 1.1,
+          "interval": 1.0,
+          "move_speed": -0.5,
+          "projectile_delay_time": 30.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.14,
+          "heavy_atk_scale": 1.2,
+          "interval": 1.0,
+          "move_speed": -0.6,
+          "projectile_delay_time": 31.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.15,
+          "heavy_atk_scale": 1.3,
+          "interval": 1.0,
+          "move_speed": -0.6,
+          "projectile_delay_time": 31.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.16,
+          "heavy_atk_scale": 1.4,
+          "interval": 1.0,
+          "move_speed": -0.6,
+          "projectile_delay_time": 31.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.17,
+          "heavy_atk_scale": 1.5,
+          "interval": 1.0,
+          "move_speed": -0.7,
+          "projectile_delay_time": 32.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.18,
+          "heavy_atk_scale": 1.6,
+          "interval": 1.0,
+          "move_speed": -0.7,
+          "projectile_delay_time": 33.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.19,
+          "heavy_atk_scale": 1.7,
+          "interval": 1.0,
+          "move_speed": -0.7,
+          "projectile_delay_time": 34.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        },
+        {
+          "atk_scale": 0.2,
+          "heavy_atk_scale": 1.8,
+          "interval": 1.0,
+          "move_speed": -0.7,
+          "projectile_delay_time": 35.0,
+          "projectile_range": 2.0,
+          "value": 3.0
+        }
+      ],
+      "description": "自然回復/手動発動\n▶32 ⚡50\n投掷一个炼金单元，在35秒内使落点周围的地面敌人每秒受到相当于攻击力20%的法术伤害；重量大于等于3的敌人移动速度-70%，每秒额外受到相当于攻击力180%的法术伤害",
+      "is_ammo_skill": false,
+      "name": "座浅"
     },
     "skchr_headb2_1": {
       "blackboard": {
@@ -52711,7 +53208,7 @@
           "attack_speed": 65.0
         }
       ],
-      "description": "自然回復/手動発動 ⌚40.0秒\n▶25 ⚡40\n浮游单元+1，释放浮游单元锁定敌人攻击\n过载：自身停止攻击，攻击力+50%，攻击速度+65\n浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载",
+      "description": "自然回復/手動発動 ⌚40.0秒\n▶25 ⚡40\n浮游单元+1，释放浮游单元锁定敌人攻击\n过载：自身停止攻击，攻击力+50%，攻击速度+65\n浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载；可随时主动关闭技能",
       "is_ammo_skill": false,
       "name": "科技与传统仪式"
     },
@@ -52860,6 +53357,108 @@
       "description": "自然回復/手動発動\n▶25 ⚡40\n通常攻撃の間隔をわずかに延長し、竜矢を射出して敵に攻撃力の240%物理ダメージを与え、一定時間後爆発して攻撃対象と周囲一定範囲内の敵全員に攻撃力の80%の物理ダメージを与える\n合計10本の矢を撃ち切るとスキルが終了（手動でスキルを停止可能）",
       "is_ammo_skill": true,
       "name": "携帯破城矢"
+    },
+    "skchr_toledo_1": {
+      "blackboard": {
+        "atk": 1.0,
+        "attack@atk": -0.25
+      },
+      "blackboard_by_level": [
+        {
+          "atk": 0.55,
+          "attack@atk": -0.15
+        },
+        {
+          "atk": 0.58,
+          "attack@atk": -0.15
+        },
+        {
+          "atk": 0.61,
+          "attack@atk": -0.15
+        },
+        {
+          "atk": 0.66,
+          "attack@atk": -0.17
+        },
+        {
+          "atk": 0.69,
+          "attack@atk": -0.17
+        },
+        {
+          "atk": 0.72,
+          "attack@atk": -0.17
+        },
+        {
+          "atk": 0.75,
+          "attack@atk": -0.19
+        },
+        {
+          "atk": 0.8,
+          "attack@atk": -0.21
+        },
+        {
+          "atk": 0.9,
+          "attack@atk": -0.23
+        },
+        {
+          "atk": 1.0,
+          "attack@atk": -0.25
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚30.0秒\n▶35 ⚡55\n攻击力+100%，攻击范围内被阻挡的敌人获得25%虚弱效果",
+      "is_ammo_skill": false,
+      "name": "以假乱真"
+    },
+    "skchr_toledo_2": {
+      "blackboard": {
+        "not_combat": 7.0,
+        "talent@s2_talent_scale": 2.0
+      },
+      "blackboard_by_level": [
+        {
+          "not_combat": 2.0,
+          "talent@s2_talent_scale": 1.1
+        },
+        {
+          "not_combat": 2.0,
+          "talent@s2_talent_scale": 1.2
+        },
+        {
+          "not_combat": 2.0,
+          "talent@s2_talent_scale": 1.3
+        },
+        {
+          "not_combat": 3.0,
+          "talent@s2_talent_scale": 1.4
+        },
+        {
+          "not_combat": 3.0,
+          "talent@s2_talent_scale": 1.5
+        },
+        {
+          "not_combat": 3.0,
+          "talent@s2_talent_scale": 1.6
+        },
+        {
+          "not_combat": 4.0,
+          "talent@s2_talent_scale": 1.7
+        },
+        {
+          "not_combat": 5.0,
+          "talent@s2_talent_scale": 1.8
+        },
+        {
+          "not_combat": 6.0,
+          "talent@s2_talent_scale": 1.9
+        },
+        {
+          "not_combat": 7.0,
+          "talent@s2_talent_scale": 2.0
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚20.0秒\n▶15 ⚡30\n天赋效果提升至2.0倍，在攻击范围内的近战部署位召唤一个可以阻挡敌人的征服者传说，征服者传说在出现时会使附近的敌人战栗7秒",
+      "is_ammo_skill": false,
+      "name": "危言耸听"
     },
     "skchr_tomimi_1": {
       "blackboard": {
@@ -66810,6 +67409,23 @@
       "is_ammo_skill": false,
       "name": "巫術バリスタ"
     },
+    "sktok_spksum_1": {
+      "blackboard": {
+        "cnt": 3.0,
+        "cost": 12.0,
+        "enemy_key": 0.0
+      },
+      "blackboard_by_level": [
+        {
+          "cnt": 3.0,
+          "cost": 12.0,
+          "enemy_key": 0.0
+        }
+      ],
+      "description": "自然回復/手動発動\n▶0 ⚡5\n消耗一定部署费用立刻生成3名塑能基质",
+      "is_ammo_skill": false,
+      "name": "基质合成台"
+    },
     "sktok_stdurk_1": {
       "blackboard": {
         "prob": 0.0,
@@ -67339,6 +67955,57 @@
       "description": "8/自動発動 ⌚60.0秒\n▶0 ⚡0\n配置後、全オペレーターのHPが1秒ごとに最大値の5%回復し、SPが2秒ごとに1回復する。【重装】配置後、召集票+12",
       "is_ammo_skill": false,
       "name": "バイタルモニター"
+    },
+    "sktok_toledo": {
+      "blackboard": {
+        "atk_scale": 0.0,
+        "not_combat": 7.0
+      },
+      "blackboard_by_level": [
+        {
+          "atk_scale": 0.0,
+          "not_combat": 2.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 2.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 2.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 3.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 3.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 3.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 4.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 5.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 6.0
+        },
+        {
+          "atk_scale": 0.0,
+          "not_combat": 7.0
+        }
+      ],
+      "description": "パッシブ\n出现时会使附近的敌人战栗7秒",
+      "is_ammo_skill": false,
+      "name": "征服者传说"
     },
     "sktok_toolgarage": {
       "blackboard": {

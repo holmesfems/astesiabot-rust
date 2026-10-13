@@ -50822,6 +50822,298 @@
       "stageId": "act54side_08",
       "stageType": "ACTIVITY",
       "zoneId": "act54side_zone1"
+    },
+    {
+      "apCost": 9,
+      "code": "YW-1",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30011"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30061"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30031"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30021"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30041"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30051"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 167000.0,
+      "stageId": "act52side_01",
+      "stageType": "ACTIVITY",
+      "zoneId": "act52side_zone1"
+    },
+    {
+      "apCost": 9,
+      "code": "YW-2",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30011"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30061"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30031"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30021"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30041"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30051"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 104500.0,
+      "stageId": "act52side_02",
+      "stageType": "ACTIVITY",
+      "zoneId": "act52side_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "YW-3",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30062"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30022"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 148000.0,
+      "stageId": "act52side_03",
+      "stageType": "ACTIVITY",
+      "zoneId": "act52side_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "YW-4",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30012"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30052"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 160000.0,
+      "stageId": "act52side_04",
+      "stageType": "ACTIVITY",
+      "zoneId": "act52side_zone1"
+    },
+    {
+      "apCost": 12,
+      "code": "YW-5",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30022"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30052"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 247000.0,
+      "stageId": "act52side_05",
+      "stageType": "ACTIVITY",
+      "zoneId": "act52side_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "YW-6",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "30063"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 225000.0,
+      "stageId": "act52side_06",
+      "stageType": "ACTIVITY",
+      "zoneId": "act52side_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "YW-7",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "31063"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 276000.0,
+      "stageId": "act52side_07",
+      "stageType": "ACTIVITY",
+      "zoneId": "act52side_zone1"
+    },
+    {
+      "apCost": 21,
+      "code": "YW-8",
+      "dropInfos": [
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": "31103"
+        },
+        {
+          "dropType": "FURNITURE",
+          "itemId": "furni"
+        },
+        {
+          "dropType": "NORMAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": null
+        }
+      ],
+      "minClearTime": 281000.0,
+      "stageId": "act52side_08",
+      "stageType": "ACTIVITY",
+      "zoneId": "act52side_zone1"
     }
   ]
 }

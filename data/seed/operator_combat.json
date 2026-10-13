@@ -390,6 +390,7 @@
     "三角初華": "char_4184_dolris",
     "九色鹿": "char_4019_ncdeer",
     "予願アンジェリーナ": "char_1015_aglna2",
+    "克莱门莎": "char_4231_clemnt",
     "八幡海鈴": "char_4186_tmoris",
     "凛御シルバーアッシュ": "char_1045_svash2",
     "司霆レイズ": "char_1043_leizi2",
@@ -398,10 +399,12 @@
     "岳羽由加莉": "char_4219_yukari",
     "帰溟スペクター": "char_1023_ghost2",
     "引星ソーンズ": "char_1039_thorn2",
+    "德·托莱多": "char_393_toledo",
     "怒潮ズィマー": "char_1051_headb2",
     "承曦グレイ": "char_1027_greyy2",
     "斬業ホシグマ": "char_1044_hsgma2",
     "新約エクシア": "char_1041_angel2",
+    "旅骨": "char_4232_hbound",
     "机械师": "char_4230_mcnist",
     "歴陣鋭槍フェン": "char_1036_fang2",
     "淬羽サイレンス": "char_1031_slent2",
@@ -19137,6 +19140,47 @@
           ],
           "unlock_level": 60,
           "unlock_phase": 2
+        },
+        {
+          "atk_by_level": [
+            25.0,
+            33.0,
+            40.0
+          ],
+          "eq_id": "uniequip_003_shu",
+          "eq_type": "Y",
+          "name": "好时节",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "atk": 0.14,
+                  "attack_speed": 14.0,
+                  "interval": 4.0,
+                  "max_hp": 0.14,
+                  "sp": 1.0
+                },
+                "potential_rank": 0,
+                "talent_index": 1
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "atk": 0.16,
+                  "attack_speed": 16.0,
+                  "interval": 4.0,
+                  "max_hp": 0.16,
+                  "sp": 1.0
+                },
+                "potential_rank": 0,
+                "talent_index": 1
+              }
+            ]
+          ],
+          "unlock_level": 60,
+          "unlock_phase": 2
         }
       ],
       "name": "シュウ",
@@ -33789,6 +33833,135 @@
         }
       ]
     },
+    "char_393_toledo": {
+      "atk_base": 470.0,
+      "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "atk_trust_max": 35.0,
+      "cn_name": "德·托莱多",
+      "id": "char_393_toledo",
+      "modules": [
+        {
+          "atk_by_level": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "eq_id": "uniequip_002_toledo",
+          "eq_type": "Y",
+          "name": "贵族义务",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "damage_scale": 1.18
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "damage_scale": 1.2
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "damage_scale": 1.19
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "damage_scale": 1.21
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 50,
+          "unlock_phase": 2
+        }
+      ],
+      "name": "德·托莱多",
+      "nation_id": "iberia",
+      "phases": [
+        {
+          "atk_max": 281.0,
+          "atk_min": 196.0,
+          "max_level": 50
+        },
+        {
+          "atk_max": 361.0,
+          "atk_min": 281.0,
+          "max_level": 70
+        },
+        {
+          "atk_max": 435.0,
+          "atk_min": 361.0,
+          "max_level": 80
+        }
+      ],
+      "position": "RANGED",
+      "profession": "SUPPORT",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "damage_scale": 1.08
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "damage_scale": 1.1
+              },
+              "phase": 1,
+              "potential_rank": 4
+            },
+            {
+              "blackboard": {
+                "damage_scale": 1.16
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "damage_scale": 1.18
+              },
+              "phase": 2,
+              "potential_rank": 4
+            }
+          ]
+        }
+      ]
+    },
     "char_394_hadiya": {
       "atk_base": 585.0,
       "atk_potential": 30.0,
@@ -48366,6 +48539,81 @@
           ],
           "unlock_level": 60,
           "unlock_phase": 2
+        },
+        {
+          "atk_by_level": [
+            100.0,
+            130.0,
+            150.0
+          ],
+          "eq_id": "uniequip_003_ulpia",
+          "eq_type": "Y",
+          "name": "“前路”",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "add_block_cnt_stack_cnt": 9.0,
+                  "atk": 35.0,
+                  "block_cnt": 1.0,
+                  "max_hp": 140.0,
+                  "max_stack_cnt": 9.0,
+                  "ulpia_t_1[abyssal].atk": 19.25,
+                  "ulpia_t_1[abyssal].max_hp": 77.0,
+                  "ulpia_t_1[abyssal].max_stack_cnt": 9.0
+                },
+                "potential_rank": 0,
+                "talent_index": 1
+              },
+              {
+                "blackboard": {
+                  "add_block_cnt_stack_cnt": 9.0,
+                  "atk": 35.0,
+                  "block_cnt": 1.0,
+                  "max_hp": 140.0,
+                  "max_stack_cnt": 10.0,
+                  "ulpia_t_1[abyssal].atk": 19.25,
+                  "ulpia_t_1[abyssal].max_hp": 77.0,
+                  "ulpia_t_1[abyssal].max_stack_cnt": 10.0
+                },
+                "potential_rank": 4,
+                "talent_index": 1
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "add_block_cnt_stack_cnt": 9.0,
+                  "atk": 38.0,
+                  "block_cnt": 1.0,
+                  "max_hp": 150.0,
+                  "max_stack_cnt": 9.0,
+                  "ulpia_t_1[abyssal].atk": 22.799999,
+                  "ulpia_t_1[abyssal].max_hp": 90.0,
+                  "ulpia_t_1[abyssal].max_stack_cnt": 9.0
+                },
+                "potential_rank": 0,
+                "talent_index": 1
+              },
+              {
+                "blackboard": {
+                  "add_block_cnt_stack_cnt": 9.0,
+                  "atk": 38.0,
+                  "block_cnt": 1.0,
+                  "max_hp": 150.0,
+                  "max_stack_cnt": 10.0,
+                  "ulpia_t_1[abyssal].atk": 22.799999,
+                  "ulpia_t_1[abyssal].max_hp": 90.0,
+                  "ulpia_t_1[abyssal].max_stack_cnt": 10.0
+                },
+                "potential_rank": 4,
+                "talent_index": 1
+              }
+            ]
+          ],
+          "unlock_level": 60,
+          "unlock_phase": 2
         }
       ],
       "name": "ウルピアヌス",
@@ -56882,6 +57130,266 @@
             {
               "blackboard": {
                 "hp_ratio": 0.4
+              },
+              "phase": 2,
+              "potential_rank": 4
+            }
+          ]
+        }
+      ]
+    },
+    "char_4231_clemnt": {
+      "atk_base": 1030.0,
+      "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
+      "atk_trust_max": 110.0,
+      "cn_name": "克莱门莎",
+      "id": "char_4231_clemnt",
+      "modules": [],
+      "name": "克莱门莎",
+      "nation_id": "egir",
+      "phases": [
+        {
+          "atk_max": 587.0,
+          "atk_min": 410.0,
+          "max_level": 50
+        },
+        {
+          "atk_max": 763.0,
+          "atk_min": 587.0,
+          "max_level": 80
+        },
+        {
+          "atk_max": 920.0,
+          "atk_min": 763.0,
+          "max_level": 90
+        }
+      ],
+      "position": "MELEE",
+      "profession": "WARRIOR",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ],
+        [
+          "3",
+          2
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "prob_normal": 0.25,
+                "prob_special": 0.5,
+                "t1_atk_scale": 1.2
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "prob_normal": 0.25,
+                "prob_special": 0.5,
+                "t1_atk_scale": 1.35
+              },
+              "phase": 1,
+              "potential_rank": 2
+            },
+            {
+              "blackboard": {
+                "prob_normal": 0.25,
+                "prob_special": 0.5,
+                "t1_atk_scale": 1.35
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "prob_normal": 0.25,
+                "prob_special": 0.5,
+                "t1_atk_scale": 1.5
+              },
+              "phase": 2,
+              "potential_rank": 2
+            }
+          ]
+        },
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "damage_resistance_normal": 0.3,
+                "damage_resistance_seamonster": 0.5,
+                "tag": 0.0
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "damage_resistance_normal": 0.35,
+                "damage_resistance_seamonster": 0.55,
+                "tag": 0.0
+              },
+              "phase": 2,
+              "potential_rank": 4
+            }
+          ]
+        }
+      ]
+    },
+    "char_4232_hbound": {
+      "atk_base": 491.0,
+      "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "atk_trust_max": 30.0,
+      "cn_name": "旅骨",
+      "id": "char_4232_hbound",
+      "modules": [
+        {
+          "atk_by_level": [
+            20.0,
+            25.0,
+            30.0
+          ],
+          "eq_id": "uniequip_002_hbound",
+          "eq_type": "X",
+          "name": "看不见的大海",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "heavy_hitrate": -0.16,
+                  "hitrate": -0.12,
+                  "value": 3.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "heavy_hitrate": -0.18,
+                  "hitrate": -0.13,
+                  "value": 3.0
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "heavy_hitrate": -0.18,
+                  "hitrate": -0.14,
+                  "value": 3.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "heavy_hitrate": -0.2,
+                  "hitrate": -0.15,
+                  "value": 3.0
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 50,
+          "unlock_phase": 2
+        }
+      ],
+      "name": "旅骨",
+      "nation_id": "iberia",
+      "phases": [
+        {
+          "atk_max": 283.0,
+          "atk_min": 203.0,
+          "max_level": 50
+        },
+        {
+          "atk_max": 373.0,
+          "atk_min": 283.0,
+          "max_level": 70
+        },
+        {
+          "atk_max": 461.0,
+          "atk_min": 373.0,
+          "max_level": 80
+        }
+      ],
+      "position": "RANGED",
+      "profession": "SPECIAL",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "heavy_hitrate": -0.09,
+                "hitrate": -0.05,
+                "value": 3.0
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "heavy_hitrate": -0.11,
+                "hitrate": -0.06,
+                "value": 3.0
+              },
+              "phase": 1,
+              "potential_rank": 4
+            },
+            {
+              "blackboard": {
+                "heavy_hitrate": -0.13,
+                "hitrate": -0.09,
+                "value": 3.0
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "heavy_hitrate": -0.15,
+                "hitrate": -0.1,
+                "value": 3.0
               },
               "phase": 2,
               "potential_rank": 4
