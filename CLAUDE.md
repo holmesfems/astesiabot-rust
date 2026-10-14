@@ -247,6 +247,8 @@ src/
 │   │                        更新通知`update`（リクエストの`shortcutVersion`が
 │   │                        data/recruitment/shortcut.yamlの最新版より古い時だけ。
 │   │                        版を送らない旧ショートカットには`reply`末尾にも通知文を足す）を追加。
+│   │                        `pickupOperators`は入力しづらい表記の別名を正式表記へ寄せる
+│   │                        （`PICKUP_ALIASES`。例: `GALLUS2`→`GALLUS²`）。
 │   │                        入手用固定URL `GET /shortcut/recruitment`（shortcut.yamlのiCloud
 │   │                        リンクへ307。`shortcut_router()`、web_ui_router()に載せる）もここ。
 │   │                        通知文とトップページのカードはこの固定URLを指す
