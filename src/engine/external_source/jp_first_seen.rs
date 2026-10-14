@@ -42,6 +42,9 @@ pub struct JpFirstSeenRecord {
 /// 実行時に引く用の、日付を解釈済みの記録。
 pub struct JpFirstSeen {
     dates: HashMap<String, NaiveDate>,
+    /// `checked_at`の日付（UTC）。記録に無い非昇格のJP実装済みオペレーターは、この日以降に
+    /// 現れたことになる（記録は`regen_seeds`でしか更新されないため）。
+    checked_on: Option<NaiveDate>,
 }
 
 impl JpFirstSeen {
@@ -64,12 +67,26 @@ impl JpFirstSeen {
                 Ok((id.clone(), date))
             })
             .collect::<Result<HashMap<_, _>, FetchError>>()?;
-        Ok(Self { dates })
+        let checked_on = record
+            .checked_at
+            .as_deref()
+            .map(|at| {
+                chrono::DateTime::parse_from_rfc3339(at)
+                    .map(|t| t.with_timezone(&chrono::Utc).date_naive())
+                    .map_err(|e| format!("checked_at「{at}」を解釈できません: {e}"))
+            })
+            .transpose()?;
+        Ok(Self { dates, checked_on })
     }
 
     /// JPのゲームデータに初めて現れた日。記録に無い（JP未実装・昇格オペレーター）ならNone。
     pub fn first_seen(&self, char_id: &str) -> Option<NaiveDate> {
         self.dates.get(char_id).copied()
+    }
+
+    /// 記録を最後に更新した日（`checked_at`の日付。UTC）。
+    pub fn checked_on(&self) -> Option<NaiveDate> {
+        self.checked_on
     }
 }
 

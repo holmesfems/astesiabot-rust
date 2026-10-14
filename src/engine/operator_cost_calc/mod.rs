@@ -28,6 +28,14 @@ fn is_recent_by(cn_only: bool, first_seen: Option<NaiveDate>, recent_since: Naiv
     cn_only || first_seen.is_some_and(|d| d >= recent_since)
 }
 
+/// 直近実装の判定に使う、JPに現れた日。記録に無い非昇格オペレーター（JP実装済み）は
+/// 記録を更新した後に実装されたものなので、更新日（`checked_on`）で代用する
+/// （`regen_seeds`を回す前でも当日実装分を直近実装に入れるため）。
+/// 昇格オペレーターは記録の対象外なのでNoneのまま。
+fn jp_seen_on(first_seen: Option<NaiveDate>, is_patch: bool, checked_on: Option<NaiveDate>) -> Option<NaiveDate> {
+    first_seen.or(if is_patch { None } else { checked_on })
+}
+
 /// グローバル版・大陸版の`RiseiValues`をまとめて保持する。オペレーターごとに
 /// `cnOnly`に応じて参照するサーバを切り替える必要がある(Python各所の
 /// `CalculatorManager.getValues(glob,...)`の`glob`切り替えに対応)。
@@ -127,7 +135,9 @@ impl AllOperatorsInfo {
     /// 直近実装か（`/operatorcostlist`の「直近実装/将来実装オペレータのみ表示」）。
     /// 大陸版限定、またはJPに初めて現れてから[`RECENT_DAYS`]日以内（`data/seed/jp_first_seen.json`）。
     pub fn is_recent(&self, op: &RawOperatorCost) -> bool {
-        is_recent_by(op.cn_only, JpFirstSeen::embedded().first_seen(&op.id), self.recent_since)
+        let record = JpFirstSeen::embedded();
+        let seen_on = jp_seen_on(record.first_seen(&op.id), op.is_patch, record.checked_on());
+        is_recent_by(op.cn_only, seen_on, self.recent_since)
     }
 
     /// Python `getSortedCostDict_ByEliteCost`。指定した星の非昇格オペレーターを
@@ -214,5 +224,13 @@ mod recent_tests {
         assert!(is_recent_by(false, day(9, 16), since));
         assert!(!is_recent_by(false, day(4, 15), since), "境界の前日は含まない");
         assert!(!is_recent_by(false, None, since), "初登場日の記録が無いものは直近実装ではない");
+    }
+
+    #[test]
+    fn unrecorded_operator_is_seen_on_checked_date_unless_patch() {
+        let day = |m, d| NaiveDate::from_ymd_opt(2026, m, d);
+        assert_eq!(jp_seen_on(day(6, 22), false, day(9, 16)), day(6, 22), "記録があればその日");
+        assert_eq!(jp_seen_on(None, false, day(9, 16)), day(9, 16), "記録の更新後に実装された");
+        assert_eq!(jp_seen_on(None, true, day(9, 16)), None, "昇格オペレーターは記録の対象外");
     }
 }
