@@ -94,9 +94,15 @@ cargo run --bin regen_seeds
 
 `Procfile` を同梱しています。Rust用ビルドパック（例: [emk/heroku-buildpack-rust](https://github.com/emk/heroku-buildpack-rust)）を設定し、上記の環境変数を Config Vars として登録すればデプロイ可能です。
 
+## データ出典
+
+- ドロップ率: [Penguin Statistics](https://penguin-stats.io/)（[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)）。理性価値・理性効率はこのデータを元に独自に計算しています
+- ゲームデータ: [Kengxxiao/ArknightsGameData](https://github.com/Kengxxiao/ArknightsGameData)（大陸版）/ [ArknightsAssets/ArknightsGamedata](https://github.com/ArknightsAssets/ArknightsGamedata)（日本版）
+- アークナイツ ©Hypergryph / Yostar。本プロジェクトは非公式のファンメイドです
+
 ## License
 
-[MIT License](LICENSE)
+ソースコードは [MIT License](LICENSE) です。`data/seed/` 配下（上記の外部データを取得・保存したもの）は MIT の対象外で、それぞれの出典の権利・ライセンスに従います。
 
 ## Author
 
