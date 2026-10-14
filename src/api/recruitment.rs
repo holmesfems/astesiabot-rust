@@ -113,6 +113,24 @@ fn attach_update_notice(
 /// Web API の doRecruitment と完全一致する処理。
 /// OCR生テキスト → タグ抽出 → 計算 → title/reply(responseForAI) の詰め替え。
 /// recruit は計算だけを担い、API レスポンス表現への詰め替えは api 側の責務とする。
+/// pickupOperators の入力しづらい表記の別名 → 正式表記。
+/// ショートカット等から手入力されるため、記号を打たなくても指定できるようにする。
+const PICKUP_ALIASES: &[(&str, &str)] = &[("GALLUS2", "GALLUS²")];
+
+/// pickupOperators の各名前を正式表記へ寄せる（前後空白の除去 + 別名の置き換え）。
+fn normalize_pickup_operators(names: Vec<String>) -> Vec<String> {
+    names
+        .into_iter()
+        .map(|name| {
+            let trimmed = name.trim();
+            PICKUP_ALIASES
+                .iter()
+                .find(|(alias, _)| *alias == trimmed)
+                .map_or_else(|| trimmed.to_string(), |(_, official)| official.to_string())
+        })
+        .collect()
+}
+
 fn build_tag_reply(engine: &RecruitEngine, ocr_text: &str, pickup: Option<&[String]>) -> TagReplyData {
     let matched = engine.matcher.match_tag(ocr_text);
 
@@ -167,8 +185,8 @@ pub async fn do_recruitment(
     headers: HeaderMap,
     Json(data): Json<OcrRawData>,
 ) -> Json<TagReplyData> {
-    let pickup = data.pickup_operators.as_deref();
-    let mut reply = build_tag_reply(&state.recruit, &data.text, pickup);
+    let pickup = data.pickup_operators.map(normalize_pickup_operators);
+    let mut reply = build_tag_reply(&state.recruit, &data.text, pickup.as_deref());
     let version = parse_version(data.shortcut_version.as_ref());
     let link = format!("{}{}", super::base_url(&headers), SHORTCUT_PATH);
     attach_update_notice(&mut reply, shortcut_info().latest_version, version, &link);
@@ -199,6 +217,12 @@ mod tests {
         let json = serde_json::to_value(&reply).unwrap();
         assert_eq!(json["tagCount"], 0);
         assert!(json.get("update").is_none());
+    }
+
+    #[test]
+    fn pickup_alias_redirects_to_official_name() {
+        let names = vec!["GALLUS2".to_string(), " エクシア ".to_string(), "GALLUS²".to_string()];
+        assert_eq!(normalize_pickup_operators(names), vec!["GALLUS²", "エクシア", "GALLUS²"]);
     }
 
     #[test]
