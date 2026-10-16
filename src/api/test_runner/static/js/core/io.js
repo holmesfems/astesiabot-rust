@@ -135,8 +135,28 @@ export function exportRowCells(r, buildLabel) {
   return buildLabel ? [buildLabel].concat(cells) : cells;
 }
 
+/* 表計算ソフトの数式インジェクション対策（CSV/TSV共通）。
+ * 手順書・コメント・ビルドは共有URLや進捗ファイル経由で他人が書けるので、セルの
+ * 先頭が数式記号だと開いた人の表計算ソフトで実行され得る（=HYPERLINK で他セルを送信等）。
+ * 「セルの先頭」はファイル上の先頭だけでなく、読み込み側が区切りに使い得る文字の直後も
+ * 含む（地域設定の`;`、読み込み画面で選べるタブ、引用符を見ない取り込みでの改行など）。
+ * そうした位置で、空白や`"`の後に数式記号が来る場合は直前に`'`を入れて文字列扱いにする。
+ * 全角の＝＋－＠は日本語版Excelが半角へ寄せて数式にする可能性があるので含める。 */
+var FORMULA_LEAD = '=+\\-@＝＋－＠';
+function neutralizeFormula(v, separators) {
+  // 読み飛ばすのは区切り以外の空白と`"`だけ（改行・タブまで飛ばすと、その先の
+  // 新しいセル/行の先頭を見落とす）
+  var re = new RegExp('(^|[' + separators + '])(?=(?:[^\\S\\r\\n\\t]|")*[' + FORMULA_LEAD + '])', 'g');
+  return v.replace(re, "$1'");
+}
+
 export function toTsv(rows) {
-  var esc = function (s) { return String(s).replace(/\t/g, ' '); };
+  // 貼り付け先は行を改行、セルをタブで区切るので、セル内のそれは潰す。
+  // Excel が前回の「区切り位置」で覚えた`,`/`;`で割られる場合にも備える
+  var esc = function (s) {
+    var v = String(s).replace(/\r\n?|\n/g, ' / ').replace(/\t/g, ' ');
+    return neutralizeFormula(v, ',;');
+  };
   var buildLabel = currentBuildLabel();
   var header = exportHeaderCells(buildLabel).join('\t');
   var body = rows.map(function (r) {
@@ -147,8 +167,8 @@ export function toTsv(rows) {
 
 export function toCsv(rows) {
   var esc = function (s) {
-    var v = String(s);
-    if (/[",\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+    var v = neutralizeFormula(String(s), ',;\\t\\r\\n');
+    if (/[",;\t\r\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
     return v;
   };
   var buildLabel = currentBuildLabel();
