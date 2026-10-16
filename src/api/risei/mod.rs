@@ -633,15 +633,22 @@ async fn stage_not_found(engine: &RiseiCalculatorEngine, stage: &str, kind: Stag
 
 /// 近い候補を最大[`MAX_SUGGESTIONS`]件返す。大文字小文字を無視した前方一致を最優先し、
 /// 残りは編集距離(入力長の半分か2の大きい方まで)の近い順。
+///
+/// 入力は認証なしのクエリ/パスそのもので長さに上限が無いため、文字数の差(編集距離の下限)が
+/// 閾値を超える候補は編集距離を計算せずに落とす。結果は変わらず、計算量は入力長ではなく
+/// 候補側の長さで抑えられる(長大な入力でワーカースレッドを占有させないため)。
 pub(super) fn suggest<'a>(input: &str, candidates: impl IntoIterator<Item = &'a str>) -> Vec<String> {
     let query = input.to_lowercase();
-    let threshold = (query.chars().count() / 2).max(2);
+    let query_len = query.chars().count();
+    let threshold = (query_len / 2).max(2);
     let mut scored: Vec<(usize, usize, &str)> = candidates
         .into_iter()
         .filter_map(|candidate| {
             let lower = candidate.to_lowercase();
             let distance = if !query.is_empty() && lower.starts_with(&query) {
                 0
+            } else if query_len.abs_diff(lower.chars().count()) > threshold {
+                return None;
             } else {
                 levenshtein(&query, &lower)
             };
@@ -1030,5 +1037,16 @@ mod tests {
         assert_eq!(suggest("mat", ["materials", "stages"]), vec!["materials"]);
         assert_eq!(suggest("stage", ["stages", "events"]), vec!["stages"]);
         assert!(suggest("zzzzzz", ["stages"]).is_empty());
+    }
+
+    #[test]
+    fn suggest_skips_candidates_whose_length_differs_beyond_threshold() {
+        // 文字数の差がちょうど閾値なら従来どおり編集距離で判定する
+        assert_eq!(suggest("b", ["xbc"]), vec!["xbc"]);
+        // 差が閾値を超える候補は編集距離も必ず閾値を超えるので、計算せずに落としても結果は同じ
+        assert!(suggest("b", ["xbcd"]).is_empty());
+        // 長大な入力でも前方一致・候補の長さに応じた計算だけで返る
+        let long = "a".repeat(65_000);
+        assert!(suggest(&long, ["1-7", "GT-HX-3", "/api/risei/stages"]).is_empty());
     }
 }
