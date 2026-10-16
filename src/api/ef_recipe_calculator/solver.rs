@@ -112,11 +112,55 @@ fn per_min(qty: f64, cycle_seconds: f64) -> f64 {
     qty / cycle_seconds * 60.0
 }
 
+/// 警告文の総バイト数の上限。警告文にはクライアントが送ったレシピ名・アイテム名
+/// (任意長)がそのまま入り、同じ名前が衝突/需要の件数ぶん複製されるため、上限なしだと
+/// 入力サイズの何倍ものメモリを確保し得る(未認証の /EFRecipeCalculator/calculate)。
+const MAX_WARNINGS_BYTES: usize = 64 * 1024;
+
+/// 総バイト数に上限のある警告の集積。上限を超える警告に達した時点以降は文面を
+/// 作らず件数だけ数え、`into_vec` で末尾に省略件数を1行添える。
+#[derive(Default)]
+struct WarningSink {
+    list: Vec<String>,
+    bytes: usize,
+    omitted: usize,
+}
+
+impl WarningSink {
+    /// 上限到達後は `make` を呼ばない(巨大な名前を含む文面の format 自体を避ける)。
+    fn push_with(&mut self, make: impl FnOnce() -> String) {
+        if self.omitted == 0 {
+            let warning = make();
+            if self.bytes + warning.len() <= MAX_WARNINGS_BYTES {
+                self.bytes += warning.len();
+                self.list.push(warning);
+                return;
+            }
+        }
+        self.omitted += 1;
+    }
+
+    fn absorb(&mut self, other: WarningSink) {
+        for warning in other.list {
+            self.push_with(move || warning);
+        }
+        self.omitted += other.omitted;
+    }
+
+    fn into_vec(mut self) -> Vec<String> {
+        if self.omitted > 0 {
+            self.list
+                .push(format!("警告が多すぎるため、他{}件の警告を省略しました。", self.omitted));
+        }
+        self.list
+    }
+}
+
 /// アイテム→産出レシピの索引。`selected_recipe_ids` の順に構築し、同一アイテムを
 /// 産出するレシピが複数選択されていれば先頭採用＋warning（代替レシピ非対応）。
 fn build_item_recipe_index<'a>(
     set: &'a RecipeSet,
-    warnings: &mut Vec<String>,
+    warnings: &mut WarningSink,
 ) -> IndexMap<String, &'a Recipe> {
     let mut index: IndexMap<String, &Recipe> = IndexMap::new();
     for id in &set.selected_recipe_ids {
@@ -126,7 +170,7 @@ fn build_item_recipe_index<'a>(
         for output in &recipe.outputs {
             if let Some(&existing) = index.get(&output.item) {
                 if existing.id != recipe.id {
-                    warnings.push(format!(
+                    warnings.push_with(|| format!(
                         "アイテム『{}』を産出するレシピが複数選択されています(『{}』と『{}』)。『{}』を採用します。",
                         output.item, existing.name, recipe.name, existing.name
                     ));
@@ -156,7 +200,7 @@ struct Expansion {
     required_float: IndexMap<String, f64>,
     /// item -> その item の需要のうちレシピ生産で充当された残余(=レシピへの要求量)。
     output_usage: IndexMap<String, f64>,
-    warnings: Vec<String>,
+    warnings: WarningSink,
 }
 
 fn expand_demand(
@@ -169,7 +213,7 @@ fn expand_demand(
     let mut mined_usage = IndexMap::new();
     let mut required_float: IndexMap<String, f64> = IndexMap::new();
     let mut output_usage = IndexMap::new();
-    let mut warnings = Vec::new();
+    let mut warnings = WarningSink::default();
 
     for (item, &r) in demand {
         if raw_items.contains(item.as_str()) {
@@ -198,7 +242,7 @@ fn expand_demand(
                 .expect("item_recipe は該当レシピの outputs から構築される");
             let per_machine = per_min(output.qty, recipe.cycle_seconds);
             if per_machine <= 0.0 {
-                warnings.push(format!(
+                warnings.push_with(|| format!(
                     "レシピ『{}』の産出『{}』の量が0以下のため計算できません。",
                     recipe.name, item
                 ));
@@ -211,7 +255,7 @@ fn expand_demand(
             }
             output_usage.insert(item.clone(), residual);
         } else {
-            warnings.push(format!(
+            warnings.push_with(|| format!(
                 "『{item}』は原料指定もレシピもありません。原料として扱います。"
             ));
             *raw_materials.entry(item.clone()).or_insert(0.0) += residual;
@@ -406,7 +450,7 @@ pub fn calculate(set: &RecipeSet, req: &CalcRequest) -> Result<CalcResult, Strin
         return Err("目標レートは正の数で指定してください。".to_string());
     }
 
-    let mut warnings = Vec::new();
+    let mut warnings = WarningSink::default();
     let item_recipe = build_item_recipe_index(set, &mut warnings);
     let external_supply = build_external_supply_map(set);
     let raw_items: HashSet<&str> = set.raw_items.iter().map(|s| s.as_str()).collect();
@@ -447,7 +491,8 @@ pub fn calculate(set: &RecipeSet, req: &CalcRequest) -> Result<CalcResult, Strin
         iterations_used += 1;
     }
 
-    warnings.extend(last_expansion.warnings);
+    warnings.absorb(last_expansion.warnings);
+    let mut warnings = warnings.into_vec();
     if !converged {
         warnings.push(format!(
             "反復が収束しませんでした(最大{MAX_ITER}回)。表示値は最終反復時点の近似値です。"
@@ -934,5 +979,50 @@ mod tests {
         // (2台*90/min*31/60 = 93.0)であり、フルレート(180.0)でもゼロでもない。
         let surplus = need_for(&result.byproduct_surplus, "汚水");
         assert!((surplus.rate_per_min - 93.0).abs() < 1e-4);
+    }
+
+    fn total_warning_bytes(result: &CalcResult) -> usize {
+        result.warnings.iter().map(|w| w.len()).sum()
+    }
+
+    /// 15. 警告の総量上限(索引構築): 長いレシピ名を持つレシピの産出を、別レシピの
+    ///     繰り返し選択で何度も衝突させても、警告文は上限バイト数で頭打ちになり
+    ///     省略件数が1行で示されること(名前×衝突件数ぶんのメモリを確保しない)。
+    #[test]
+    fn conflict_warnings_are_bounded() {
+        let mut first = recipe("a", 2.0, vec![output("製品", 1.0)], vec![]);
+        first.name = "長".repeat(10_000);
+        let second = recipe("b", 2.0, vec![output("製品", 1.0)], vec![]);
+        let mut set = recipe_set(vec![first, second]);
+        set.selected_recipe_ids = std::iter::once("a".to_string())
+            .chain(std::iter::repeat("b".to_string()).take(10_000))
+            .collect();
+        set.raw_items.push("製品".to_string());
+
+        let result = calculate(&set, &req("製品", 30.0)).unwrap();
+        assert!(total_warning_bytes(&result) <= MAX_WARNINGS_BYTES + 256);
+        assert!(result.warnings.iter().any(|w| w.contains("複数選択されています")));
+        assert!(result.warnings.last().unwrap().contains("件の警告を省略しました"));
+    }
+
+    /// 16. 警告の総量上限(需要展開): 産出量0のレシピに多数のアイテムを需要させても、
+    ///     レシピ名を含む警告文は上限バイト数で頭打ちになること。
+    #[test]
+    fn demand_warnings_are_bounded() {
+        let items: Vec<String> = (0..2_000).map(|i| format!("素材{i}")).collect();
+        let target = recipe(
+            "target",
+            2.0,
+            vec![output("製品", 1.0)],
+            items.iter().map(|i| input(i, 1.0)).collect(),
+        );
+        let mut zero = recipe("zero", 2.0, items.iter().map(|i| output(i, 0.0)).collect(), vec![]);
+        zero.name = "零".repeat(10_000);
+        let set = recipe_set(vec![target, zero]);
+
+        let result = calculate(&set, &req("製品", 30.0)).unwrap();
+        assert!(total_warning_bytes(&result) <= MAX_WARNINGS_BYTES + 256);
+        assert!(result.warnings.iter().any(|w| w.contains("量が0以下")));
+        assert!(result.warnings.last().unwrap().contains("件の警告を省略しました"));
     }
 }
