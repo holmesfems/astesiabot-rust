@@ -1,6 +1,6 @@
 use super::AppState;
 use crate::engine::recruit::{format, RecruitEngine};
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::Redirect;
 use axum::{extract::State, routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
@@ -131,6 +131,25 @@ fn normalize_pickup_operators(names: Vec<String>) -> Vec<String> {
         .collect()
 }
 
+/// `text` の上限（文字数）。求人画面1枚のOCR結果は200文字前後なので、英語版クライアントや
+/// 背景の文字の拾い込みを見込んでも十分な余裕がある。タグ抽出は行数・語数に比例して
+/// 重くなる（2MBで0.2秒前後）ため、認証なしで叩ける入口で量を絞る。
+const MAX_TEXT_CHARS: usize = 2_000;
+
+/// `/recruitment/` のリクエスト本文の上限。text の上限＋pickupOperators 等に十分な大きさで、
+/// axum 既定の 2MB を丸ごと受け取ってから弾くのを避ける。超えると axum が 413 を返す。
+pub(super) const MAX_BODY_BYTES: usize = 64 * 1024;
+
+/// `text` が長すぎる場合のエラー応答（ショートカットがそのまま表示できる通常の形）。
+fn reject_too_long_text(text: &str) -> Option<TagReplyData> {
+    (text.chars().count() > MAX_TEXT_CHARS).then(|| TagReplyData {
+        title: "エラー".to_string(),
+        reply: format!("テキストが長すぎます（{MAX_TEXT_CHARS}文字まで）"),
+        tag_count: 0,
+        update: None,
+    })
+}
+
 fn build_tag_reply(engine: &RecruitEngine, ocr_text: &str, pickup: Option<&[String]>) -> TagReplyData {
     let matched = engine.matcher.match_tag(ocr_text);
 
@@ -177,20 +196,25 @@ fn build_tag_reply(engine: &RecruitEngine, ocr_text: &str, pickup: Option<&[Stri
     path = "/recruitment/",
     request_body = OcrRawData,
     responses(
-        (status = 200, description = "タグ抽出結果", body = TagReplyData)
+        (status = 200, description = "タグ抽出結果", body = TagReplyData),
+        (status = 400, description = "text が長すぎる（2000文字超）", body = TagReplyData),
+        (status = 413, description = "リクエスト本文が大きすぎる（64KiB超）")
     )
 )]
 pub async fn do_recruitment(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
     Json(data): Json<OcrRawData>,
-) -> Json<TagReplyData> {
+) -> (StatusCode, Json<TagReplyData>) {
+    if let Some(error) = reject_too_long_text(&data.text) {
+        return (StatusCode::BAD_REQUEST, Json(error));
+    }
     let pickup = data.pickup_operators.map(normalize_pickup_operators);
     let mut reply = build_tag_reply(&state.recruit, &data.text, pickup.as_deref());
     let version = parse_version(data.shortcut_version.as_ref());
     let link = format!("{}{}", super::base_url(&headers), SHORTCUT_PATH);
     attach_update_notice(&mut reply, shortcut_info().latest_version, version, &link);
-    Json(reply)
+    (StatusCode::OK, Json(reply))
 }
 
 #[cfg(test)]
@@ -199,6 +223,42 @@ mod tests {
     use axum::body::Body;
     use axum::http::{header, Request, StatusCode};
     use tower::ServiceExt;
+
+    #[test]
+    fn too_long_text_is_rejected_by_char_count() {
+        // 境界ちょうどは通す（全角でも1文字＝1と数える。UTF-8のバイト数ではない）
+        assert!(reject_too_long_text(&"狙".repeat(MAX_TEXT_CHARS)).is_none());
+        let error = reject_too_long_text(&"狙".repeat(MAX_TEXT_CHARS + 1)).expect("over the limit");
+        assert_eq!(error.title, "エラー");
+        assert_eq!(error.tag_count, 0);
+        // 実際の求人画面1枚ぶんのOCR結果は余裕で通る
+        let screen = "820056\n1378\n40320\n3192\n連絡回数2/3\n08:13:30 連絡中\n募集説明\n募集期間\n01:00:00\n\
+                      募集可能範囲\n★1 ★2 ★3\n★4\n募集条件\n(最大3個)\n狙撃タイプ\n重装タイプ\n補助タイプ\n\
+                      術師タイプ\n遠距離\nHUMAN RESOURCES DEPARTMENT\nタグをリセット\n募集予算\n999+/1\nRHODES ISLAND";
+        assert!(reject_too_long_text(screen).is_none());
+        assert!(MAX_BODY_BYTES > MAX_TEXT_CHARS * 4, "本文の上限はtextの上限(UTF-8最大4バイト/文字)より大きいこと");
+    }
+
+    #[tokio::test]
+    async fn body_over_limit_is_rejected_before_parsing() {
+        // run_api と同じ掛け方で、本文が上限を超えると 413 になることを確認する
+        let app: Router = Router::new().route(
+            "/recruitment/",
+            axum::routing::post(|Json(_): Json<serde_json::Value>| async { "ok" })
+                .layer(axum::extract::DefaultBodyLimit::max(MAX_BODY_BYTES)),
+        );
+        let body = format!(r#"{{"text":"{}"}}"#, "a".repeat(MAX_BODY_BYTES));
+        let res = app
+            .oneshot(
+                Request::post("/recruitment/")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
 
     #[test]
     fn tag_count_reflects_matched_tags() {
