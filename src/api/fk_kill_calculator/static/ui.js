@@ -411,7 +411,7 @@ function moduleOptions(op, row) {
   let html = `<option value="">なし</option>`;
   for (const m of op.modules) {
     const sel = row.moduleId === m.id ? " selected" : "";
-    html += `<option value="${escapeHtml(m.id)}"${sel}>${escapeHtml(m.name)}（${m.typeName}）</option>`;
+    html += `<option value="${escapeHtml(m.id)}"${sel}>${escapeHtml(m.name)}（${escapeHtml(m.typeName)}）</option>`;
   }
   return html;
 }
