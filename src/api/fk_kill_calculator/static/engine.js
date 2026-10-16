@@ -1287,17 +1287,22 @@ export function dropStaleRows(state, catalog) {
       if (knownPartIds.has(partId)) parts[partId] = on;
     }
     // P6: 昇進/レベル/信頼度が無い古い形を補完する(行と同じ既定値)。
-    const elite = cfg.elite != null ? cfg.elite : maxEliteFor(source);
-    const level = cfg.level != null ? cfg.level : maxLevelForElite(source, elite);
+    // 共有URL/localStorageは外部入力なので、数値フィールドは有限の数値でなければ既定値へ
+    // 戻し、onはbooleanにする(文字列のまま残すとUIのinnerHTMLにマークアップとして入り得る)。
+    const elite = Number.isFinite(cfg.elite) ? cfg.elite : maxEliteFor(source);
+    const level = Number.isFinite(cfg.level) ? cfg.level : maxLevelForElite(source, elite);
     // P8: 旧`talentPotential`(素質凸チェックボックス)は`potential`(潜在ランク)へ統合したため、
     // spread元から取り除いて捨てる(restCfgには残さない)。
     const { talentPotential, ...restCfg } = cfg;
     cleanedSources[sourceId] = {
       ...restCfg,
+      on: !!cfg.on,
       elite,
       level,
-      trust: cfg.trust != null ? cfg.trust : 100,
-      skillLevel: cfg.skillLevel != null ? cfg.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
+      trust: Number.isFinite(cfg.trust) ? cfg.trust : 100,
+      skillLevel: Number.isFinite(cfg.skillLevel) ? cfg.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
+      moduleLv: Number.isFinite(cfg.moduleLv) ? cfg.moduleLv : 3,
+      buffPct: Number.isFinite(cfg.buffPct) ? cfg.buffPct : 0,
       potential: normalizePotentialRank(cfg.potential), // P8: 旧形式は既定値(5)へリセット
       buffIds: migrateStainlessIds(cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
       parts,

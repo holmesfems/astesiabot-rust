@@ -1888,6 +1888,38 @@ console.log("\n=== P7: dropStaleRowsが旧形にskillLevel既定値(10)を補完
   check("旧形の行にskillLevel=10(特化3)が補完される", cleaned.rows[0].skillLevel === 10, cleaned.rows[0].skillLevel);
   check("旧形の鼓舞ソースcfgにもskillLevel=10が補完される", cleaned.inspire.sources.srcMig.skillLevel === 10, cleaned.inspire.sources.srcMig.skillLevel);
   check("旧形(boolean/欠損)のpotentialは行・鼓舞ソースcfgともに既定値5へリセットされる", cleaned.rows[0].potential === 5 && cleaned.inspire.sources.srcMig.potential === 5, [cleaned.rows[0].potential, cleaned.inspire.sources.srcMig.potential]);
+
+  // 共有URL/localStorage由来の鼓舞ソースcfgに数値でない値(マークアップ文字列等)が入っていても、
+  // dropStaleRows後は既定値の数値/booleanになる(UIのinnerHTMLへ文字列のまま渡らない)。
+  const payload = '"><img src=x onerror=alert(1)>';
+  const hostileState = {
+    v: 1,
+    enemy: enemyNeutral,
+    rows: [],
+    inspire: { sources: { srcMig: { on: payload, skillNum: "1", elite: payload, level: payload, trust: payload, skillLevel: payload, moduleLv: payload, buffPct: payload } } },
+  };
+  const hostileCfg = dropStaleRows(hostileState, catalogForMigration).state.inspire.sources.srcMig;
+  check(
+    "鼓舞ソースcfgの非数値なelite/level/trust/skillLevel/moduleLv/buffPctは既定値の数値に、onはbooleanになる",
+    hostileCfg.on === true &&
+      hostileCfg.elite === maxEliteFor(sourceForMigration) &&
+      hostileCfg.level === maxLevelForElite(sourceForMigration, hostileCfg.elite) &&
+      hostileCfg.trust === 100 &&
+      hostileCfg.skillLevel === 10 &&
+      hostileCfg.moduleLv === 3 &&
+      hostileCfg.buffPct === 0,
+    hostileCfg,
+  );
+  const validState = {
+    ...hostileState,
+    inspire: { sources: { srcMig: { on: true, skillNum: "1", elite: 1, level: 40, trust: 50, skillLevel: 7, moduleLv: 2, buffPct: 0.1 } } },
+  };
+  const validCfg = dropStaleRows(validState, catalogForMigration).state.inspire.sources.srcMig;
+  check(
+    "鼓舞ソースcfgの正しい数値/booleanはそのまま保持される",
+    validCfg.on === true && validCfg.elite === 1 && validCfg.level === 40 && validCfg.trust === 50 && validCfg.skillLevel === 7 && validCfg.moduleLv === 2 && validCfg.buffPct === 0.1,
+    validCfg,
+  );
 }
 
 console.log("\n=== P7: 鼓舞ソースのratioByLevel解決(resolveInspireRatioAtLevel/computeInspireSource) ===\n");
