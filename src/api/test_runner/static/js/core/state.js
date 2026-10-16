@@ -77,9 +77,11 @@ export function loadSessionRaw() {
   } catch (e) { return null; }
 }
 
-// 互換: 旧バージョンの「保留」ステータスは未実施(null)として正規化する
+// 互換: 旧バージョンの「保留」ステータスは未実施(null)として正規化する。
+// 進捗URL(#state=)・進捗ファイル・localStorage は外部から細工できるので、
+// 'ok' / 'ng' 以外（'hold' を含む）は全て未実施(null)に落とす（status は描画でHTMLに入るため）。
 export function normalizeStatusCompat(status) {
-  return status === 'hold' ? null : status;
+  return (status === 'ok' || status === 'ng') ? status : null;
 }
 
 export function currentItem() { return state.flatItems[state.pointer]; }
