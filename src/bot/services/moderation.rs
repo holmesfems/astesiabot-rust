@@ -74,6 +74,43 @@ impl SpamKind {
     }
 }
 
+/// 処断の対象。普段は発言者本人だが、スラッシュコマンドへの bot の返信では
+/// コマンドを打った人（返信の author は bot）。連投検知・処断・遡及削除・通報は
+/// すべてこの人を基準にする。
+#[derive(Clone, Copy)]
+struct Actor<'a> {
+    user: &'a serenity::User,
+    /// Some(bot) なら、user が打ったスラッシュコマンドへの bot の返信を検知した
+    via_bot: Option<&'a serenity::User>,
+}
+
+impl<'a> Actor<'a> {
+    fn author_of(msg: &'a serenity::Message) -> Self {
+        Self { user: &msg.author, via_bot: None }
+    }
+
+    /// 遡及削除の対象か: 本人の発言、または本人が打ったスラッシュコマンドへの返信
+    /// （返信した bot は問わない。複数の bot を使い分けて撒かれても拾えるように）。
+    fn caused(&self, m: &serenity::Message) -> bool {
+        match self.via_bot {
+            None => m.author.id == self.user.id,
+            Some(_) => command_invoker(m).is_some_and(|(_, invoker)| invoker.id == self.user.id),
+        }
+    }
+}
+
+/// スラッシュコマンド（コンテキストメニュー含む）への返信なら、その interaction の
+/// ID とコマンドを打った人を返す。ボタン・モーダル由来の返信は数えない
+/// （ゲーム系 bot のボタンを連打するのは正常な使い方なので）。
+fn command_invoker(
+    msg: &serenity::Message,
+) -> Option<(serenity::InteractionId, &serenity::User)> {
+    match msg.interaction_metadata.as_deref()? {
+        serenity::MessageInteractionMetadata::Command(meta) => Some((meta.id, &meta.user)),
+        _ => None,
+    }
+}
+
 /// 検知層の結果。delete は kind と独立している（罠チャンネル在籍なら内容に
 /// 関わらず常に削除するが、BAN対象コンテンツが無ければ kind は別の理由
 /// （またはNone）になり得るため）。
@@ -90,6 +127,8 @@ pub struct ModerationState {
     multi_ch_history: Mutex<HashMap<serenity::UserId, VecDeque<(Instant, serenity::ChannelId)>>>,
     same_ch_history:
         Mutex<HashMap<(serenity::UserId, serenity::ChannelId), VecDeque<Instant>>>,
+    /// 数え済みのスラッシュコマンド。1つのコマンドへの応答＋フォローアップを1回と数えるため
+    seen_interactions: Mutex<HashMap<serenity::InteractionId, Instant>>,
 }
 
 impl ModerationState {
@@ -110,6 +149,7 @@ impl ModerationState {
             url_re,
             multi_ch_history: Mutex::new(HashMap::new()),
             same_ch_history: Mutex::new(HashMap::new()),
+            seen_interactions: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -141,7 +181,72 @@ pub async fn handle(
     user_is_admin: bool,
 ) -> Result<bool, Error> {
     let detection = detect(state, msg);
-    dispatch(ctx, msg, state, detection, user_is_admin).await
+    dispatch(ctx, msg, state, Actor::author_of(msg), detection, user_is_admin).await
+}
+
+/// bot の発言のうち、スラッシュコマンドへの返信だけを「コマンドを打った人の操作」として
+/// 連投/爆撃検知に数える（人間本人の発言と同じ履歴・同じ閾値）。罠チャンネル・全体通知は
+/// 人間本人の発言だけが対象なので、ここでは見ない。
+pub async fn handle_command_reply(
+    ctx: &serenity::Context,
+    msg: &serenity::Message,
+    state: &ModerationState,
+) -> Result<(), Error> {
+    let Some(guild_id) = msg.guild_id else {
+        return Ok(());
+    };
+    let Some((interaction_id, invoker)) = command_invoker(msg) else {
+        return Ok(());
+    };
+    if invoker.bot {
+        return Ok(());
+    }
+    let now = Instant::now();
+    if !first_sight_of_interaction(&state.seen_interactions, interaction_id, now) {
+        return Ok(());
+    }
+    let kind = detect_rate_spam(state, invoker.id, msg.channel_id, now);
+    if kind == SpamKind::None {
+        return Ok(());
+    }
+    // メンバー取得はAPI呼び出しになり得るので、検知が出た時だけ行う
+    let invoker_is_admin = member_is_admin(ctx, guild_id, invoker.id).await;
+    let actor = Actor { user: invoker, via_bot: Some(&msg.author) };
+    let detection = Detection { delete: false, kind };
+    dispatch(ctx, msg, state, actor, detection, invoker_is_admin).await?;
+    Ok(())
+}
+
+/// 初めて見るスラッシュコマンドなら true。古い記録は検知の時間窓より長くは持たない。
+fn first_sight_of_interaction(
+    seen: &Mutex<HashMap<serenity::InteractionId, Instant>>,
+    interaction_id: serenity::InteractionId,
+    now: Instant,
+) -> bool {
+    let keep = MULTI_CH_WINDOW.max(SAME_CH_WINDOW);
+    let mut seen = seen.lock().unwrap();
+    seen.retain(|_, at| now.duration_since(*at) <= keep);
+    match seen.entry(interaction_id) {
+        std::collections::hash_map::Entry::Occupied(_) => false,
+        std::collections::hash_map::Entry::Vacant(slot) => {
+            slot.insert(now);
+            true
+        }
+    }
+}
+
+/// user_is_admin のメンバーID指定版（メッセージに PartialMember が無い、コマンドを打った人用）。
+async fn member_is_admin(
+    ctx: &serenity::Context,
+    guild_id: serenity::GuildId,
+    user_id: serenity::UserId,
+) -> bool {
+    let Ok(member) = guild_id.member(ctx, user_id).await else {
+        return false;
+    };
+    ctx.cache
+        .guild(guild_id)
+        .is_some_and(|guild| guild.member_permissions(&member).administrator())
 }
 
 // ===== 検知層（純粋なロジック。detect_rate_spamの履歴更新以外は副作用なし） =====
@@ -158,7 +263,7 @@ fn detect(state: &ModerationState, msg: &serenity::Message) -> Detection {
 
     // detect_rate_spam は履歴更新の副作用を持つため、他の判定結果に関わらず必ず呼ぶ
     // （罠チャンネル投稿や全体通知も連投/爆撃検知のカウントに含める）。
-    let rate_kind = detect_rate_spam(state, msg);
+    let rate_kind = detect_rate_spam(state, msg.author.id, msg.channel_id, Instant::now());
 
     let kind = if trap_banned {
         SpamKind::TrapChannel
@@ -177,12 +282,13 @@ fn detect(state: &ModerationState, msg: &serenity::Message) -> Detection {
 // 注: タイムアウト/BAN反映前の遅延メッセージで再発火し、通報が重複することがある。
 //     実害はない（タイムアウト・BANは冪等、purgeは空振り）ため許容している。
 //     うるさくなったら処断済みユーザーのクールダウンHashMapを足す。
-fn detect_rate_spam(state: &ModerationState, msg: &serenity::Message) -> SpamKind {
-    let user_id = msg.author.id;
-    let channel_id = msg.channel_id;
-    // 経過時間の計測専用クロック。NTP同期などシステム時計の補正に影響されない
-    let now = Instant::now();
-
+// now は Instant（経過時間の計測専用クロック。NTP同期などシステム時計の補正に影響されない）。
+fn detect_rate_spam(
+    state: &ModerationState,
+    user_id: serenity::UserId,
+    channel_id: serenity::ChannelId,
+    now: Instant,
+) -> SpamKind {
     let same_hit = {
         let mut history = state.same_ch_history.lock().unwrap();
         let dq = history.entry((user_id, channel_id)).or_default();
@@ -221,6 +327,7 @@ async fn dispatch(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
+    actor: Actor<'_>,
     detection: Detection,
     user_is_admin: bool,
 ) -> Result<bool, Error> {
@@ -241,7 +348,7 @@ async fn dispatch(
                 &format!(
                     "{reason}が、管理者ロール保持のため自動処断は見送りました。アカウント乗っ取りの可能性を確認してください。"
                 ),
-                Some(msg),
+                Some((msg, actor)),
                 &[msg.channel_id],
             )
             .await?;
@@ -249,7 +356,7 @@ async fn dispatch(
         return Ok(detection.delete);
     }
 
-    execute(ctx, msg, state, detection.kind, reason).await?;
+    execute(ctx, msg, state, actor, detection.kind, reason).await?;
     Ok(true)
 }
 
@@ -262,20 +369,27 @@ async fn execute(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
+    actor: Actor<'_>,
     kind: SpamKind,
     reason: &str,
 ) -> Result<(), Error> {
     match kind {
         SpamKind::TrapChannel | SpamKind::MassMention => {
-            ban_and_report(ctx, msg, state, reason, &[msg.channel_id]).await
+            ban_and_report(ctx, msg, state, actor, reason, &[msg.channel_id]).await
         }
         SpamKind::MultiChannel => {
-            // BAN自体が過去7日分のメッセージを全チャンネルから消すので遡及削除は不要。
-            // 通報に「どこに撒かれたか」を載せるため、履歴だけ取り出してクリアする。
-            let channels = take_spread_channels(state, msg);
-            ban_and_report(ctx, msg, state, reason, &channels).await
+            let channels = if actor.via_bot.is_some() {
+                // BANで消えるのは本人の発言だけで、本人が打ったコマンドへの bot の返信は
+                // 残るので、撒かれた先から先に消しておく（履歴のクリアも purge_recent が行う）。
+                purge_recent(ctx, msg, state, actor, kind).await.1
+            } else {
+                // BAN自体が過去7日分のメッセージを全チャンネルから消すので遡及削除は不要。
+                // 通報に「どこに撒かれたか」を載せるため、履歴だけ取り出してクリアする。
+                take_spread_channels(state, actor.user.id, msg.channel_id)
+            };
+            ban_and_report(ctx, msg, state, actor, reason, &channels).await
         }
-        SpamKind::SameChannel => mute_and_report(ctx, msg, state, kind, reason).await,
+        SpamKind::SameChannel => mute_and_report(ctx, msg, state, actor, kind, reason).await,
         SpamKind::None => Ok(()),
     }
 }
@@ -284,9 +398,9 @@ async fn execute(
 /// 連投/爆撃の履歴をクリアする（遅延メッセージでの二重処断を減らすため）。
 fn take_spread_channels(
     state: &ModerationState,
-    msg: &serenity::Message,
+    user_id: serenity::UserId,
+    fallback: serenity::ChannelId,
 ) -> Vec<serenity::ChannelId> {
-    let user_id = msg.author.id;
     let spread: HashSet<serenity::ChannelId> = state
         .multi_ch_history
         .lock()
@@ -302,7 +416,7 @@ fn take_spread_channels(
         .unwrap()
         .retain(|(uid, _), _| *uid != user_id);
     if spread.is_empty() {
-        vec![msg.channel_id]
+        vec![fallback]
     } else {
         spread.into_iter().collect()
     }
@@ -312,6 +426,7 @@ async fn mute_and_report(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
+    actor: Actor<'_>,
     kind: SpamKind,
     reason: &str,
 ) -> Result<(), Error> {
@@ -322,7 +437,7 @@ async fn mute_and_report(
     // 遡及削除：トリガーとなった1件だけでなく、直近に撒かれた分をまとめて消す。
     // メッセージ削除はタイムアウト付与より先に行う（タイムアウト失敗で早期returnする前に
     // 削除を済ませておきたい）。
-    let (purged, channels) = purge_recent(ctx, msg, state, kind).await;
+    let (purged, channels) = purge_recent(ctx, msg, state, actor, kind).await;
 
     let until =
         serenity::Timestamp::from(chrono::Utc::now() + chrono::Duration::minutes(TIMEOUT_MINUTES));
@@ -330,7 +445,7 @@ async fn mute_and_report(
     let builder = serenity::EditMember::new()
         .disable_communication_until_datetime(until)
         .audit_log_reason(&audit_reason);
-    if guild_id.edit_member(ctx, msg.author.id, builder).await.is_err() {
+    if guild_id.edit_member(ctx, actor.user.id, builder).await.is_err() {
         // botの権限不足（Moderate Members権限が必要）や対象が上位ロールの場合
         create_report(
             ctx,
@@ -338,7 +453,7 @@ async fn mute_and_report(
             &format!(
                 "{reason}が、タイムアウト付与に失敗しました（権限を確認してください）。なお遡及削除は{purged}件を処理しました"
             ),
-            Some(msg),
+            Some((msg, actor)),
             &channels,
         )
         .await?;
@@ -349,7 +464,7 @@ async fn mute_and_report(
         ctx,
         state,
         &format!("{reason}。直近メッセージ{purged}件の削除と{TIMEOUT_MINUTES}分のタイムアウトを実行しました"),
-        Some(msg),
+        Some((msg, actor)),
         &channels,
     )
     .await?;
@@ -363,19 +478,20 @@ async fn ban_and_report(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
+    actor: Actor<'_>,
     reason: &str,
     channels: &[serenity::ChannelId],
 ) -> Result<(), Error> {
     if let Some(guild_id) = msg.guild_id {
         guild_id
-            .ban_with_reason(&ctx.http, msg.author.id, 7, &format!("Astesia bot: {reason}"))
+            .ban_with_reason(&ctx.http, actor.user.id, 7, &format!("Astesia bot: {reason}"))
             .await?;
     }
     create_report(
         ctx,
         state,
         &format!("{reason}。自動BANを実行しました"),
-        Some(msg),
+        Some((msg, actor)),
         channels,
     )
     .await?;
@@ -383,12 +499,13 @@ async fn ban_and_report(
 }
 
 /// 該当ユーザーが直近 PURGE_LOOKBACK_SECS 秒に撒いたメッセージを一括削除する。
+/// コマンド経由（actor.via_bot）なら、本人が打ったスラッシュコマンドへの bot の返信を消す。
 ///
 /// 対象チャンネルは検知種別で絞る:
 ///   - SameChannel : メッセージが来たチャンネル1つ
 ///   - MultiChannel: multi_ch_history に記録された channel_id 群（撒かれた先のみ）
-///     ※現在 MultiChannel はBAN（メッセージ削除込み）で処断するため、ここには来ない。
-///       ミュートへ戻す場合に備えて分岐は残している
+///     ※人間本人の MultiChannel はBAN（メッセージ削除込み）で処断するため、ここには来ない。
+///       来るのは、BANでは消えない bot の返信を消すコマンド経由の場合だけ
 ///
 /// 検知は Instant（単調クロック）だが、purge の範囲指定はDiscord APIの都合上
 /// 実時計でしか行えない。数秒の誤差はスパム判定が出ている以上割り切る。
@@ -399,9 +516,10 @@ async fn purge_recent(
     ctx: &serenity::Context,
     msg: &serenity::Message,
     state: &ModerationState,
+    actor: Actor<'_>,
     kind: SpamKind,
 ) -> (u64, Vec<serenity::ChannelId>) {
-    let user_id = msg.author.id;
+    let user_id = actor.user.id;
     let cutoff = serenity::Timestamp::from(
         chrono::Utc::now() - chrono::Duration::seconds(PURGE_LOOKBACK_SECS),
     );
@@ -426,7 +544,7 @@ async fn purge_recent(
 
     let mut deleted_total = 0u64;
     for &channel_id in &channel_ids {
-        deleted_total += purge_channel(ctx, channel_id, user_id, cutoff).await;
+        deleted_total += purge_channel(ctx, channel_id, actor, cutoff).await;
     }
 
     // 消したらこのユーザーの履歴はクリアしておく（二重処理・無駄な保持を防ぐ）
@@ -443,7 +561,7 @@ async fn purge_recent(
 async fn purge_channel(
     ctx: &serenity::Context,
     channel_id: serenity::ChannelId,
-    user_id: serenity::UserId,
+    actor: Actor<'_>,
     cutoff: serenity::Timestamp,
 ) -> u64 {
     let messages = match channel_id
@@ -457,7 +575,7 @@ async fn purge_channel(
 
     let target_ids: Vec<serenity::MessageId> = messages
         .into_iter()
-        .filter(|m| m.author.id == user_id && m.timestamp >= cutoff)
+        .filter(|m| actor.caused(m) && m.timestamp >= cutoff)
         .map(|m| m.id)
         .collect();
     if target_ids.is_empty() {
@@ -505,12 +623,16 @@ async fn create_report(
     ctx: &serenity::Context,
     state: &ModerationState,
     report: &str,
-    msg: Option<&serenity::Message>,
+    subject: Option<(&serenity::Message, Actor<'_>)>,
     channels: &[serenity::ChannelId],
 ) -> Result<(), Error> {
     let mut content = format!("{report}\n");
-    if let Some(msg) = msg {
-        content += &format!("author:{}\n", neutralize_backticks(&msg.author.name));
+    if let Some((msg, actor)) = subject {
+        content += &format!("author:{}", neutralize_backticks(&actor.user.name));
+        if let Some(bot) = actor.via_bot {
+            content += &format!("（{}のスラッシュコマンド経由）", neutralize_backticks(&bot.name));
+        }
+        content += "\n";
         let sanitized =
             neutralize_backticks(&msg.content.replace('.', "_").replace("http", "ht tp"));
         content += &format!("content:```{sanitized}```\n");
@@ -563,6 +685,98 @@ mod tests {
         // "https://" の直前が英数字（区切りなしで接続）だとスキームとしては
         // マッチしない。TLD付きドメインも含まれないため全体として非検出になる。
         assert!(!contains_link(&re(), "xhttps://evil"));
+    }
+
+    fn test_state() -> ModerationState {
+        ModerationState {
+            autodel_channels: [serenity::ChannelId::new(1); 6],
+            report_channel: serenity::ChannelId::new(2),
+            url_re: re(),
+            multi_ch_history: Mutex::new(HashMap::new()),
+            same_ch_history: Mutex::new(HashMap::new()),
+            seen_interactions: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn user_json(id: u64, bot: bool) -> serde_json::Value {
+        serde_json::json!({ "id": id.to_string(), "username": format!("u{id}"), "discriminator": "0", "bot": bot })
+    }
+
+    /// author が bot_id の bot で、interaction_metadata（kind="command"等）を持つメッセージ
+    fn bot_reply(bot_id: u64, metadata: Option<serde_json::Value>) -> serenity::Message {
+        let mut msg = serde_json::json!({
+            "id": "100", "channel_id": "10", "author": user_json(bot_id, true),
+            "content": "reply", "timestamp": "2026-10-16T00:00:00.000000+00:00",
+            "edited_timestamp": null, "tts": false, "mention_everyone": false,
+            "mentions": [], "mention_roles": [], "attachments": [], "embeds": [],
+            "pinned": false, "type": 20,
+        });
+        if let Some(meta) = metadata {
+            msg["interaction_metadata"] = meta;
+        }
+        serde_json::from_value(msg).expect("test message must deserialize")
+    }
+
+    fn metadata(kind: u8, interaction_id: u64, invoker_id: u64) -> serde_json::Value {
+        let mut meta = serde_json::json!({
+            "type": kind, "id": interaction_id.to_string(), "user": user_json(invoker_id, false),
+            "authorizing_integration_owners": {},
+        });
+        if kind == 3 {
+            meta["interacted_message_id"] = serde_json::json!("99");
+        }
+        meta
+    }
+
+    #[test]
+    fn command_invoker_counts_only_slash_commands() {
+        let slash = bot_reply(500, Some(metadata(2, 7, 42)));
+        let (id, invoker) = command_invoker(&slash).expect("slash command reply");
+        assert_eq!((id.get(), invoker.id.get()), (7, 42));
+
+        // ボタン（type 3）由来の返信と、interaction ではない普通の bot 発言は数えない
+        assert!(command_invoker(&bot_reply(500, Some(metadata(3, 8, 42)))).is_none());
+        assert!(command_invoker(&bot_reply(500, None)).is_none());
+    }
+
+    #[test]
+    fn actor_via_bot_matches_replies_to_its_own_commands_from_any_bot() {
+        let reply = bot_reply(500, Some(metadata(2, 7, 42)));
+        let other_bot_same_invoker = bot_reply(501, Some(metadata(2, 8, 42)));
+        let other_invoker = bot_reply(500, Some(metadata(2, 9, 43)));
+        let (_, invoker) = command_invoker(&reply).unwrap();
+        let actor = Actor { user: invoker, via_bot: Some(&reply.author) };
+
+        assert!(actor.caused(&reply));
+        assert!(actor.caused(&other_bot_same_invoker));
+        assert!(!actor.caused(&other_invoker));
+        // 発言者本人として見た場合、bot の返信は本人の発言ではない
+        assert!(!Actor { user: invoker, via_bot: None }.caused(&reply));
+    }
+
+    #[test]
+    fn one_slash_command_is_counted_once() {
+        let seen = Mutex::new(HashMap::new());
+        let now = Instant::now();
+        let id = serenity::InteractionId::new(7);
+        assert!(first_sight_of_interaction(&seen, id, now));
+        // 同じコマンドへのフォローアップ
+        assert!(!first_sight_of_interaction(&seen, id, now + Duration::from_secs(1)));
+        // 窓を過ぎた古い記録は捨てる
+        let later = now + MULTI_CH_WINDOW.max(SAME_CH_WINDOW) + Duration::from_secs(1);
+        assert!(first_sight_of_interaction(&seen, serenity::InteractionId::new(8), later));
+        assert_eq!(seen.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn commands_in_three_channels_trip_multi_channel_for_the_invoker() {
+        let state = test_state();
+        let invoker = serenity::UserId::new(42);
+        let now = Instant::now();
+        let kinds: Vec<_> = (0..3)
+            .map(|i| detect_rate_spam(&state, invoker, serenity::ChannelId::new(10 + i), now + Duration::from_secs(i)))
+            .collect();
+        assert_eq!(kinds, [SpamKind::None, SpamKind::None, SpamKind::MultiChannel]);
     }
 
     #[test]

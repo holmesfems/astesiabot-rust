@@ -402,8 +402,10 @@ src/
     │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn
     ├── data.rs    … Data { state, channel_routing: handler::ChannelRouting }
     ├── handler.rs … 汎用メッセージハンドラ（自分→bot/webhook→スパム→チャンネル別 の順で振り分け。
-    │                bot/webhookはモデレーションにも渡さない: 他botの返信はメンバーが
-    │                コマンドで好きに出せるので、連投検知に掛けると他botをBANさせられる）。
+    │                bot/webhookは発言者としてはモデレーションに渡さない: 他botの返信はメンバーが
+    │                コマンドで好きに出せるので、authorで連投検知に掛けると他botをBANさせられる。
+    │                代わりにスラッシュコマンドへの返信は`moderation::handle_command_reply`で
+    │                interaction_metadataの「コマンドを打った人」の操作として数える）。
     │                ChannelRouting（振り分け先チャンネルの定義・env解決）もここに同居。
     │                振り分け先を増やす時はここだけ触ればよい（data.rs/mod.rs は不変）
     ├── utils.rs   … channel_id_env(key)。各サービスの from_env() 相当から共通利用
@@ -421,7 +423,11 @@ src/
     │       ├── operatormodulecost.rs … モジュール消費素材（operatorModuleCost）
     │       └── operatorcostlist.rs   … 各種ランキング/統計（operatorCostList、8バリアント）
     └── services/
-        ├── moderation.rs  … スパム検知・連投/爆撃対応・罠チャンネル自動削除・全体通知BAN（実装済み）
+        ├── moderation.rs  … スパム検知・連投/爆撃対応・罠チャンネル自動削除・全体通知BAN（実装済み）。
+        │                    処断対象は`Actor`（発言者本人、またはスラッシュコマンドを打った人）。
+        │                    コマンド経由は連投/爆撃検知のみ（本人の発言と同じ履歴・閾値）で、
+        │                    1コマンド＝1回（フォローアップは数えない）、ボタン/モーダル由来は数えない。
+        │                    遡及削除はコマンド経由なら本人が打ったコマンドへのbotの返信を消す
         ├── anniversary.rs … 周年ロール付与など
         ├── birthday.rs    … オペレーター誕生日自動お祝い（毎日 JST 0:00、operator_birthdays を利用）
         ├── uranai.rs      … 占い館（骨組みのみ、未実装。ChatGPT API連携が必要）
