@@ -34,10 +34,12 @@ pub async fn event_handler(
             return Ok(());
         }
 
-        // 1. bot・webhook の発言は無視（モデレーションにも渡さない）。他の bot の返信は
-        //    メンバーのコマンド操作で好きな時・場所に出せるため、連投検知に掛けると
-        //    メンバーが Astesia の BAN/タイムアウト権限を他の bot に向けられてしまう
+        // 1. bot・webhook の発言は、発言者としてはモデレーションに渡さない。他の bot の返信は
+        //    メンバーのコマンド操作で好きな時・場所に出せるため、author で連投検知に掛けると
+        //    メンバーが Astesia の BAN/タイムアウト権限を他の bot に向けられてしまう。
+        //    代わりにスラッシュコマンドへの返信は、コマンドを打った人の操作として数える
         if msg.author.bot || msg.webhook_id.is_some() {
+            moderation::handle_command_reply(ctx, msg, &data.state.moderation).await?;
             return Ok(());
         }
 
