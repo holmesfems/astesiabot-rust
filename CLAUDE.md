@@ -249,6 +249,9 @@ src/
 │   │                        版を送らない旧ショートカットには`reply`末尾にも通知文を足す）を追加。
 │   │                        `pickupOperators`は入力しづらい表記の別名を正式表記へ寄せる
 │   │                        （`PICKUP_ALIASES`。例: `GALLUS2`→`GALLUS²`）。
+│   │                        認証なしで叩けるため入口で量を絞る: `text`は`MAX_TEXT_CHARS`(2000文字)まで
+│   │                        （超えたら400＋通常形のエラー応答）、本文は`MAX_BODY_BYTES`(64KiB)まで
+│   │                        （run_apiでこのルートにだけDefaultBodyLimit。超えたら413）。
 │   │                        入手用固定URL `GET /shortcut/recruitment`（shortcut.yamlのiCloud
 │   │                        リンクへ307。`shortcut_router()`、web_ui_router()に載せる）もここ。
 │   │                        通知文とトップページのカードはこの固定URLを指す
