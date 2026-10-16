@@ -1180,6 +1180,20 @@ function isValidExtraParts(extraParts, expectedLen) {
   );
 }
 
+/**
+ * 保存/共有された状態(localStorage・`#state=`共有URL)は誰でも作れる信頼できない入力。
+ * ui.jsは数値フィールドを`<input value="${...}">`等へそのまま埋め込むため、有限の数値に
+ * ならない値(HTMLを含む文字列等)は既定値に置き換える。`null`/`undefined`も既定値扱い
+ * (従来の`x != null ? x : 既定値`と同じ)。
+ */
+function finiteNumberOr(v, fallback) {
+  const n = v == null ? NaN : Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+// 敵の入力欄(ui.jsの`defaultEnemy`と同じフィールド。既定値は全て0)。
+const ENEMY_FIELDS = ["hp", "def", "res", "defFlat", "defPct", "resFlat", "vulnPct"];
+
 export function dropStaleRows(state, catalog) {
   const opById = new Map(catalog.operators.map((o) => [o.id, o]));
   const buffers = catalog.buffers || [];
@@ -1213,8 +1227,8 @@ export function dropStaleRows(state, catalog) {
       const entry = op.fkEntries[row.entryIdx];
       // P6: 昇進/レベル/信頼度が無い古い形(P1〜P5)のstate/共有URLを補完する
       // (`makeDefaultRow`と同じ既定: 最大昇進・その最大レベル・信頼度100)。
-      const elite = row.elite != null ? row.elite : maxEliteFor(op);
-      const level = row.level != null ? row.level : maxLevelForElite(op, elite);
+      const elite = finiteNumberOr(row.elite, maxEliteFor(op));
+      const level = finiteNumberOr(row.level, maxLevelForElite(op, elite));
       const skillLevel = row.skillLevel != null ? row.skillLevel : 10; // P7: 旧(P1〜P6)形の補完
       // P10: extraPartsの形/長さがentry.partsの2番目以降と合わなければ作り直す。
       const expectedExtraLen = Math.max(((entry && entry.parts && entry.parts.length) || 0) - 1, 0);
@@ -1225,8 +1239,10 @@ export function dropStaleRows(state, catalog) {
         ...row,
         elite,
         level,
-        trust: row.trust != null ? row.trust : 100,
+        trust: finiteNumberOr(row.trust, 100),
         skillLevel,
+        hits: finiteNumberOr(row.hits, 1),
+        ignoreDef: finiteNumberOr(row.ignoreDef, 0),
         buffFlat: Number.isFinite(row.buffFlat) ? row.buffFlat : 0, // 手入力 基礎攻撃力+ (#29)
         // P8: `potential`は旧来のboolean(攻撃凸チェックボックス)から潜在ランク(0〜5の数値)へ
         // 仕様変更した。プロトタイプ段階のため丁寧な移行はせず、数値でなければ単純に
@@ -1289,27 +1305,31 @@ export function dropStaleRows(state, catalog) {
     // P6: 昇進/レベル/信頼度が無い古い形を補完する(行と同じ既定値)。
     // 共有URL/localStorageは外部入力なので、数値フィールドは有限の数値でなければ既定値へ
     // 戻し、onはbooleanにする(文字列のまま残すとUIのinnerHTMLにマークアップとして入り得る)。
-    const elite = Number.isFinite(cfg.elite) ? cfg.elite : maxEliteFor(source);
-    const level = Number.isFinite(cfg.level) ? cfg.level : maxLevelForElite(source, elite);
+    const elite = finiteNumberOr(cfg.elite, maxEliteFor(source));
+    const level = finiteNumberOr(cfg.level, maxLevelForElite(source, elite));
     // P8: 旧`talentPotential`(素質凸チェックボックス)は`potential`(潜在ランク)へ統合したため、
     // spread元から取り除いて捨てる(restCfgには残さない)。
     const { talentPotential, ...restCfg } = cfg;
     cleanedSources[sourceId] = {
       ...restCfg,
-      on: !!cfg.on,
+      on: cfg.on === true, // ui.jsが`aria-pressed="${cfg.on}"`へ埋め込むため真偽値に限る(既定はOFF)
       elite,
       level,
-      trust: Number.isFinite(cfg.trust) ? cfg.trust : 100,
-      skillLevel: Number.isFinite(cfg.skillLevel) ? cfg.skillLevel : 10, // P7: 旧(P1〜P6)形の補完
-      moduleLv: Number.isFinite(cfg.moduleLv) ? cfg.moduleLv : 3,
-      buffPct: Number.isFinite(cfg.buffPct) ? cfg.buffPct : 0,
+      trust: finiteNumberOr(cfg.trust, 100),
+      skillLevel: finiteNumberOr(cfg.skillLevel, 10), // P7: 旧(P1〜P6)形の補完
+      moduleLv: finiteNumberOr(cfg.moduleLv, 3),
+      buffPct: finiteNumberOr(cfg.buffPct, 0),
       potential: normalizePotentialRank(cfg.potential), // P8: 旧形式は既定値(5)へリセット
       buffIds: migrateStainlessIds(cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
       parts,
     };
   }
 
-  return { state: { ...state, rows, globalBuffIds, globalBuffLevels, inspire: { sources: cleanedSources } }, dropped };
+  // 敵は既知のフィールドだけを有限の数値で作り直す(生のオブジェクトをそのまま通さない)。
+  const rawEnemy = state.enemy || {};
+  const enemy = Object.fromEntries(ENEMY_FIELDS.map((k) => [k, finiteNumberOr(rawEnemy[k], 0)]));
+
+  return { state: { ...state, enemy, rows, globalBuffIds, globalBuffLevels, inspire: { sources: cleanedSources } }, dropped };
 }
 
 /* ============================================================
