@@ -97,7 +97,8 @@ pub async fn handle(
             Ok(attachments) => attachments,
             Err(rejected) => {
                 drop(session);
-                if let Err(e) = channel_id.say(&ctx.http, rejection_message(&rejected)).await {
+                let builder = no_mention_message(rejection_message(&rejected));
+                if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
                     eprintln!("[uranai] 返信の送信に失敗しました: {e}");
                 }
                 return;
@@ -228,13 +229,23 @@ async fn send_reply(
     for chunk in chunks {
         if let Some(files) = attachments.take() {
             channel_id
-                .send_files(&ctx.http, files, serenity::CreateMessage::new().content(chunk))
+                .send_files(&ctx.http, files, no_mention_message(chunk))
                 .await?;
         } else {
-            channel_id.say(&ctx.http, chunk).await?;
+            channel_id.send_message(&ctx.http, no_mention_message(chunk)).await?;
         }
     }
     Ok(())
+}
+
+/// 占い館の返信メッセージを組み立てる。本文はGPTの出力や添付ファイル名など、メンバーが
+/// 内容を左右できる文字列なので、`@everyone`/`@here`・ロール・ユーザーのメンションを
+/// 一切通知させない（Discordはbot自身の権限でメンションを解決するため、そのままだと
+/// メンバーがbot経由で全体通知やロール通知を飛ばせてしまう）。本文の表示は変えない。
+fn no_mention_message(content: impl Into<String>) -> serenity::CreateMessage {
+    serenity::CreateMessage::new()
+        .content(content)
+        .allowed_mentions(serenity::CreateAllowedMentions::new())
 }
 
 fn to_attachments(named_images: Vec<(String, Vec<u8>)>) -> Vec<serenity::CreateAttachment> {
@@ -257,4 +268,20 @@ fn chunk_text(text: &str, limit: usize) -> Vec<String> {
         start = end;
     }
     chunks
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_mention_message_suppresses_every_mention_kind() {
+        let text = "@everyone @here <@&123> <@456>";
+        let json = serde_json::to_value(no_mention_message(text)).unwrap();
+        assert_eq!(json["content"], text);
+        assert_eq!(
+            json["allowed_mentions"],
+            serde_json::json!({ "parse": [], "users": [], "roles": [] })
+        );
+    }
 }
