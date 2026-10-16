@@ -401,7 +401,9 @@ src/
     ├── mod.rs     … run_bot(token, state)。setup() で ChannelRouting::from_env()・
     │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn
     ├── data.rs    … Data { state, channel_routing: handler::ChannelRouting }
-    ├── handler.rs … 汎用メッセージハンドラ（自分→スパム→bot→チャンネル別 の順で振り分け）。
+    ├── handler.rs … 汎用メッセージハンドラ（自分→bot/webhook→スパム→チャンネル別 の順で振り分け。
+    │                bot/webhookはモデレーションにも渡さない: 他botの返信はメンバーが
+    │                コマンドで好きに出せるので、連投検知に掛けると他botをBANさせられる）。
     │                ChannelRouting（振り分け先チャンネルの定義・env解決）もここに同居。
     │                振り分け先を増やす時はここだけ触ればよい（data.rs/mod.rs は不変）
     ├── utils.rs   … channel_id_env(key)。各サービスの from_env() 相当から共通利用
