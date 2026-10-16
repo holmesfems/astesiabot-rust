@@ -35,6 +35,15 @@ fn validate_required_power(x: i64) -> Result<(), String> {
     Ok(())
 }
 
+/// 残電量安全マージンは蓄電量の範囲（0〜MAX_STORAGE。フォームの min/max と同じ）に限る。
+/// 範囲外の値は周期回路(CTL_3/CTL_4)の周期を 0 以下にし、clock_to_bit が暴走するため。
+fn validate_storage_margin(x: i64) -> Result<(), String> {
+    if !(0..=MAX_STORAGE).contains(&x) {
+        return Err(format!("残電量安全マージンは 0以上 {}以下の整数で入力してください。", MAX_STORAGE));
+    }
+    Ok(())
+}
+
 /// 表示用に小数点以下2桁へ丸める（例: 1306.1224489795918 -> 1306.12）
 fn round2(x: f64) -> f64 {
     (x * 100.0).round() / 100.0
@@ -67,6 +76,7 @@ pub fn optimize(
 ) -> Result<OptimizationResult, String> {
     let max_power = max_power_for_blueprint(blueprint_id)?;
     validate_required_power(required_power)?;
+    validate_storage_margin(storage_margin)?;
 
     let quotient = required_power / max_power;
     let remainder = required_power % max_power;
@@ -161,4 +171,35 @@ pub fn optimize(
         save_battery,
         clock: fit_clock,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::battery_sim::ClockCircuitSimulation;
+    use super::*;
+
+    #[test]
+    fn storage_margin_out_of_range_is_rejected() {
+        // 周期が 0 になり clock_to_bit が暴走していた入力（CTL_3, 余り5, MAX_STORAGE超のマージン）
+        assert!(optimize(5, MAX_STORAGE + 200, false, "CTL_3").is_err());
+        assert!(optimize(5, MAX_STORAGE + 200, false, "CTL_4").is_err());
+        assert!(optimize(5, -1, false, "CTL_3").is_err());
+        assert!(optimize(5, i64::MIN, false, "CTL_4").is_err());
+    }
+
+    #[test]
+    fn storage_margin_bounds_are_accepted() {
+        assert!(optimize(5, 0, false, "CTL_3").is_ok());
+        let result = optimize(5, MAX_STORAGE, false, "CTL_3").unwrap();
+        assert_eq!(result.clock.as_deref(), Some("40s"));
+    }
+
+    #[test]
+    fn clock_to_bit_returns_empty_for_clock_below_two() {
+        let sim = ClockCircuitSimulation::new(1600);
+        assert_eq!(sim.clock_to_bit(0), "");
+        assert_eq!(sim.clock_to_bit(1), "");
+        assert_eq!(sim.clock_to_bit(-40), "");
+        assert_eq!(sim.clock_to_bit(40), "1100");
+    }
 }

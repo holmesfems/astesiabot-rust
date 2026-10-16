@@ -256,6 +256,10 @@ ok('normalizeStatusCompat keeps ok/ng/null',
    state.normalizeStatusCompat('ok') === 'ok' &&
    state.normalizeStatusCompat('ng') === 'ng' &&
    state.normalizeStatusCompat(null) === null);
+ok('normalizeStatusCompat drops unknown/crafted statuses',
+   state.normalizeStatusCompat('x"><img src=x onerror=alert(1)>') === null &&
+   state.normalizeStatusCompat(undefined) === null &&
+   state.normalizeStatusCompat(1) === null);
 
 /* ========================= io ========================= */
 

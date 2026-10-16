@@ -262,6 +262,11 @@ impl RecruitData {
         // minStar==4 のとき showRobot=true（Python の recruitDoProcess）
         let show_robot = min_star == 4;
 
+        // ピックアップ名の集合は1回だけ作る。pickup は Web API の利用者が長さを
+        // 自由に決められるので、組み合わせごとにそのまま複製しない。
+        let pickup_names: Option<HashSet<&str>> =
+            pickup.map(|pu| pu.iter().map(String::as_str).collect());
+
         let mut result = Vec::new();
         for combo in &combos {
             let key: Vec<String> = combo.iter().map(|t| t.name.clone()).collect();
@@ -283,13 +288,15 @@ impl RecruitData {
             let ms = min_star_of(&satisfied);
 
             // ピックアップ判定
-            let (contains_pickup, pickup_target) = match pickup {
+            // pickup_target は「この組み合わせのオペレーターのうちピックアップ指定されたもの」。
+            // 使い道は名前の包含判定だけなので、satisfied 側から拾って件数を
+            // オペレーター数で頭打ちにする（入力リストの長さ・重複には依存しない）。
+            let (contains_pickup, pickup_target) = match &pickup_names {
                 Some(pu) => {
-                    let names: Vec<&str> = satisfied.iter().map(|o| o.name.as_str()).collect();
-                    let pt: Vec<String> = pu
+                    let pt: Vec<String> = satisfied
                         .iter()
-                        .filter(|t| names.contains(&t.as_str()))
-                        .cloned()
+                        .filter(|o| pu.contains(o.name.as_str()))
+                        .map(|o| o.name.clone())
                         .collect();
                     (!pt.is_empty(), pt)
                 }
@@ -378,6 +385,7 @@ pub struct MatchItem {
     /// 表示順を安定させるため BTreeSet（Python の出力は昇順）
     pub star_set: BTreeSet<u8>,
     pub contains_pickup: bool,
+    /// `operators` のうちピックアップ指定された名前（format.rs で包含判定にだけ使う）。
     pub pickup_target: Vec<String>,
 }
 
@@ -546,5 +554,31 @@ mod jp_release_tests {
         let engine = crate::engine::recruit::RecruitEngine::load_from_seed();
         let results = engine.data().calculate(&["上級エリート".to_string()], true, 6, None);
         assert!(!results.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod pickup_tests {
+    /// pickup の長さ・重複に関わらず、pickup_target はその組み合わせの
+    /// オペレーター数を超えない（組み合わせごとに入力リストを複製しない）。
+    #[test]
+    fn pickup_target_is_bounded_by_operators() {
+        let engine = crate::engine::recruit::RecruitEngine::load_from_seed();
+        let tags: Vec<String> = ["狙撃", "遠距離", "範囲攻撃", "減速", "火力"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let mut pickup = vec!["シラユキ".to_string(); 1000];
+        pickup.push("存在しない".to_string());
+
+        let results = engine.data().calculate(&tags, true, 4, Some(&pickup));
+        assert!(results.iter().any(|it| it.contains_pickup));
+        for it in &results {
+            assert!(it.pickup_target.len() <= it.operators.len());
+            let has = it.operators.iter().any(|o| o.name == "シラユキ");
+            assert_eq!(it.contains_pickup, has);
+            assert_eq!(it.pickup_target.iter().any(|n| n == "シラユキ"), has);
+            assert!(!it.pickup_target.iter().any(|n| n == "存在しない"));
+        }
     }
 }

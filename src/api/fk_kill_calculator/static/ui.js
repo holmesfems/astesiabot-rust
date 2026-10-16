@@ -411,7 +411,7 @@ function moduleOptions(op, row) {
   let html = `<option value="">なし</option>`;
   for (const m of op.modules) {
     const sel = row.moduleId === m.id ? " selected" : "";
-    html += `<option value="${escapeHtml(m.id)}"${sel}>${escapeHtml(m.name)}（${m.typeName}）</option>`;
+    html += `<option value="${escapeHtml(m.id)}"${sel}>${escapeHtml(m.name)}（${escapeHtml(m.typeName)}）</option>`;
   }
   return html;
 }
@@ -986,7 +986,7 @@ function renderInspireResultBlock(source, cfg, result) {
 // +結果行を表示する。
 function renderInspireSourceCard(source, singleConflicts) {
   const cfg = sourceCfg(source);
-  const toggleChip = `<button type="button" class="chip" data-action="toggle-inspire-source" data-source-id="${escapeHtml(source.id)}" aria-pressed="${cfg.on}">${escapeHtml(source.name)}</button>`;
+  const toggleChip = `<button type="button" class="chip" data-action="toggle-inspire-source" data-source-id="${escapeHtml(source.id)}" aria-pressed="${escapeHtml(cfg.on)}">${escapeHtml(source.name)}</button>`;
   if (!cfg.on) {
     return `<div class="inspire-source-card">${toggleChip}</div>`;
   }
@@ -1021,12 +1021,12 @@ function renderInspireSourceCard(source, singleConflicts) {
       </label>
       <label>Lv
         <div class="level-with-max">
-          <input type="number" step="1" min="1" max="${maxLevelForElite(source, cfg.elite)}" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="level" value="${cfg.level}">
+          <input type="number" step="1" min="1" max="${maxLevelForElite(source, cfg.elite)}" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="level" value="${escapeHtml(cfg.level)}">
           <span class="level-max-hint">/${maxLevelForElite(source, cfg.elite)}</span>
         </div>
       </label>
       <label>信頼度%
-        <input type="number" step="1" min="0" max="100" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="trust" value="${cfg.trust}">
+        <input type="number" step="1" min="0" max="100" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="trust" value="${escapeHtml(cfg.trust)}">
       </label>
     </div>
     <div class="row-grid2">

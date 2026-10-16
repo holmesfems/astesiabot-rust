@@ -390,7 +390,8 @@ export function renderStep(animate) {
   var statusPill = '';
   if (existing && existing.status) {
     var label = existing.status === 'ok' ? 'OK' : 'NG';
-    statusPill = '<span class="status-pill ' + existing.status + '">' + T.recordedLabel(label) + '</span>';
+    var pillClass = existing.status === 'ok' ? 'ok' : 'ng';
+    statusPill = '<span class="status-pill ' + pillClass + '">' + T.recordedLabel(label) + '</span>';
   }
   var osBadgeHtml = sec.tag ? '<span class="badge-os-lg">🖥 ' + escapeHtml(sec.tag) + '</span>' : '';
   el('item-number').innerHTML =

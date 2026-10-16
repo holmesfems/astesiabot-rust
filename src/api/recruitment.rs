@@ -220,6 +220,22 @@ mod tests {
     }
 
     #[test]
+    fn repeated_pickup_names_do_not_change_reply() {
+        let engine = RecruitEngine::load_from_seed();
+        let text = "狙撃タイプ\n遠距離\n範囲攻撃\n減速\n火力";
+        let single = vec!["シラユキ".to_string()];
+        let mut repeated = vec!["シラユキ".to_string(); 1000];
+        repeated.push("存在しない".to_string());
+
+        let without = build_tag_reply(&engine, text, None);
+        let with_single = build_tag_reply(&engine, text, Some(&single));
+        let with_repeated = build_tag_reply(&engine, text, Some(&repeated));
+        assert_ne!(with_single.reply, without.reply);
+        assert_eq!(with_single.reply, with_repeated.reply);
+        assert_eq!(with_single.title, with_repeated.title);
+    }
+
+    #[test]
     fn pickup_alias_redirects_to_official_name() {
         let names = vec!["GALLUS2".to_string(), " エクシア ".to_string(), "GALLUS²".to_string()];
         assert_eq!(normalize_pickup_operators(names), vec!["GALLUS²", "エクシア", "GALLUS²"]);

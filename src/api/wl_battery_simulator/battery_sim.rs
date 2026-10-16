@@ -442,6 +442,11 @@ impl ClockCircuitSimulation {
 
     pub fn clock_to_bit(&self, clock: i64) -> String {
         let half_clock = clock / 2;
+        // half_clock < 1 だと log2 が -inf/NaN になり、i32 化した指数の `int_exp - 2` が
+        // オーバーフローして巨大なループになる。half_clock == 1 と同じくビット無しとして返す。
+        if half_clock < 1 {
+            return String::new();
+        }
         let exponent = (half_clock as f64).log2();
         let int_exp = exponent.ceil() as i32;
         let power2 = 2f64.powi(int_exp);

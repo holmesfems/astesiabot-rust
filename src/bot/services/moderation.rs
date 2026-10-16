@@ -492,6 +492,13 @@ async fn purge_channel(
 
 // ===== 通報 =====
 
+/// 通報文に埋め込むユーザー由来の文字列のバッククォートを、見た目の近い
+/// U+02CB（ˋ）に置き換える。生のまま埋め込むと ``` でコードブロックを閉じられ、
+/// 以降がMarkdownとして解釈される（偽の行やリンクを差し込まれる）ため。
+fn neutralize_backticks(text: &str) -> String {
+    text.replace('`', "\u{02CB}")
+}
+
 /// `channels` が空でなければ、末尾に `<#id>` のリストを列挙する。
 /// Discord 側が自動でチャンネル名にリンク展開する。
 async fn create_report(
@@ -503,8 +510,9 @@ async fn create_report(
 ) -> Result<(), Error> {
     let mut content = format!("{report}\n");
     if let Some(msg) = msg {
-        content += &format!("author:{}\n", msg.author.name);
-        let sanitized = msg.content.replace('.', "_").replace("http", "ht tp");
+        content += &format!("author:{}\n", neutralize_backticks(&msg.author.name));
+        let sanitized =
+            neutralize_backticks(&msg.content.replace('.', "_").replace("http", "ht tp"));
         content += &format!("content:```{sanitized}```\n");
     }
     if !channels.is_empty() {
@@ -515,7 +523,12 @@ async fn create_report(
             .join(" ");
         content += &format!("channel:{mentions}");
     }
-    state.report_channel.say(&ctx.http, content).await?;
+    // 通報文にはスパム投稿者の文字列が入るので、@everyone/ロール/ユーザーへの
+    // メンション通知を一切させない（<#id> のチャンネル表示は通知ではないので影響しない）。
+    let builder = serenity::CreateMessage::new()
+        .content(content)
+        .allowed_mentions(serenity::CreateAllowedMentions::new());
+    state.report_channel.send_message(&ctx.http, builder).await?;
     Ok(())
 }
 
@@ -550,5 +563,12 @@ mod tests {
         // "https://" の直前が英数字（区切りなしで接続）だとスキームとしては
         // マッチしない。TLD付きドメインも含まれないため全体として非検出になる。
         assert!(!contains_link(&re(), "xhttps://evil"));
+    }
+
+    #[test]
+    fn neutralize_backticks_prevents_code_block_breakout() {
+        let echoed = neutralize_backticks("x```\n@everyone <@&1> `y`");
+        assert!(!echoed.contains('`'));
+        assert_eq!(echoed, "x\u{02CB}\u{02CB}\u{02CB}\n@everyone <@&1> \u{02CB}y\u{02CB}");
     }
 }
