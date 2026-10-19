@@ -28,14 +28,15 @@ const HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 const DESCRIPTION_PROMPT_CHARS: usize = 400;
 /// AI の宣伝文がこれより長ければ使わず、決まった文面にする。
 const MAX_PITCH_CHARS: usize = 300;
-const FALLBACK_PITCH: &str = "ドクター、新しい動画が公開されたわ。ぜひ見に来てちょうだい。";
+const FALLBACK_PITCH: &str = "ふぉめさんからの新しい動画よ！ぜひ見に来てちょうだい。";
 /// YouTube はブラウザ以外の User-Agent だと応答を変えることがあるので、ブラウザを名乗る。
 const USER_AGENT: &str = "Mozilla/5.0 (compatible; astesiabot)";
 const PITCH_TASK: &str = "\
 # 今回のお願い
-ドクターのYouTubeチャンネルに新しい動画が公開されたわ。Discordサーバーのみんなに、\
-動画を見に来てもらえるよう、アステシアとして短い宣伝の言葉を書いて。
+このDiscordサーバーの主、ふぉめさんのYouTubeチャンネルに新しい動画が公開されたわ。\
+サーバーのみんなに、動画を見に来てもらえるよう、アステシアとして短い宣伝の言葉を書いて。
 - 1〜2文。動画の内容に軽く触れて、見たくなるように誘うこと。
+- 「ふぉめさんからの新しい動画よ！」のように、ふぉめさんの新しい動画だと必ず分かるようにすること。
 - 動画のタイトル・URL・メンションは書かないこと（あとで添える）。
 - 宣伝の言葉だけを返すこと。";
 
