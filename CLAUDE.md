@@ -444,6 +444,14 @@ src/
         │                    allowed_mentions で通知を `ROLE_ID_YOUTUBE_NOTIFY` のロールだけに絞る。
         │                    `YOUTUBE_CHANNEL_ID`・`CHANNEL_ID_YOUTUBE_NOTIFY` のどちらかが未設定なら起動しない
         │                    （他の機能と違い panic しない。環境変数より先にデプロイしても動くように）。
+        │                    配信も RSS に載るので、新着ごとに動画ページの `ytInitialPlayerResponse` を読んで
+        │                    種類を決める（`videoDetails.isLiveContent` / `isUpcoming` と
+        │                    `liveBroadcastDetails.isLiveNow`）。配信中になったら `CHANNEL_ID_STREAM_NOTIFY`
+        │                    （任意。未設定なら配信はお知らせしない）に決まった文面で投稿し、`ROLE_ID_STREAM_NOTIFY`
+        │                    （任意）をメンションする。配信予定・プレミア公開前は始まるまで待ち、過去の配信は流さない。
+        │                    配信は枠を立てた時刻（RSS の published）より後に始まるので、24時間の絞り込みは
+        │                    ふつうの動画にだけ掛ける。種類が決まった動画（動画・ショート・過去の配信）は
+        │                    bot 起動中だけメモリに覚えて、動画ページを読み直さない。
         │                    本物の YouTube での確認は `cargo test --lib -- --ignored youtube_live`
         ├── uranai.rs      … 占い館（骨組みのみ、未実装。ChatGPT API連携が必要）
         └── koukai_kyujin/ … 公開求人
@@ -1016,6 +1024,8 @@ DTO（公開求人のプール）だけに依存する純粋ロジック。bot �
    $env:YOUTUBE_CHANNEL_ID="＜YouTube チャンネルID（UC…）＞"
    $env:CHANNEL_ID_YOUTUBE_NOTIFY="＜お知らせチャンネルID＞"
    $env:ROLE_ID_YOUTUBE_NOTIFY="＜通知ロールID＞"
+   $env:CHANNEL_ID_STREAM_NOTIFY="＜配信告知チャンネルID（任意。無ければ配信はお知らせしない）＞"
+   $env:ROLE_ID_STREAM_NOTIFY="＜配信の通知ロールID（任意）＞"
    $env:FK_SHEETS_API_KEY="＜FK情報スプレッドシート用 Google Sheets API キー＞"
    $env:FK_SHEETS_SPREADSHEET_ID="＜FK情報スプレッドシートID＞"
    ```
