@@ -402,7 +402,8 @@ src/
 │                                   test_runnerのURLは参照しない）
 └── bot/
     ├── mod.rs     … run_bot(token, state)。setup() で ChannelRouting::from_env()・
-    │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn
+    │                誕生日チャンネルの解決（未設定ならここでpanic）と誕生日スケジューラの spawn。
+    │                YouTube 新着のお知らせも、環境変数が揃っていればここで spawn する（任意機能）
     ├── data.rs    … Data { state, channel_routing: handler::ChannelRouting }
     ├── handler.rs … 汎用メッセージハンドラ（自分→bot/webhook→スパム→チャンネル別 の順で振り分け。
     │                bot/webhookは発言者としてはモデレーションに渡さない: 他botの返信はメンバーが
@@ -433,6 +434,17 @@ src/
         │                    遡及削除はコマンド経由なら本人が打ったコマンドへのbotの返信を消す
         ├── anniversary.rs … 周年ロール付与など
         ├── birthday.rs    … オペレーター誕生日自動お祝い（毎日 JST 0:00、operator_birthdays を利用）
+        ├── youtube_notify.rs … YouTube 新着動画のお知らせ。10分ごとにチャンネルの RSS（Atom。quick-xml で読む）を
+        │                    読み、公開から24時間以内・ショート以外（`/shorts/<ID>` が 200 ならショート、
+        │                    303 ならふつうの動画）・未投稿の動画を、アステシアの宣伝文
+        │                    （`UranaiState::write_in_character`。占い館と同じ OpenAI クライアント・キャラ設定）
+        │                    付きで投稿する。宣伝文の生成に失敗したら決まった文面。二重投稿の防止はファイルに
+        │                    状態を持たず、お知らせチャンネルの直近50件に bot がその動画IDを貼ったかで判定する
+        │                    （Seed と同じく実行時のファイル書き込みは再起動で消えるため）。宣伝文は AI の出力なので
+        │                    allowed_mentions で通知を `ROLE_ID_YOUTUBE_NOTIFY` のロールだけに絞る。
+        │                    `YOUTUBE_CHANNEL_ID`・`CHANNEL_ID_YOUTUBE_NOTIFY` のどちらかが未設定なら起動しない
+        │                    （他の機能と違い panic しない。環境変数より先にデプロイしても動くように）。
+        │                    本物の YouTube での確認は `cargo test --lib -- --ignored youtube_live`
         ├── uranai.rs      … 占い館（骨組みのみ、未実装。ChatGPT API連携が必要）
         └── koukai_kyujin/ … 公開求人
             ├── mod.rs … OCR → process_for_embed → embed 送信
@@ -1000,6 +1012,10 @@ DTO（公開求人のプール）だけに依存する純粋ロジック。bot �
    $env:CHANNEL_ID_KOUKAI_KYUJIN="＜求人チャンネルID＞"
    $env:CHANNEL_ID_URANAI="＜占い館チャンネルID＞"
    $env:CHANNEL_ID_HAPPYBIRTHDAY="＜誕生日お祝いチャンネルID＞"
+   # ↓YouTube 新着のお知らせ（任意。前の2つが揃ったときだけ動く。ロールは無ければメンションしない）
+   $env:YOUTUBE_CHANNEL_ID="＜YouTube チャンネルID（UC…）＞"
+   $env:CHANNEL_ID_YOUTUBE_NOTIFY="＜お知らせチャンネルID＞"
+   $env:ROLE_ID_YOUTUBE_NOTIFY="＜通知ロールID＞"
    $env:FK_SHEETS_API_KEY="＜FK情報スプレッドシート用 Google Sheets API キー＞"
    $env:FK_SHEETS_SPREADSHEET_ID="＜FK情報スプレッドシートID＞"
    ```
