@@ -50,6 +50,16 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
                     state.clone(),
                 ));
 
+                // YouTube 新着のお知らせ。環境変数が揃っていなければ起動しない（任意機能）。
+                match services::youtube_notify::YoutubeNotifyConfig::from_env() {
+                    Some(config) => {
+                        tokio::spawn(services::youtube_notify::run(ctx.clone(), config, state.clone()));
+                    }
+                    None => println!(
+                        "[youtube_notify] YOUTUBE_CHANNEL_ID / CHANNEL_ID_YOUTUBE_NOTIFY が未設定のため、新着のお知らせは止めています"
+                    ),
+                }
+
                 Ok(Data {
                     state,
                     channel_routing: handler::ChannelRouting::from_env(),

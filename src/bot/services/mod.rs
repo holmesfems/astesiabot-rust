@@ -4,3 +4,4 @@ pub mod moderation;
 pub mod recruit;
 pub mod reply_dispatch;
 pub mod uranai;
+pub mod youtube_notify;

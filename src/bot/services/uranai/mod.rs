@@ -36,6 +36,13 @@ impl UranaiState {
             session: tokio::sync::Mutex::new(ChatSession::new()),
         }
     }
+
+    /// 占い館と同じキャラ設定（system_prompt.txt）に`task`を足して、会話履歴なしで
+    /// 1回だけアステシアに文章を書いてもらう。占い館の会話セッションには影響しない。
+    pub async fn write_in_character(&self, task: &str, user_message: &str) -> Result<String, Error> {
+        let instructions = format!("{SYSTEM_PROMPT}\n\n{task}");
+        self.client.generate_text(&instructions, user_message).await
+    }
 }
 
 /// 占い館チャンネルの入口。membershipチェック→OpenAI呼び出しをバックグラウンドで行う。

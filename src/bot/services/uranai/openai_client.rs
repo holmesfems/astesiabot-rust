@@ -93,6 +93,26 @@ impl OpenAiClient {
         Ok(parsed)
     }
 
+    /// 会話履歴もtoolも使わない、1往復だけの文章生成（YouTube新着のお知らせの宣伝文など）。
+    pub async fn generate_text(&self, instructions: &str, user_message: &str) -> Result<String, Error> {
+        let response = self
+            .call(&json!({
+                "model": self.model,
+                "instructions": instructions,
+                "input": [{"role": "user", "content": user_message}],
+            }))
+            .await?;
+        let text = response
+            .get("output")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter(|item| item.get("type").and_then(Value::as_str) == Some("message"))
+            .map(extract_message_text)
+            .collect();
+        Ok(text)
+    }
+
     /// 1ターン分のやり取り: 直近の会話履歴(`history`)+新規ユーザー発言(`user_message`)を送信し、
     /// function_callが返ってきたら`tools::dispatch`（仮実装）の結果を提出してループ、
     /// 最終的な自然文を1つの文字列にまとめて返す。
