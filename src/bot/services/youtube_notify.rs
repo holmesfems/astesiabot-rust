@@ -3,6 +3,10 @@
 //! アステシアの口調の宣伝文（占い館と同じ OpenAI クライアント・キャラ設定）を添えて
 //! お知らせ用チャンネルに投稿する。
 //!
+//! 配信（ライブ）も RSS に載るので、動画ページの `ytInitialPlayerResponse` で見分ける。
+//! 配信中になったら、配信告知チャンネルに決まった文面で投稿する（AI は通さない）。
+//! 配信予定・プレミア公開前のものは、始まるまで待つ。過去の配信はお知らせしない。
+//!
 //! 二重投稿の防止はファイルに状態を持たず、お知らせ用チャンネルの直近
 //! [`HISTORY_LIMIT`] 件に bot 自身がその動画IDを貼っていないかで判定する
 //! （Heroku 等は実行時のファイル書き込みが再起動で消えるため。Seed と同じ理由）。
@@ -14,6 +18,8 @@ use chrono::{DateTime, Utc};
 use poise::serenity_prelude as serenity;
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -29,6 +35,8 @@ const DESCRIPTION_PROMPT_CHARS: usize = 400;
 /// AI の宣伝文がこれより長ければ使わず、決まった文面にする。
 const MAX_PITCH_CHARS: usize = 300;
 const FALLBACK_PITCH: &str = "ふぉめさんからの新しい動画よ！ぜひ見に来てちょうだい。";
+/// 配信のお知らせの文面（AI は通さない）。
+const STREAM_PITCH: &str = "ふぉめさんの配信が始まったわ！みんなで見に行きましょ。";
 /// YouTube はブラウザ以外の User-Agent だと応答を変えることがあるので、ブラウザを名乗る。
 const USER_AGENT: &str = "Mozilla/5.0 (compatible; astesiabot)";
 const PITCH_TASK: &str = "\
@@ -45,21 +53,29 @@ pub struct YoutubeNotifyConfig {
     youtube_channel_id: String,
     discord_channel: serenity::ChannelId,
     mention_role: Option<serenity::RoleId>,
+    /// 配信告知チャンネル。None なら配信はお知らせしない。
+    stream_channel: Option<serenity::ChannelId>,
+    stream_role: Option<serenity::RoleId>,
 }
 
 impl YoutubeNotifyConfig {
     /// `YOUTUBE_CHANNEL_ID` と `CHANNEL_ID_YOUTUBE_NOTIFY` が両方あれば有効。どちらかが
     /// 未設定なら None（機能ごと止める。環境変数を足す前にデプロイしても起動できるように）。
-    /// `ROLE_ID_YOUTUBE_NOTIFY` は任意（未設定ならメンションしない）。値が不正なら panic。
+    /// 次は任意。値が不正なら panic。
+    /// - `ROLE_ID_YOUTUBE_NOTIFY`: 動画のお知らせでメンションするロール
+    /// - `CHANNEL_ID_STREAM_NOTIFY`: 配信告知チャンネル（未設定なら配信はお知らせしない）
+    /// - `ROLE_ID_STREAM_NOTIFY`: 配信のお知らせでメンションするロール
     pub fn from_env() -> Option<Self> {
         let youtube_channel_id = std::env::var("YOUTUBE_CHANNEL_ID").ok()?;
         std::env::var("CHANNEL_ID_YOUTUBE_NOTIFY").ok()?;
+        let optional_channel = |key: &str| std::env::var(key).ok().map(|_| channel_id_env(key));
+        let optional_role = |key: &str| std::env::var(key).ok().map(|_| role_id_env(key));
         Some(Self {
             youtube_channel_id,
             discord_channel: channel_id_env("CHANNEL_ID_YOUTUBE_NOTIFY"),
-            mention_role: std::env::var("ROLE_ID_YOUTUBE_NOTIFY")
-                .ok()
-                .map(|_| role_id_env("ROLE_ID_YOUTUBE_NOTIFY")),
+            mention_role: optional_role("ROLE_ID_YOUTUBE_NOTIFY"),
+            stream_channel: optional_channel("CHANNEL_ID_STREAM_NOTIFY"),
+            stream_role: optional_role("ROLE_ID_STREAM_NOTIFY"),
         })
     }
 
@@ -213,6 +229,88 @@ fn pitch_input(video: &FeedVideo) -> String {
     format!("動画のタイトル: {}\n概要欄の冒頭:\n{description}", video.title)
 }
 
+/// 動画の種類。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum VideoKind {
+    Video,
+    Short,
+    /// 配信中。
+    LiveNow,
+    /// 配信予定・プレミア公開前。始まるまで待つ。
+    Upcoming,
+    /// 終わった配信（アーカイブ）。
+    PastStream,
+}
+
+impl VideoKind {
+    /// これ以上変わらない種類か（覚えておいて、次からは動画ページを読まない）。
+    fn is_final(self) -> bool {
+        matches!(self, VideoKind::Video | VideoKind::Short | VideoKind::PastStream)
+    }
+}
+
+/// 配信まわりの状態（動画ページの `ytInitialPlayerResponse` から読む）。
+#[derive(Debug, PartialEq)]
+pub struct LiveStatus {
+    pub is_live_content: bool,
+    pub is_upcoming: bool,
+    pub is_live_now: bool,
+}
+
+/// 動画ページの HTML から `ytInitialPlayerResponse` を取り出して、配信まわりの状態を読む。
+/// - `videoDetails.isLiveContent`: 配信（予定・配信中・アーカイブ）なら true
+/// - `videoDetails.isUpcoming`: 配信予定・プレミア公開前なら true
+/// - `microformat.playerMicroformatRenderer.liveBroadcastDetails.isLiveNow`: 配信中なら true
+pub fn parse_live_status(html: &str) -> Result<LiveStatus, String> {
+    const MARKER: &str = "var ytInitialPlayerResponse = ";
+    let start = html
+        .find(MARKER)
+        .ok_or("動画ページに ytInitialPlayerResponse が無い")?
+        + MARKER.len();
+    // 後ろに JS が続くので、先頭の JSON の値1つだけを読む
+    let player: Value = serde_json::Deserializer::from_str(&html[start..])
+        .into_iter::<Value>()
+        .next()
+        .ok_or("ytInitialPlayerResponse が空")?
+        .map_err(|e| format!("ytInitialPlayerResponse が読めない: {e}"))?;
+    let flag = |pointer: &str| player.pointer(pointer).and_then(Value::as_bool).unwrap_or(false);
+    Ok(LiveStatus {
+        is_live_content: flag("/videoDetails/isLiveContent"),
+        is_upcoming: flag("/videoDetails/isUpcoming"),
+        is_live_now: flag("/microformat/playerMicroformatRenderer/liveBroadcastDetails/isLiveNow"),
+    })
+}
+
+/// 配信まわりの状態から種類を決める。配信でもプレミアでもなければ None（ショートかどうかは別に確かめる）。
+fn live_kind(status: &LiveStatus) -> Option<VideoKind> {
+    if status.is_upcoming {
+        Some(VideoKind::Upcoming)
+    } else if status.is_live_content {
+        Some(if status.is_live_now { VideoKind::LiveNow } else { VideoKind::PastStream })
+    } else {
+        None
+    }
+}
+
+/// 動画ページと `/shorts/` を読んで種類を決める。
+async fn classify(
+    feed_client: &reqwest::Client,
+    no_redirect: &reqwest::Client,
+    video_id: &str,
+) -> Result<VideoKind, Error> {
+    let html = feed_client
+        .get(format!("https://www.youtube.com/watch?v={video_id}"))
+        .send()
+        .await?
+        .error_for_status()?
+        .text()
+        .await?;
+    if let Some(kind) = live_kind(&parse_live_status(&html)?) {
+        return Ok(kind);
+    }
+    Ok(if is_short(no_redirect, video_id).await? { VideoKind::Short } else { VideoKind::Video })
+}
+
 /// ショート動画か。`/shorts/<ID>` がショートなら 200、ふつうの動画なら `/watch` への
 /// リダイレクト（303）を返すことを使う。どちらでもなければ Err（次の回にまた確かめる）。
 async fn is_short(no_redirect: &reqwest::Client, video_id: &str) -> Result<bool, Error> {
@@ -241,12 +339,32 @@ async fn already_posted(ctx: &serenity::Context, channel: serenity::ChannelId, v
         .any(|m| m.author.id == me && m.content.contains(video_id)))
 }
 
-/// 1回分の確認。新しい動画があればお知らせする。
+/// お知らせを投稿する。本文には AI の出力も入るので、通知は設定したロールにだけ飛ばす
+/// （@everyone などは通知させない）。
+async fn post(
+    ctx: &serenity::Context,
+    channel: serenity::ChannelId,
+    role: Option<serenity::RoleId>,
+    pitch: &str,
+    video: &FeedVideo,
+) -> Result<(), Error> {
+    let allowed = serenity::CreateAllowedMentions::new().roles(role.into_iter().collect::<Vec<_>>());
+    let message = serenity::CreateMessage::new()
+        .content(build_message(role, pitch, video))
+        .allowed_mentions(allowed);
+    channel.send_message(&ctx.http, message).await?;
+    println!("[youtube_notify] お知らせしました: {} ({}) → {channel}", video.title, video.video_id);
+    Ok(())
+}
+
+/// 1回分の確認。新しい動画・始まった配信があればお知らせする。
+/// `kinds` は種類が決まった動画の覚え書き（bot 起動中だけ持つ）。
 async fn check_once(
     ctx: &serenity::Context,
     config: &YoutubeNotifyConfig,
     feed_client: &reqwest::Client,
     no_redirect: &reqwest::Client,
+    kinds: &mut HashMap<String, VideoKind>,
     state: &AppState,
 ) -> Result<(), Error> {
     let xml = feed_client
@@ -257,32 +375,52 @@ async fn check_once(
         .text()
         .await?;
     let mut videos = parse_feed(&xml)?;
-    let since = Utc::now() - RECENT_WINDOW;
-    videos.retain(|v| v.published >= since);
     // 古い順にお知らせする
     videos.sort_by_key(|v| v.published);
+    let since = Utc::now() - RECENT_WINDOW;
 
     for video in videos {
-        if already_posted(ctx, config.discord_channel, &video.video_id).await? {
-            continue;
-        }
-        if is_short(no_redirect, &video.video_id).await? {
-            continue;
-        }
-        let pitch = match state.uranai.write_in_character(PITCH_TASK, &pitch_input(&video)).await {
-            Ok(raw) => clean_pitch(&raw).unwrap_or_else(|| FALLBACK_PITCH.to_string()),
-            Err(e) => {
-                eprintln!("[youtube_notify] 宣伝文の生成に失敗したので決まった文面にします: {e}");
-                FALLBACK_PITCH.to_string()
+        // 配信は枠を立てた時（published）より後に始まるので、RECENT_WINDOW で絞る前に種類を決める
+        let kind = match kinds.get(&video.video_id) {
+            Some(&kind) => kind,
+            None => {
+                let kind = match classify(feed_client, no_redirect, &video.video_id).await {
+                    Ok(kind) => kind,
+                    Err(e) => {
+                        // この動画だけ次の回に回す
+                        eprintln!("[youtube_notify] {} の種類が分からないので次の回にまた確かめます: {e}", video.video_id);
+                        continue;
+                    }
+                };
+                if kind.is_final() {
+                    kinds.insert(video.video_id.clone(), kind);
+                }
+                kind
             }
         };
-        // 宣伝文は AI の出力なので、通知は設定したロールにだけ飛ばす（@everyone などは通知させない）
-        let allowed = serenity::CreateAllowedMentions::new().roles(config.mention_role.into_iter().collect::<Vec<_>>());
-        let message = serenity::CreateMessage::new()
-            .content(build_message(config.mention_role, &pitch, &video))
-            .allowed_mentions(allowed);
-        config.discord_channel.send_message(&ctx.http, message).await?;
-        println!("[youtube_notify] お知らせしました: {} ({})", video.title, video.video_id);
+        match kind {
+            VideoKind::Video if video.published >= since => {
+                if already_posted(ctx, config.discord_channel, &video.video_id).await? {
+                    continue;
+                }
+                let pitch = match state.uranai.write_in_character(PITCH_TASK, &pitch_input(&video)).await {
+                    Ok(raw) => clean_pitch(&raw).unwrap_or_else(|| FALLBACK_PITCH.to_string()),
+                    Err(e) => {
+                        eprintln!("[youtube_notify] 宣伝文の生成に失敗したので決まった文面にします: {e}");
+                        FALLBACK_PITCH.to_string()
+                    }
+                };
+                post(ctx, config.discord_channel, config.mention_role, &pitch, &video).await?;
+            }
+            VideoKind::LiveNow => {
+                let Some(channel) = config.stream_channel else { continue };
+                if already_posted(ctx, channel, &video.video_id).await? {
+                    continue;
+                }
+                post(ctx, channel, config.stream_role, STREAM_PITCH, &video).await?;
+            }
+            _ => {}
+        }
     }
     Ok(())
 }
@@ -302,8 +440,9 @@ fn http_clients() -> (reqwest::Client, reqwest::Client) {
 /// 呼び出し側は `tokio::spawn` すること。
 pub async fn run(ctx: serenity::Context, config: YoutubeNotifyConfig, state: Arc<AppState>) {
     let (feed_client, no_redirect) = http_clients();
+    let mut kinds = HashMap::new();
     loop {
-        if let Err(e) = check_once(&ctx, &config, &feed_client, &no_redirect, &state).await {
+        if let Err(e) = check_once(&ctx, &config, &feed_client, &no_redirect, &mut kinds, &state).await {
             eprintln!("[youtube_notify] 新着の確認に失敗しました（次の回にまた確かめます）: {e}");
         }
         tokio::time::sleep(POLL_INTERVAL).await;
@@ -400,6 +539,45 @@ mod tests {
         assert!(!parse_feed(&xml).unwrap().is_empty());
         assert!(!is_short(&no_redirect, "XeOiPXCJyFA").await.unwrap());
         assert!(is_short(&no_redirect, "ebu6YObXPiA").await.unwrap());
+        let kind = |id: &'static str| classify(&feed_client, &no_redirect, id);
+        assert_eq!(kind("XeOiPXCJyFA").await.unwrap(), VideoKind::Video);
+        assert_eq!(kind("ebu6YObXPiA").await.unwrap(), VideoKind::Short);
+        assert_eq!(kind("0rLwW1TIu1k").await.unwrap(), VideoKind::PastStream);
+    }
+
+    fn player_page(player_json: &str) -> String {
+        format!(r#"<html><script>var ytInitialPlayerResponse = {player_json};var meta = document.createElement('meta');</script></html>"#)
+    }
+
+    #[test]
+    fn parse_live_status_reads_player_response() {
+        // 実際のページから必要な所だけ残したもの
+        let video = player_page(r#"{"videoDetails":{"videoId":"XeOiPXCJyFA","isLiveContent":false}}"#);
+        let past = player_page(
+            r#"{"videoDetails":{"isLiveContent":true},"microformat":{"playerMicroformatRenderer":{"liveBroadcastDetails":{"isLiveNow":false,"startTimestamp":"2026-07-20T11:53:04+00:00","endTimestamp":"2026-07-20T16:13:42+00:00"}}}}"#,
+        );
+        let live = player_page(
+            r#"{"videoDetails":{"isLiveContent":true,"isLive":true},"microformat":{"playerMicroformatRenderer":{"liveBroadcastDetails":{"isLiveNow":true,"startTimestamp":"2026-10-19T10:47:32+00:00"}}}}"#,
+        );
+        let upcoming = player_page(r#"{"videoDetails":{"isLiveContent":true,"isUpcoming":true}}"#);
+        let kind = |html: &str| live_kind(&parse_live_status(html).unwrap());
+        assert_eq!(kind(&video), None);
+        assert_eq!(kind(&past), Some(VideoKind::PastStream));
+        assert_eq!(kind(&live), Some(VideoKind::LiveNow));
+        assert_eq!(kind(&upcoming), Some(VideoKind::Upcoming));
+        // プレミア公開前（配信ではない）も待つ
+        let premiere = player_page(r#"{"videoDetails":{"isLiveContent":false,"isUpcoming":true}}"#);
+        assert_eq!(kind(&premiere), Some(VideoKind::Upcoming));
+        assert!(parse_live_status("<html></html>").is_err());
+    }
+
+    #[test]
+    fn only_settled_kinds_are_remembered() {
+        assert!(VideoKind::Video.is_final());
+        assert!(VideoKind::Short.is_final());
+        assert!(VideoKind::PastStream.is_final());
+        assert!(!VideoKind::LiveNow.is_final());
+        assert!(!VideoKind::Upcoming.is_final());
     }
 
     #[test]
