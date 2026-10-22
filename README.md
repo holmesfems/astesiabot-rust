@@ -60,6 +60,8 @@ src/
 | `ANNIROLEID` | 周年ロールID |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | 占い館（OpenAI Responses API） |
 | `GUILD_ID_F` / `ROLE_ID_YOUTUBE_MEMBER` / `ROLE_ID_SERVER_BOOSTER` | 占い館の課金ロール判定 |
+| `YOUTUBE_CHANNEL_ID` / `YOUTUBE_API_KEY` / `CHANNEL_ID_YOUTUBE_NOTIFY` | YouTube 新着のお知らせ（任意。3つ揃ったときだけ動く。API キーは YouTube Data API v3） |
+| `ROLE_ID_YOUTUBE_NOTIFY` / `CHANNEL_ID_STREAM_NOTIFY` / `ROLE_ID_STREAM_NOTIFY` | YouTube のお知らせのメンション先・配信告知チャンネル（任意） |
 | `PORT` | Web API の待受ポート（未設定時は既定値。Herokuでは自動設定される） |
 
 未設定の環境変数がある場合、該当機能の初期化時にpanicすることがあります。

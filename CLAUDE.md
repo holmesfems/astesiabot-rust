@@ -434,7 +434,8 @@ src/
         │                    遡及削除はコマンド経由なら本人が打ったコマンドへのbotの返信を消す
         ├── anniversary.rs … 周年ロール付与など
         ├── birthday.rs    … オペレーター誕生日自動お祝い（毎日 JST 0:00、operator_birthdays を利用）
-        ├── youtube_notify.rs … YouTube 新着動画のお知らせ。10分ごとにチャンネルの RSS（Atom。quick-xml で読む）を
+        ├── youtube_notify.rs … YouTube 新着動画のお知らせ。10分ごとにチャンネルのアップロード一覧（YouTube Data API v3 の
+        │                    `playlistItems`。チャンネルIDの `UC` を `UU` にしたプレイリスト。`YOUTUBE_API_KEY` を使う）を
         │                    読み、公開から24時間以内・ショート以外（`/shorts/<ID>` が 200 ならショート、
         │                    303 ならふつうの動画）・未投稿の動画を、アステシアの宣伝文
         │                    （`UranaiState::write_in_character`。占い館と同じ OpenAI クライアント・キャラ設定）
@@ -442,14 +443,17 @@ src/
         │                    状態を持たず、お知らせチャンネルの直近50件に bot がその動画IDを貼ったかで判定する
         │                    （Seed と同じく実行時のファイル書き込みは再起動で消えるため）。宣伝文は AI の出力なので
         │                    allowed_mentions で通知を `ROLE_ID_YOUTUBE_NOTIFY` のロールだけに絞る。
-        │                    `YOUTUBE_CHANNEL_ID`・`CHANNEL_ID_YOUTUBE_NOTIFY` のどちらかが未設定なら起動しない
+        │                    `YOUTUBE_CHANNEL_ID`・`YOUTUBE_API_KEY`・`CHANNEL_ID_YOUTUBE_NOTIFY` のどれかが未設定なら起動しない
         │                    （他の機能と違い panic しない。環境変数より先にデプロイしても動くように）。
-        │                    配信も RSS に載るので、新着ごとに動画ページの `ytInitialPlayerResponse` を読んで
+        │                    **RSS（`/feeds/videos.xml`）に戻さないこと**: Heroku（AWS）の IP からはどのチャンネルでも
+        │                    404 が返る（2026-10 に `heroku run` で確認。動画ページ・チャンネルページは読める）。
+        │                    API キーは URL に載るので、reqwest のエラーは `without_url()` してからログに出す。
+        │                    配信もアップロード一覧に載るので、新着ごとに動画ページの `ytInitialPlayerResponse` を読んで
         │                    種類を決める（`videoDetails.isLiveContent` / `isUpcoming` と
         │                    `liveBroadcastDetails.isLiveNow`）。配信中になったら `CHANNEL_ID_STREAM_NOTIFY`
         │                    （任意。未設定なら配信はお知らせしない）に決まった文面で投稿し、`ROLE_ID_STREAM_NOTIFY`
         │                    （任意）をメンションする。配信予定・プレミア公開前は始まるまで待ち、過去の配信は流さない。
-        │                    配信は枠を立てた時刻（RSS の published）より後に始まるので、24時間の絞り込みは
+        │                    配信は枠を立てた時刻（一覧の公開時刻）より後に始まるので、24時間の絞り込みは
         │                    ふつうの動画にだけ掛ける。種類が決まった動画（動画・ショート・過去の配信）は
         │                    bot 起動中だけメモリに覚えて、動画ページを読み直さない。
         │                    本物の YouTube での確認は `cargo test --lib -- --ignored youtube_live`
@@ -1020,8 +1024,9 @@ DTO（公開求人のプール）だけに依存する純粋ロジック。bot �
    $env:CHANNEL_ID_KOUKAI_KYUJIN="＜求人チャンネルID＞"
    $env:CHANNEL_ID_URANAI="＜占い館チャンネルID＞"
    $env:CHANNEL_ID_HAPPYBIRTHDAY="＜誕生日お祝いチャンネルID＞"
-   # ↓YouTube 新着のお知らせ（任意。前の2つが揃ったときだけ動く。ロールは無ければメンションしない）
+   # ↓YouTube 新着のお知らせ（任意。前の3つが揃ったときだけ動く。ロールは無ければメンションしない）
    $env:YOUTUBE_CHANNEL_ID="＜YouTube チャンネルID（UC…）＞"
+   $env:YOUTUBE_API_KEY="＜YouTube Data API v3 の API キー＞"
    $env:CHANNEL_ID_YOUTUBE_NOTIFY="＜お知らせチャンネルID＞"
    $env:ROLE_ID_YOUTUBE_NOTIFY="＜通知ロールID＞"
    $env:CHANNEL_ID_STREAM_NOTIFY="＜配信告知チャンネルID（任意。無ければ配信はお知らせしない）＞"

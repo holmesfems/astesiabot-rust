@@ -1,9 +1,12 @@
-//! YouTube 新着動画のお知らせ。チャンネルの RSS（Atom）を定期的に読み、公開から
-//! [`RECENT_WINDOW`] 以内でまだお知らせしていない動画（ショートは除く）を、
-//! アステシアの口調の宣伝文（占い館と同じ OpenAI クライアント・キャラ設定）を添えて
-//! お知らせ用チャンネルに投稿する。
+//! YouTube 新着動画のお知らせ。チャンネルのアップロード一覧（YouTube Data API v3 の
+//! `playlistItems`）を定期的に読み、公開から [`RECENT_WINDOW`] 以内でまだお知らせしていない
+//! 動画（ショートは除く）を、アステシアの口調の宣伝文（占い館と同じ OpenAI クライアント・
+//! キャラ設定）を添えてお知らせ用チャンネルに投稿する。
 //!
-//! 配信（ライブ）も RSS に載るので、動画ページの `ytInitialPlayerResponse` で見分ける。
+//! RSS（`/feeds/videos.xml`）は使わない。Heroku（AWS）の IP からはどのチャンネルでも 404 が
+//! 返り、読めなくなったため（動画ページ・チャンネルページは読める。2026-10 に確認）。
+//!
+//! 配信（ライブ）もアップロード一覧に載るので、動画ページの `ytInitialPlayerResponse` で見分ける。
 //! 配信中になったら、配信告知チャンネルに決まった文面で投稿する（AI は通さない）。
 //! 配信予定・プレミア公開前のものは、始まるまで待つ。過去の配信はお知らせしない。
 //!
@@ -16,15 +19,17 @@ use crate::bot::data::Error;
 use crate::bot::utils::{channel_id_env, role_id_env};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude as serenity;
-use quick_xml::events::Event;
-use quick_xml::Reader;
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// RSS を読みに行く間隔。
+/// アップロード一覧を読みに行く間隔（1回で Data API の割り当てを 1 使う。1日144。無料枠は1日10000）。
 const POLL_INTERVAL: Duration = Duration::from_secs(10 * 60);
+/// 1回に読むアップロード一覧の件数（新しい順）。
+const PLAYLIST_MAX_RESULTS: &str = "15";
+const PLAYLIST_ITEMS_URL: &str = "https://www.googleapis.com/youtube/v3/playlistItems";
 /// これより前に公開された動画はお知らせしない（初回起動時に過去の動画を流さないため）。
 const RECENT_WINDOW: chrono::Duration = chrono::Duration::hours(24);
 /// 二重投稿の判定で読む、お知らせ用チャンネルの直近のメッセージ数（Discord API の上限）。
@@ -50,7 +55,9 @@ const PITCH_TASK: &str = "\
 
 /// お知らせの設定。起動時に一度だけ環境変数から解決する。
 pub struct YoutubeNotifyConfig {
-    youtube_channel_id: String,
+    /// チャンネルのアップロード一覧のプレイリストID（チャンネルIDの `UC` を `UU` にしたもの）。
+    uploads_playlist_id: String,
+    api_key: String,
     discord_channel: serenity::ChannelId,
     mention_role: Option<serenity::RoleId>,
     /// 配信告知チャンネル。None なら配信はお知らせしない。
@@ -59,35 +66,37 @@ pub struct YoutubeNotifyConfig {
 }
 
 impl YoutubeNotifyConfig {
-    /// `YOUTUBE_CHANNEL_ID` と `CHANNEL_ID_YOUTUBE_NOTIFY` が両方あれば有効。どちらかが
-    /// 未設定なら None（機能ごと止める。環境変数を足す前にデプロイしても起動できるように）。
+    /// `YOUTUBE_CHANNEL_ID`・`YOUTUBE_API_KEY`・`CHANNEL_ID_YOUTUBE_NOTIFY` が揃っていれば有効。
+    /// どれかが未設定なら None（機能ごと止める。環境変数を足す前にデプロイしても起動できるように）。
     /// 次は任意。値が不正なら panic。
     /// - `ROLE_ID_YOUTUBE_NOTIFY`: 動画のお知らせでメンションするロール
     /// - `CHANNEL_ID_STREAM_NOTIFY`: 配信告知チャンネル（未設定なら配信はお知らせしない）
     /// - `ROLE_ID_STREAM_NOTIFY`: 配信のお知らせでメンションするロール
     pub fn from_env() -> Option<Self> {
         let youtube_channel_id = std::env::var("YOUTUBE_CHANNEL_ID").ok()?;
+        let api_key = std::env::var("YOUTUBE_API_KEY").ok()?;
         std::env::var("CHANNEL_ID_YOUTUBE_NOTIFY").ok()?;
+        let uploads_playlist_id = uploads_playlist_id(&youtube_channel_id)
+            .unwrap_or_else(|| panic!("YOUTUBE_CHANNEL_ID は UC で始まるチャンネルIDにしてください: {youtube_channel_id}"));
         let optional_channel = |key: &str| std::env::var(key).ok().map(|_| channel_id_env(key));
         let optional_role = |key: &str| std::env::var(key).ok().map(|_| role_id_env(key));
         Some(Self {
-            youtube_channel_id,
+            uploads_playlist_id,
+            api_key,
             discord_channel: channel_id_env("CHANNEL_ID_YOUTUBE_NOTIFY"),
             mention_role: optional_role("ROLE_ID_YOUTUBE_NOTIFY"),
             stream_channel: optional_channel("CHANNEL_ID_STREAM_NOTIFY"),
             stream_role: optional_role("ROLE_ID_STREAM_NOTIFY"),
         })
     }
-
-    fn feed_url(&self) -> String {
-        format!(
-            "https://www.youtube.com/feeds/videos.xml?channel_id={}",
-            self.youtube_channel_id
-        )
-    }
 }
 
-/// RSS の1動画分。
+/// チャンネルID（`UC…`）からアップロード一覧のプレイリストID（`UU…`）を作る。
+fn uploads_playlist_id(channel_id: &str) -> Option<String> {
+    channel_id.strip_prefix("UC").map(|rest| format!("UU{rest}"))
+}
+
+/// アップロード一覧の1動画分。
 #[derive(Debug, PartialEq)]
 pub struct FeedVideo {
     pub video_id: String,
@@ -97,111 +106,101 @@ pub struct FeedVideo {
     pub published: DateTime<Utc>,
 }
 
-/// 読み取り途中の entry。
-#[derive(Default)]
-struct Partial {
-    video_id: String,
+/// `playlistItems` の応答（使う所だけ）。
+#[derive(Deserialize)]
+struct PlaylistItems {
+    #[serde(default)]
+    items: Vec<PlaylistItem>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlaylistItem {
+    snippet: PlaylistSnippet,
+    content_details: PlaylistContentDetails,
+    status: Option<PlaylistStatus>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlaylistStatus {
+    /// `public` / `unlisted` / `private`。
+    privacy_status: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlaylistSnippet {
+    /// プレイリストに入った時刻。`videoPublishedAt` が無いとき（公開前など）に使う。
+    published_at: Option<DateTime<Utc>>,
+    #[serde(default)]
     title: String,
-    url: String,
+    #[serde(default)]
     description: String,
-    published: String,
 }
 
-/// YouTube の RSS（Atom）から動画の一覧を取り出す。`<entry>` 直下の `yt:videoId`・
-/// `title`・`published`・`link rel="alternate"` と、`media:group` の `media:description` を読む。
-/// 必要な項目が欠けた entry は飛ばす。
-pub fn parse_feed(xml: &str) -> Result<Vec<FeedVideo>, String> {
-    let mut reader = Reader::from_str(xml);
-    let mut path: Vec<String> = Vec::new();
-    let mut current: Option<Partial> = None;
-    let mut videos = Vec::new();
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlaylistContentDetails {
+    video_id: String,
+    video_published_at: Option<DateTime<Utc>>,
+}
 
-    loop {
-        let event = reader.read_event().map_err(|e| format!("RSS の読み取りに失敗: {e}"))?;
-        match event {
-            Event::Start(e) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
-                if name == "entry" {
-                    current = Some(Partial::default());
-                }
-                path.push(name);
+/// `playlistItems`（`part=snippet,contentDetails,status`）の応答から動画の一覧を取り出す。
+/// 公開（`public`）でない項目・公開時刻が読めない項目は飛ばす。
+pub fn parse_playlist_items(json: &str) -> Result<Vec<FeedVideo>, String> {
+    let parsed: PlaylistItems =
+        serde_json::from_str(json).map_err(|e| format!("アップロード一覧が読めない: {e}"))?;
+    Ok(parsed
+        .items
+        .into_iter()
+        .filter_map(|item| {
+            // 非公開・限定公開（公開予約の待ちを含む）はお知らせしない。公開されれば次の回に拾う
+            let privacy = item.status.as_ref().and_then(|s| s.privacy_status.as_deref());
+            if privacy != Some("public") {
+                return None;
             }
-            Event::End(_) => {
-                if path.pop().as_deref() == Some("entry") {
-                    if let Some(p) = current.take() {
-                        let Ok(published) = DateTime::parse_from_rfc3339(p.published.trim()) else {
-                            continue;
-                        };
-                        if p.video_id.is_empty() || p.url.is_empty() {
-                            continue;
-                        }
-                        videos.push(FeedVideo {
-                            video_id: p.video_id.trim().to_string(),
-                            title: p.title.trim().to_string(),
-                            url: p.url,
-                            description: p.description.trim().to_string(),
-                            published: published.with_timezone(&Utc),
-                        });
-                    }
-                }
-            }
-            Event::Empty(e) => {
-                let in_entry = path.last().map(String::as_str) == Some("entry");
-                if let (true, Some(p)) = (in_entry && e.name().as_ref() == b"link", current.as_mut()) {
-                    if attribute(&e, "rel").as_deref() == Some("alternate") {
-                        if let Some(href) = attribute(&e, "href") {
-                            p.url = href;
-                        }
-                    }
-                }
-            }
-            Event::Text(t) => {
-                let text = t.decode().map_err(|e| format!("RSS の文字が読めない: {e}"))?;
-                push_text(&path, current.as_mut(), &text);
-            }
-            Event::GeneralRef(r) => {
-                // quick-xml 0.38 以降は `&amp;` などの参照が Text と別のイベントで来る
-                let resolved = match r.resolve_char_ref().map_err(|e| format!("文字参照が読めない: {e}"))? {
-                    Some(c) => c.to_string(),
-                    None => {
-                        let name = r.decode().map_err(|e| format!("実体参照が読めない: {e}"))?;
-                        quick_xml::escape::resolve_predefined_entity(&name)
-                            .unwrap_or_default()
-                            .to_string()
-                    }
-                };
-                push_text(&path, current.as_mut(), &resolved);
-            }
-            Event::Eof => break,
-            _ => {}
-        }
+            let published = item.content_details.video_published_at.or(item.snippet.published_at)?;
+            let video_id = item.content_details.video_id;
+            Some(FeedVideo {
+                url: format!("https://www.youtube.com/watch?v={video_id}"),
+                video_id,
+                title: item.snippet.title.trim().to_string(),
+                description: item.snippet.description.trim().to_string(),
+                published,
+            })
+        })
+        .collect())
+}
+
+/// アップロード一覧を Data API から読む。URL に API キーが入るので、エラーには URL を含めない
+/// （reqwest のエラーは既定で URL を表示し、ログにキーが残るため）。
+async fn fetch_uploads(client: &reqwest::Client, config: &YoutubeNotifyConfig) -> Result<Vec<FeedVideo>, Error> {
+    let resp = client
+        .get(PLAYLIST_ITEMS_URL)
+        .query(&[
+            ("part", "snippet,contentDetails,status"),
+            ("playlistId", config.uploads_playlist_id.as_str()),
+            ("maxResults", PLAYLIST_MAX_RESULTS),
+            ("key", config.api_key.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|e| e.without_url())?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| e.without_url())?;
+    if !status.is_success() {
+        return Err(format!("YouTube Data API が {status} を返した: {}", api_error_message(&body)).into());
     }
-    Ok(videos)
+    Ok(parse_playlist_items(&body)?)
 }
 
-/// 属性の値（参照は解決済み）。無い・読めなければ None。
-fn attribute(e: &quick_xml::events::BytesStart, name: &str) -> Option<String> {
-    let attr = e.try_get_attribute(name).ok()??;
-    let value = attr.normalized_value(quick_xml::XmlVersion::Implicit1_0).ok()?;
-    Some(value.into_owned())
-}
-
-/// 今いる要素が読みたい項目なら、その項目に文字を足す。
-fn push_text(path: &[String], current: Option<&mut Partial>, text: &str) {
-    let Some(p) = current else { return };
-    let n = path.len();
-    if n < 2 {
-        return;
-    }
-    let (parent, leaf) = (path[n - 2].as_str(), path[n - 1].as_str());
-    let field = match (parent, leaf) {
-        ("entry", "yt:videoId") => &mut p.video_id,
-        ("entry", "title") => &mut p.title,
-        ("entry", "published") => &mut p.published,
-        ("media:group", "media:description") => &mut p.description,
-        _ => return,
-    };
-    field.push_str(text);
+/// Data API のエラー応答（`{"error":{"message":…}}`）から理由を取り出す。読めなければ本文の先頭。
+fn api_error_message(body: &str) -> String {
+    serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|v| v.pointer("/error/message").and_then(Value::as_str).map(str::to_string))
+        .unwrap_or_else(|| body.chars().take(200).collect())
 }
 
 /// お知らせの本文。メンションの行（あれば）・宣伝文・タイトル（太字）・URL の順。
@@ -367,14 +366,7 @@ async fn check_once(
     kinds: &mut HashMap<String, VideoKind>,
     state: &AppState,
 ) -> Result<(), Error> {
-    let xml = feed_client
-        .get(config.feed_url())
-        .send()
-        .await?
-        .error_for_status()?
-        .text()
-        .await?;
-    let mut videos = parse_feed(&xml)?;
+    let mut videos = fetch_uploads(feed_client, config).await?;
     // 古い順にお知らせする
     videos.sort_by_key(|v| v.published);
     let since = Utc::now() - RECENT_WINDOW;
@@ -425,7 +417,7 @@ async fn check_once(
     Ok(())
 }
 
-/// RSS 用と、ショート判定用（リダイレクトを追わない）の HTTP クライアント。
+/// Data API・動画ページ用と、ショート判定用（リダイレクトを追わない）の HTTP クライアント。
 fn http_clients() -> (reqwest::Client, reqwest::Client) {
     let builder = || reqwest::Client::builder().timeout(HTTP_TIMEOUT).user_agent(USER_AGENT);
     let feed_client = builder().build().expect("reqwest client should build");
@@ -453,55 +445,82 @@ pub async fn run(ctx: serenity::Context, config: YoutubeNotifyConfig, state: Arc
 mod tests {
     use super::*;
 
-    const SAMPLE: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
- <link rel="self" href="http://www.youtube.com/feeds/videos.xml?channel_id=UCqaaoz71ygYPrTrtApHGkZg"/>
- <title>ふぉめ holmesfems</title>
- <link rel="alternate" href="https://www.youtube.com/channel/UCqaaoz71ygYPrTrtApHGkZg"/>
- <published>2016-08-28T14:09:55+00:00</published>
- <entry>
-  <id>yt:video:XeOiPXCJyFA</id>
-  <yt:videoId>XeOiPXCJyFA</yt:videoId>
-  <title>【天井交換 誰を選ぶ】ウィシャデルか新約エクシアか？ Q&amp;A &#x2605;</title>
-  <link rel="alternate" href="https://www.youtube.com/watch?v=XeOiPXCJyFA"/>
-  <published>2026-10-19T07:34:29+00:00</published>
-  <updated>2026-10-19T09:42:39+00:00</updated>
-  <media:group>
-   <media:title>media側のタイトルは読まない</media:title>
-   <media:description>おすすめを解説します！
-・新約エクシア</media:description>
-  </media:group>
- </entry>
- <entry>
-  <yt:videoId>jgo3tHu1dZQ</yt:videoId>
-  <title>前の動画</title>
-  <link rel="alternate" href="https://www.youtube.com/watch?v=jgo3tHu1dZQ"/>
-  <published>2026-10-13T10:56:06+00:00</published>
- </entry>
-</feed>"#;
+    /// 実際の `playlistItems` の応答から使う所だけ残したもの（2件目は公開前で videoPublishedAt が無い。
+    /// 4・5件目は非公開・限定公開）。
+    const SAMPLE: &str = r#"{
+  "kind": "youtube#playlistItemListResponse",
+  "items": [
+    {
+      "snippet": {
+        "publishedAt": "2026-10-19T07:40:00Z",
+        "title": "【天井交換 誰を選ぶ】ウィシャデルか新約エクシアか？ Q&A ★ ",
+        "description": "おすすめを解説します！\n・新約エクシア\n",
+        "resourceId": { "kind": "youtube#video", "videoId": "XeOiPXCJyFA" }
+      },
+      "contentDetails": { "videoId": "XeOiPXCJyFA", "videoPublishedAt": "2026-10-19T07:34:29Z" },
+      "status": { "privacyStatus": "public" }
+    },
+    {
+      "snippet": { "publishedAt": "2026-10-13T10:56:06Z", "title": "配信の枠" },
+      "contentDetails": { "videoId": "jgo3tHu1dZQ" },
+      "status": { "privacyStatus": "public" }
+    },
+    {
+      "snippet": { "title": "時刻なし" },
+      "contentDetails": { "videoId": "noTimeAtAll" },
+      "status": { "privacyStatus": "public" }
+    },
+    {
+      "snippet": { "publishedAt": "2026-10-21T00:00:00Z", "title": "Private video" },
+      "contentDetails": { "videoId": "privateOne1" },
+      "status": { "privacyStatus": "private" }
+    },
+    {
+      "snippet": { "publishedAt": "2026-10-21T00:00:00Z", "title": "限定公開" },
+      "contentDetails": { "videoId": "unlisted111" },
+      "status": { "privacyStatus": "unlisted" }
+    }
+  ]
+}"#;
 
     #[test]
-    fn parse_feed_reads_entries() {
-        let videos = parse_feed(SAMPLE).expect("sample should parse");
-        assert_eq!(videos.len(), 2);
+    fn parse_playlist_items_reads_items() {
+        let videos = parse_playlist_items(SAMPLE).expect("sample should parse");
+        assert_eq!(videos.len(), 2, "公開でない項目・公開時刻が読めない項目は飛ばす");
         let v = &videos[0];
         assert_eq!(v.video_id, "XeOiPXCJyFA");
         assert_eq!(v.title, "【天井交換 誰を選ぶ】ウィシャデルか新約エクシアか？ Q&A ★");
         assert_eq!(v.url, "https://www.youtube.com/watch?v=XeOiPXCJyFA");
         assert_eq!(v.description, "おすすめを解説します！\n・新約エクシア");
+        // プレイリストに入った時刻ではなく、動画の公開時刻を使う
         assert_eq!(v.published.to_rfc3339(), "2026-10-19T07:34:29+00:00");
         assert_eq!(videos[1].video_id, "jgo3tHu1dZQ");
+        assert_eq!(videos[1].published.to_rfc3339(), "2026-10-13T10:56:06+00:00");
         assert_eq!(videos[1].description, "");
     }
 
     #[test]
-    fn parse_feed_skips_entries_without_required_fields() {
-        let xml = r#"<feed xmlns:yt="y"><entry><title>IDなし</title><published>2026-10-19T07:34:29+00:00</published></entry></feed>"#;
-        assert_eq!(parse_feed(xml).unwrap(), vec![]);
+    fn parse_playlist_items_accepts_empty_and_rejects_garbage() {
+        assert_eq!(parse_playlist_items(r#"{"items":[]}"#).unwrap(), vec![]);
+        assert_eq!(parse_playlist_items(r#"{"kind":"youtube#playlistItemListResponse"}"#).unwrap(), vec![]);
+        assert!(parse_playlist_items("<html>").is_err());
+    }
+
+    #[test]
+    fn uploads_playlist_id_swaps_prefix() {
+        assert_eq!(uploads_playlist_id("UCqaaoz71ygYPrTrtApHGkZg").as_deref(), Some("UUqaaoz71ygYPrTrtApHGkZg"));
+        assert_eq!(uploads_playlist_id("@holmesfems"), None);
+    }
+
+    #[test]
+    fn api_error_message_reads_reason() {
+        let body = r#"{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","errors":[]}}"#;
+        assert_eq!(api_error_message(body), "API key not valid. Please pass a valid API key.");
+        assert_eq!(api_error_message("Not Found"), "Not Found");
     }
 
     fn video() -> FeedVideo {
-        parse_feed(SAMPLE).unwrap().remove(0)
+        parse_playlist_items(SAMPLE).unwrap().remove(0)
     }
 
     #[test]
@@ -522,21 +541,25 @@ mod tests {
         assert_eq!(clean_pitch(&"あ".repeat(MAX_PITCH_CHARS + 1)), None);
     }
 
-    /// 本物の YouTube に繋いで、RSS が読めることとショート判定が効くことを確かめる
-    /// （ネットワークが要るので普段は走らせない。`cargo test -- --ignored youtube_live`）。
+    /// 本物の YouTube に繋いで、アップロード一覧が読めることとショート判定が効くことを確かめる
+    /// （ネットワークと `.env` の `YOUTUBE_API_KEY` が要るので普段は走らせない。
+    /// `cargo test -- --ignored youtube_live`）。
     #[tokio::test]
     #[ignore]
     async fn youtube_live() {
+        dotenvy::dotenv().ok();
+        let config = YoutubeNotifyConfig {
+            uploads_playlist_id: uploads_playlist_id("UCqaaoz71ygYPrTrtApHGkZg").unwrap(),
+            api_key: std::env::var("YOUTUBE_API_KEY").expect("YOUTUBE_API_KEY が要る"),
+            discord_channel: serenity::ChannelId::new(1),
+            mention_role: None,
+            stream_channel: None,
+            stream_role: None,
+        };
         let (feed_client, no_redirect) = http_clients();
-        let xml = feed_client
-            .get("https://www.youtube.com/feeds/videos.xml?channel_id=UCqaaoz71ygYPrTrtApHGkZg")
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        assert!(!parse_feed(&xml).unwrap().is_empty());
+        let videos = fetch_uploads(&feed_client, &config).await.unwrap();
+        assert!(!videos.is_empty());
+        assert!(videos.iter().any(|v| v.video_id == "XeOiPXCJyFA"));
         assert!(!is_short(&no_redirect, "XeOiPXCJyFA").await.unwrap());
         assert!(is_short(&no_redirect, "ebu6YObXPiA").await.unwrap());
         let kind = |id: &'static str| classify(&feed_client, &no_redirect, id);
