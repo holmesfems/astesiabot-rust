@@ -107,7 +107,6 @@ dependencies = [
  "itertools",
  "nalgebra",
  "poise",
- "quick-xml",
  "rand 0.8.7",
  "reqwest",
  "rust_xlsxwriter",

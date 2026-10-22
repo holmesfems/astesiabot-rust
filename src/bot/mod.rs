@@ -56,7 +56,7 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
                         tokio::spawn(services::youtube_notify::run(ctx.clone(), config, state.clone()));
                     }
                     None => println!(
-                        "[youtube_notify] YOUTUBE_CHANNEL_ID / CHANNEL_ID_YOUTUBE_NOTIFY が未設定のため、新着のお知らせは止めています"
+                        "[youtube_notify] YOUTUBE_CHANNEL_ID / YOUTUBE_API_KEY / CHANNEL_ID_YOUTUBE_NOTIFY のどれかが未設定のため、新着のお知らせは止めています"
                     ),
                 }
 
