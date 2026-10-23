@@ -69,6 +69,10 @@ pub fn wrap_parameters(properties: Value, required: &[&str]) -> Value {
 
 /// 各functionが実装する共通トレイト（要件2）。`Vec<Box<dyn ToolFunction>>`として
 /// レジストリに積めるようobject-safeにしている。
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait が生成する #[must_use] に clippy 1.99 以降が反応する（async-trait 0.1.89 時点）"
+)]
 #[async_trait]
 pub trait ToolFunction: Send + Sync {
     fn name(&self) -> &'static str;
