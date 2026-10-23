@@ -3,29 +3,25 @@
 // 実在の星(Yale Bright Star Catalog。static/stars.json。assets/stars/generate.mjs が作る)を、
 // 天の北極を中心にした正距方位図法で描く。早見盤を地上から見上げる向き(天球を内側から見る)なので、
 // 赤経は画面上で時計回りに増える(オリオンを北極の下に置くと、肩のベテルギウスが足のリゲルより左)。
-// 北極の位置はダイヤル(#dial。金の環 #dial-ring を描く)の中心に合わせる。ダイヤルの中心は
+// 北極の位置はダイヤル(#dial。金の環と惑星記号 #dial-ring を描く)の中心に合わせる。ダイヤルの中心は
 // 本文カラム(早見盤のカバー。main.plate)の右辺に固定する: 本物の早見盤のように、カバーが回る盤の
 // 半分を隠し、盤はカバーの縁を軸に回る。位置と大きさは layout() が JS で決めて #dial に入れる
-// (x = カバーの右辺、y = ツールナビの下の領域の縦の真ん中。幅が広い画面では盤をカバーの右の空きに
-// 収まる大きさにする)。その同じ値を北極にも使う(回転中の要素を測り直さない)。
-// 狭い画面は本文が全幅なのでカバーの右辺=画面の右端で、ダイヤルは右端から覗くつまみになる
-// (空はつまみのまわりを回る)。広い画面では金の目印 #dial-index をカバーの右辺の内側に立てる。
+// (x = カバーの右辺、y = ツールナビの下の領域の縦の真ん中、直径 = min(78vh, カバーの幅×1.6))。
+// その同じ値を北極にも使う(回転中の要素を測り直さない)。ダイヤルは全幅で同じ配置で、スマホは
+// カバーが全幅なので中心が画面の右端になり、環の右半分は画面の外にはみ出す(fixed なので横スクロールは出ない)。
+// ダイヤルはカバーの背景の上・文字の下に敷く(重ね順は home_index.html の CSS のコメント)。
+// 広い画面では金の目印 #dial-index をカバーの右辺の内側に立てる。
 // ダイヤルは position:fixed なのでスクロール量の補正は要らない。スクロール量に比例して空(と環)を回す。
-// 勝手には動かない: 再描画はスクロールとリサイズのときだけ。
+// 勝手には動かない: 再描画はスクロールとリサイズのときだけ。ダイヤルは文字の下で pointer-events:none
+// なので掴めない(ホイール・タッチ・キーボードの普通のスクロールに合わせて回るだけ)。
 //
-// ダイヤルを掴んで回すとページがスクロールする(これもスクロールの別の入口で、ホイール・タッチ・
-// キーボードの普通のスクロールはそのまま)。ポインタが北極まわりに角度 turned(度。画面で時計回りが正)
-// 回ったら、環と空も同じ向きに turned だけ回って見えてほしい。表示の回転は rot = -scrollY*DEG_PER_PX
-// なので、rot を +turned するには scrollY を turned/DEG_PER_PX だけ「減らす」:
-// scrollY = 掴んだときの scrollY - turned/DEG_PER_PX。時計回りに回すと上へ戻り、反時計回りに回すと下へ進む
-// (下へ進む=反時計回り、と一致する)。ダイヤルだけがポインタを捕まえ、ページの他の場所は普通にスクロールする。
-//
-// 回転の向き: 時間が進むと星は西へ動き、北を向いた観測者には北極星のまわりを反時計回りに
-// 回って見える。投影は x = px + r*sin(θ), y = py - r*cos(θ)、θ = 赤経 + rot で、θ を増やすと
-// 星は画面上で時計回りに進む(赤経が時計回りに増えるのと同じ)。反時計回りに回すには θ を
-// 減らせばよいので rot = -scrollY * DEG_PER_PX(下へスクロール=時間が進む)。
-// rot は負の角度なので、canvas の ctx.rotate と CSS の rotate(どちらも正が時計回り)には
-// そのまま渡せば星と同じ向きに回る。
+// 回転の向き: 下へスクロールすると空と環は時計回りに回る(rot = +scrollY * DEG_PER_PX)。
+// ダイヤルの中心はカバーの右辺にあり、見えている部分のほとんどは中心より左側にある。指で上へ
+// スワイプして内容が上に動くとき、時計回りなら中心の左側は上へ動くので、ダイヤルと空が内容(指)と
+// 同じ向きに動いて見える(逆回りだと内容と逆に動いて落ち着かない)。
+// 投影は x = px + r*sin(θ), y = py - r*cos(θ)、θ = 赤経 + rot で、θ を増やすと星は画面上で
+// 時計回りに進む(赤経が時計回りに増えるのと同じ)ので、rot を正の向きに増やせばそのまま時計回り。
+// canvas の ctx.rotate と CSS の rotate(どちらも正が時計回り)にも rot をそのまま渡せば星と同じ向きに回る。
 // prefers-reduced-motion の人には rot を 0 に固定する(静止した星空は描く)。
 //
 // 天の川は描かない(ぼかした帯は安っぽく見えたため。星と目盛りだけで見せる)。
@@ -46,10 +42,8 @@
       DEC_MIN: -55,              // 盤の縁の赤緯(北緯35°の地平線。日本から見える範囲)
       EDGE_SCALE: 1.02,          // 盤の半径を「北極から画面の一番遠い角まで」より少し大きくする倍率
       FALLBACK_POLE: [0.75, 0.5],// ダイヤルが見つからないときの北極位置(画面比)
-      DIAL_MAX_VH: 0.7,          // 広い画面のダイヤルの直径の上限(画面の高さ比)
-      DIAL_MARGIN_VW: 0.03,      // ダイヤルの右端と画面の右端の間(画面の幅比)
-      DIAL_MIN: 96,              // 直径の下限(px。空きが無くてもつまみとして掴める大きさ)
-      NARROW_MAX_W: 899,         // これ以下は狭い画面(CSS の max-width と揃える。つまみは CSS の 96px)
+      DIAL_MAX_VH: 0.78,         // ダイヤルの直径の上限(画面の高さ比)
+      DIAL_PLATE_RATIO: 1.6,     // ダイヤルの直径の上限(カバーの幅の倍数)。直径 = min(上の高さ比, この幅比)
       NAV_FALLBACK_H: 36,        // ツールナビの高さが測れないときの値(px)
       INDEX_W: 8,                // #dial-index の幅(px。CSS と揃える)
       GRID_DECS: [60, 30, 0, -30],// 赤緯の同心円
@@ -82,10 +76,9 @@
     var width = 0, height = 0, dpr = 1;
     var poleX = 0, poleY = 0, R = 1;
     var skyGradient = null;
-    // 下のドラッグ処理は読み込み時に dial へリスナーを付けるので、resize() を待たずにここで取る
     var ring = document.getElementById("dial-ring");  // 回す環
-    var dial = document.getElementById("dial");       // 北極の位置を決め、掴んで回せるコンテナ
-    var dialIndex = document.getElementById("dial-index");  // カバーの右辺に立てる金の目印(広い画面だけ)
+    var dial = document.getElementById("dial");       // 北極の位置を決めるコンテナ(pointer-events:none)
+    var dialIndex = document.getElementById("dial-index");  // カバーの右辺に立てる金の目印(広い画面だけ。狭い画面は CSS で非表示)
     var laidOut = false;      // layout() が中心を決めたか(決めていなければ CSS の位置を測る)
 
     // 星(読み込み後に埋める。盤の外の星は読み込み時に捨てる)
@@ -126,7 +119,7 @@
     }
 
     // ============ 画面 ============
-    // ダイヤルの中心をカバーの右辺に置き、広い画面では大きさも決める(理由は冒頭のコメント)。
+    // ダイヤルの中心をカバーの右辺に置き、直径も決める(理由は冒頭のコメント)。
     // カバーは横には動かない(縦スクロールだけ)ので、読み込み・リサイズ・フォント読み込み後に呼べばよい。
     function layout(){
       var plate = document.querySelector("main.plate");
@@ -136,17 +129,10 @@
       var bar = document.querySelector(".toolnav-bar");
       var navBottom = bar ? bar.getBoundingClientRect().bottom : CFG.NAV_FALLBACK_H;
       if(!(navBottom > 0)){ navBottom = CFG.NAV_FALLBACK_H }
-      var vw = window.innerWidth, vh = window.innerHeight;
+      var vh = window.innerHeight;
       var cx = pr.right, cy = (navBottom + vh) / 2;
-      var narrow = vw <= CFG.NARROW_MAX_W;
-      if(narrow){
-        dial.style.removeProperty("--dial-size");   // つまみの大きさは CSS の 96px
-      }else{
-        // 見える右半分(半径)が、カバーの右の空き(右の余白を除く)に収まる大きさ
-        var room = document.documentElement.clientWidth - cx - CFG.DIAL_MARGIN_VW * vw;
-        var size = Math.max(CFG.DIAL_MIN, Math.min(CFG.DIAL_MAX_VH * vh, 2 * room));
-        dial.style.setProperty("--dial-size", size + "px");
-      }
+      var size = Math.min(CFG.DIAL_MAX_VH * vh, CFG.DIAL_PLATE_RATIO * pr.width);
+      dial.style.setProperty("--dial-size", size + "px");
       dial.style.right = "auto";
       dial.style.left = cx + "px";
       dial.style.top = cy + "px";
@@ -194,7 +180,7 @@
 
     // ============ 描画 ============
     function draw(){
-      var rot = still ? 0 : -window.scrollY * CFG.DEG_PER_PX;  // 度(負=反時計回り)。理由は冒頭のコメント
+      var rot = still ? 0 : window.scrollY * CFG.DEG_PER_PX;  // 度(正=時計回り)。理由は冒頭のコメント
       if(ring){ ring.style.transform = "rotate(" + rot + "deg)" }
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -255,48 +241,6 @@
     window.addEventListener("scroll", schedule, {passive: true});
     if(motionQuery.addEventListener){
       motionQuery.addEventListener("change", function(e){ still = e.matches; schedule() });
-    }
-
-    // ダイヤルを掴んで回す → ページをスクロール(向きの理由は冒頭のコメント)。
-    // 指の角度は一手ごとに最短の差(-180〜180度)を足していく。180度をまたいでも飛ばないため。
-    var dragId = null, lastAngle = 0, turned = 0, startScroll = 0;
-    function pointerAngle(e){
-      // 中心は layout() の値(北極と同じ)。レイアウト前なら CSS の位置を測る
-      var cx = poleX, cy = poleY;
-      if(!laidOut){
-        var rect = dial.getBoundingClientRect();
-        cx = rect.left + rect.width / 2; cy = rect.top + rect.height / 2;
-      }
-      return Math.atan2(e.clientY - cy, e.clientX - cx) / DEG;
-    }
-    function endDrag(e){
-      if(dragId === null || e.pointerId !== dragId){ return }
-      try { dial.releasePointerCapture(dragId) } catch(err) { /* 既に外れていてよい */ }
-      dragId = null;
-      dial.classList.remove("dragging");
-    }
-    if(dial){
-      dial.addEventListener("pointerdown", function(e){
-        if(dragId !== null || (e.pointerType === "mouse" && e.button !== 0)){ return }
-        dragId = e.pointerId;
-        try { dial.setPointerCapture(dragId) } catch(err) { /* 捕まえられなくても動かせる範囲で続ける */ }
-        lastAngle = pointerAngle(e);
-        turned = 0;
-        startScroll = window.scrollY;
-        dial.classList.add("dragging");
-        e.preventDefault();
-      });
-      dial.addEventListener("pointermove", function(e){
-        if(e.pointerId !== dragId){ return }
-        var a = pointerAngle(e);
-        var d = a - lastAngle;
-        d -= 360 * Math.round(d / 360);
-        lastAngle = a;
-        turned += d;
-        window.scrollTo(0, startScroll - turned / CFG.DEG_PER_PX);  // 再描画はスクロールイベントが行う
-      });
-      dial.addEventListener("pointerup", endDrag);
-      dial.addEventListener("pointercancel", endDrag);
     }
 
     var resizeTimer = 0;

@@ -78,49 +78,46 @@
 
   /* ============ 装飾レイヤー: 星空背景(星座早見盤) ============
      position:fixed でビューポートに固定し、本文のスクロールから切り離す。
-     stacking順(奥→手前): 星空の canvas(-1) → ダイヤル #dial(0) → 本文 .wrap(1) → ツールナビ(1000)。
      星空は /static/planisphere.js が描く(実在の星を天の北極中心に描き、スクロールに合わせて回す)。
-     北極は #dial の中心。ダイヤルは本文カバーの右辺を軸にした金の環で、つまんで回すとページがスクロールする。
-     本文の読みやすさは、本文カラム(.plate)を早見盤のカバーに見立てた濃紺の面にして確保する。
-     カバーは少し透かし(不透明度 .70)、下に隠れたダイヤルの左半分と目盛りがうっすら続いて見えるようにする
-     (透明なカバー越しに盤が回る早見盤と同じ見え方。空はスクロール中しか動かないので、この濃さなら文字は読める)。
-     canvas は aria-hidden かつ pointer-events:none で操作・読み上げに影響しない。 */
+     北極は #dial の中心。ダイヤルは本文カバーの右辺を軸にした大きな金の環で、カバーの背景の上・文字の下に敷く。
+     本文の読みやすさは、本文カラム(.plate)を早見盤のカバーに見立てた濃紺の面(不透明度 .70)にして確保する。
+     透かしたカバー越しに、ダイヤルの左半分と目盛り・惑星記号がうっすら見える(空はスクロール中しか動かない)。
+
+     重ね順(奥→手前)は、全幅で次の1通り。どこにも z-index つきの重ね合わせ文脈(stacking context)を作らず、
+     ルート文脈の中で並べる(.wrap と .plate に z-index を付けない。付けるとダイヤルをその間に挟めなくなる):
+       星空の canvas(z -1) → .plate の背景と弓・目盛り(位置指定で z-index 無し=z 0 の段) → #dial(z 1)
+       → 文字とリンク(ヒーロー・.plate > section・footer。position:relative; z-index:2) → #dial-index(3) → ツールナビ(1000)
+     (z-index 無しの位置指定要素は z 0 の段で木の順に塗られ、その中身はまとめて #dial より下になる。
+      文字側を z 2 で持ち上げるので、パネルの面ごとダイヤルの手前に出る。)
+     #dial は pointer-events:none なので、下の文字やリンクはそのまま触れる。ダイヤルは掴めない(ページを普通にスクロールすると回る)。
+     canvas・ダイヤルとも aria-hidden で読み上げに影響しない。 */
   #star-canvas{position:fixed;inset:0;pointer-events:none;z-index:-1;width:100%;height:100%}
 
-  /* ダイヤル。中は透明(星が透ける)で、縁の環だけ描く。コンテナは動かさず、環(svg)だけが回る。
-     ツールナビは約36px あるので、中心を 18px 下げて残りの高さの真ん中に置く。
-     コンテナ自体も円形にして、角の空き地を掴めないようにする。 */
+  /* ダイヤル。中は透明(星が透ける)で、縁の環と惑星記号だけ描く。コンテナは動かさず、環(svg)だけが回る。
+     中心(=回転軸=北極)は常に本文カバー(.plate)の右辺。位置と直径 min(78vh, カバーの幅×1.6) は
+     planisphere.js(layout())が決めて #dial に直接入れる(下の値は JS が動かないときの代わり。
+     狭い画面ではカバーが全幅なので、中心は画面の右端になり、環の右半分は画面の外にはみ出す)。
+     ツールナビは約36px あるので、中心は残りの高さの真ん中(18px 下げ)に置く。 */
   #dial{
-    --dial-size:min(70vh,46vw);
-    position:fixed;z-index:0;right:3vw;top:calc(50% + 18px);transform:translateY(-50%);
+    --dial-size:min(78vh,160vw);
+    position:fixed;z-index:1;right:0;top:calc(50% + 18px);transform:translate(50%,-50%);
     width:var(--dial-size);height:var(--dial-size);border-radius:50%;
-    touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;
+    pointer-events:none;
   }
-  #dial.dragging{cursor:grabbing}
-  #dial-ring{display:block;width:100%;height:100%;transform-origin:50% 50%;pointer-events:none}
+  #dial-ring{display:block;width:100%;height:100%;transform-origin:50% 50%}
 
-  /* ダイヤルの中心(=回転軸=北極)は、常に本文カバー(.plate)の右辺に置く。位置と広い画面での大きさは
-     planisphere.js が決めて #dial に直接入れる(上の CSS は JS が動かないときの代わり)。
-     金の目印 #dial-index は本物の早見盤の「今」の三角で、カバーの右辺の内側、ダイヤルの中心と同じ高さに立てる。
-     ダイヤルはカバーの後ろに回るので、目印はカバーより手前(.wrap の z-index:1 より上)に出す。 */
+  /* 金の目印 #dial-index は本物の早見盤の「今」の三角で、カバーの右辺の内側、ダイヤルの中心と同じ高さに立てる。
+     広い画面だけ(狭い画面は右端がそのまま画面の端なので出さない)。 */
   #dial-index{
-    position:fixed;z-index:2;left:0;top:50%;width:8px;height:12px;
+    position:fixed;z-index:3;left:0;top:50%;width:8px;height:12px;
     transform:translateY(-50%);pointer-events:none;
     background:var(--gold);clip-path:polygon(0 0,100% 50%,0 100%);
   }
-
-  /* 狭い画面: 本文が全幅なので、ダイヤルは右端から半分だけ覗くつまみにする(中心がビューポートの右端)。
-     本文(.plate)より手前に出して掴めるようにし、読めるよう塗りつぶす。目印はつまみ自体が代わりなので出さない。 */
   @media (max-width:899px){
     #dial-index{display:none}
-    #dial{
-      --dial-size:96px;
-      right:calc(var(--dial-size) / -2);top:62%;transform:translateY(-50%);
-      z-index:2;background:rgba(13,18,51,.85);
-    }
   }
 
-  .wrap{max-width:none;margin:0;padding:0 0 64px;position:relative;z-index:1}
+  .wrap{max-width:none;margin:0;padding:0 0 64px}  /* 重ね合わせ文脈を作らない(z-index を付けない) */
   /* 広い画面: 本文は左寄せ(右はダイヤル) */
   @media (min-width:900px){
     .wrap{max-width:620px;margin-left:max(24px,6vw);margin-right:auto}
@@ -132,7 +129,7 @@
   @media (min-width:900px){
     .hero{padding:64px 0 96px}
   }
-  .hero h1,.hero p{position:relative}
+  .hero h1,.hero p{position:relative;z-index:2}  /* ダイヤル(z 1)より手前 */
   .hero h1{
     margin:0 0 10px;
     font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
@@ -142,13 +139,14 @@
   .hero p{margin:0;color:var(--faint);letter-spacing:.08em}
 
   section{margin-top:72px}
+  .plate > section{position:relative;z-index:2}  /* ダイヤル(z 1)より手前 */
   /* 環の下側は文字が無く、そのまま 72px 空けると間延びするので最初のセクションだけ詰める
      (上の余白は .plate の padding-top が受け持つ) */
   .plate > .plate-arc + section{margin-top:24px}
   /* 早見盤のカバー。本文はこの半透明の面の上に載せる。上辺は窓の縁のような弓なり(.plate-arc)、
      両脇には時刻目盛り(長い目盛り60px・短い目盛り12px)。.wrap のオープニング用 opacity と干渉しない。 */
   .plate{
-    position:relative;margin:0;padding:72px 48px 56px;
+    position:relative;margin:0;padding:72px 48px 56px; /* z-index は付けない(背景をルート文脈でダイヤルの下に塗る) */
     /* 半透明なので、上端の 70px(弓 .plate-arc の下半分と重なる帯)は塗らずに弓に任せる。
        両脇の線も同じ理由で 70px から下だけ背景として引く(弓の側の線へそのままつながる) */
     --plate-bg:rgba(13,18,51,.70);--plate-edge:rgba(143,122,72,.53);
@@ -173,8 +171,7 @@
     border:1px solid var(--plate-edge);border-top-color:rgba(227,198,123,.47);border-bottom:none;
     border-radius:50% 50% 0 0 / 100% 100% 0 0;
   }
-  .plate > section:first-of-type h2{position:relative}
-  section h2{
+    section h2{
     margin:0 0 12px;
     font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
     font-size:20px;font-weight:500;letter-spacing:.1em;
@@ -251,7 +248,7 @@
   .social-label{font-size:11.5px;color:var(--faint)}
 
   /* SNS とフッターはヒーローと対になる締めなので中央寄せのまま */
-  footer{margin-top:56px;text-align:center;font-size:11.5px;color:var(--faint)}
+  footer{position:relative;z-index:2;margin-top:56px;text-align:center;font-size:11.5px;color:var(--faint)}
   footer a{color:var(--gold)}  /* gold-dim だと 11.5px でコントラストが 4.5:1 に届かない */
   footer .disclaimer{margin:6px 0 0;font-size:11.5px}
 
@@ -276,12 +273,8 @@
   html.opening.opening-done #opening{opacity:0;transform:scale(1.06);pointer-events:none}
   html.opening.opening-done .toolnav-bar,html.opening.opening-done .wrap,html.opening.opening-done #dial,html.opening.opening-done #dial-index{opacity:1}
 
-  /* 狭い画面は右にダイヤルのつまみの見える半分(48px)が載るので、その分だけ右の余白を足す */
-  @media (max-width:899px){
-    .plate{padding-right:96px}
-  }
   @media (max-width:520px){
-    .plate{padding:64px 74px 48px 26px}
+    .plate{padding:64px 26px 48px}
     .plate::before{left:4px}
     .plate::after{right:4px}
   }
@@ -300,6 +293,17 @@
   <circle cx="256" cy="256" r="217" stroke-width="5" stroke-dasharray="1 17.93" opacity=".25"/>
   <circle cx="256" cy="256" r="204" stroke-width=".75" opacity=".25"/>
   <circle cx="256" cy="14" r="4" fill="#E3C67B" stroke="none" opacity=".8"/>
+  <!-- 惑星記号(☉☽☿♀♂♃♄)を内側の環(r=190)に等間隔で。上に置いた字を中心まわりに回して外向きを上にし、環と一緒に回る。
+       字のあとの U+FE0E(異体字セレクタ15)は「絵文字でなく文字で描く」指定。無いとスマホで ♀♂ などが色つきの絵文字になる。 -->
+  <g fill="#E3C67B" stroke="none" opacity=".55" font-size="22" text-anchor="middle" dominant-baseline="central" font-family="'Segoe UI Symbol','Noto Sans Symbols','Noto Sans Symbols 2','Apple Symbols','DejaVu Sans',serif">
+  <text x="256" y="66">☉︎</text>
+  <text x="256" y="66" transform="rotate(51.4286 256 256)">☽︎</text>
+  <text x="256" y="66" transform="rotate(102.8571 256 256)">☿︎</text>
+  <text x="256" y="66" transform="rotate(154.2857 256 256)">♀︎</text>
+  <text x="256" y="66" transform="rotate(205.7143 256 256)">♂︎</text>
+  <text x="256" y="66" transform="rotate(257.1429 256 256)">♃︎</text>
+  <text x="256" y="66" transform="rotate(308.5714 256 256)">♄︎</text>
+  </g>
   </svg>
 </div>
 <div id="dial-index" aria-hidden="true"></div>

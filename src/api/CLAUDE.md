@@ -54,7 +54,8 @@
   `<use fill="…">` なので、ブラウザ以外のラスタライザだと黒くなる。PNG 化は必ず generate.mjs 経由。
   新しいページは `head_icons.html` を include し、`mod.rs` の `every_page_links_site_icons` にも足す。
 - **home の星データは生成物**: `home/static/stars.json` は `assets/stars/generate.mjs` で作る（手で編集しない）。
-  `planisphere.js` は早見盤（天の北極中心の正距方位図法）で、スクロールに合わせて星空と右の fixed ダイヤル
-  （`#dial`。北極＝その中心。狭い画面は右端から覗くつまみ）の環を回す。ダイヤルを掴んで回すとページがスクロールする。
-  ダイヤルの中心は本文カバー（`main.plate`）の右辺に固定（スマホは全幅なので画面の右端）で、位置と大きさは JS（`layout()`）が入れる。
+  `planisphere.js` は早見盤（天の北極中心の正距方位図法）で、スクロールに合わせて星空と大きな fixed ダイヤル
+  （`#dial`。北極＝その中心。惑星記号つきの金の環）を回す。ダイヤルはカバーの背景と文字の間に敷き（`pointer-events:none`・
+  掴めない）、下へスクロールすると時計回りに回って内容と同じ向きに動く。重ね順は `home_index.html` の CSS コメント。
+  ダイヤルの中心は本文カバー（`main.plate`）の右辺に固定（スマホは全幅なので画面の右端）で、位置と直径は JS（`layout()`）が入れる。
 - ef_recipe_calculator のアルゴリズムは `EFRecipeCalculator.md` §4。
