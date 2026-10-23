@@ -100,11 +100,12 @@ cargo run --bin regen_seeds
 
 - ドロップ率: [Penguin Statistics](https://penguin-stats.io/)（[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)）。理性価値・理性効率はこのデータを元に独自に計算しています
 - ゲームデータ: [Kengxxiao/ArknightsGameData](https://github.com/Kengxxiao/ArknightsGameData)（大陸版）/ [ArknightsAssets/ArknightsGamedata](https://github.com/ArknightsAssets/ArknightsGamedata)（日本版）
+- 星の位置（トップページの星空）: [Yale Bright Star Catalog, 5th Revised Ed.](https://cdsarc.cds.unistra.fr/viz-bin/cat/V/50)（Hoffleit & Warren 1991、CDS/VizieR V/50）
 - アークナイツ ©Hypergryph / Yostar。本プロジェクトは非公式のファンメイドです
 
 ## License
 
-ソースコードは [MIT License](LICENSE) です。`data/seed/` 配下（上記の外部データを取得・保存したもの）は MIT の対象外で、それぞれの出典の権利・ライセンスに従います。
+ソースコードは [MIT License](LICENSE) です。`data/seed/` 配下（上記の外部データを取得・保存したもの）と `src/api/home/static/stars.json`・`zodiac_lines.json`（上記の星表から生成したもの）は MIT の対象外で、それぞれの出典の権利・ライセンスに従います。
 
 ## Author
 

@@ -49,17 +49,33 @@
     } catch(e) {}
   })();
 </script>
+<!-- 見出し(h1・h2)用の Shippori Mincho B1。text= に見出しの文字だけを列挙して、その字形だけを配信する。
+     見出しの文言を変えたら text= の文字も足すこと(mod.rs の heading_font_subset_covers_all_heading_chars が確かめる)。 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500&amp;display=swap&amp;text=%E3%82%A2%E3%82%B9%E3%83%86%E3%82%B7%E3%81%A1%E3%82%83%E3%82%93botF%E9%AF%96%28%E3%83%95%E3%83%AC%E3%83%BC%E3%83%A0%29%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%82%AF%E3%83%8A%E3%82%A4%E3%83%84%E3%82%A8%E3%83%B3%E3%83%89%E3%82%A3%E3%83%AB%E4%BB%96%E3%81%AE%E8%B6%A3%E5%91%B3" rel="stylesheet">
 <style>
   :root{
     --bg:#161a24;
-    --panel:#1f2430;
-    --panel-edge:#333a4a;
+    --gold:#E3C67B;      /* h2・星の点・アストロラーベの環・ボタンの枠 */
+    --gold-dim:#8F7A48;  /* 細い罫線・控えめな枠 */
+    --ivory:#F1E9D2;     /* h1・ボタンの文字 */
     --text:#e4e7f0;
-    --faint:#9aa2b8;
-    --accent:#4f7cff;
-    --accent-heading:#7b95ff;
-    --gold:#e8dcb0;
-    --gold-dim:#d4c08a;
+    --faint:#b0b7ca;     /* 補足の文字。薄くしたいときも opacity は使わずこの色にする */
+
+    /* 共通のツールナビ(toolnav.html)をこのページだけ紺と金にする。選択中のチップは
+       「Discordに参加する」ボタンと同じ、金の細枠＋アイボリーの文字 */
+    --toolnav-bg:rgba(9,12,32,.86);
+    --toolnav-border:rgba(227,198,123,.22);
+    --toolnav-scrollbar:rgba(227,198,123,.3);
+    --toolnav-label:#9aa2b8;
+    --toolnav-chip-bg:rgba(255,255,255,.04);
+    --toolnav-chip-fg:var(--text);
+    --toolnav-chip-hover-bg:rgba(227,198,123,.10);
+    --toolnav-chip-hover-fg:var(--ivory);
+    --toolnav-active-bg:rgba(227,198,123,.14);
+    --toolnav-active-fg:var(--ivory);
+    --toolnav-active-ring:var(--gold);
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -74,144 +90,160 @@
     position:relative;
   }
 
-  /* ============ 装飾レイヤー: 星空背景 ============
+  /* ============ 装飾レイヤー: 星空背景(星座早見盤) ============
      position:fixed でビューポートに固定し、本文のスクロールから切り離す。
-     stacking順(奥→手前): 夜空のグラデーション(-3) → 星と天の川のcanvas(-2) → 可読性用オーバーレイ(-1) → 本文(auto=0)。
-     星空は /static/starfield.js が描く(3D空間の星を透視投影し、視差つきでゆっくり回す)。
-     いずれも aria-hidden かつ pointer-events:none で操作・読み上げに影響しない。 */
-  .galaxy-bg,.galaxy-overlay,#star-canvas{
-    position:fixed;inset:0;pointer-events:none;
+     星空は /static/planisphere.js が描く(実在の星を天の北極中心に描き、スクロールに合わせて回す)。
+     北極は #dial の中心。ダイヤルは本文カバーの右辺を軸にした大きな金の環で、カバーの背景の上・文字の下に敷く。
+     本文の読みやすさは、本文カラム(.plate)を早見盤のカバーに見立てた濃紺の面(不透明度 .70)にして確保する。
+     透かしたカバー越しに、ダイヤルの左半分と目盛り・星座記号がうっすら見える(空はスクロール中しか動かない)。
+
+     重ね順(奥→手前)は、全幅で次の1通り。どこにも z-index つきの重ね合わせ文脈(stacking context)を作らず、
+     ルート文脈の中で並べる(.wrap と .plate に z-index を付けない。付けるとダイヤルをその間に挟めなくなる):
+       星空の canvas(z -1) → .plate の背景と弓・目盛り(位置指定で z-index 無し=z 0 の段) → #dial(z 1)
+       → 文字とリンク(ヒーロー・.plate > section・footer。position:relative; z-index:2) → #dial-index(3) → ツールナビ(1000)
+     (z-index 無しの位置指定要素は z 0 の段で木の順に塗られ、その中身はまとめて #dial より下になる。
+      文字側を z 2 で持ち上げるので、パネルの面ごとダイヤルの手前に出る。)
+     #dial は pointer-events:none なので、下の文字やリンクはそのまま触れる。ダイヤルは掴めない(ページを普通にスクロールすると回る)。
+     canvas・ダイヤルとも aria-hidden で読み上げに影響しない。 */
+  #star-canvas{position:fixed;inset:0;pointer-events:none;z-index:-1;width:100%;height:100%}
+
+  /* ダイヤル。中は透明(星が透ける)で、縁の環と星座記号だけ描く。コンテナは動かさず、環(svg)だけが回る。
+     中心(=回転軸=北極)は常に本文カバー(.plate)の右辺。位置と直径 min(78vh, カバーの幅×1.6) は
+     planisphere.js(layout())が決めて #dial に直接入れる(下の値は JS が動かないときの代わり。
+     狭い画面ではカバーが全幅なので、中心は画面の右端になり、環の右半分は画面の外にはみ出す)。
+     ツールナビは約36px あるので、中心は残りの高さの真ん中(18px 下げ)に置く。 */
+  #dial{
+    --dial-size:min(78vh,160vw);
+    position:fixed;z-index:1;right:0;top:calc(50% + 18px);transform:translate(50%,-50%);
+    width:var(--dial-size);height:var(--dial-size);border-radius:50%;
+    pointer-events:none;
   }
-  .galaxy-bg{
-    z-index:-3;
-    background:
-      radial-gradient(ellipse 70% 55% at 30% 35%, rgba(58,72,168,.20) 0%, rgba(58,72,168,0) 70%),
-      radial-gradient(ellipse 60% 50% at 75% 70%, rgba(86,58,150,.14) 0%, rgba(86,58,150,0) 70%),
-      linear-gradient(160deg, #0a0e26 0%, #111838 55%, #0b0f28 100%);
+  #dial-ring{display:block;width:100%;height:100%;transform-origin:50% 50%}
+
+  /* 金の目印 #dial-index は本物の早見盤の「今」の三角で、カバーの右辺の内側、ダイヤルの中心と同じ高さに立てる。
+     広い画面だけ(狭い画面は右端がそのまま画面の端なので出さない)。 */
+  #dial-index{
+    position:fixed;z-index:3;left:0;top:50%;width:8px;height:12px;
+    transform:translateY(-50%);pointer-events:none;
+    background:var(--gold);clip-path:polygon(0 0,100% 50%,0 100%);
   }
-  #star-canvas{z-index:-2;width:100%;height:100%}
-  /* 本文の読みやすさのため中央〜下を少しだけ沈める。星空を見せたいので濃くしすぎない
-     (パネル自体がすりガラスの背景を持っているので、文字の可読性はそちらで確保する)。 */
-  .galaxy-overlay{
-    z-index:-1;
-    background:radial-gradient(ellipse at 50% 0%, rgba(6,8,24,0) 0%, rgba(6,8,24,.28) 65%, rgba(4,5,14,.5) 100%);
+  @media (max-width:899px){
+    #dial-index{display:none}
   }
 
-  .wrap{max-width:680px;margin:0 auto;padding:0 16px 64px;position:relative}
+  .wrap{max-width:none;margin:0;padding:0 0 64px}  /* 重ね合わせ文脈を作らない(z-index を付けない) */
+  /* 広い画面: 本文は左寄せ(右はダイヤル) */
+  @media (min-width:900px){
+    .wrap{max-width:620px;margin-left:max(24px,6vw);margin-right:auto}
+  }
 
-  .hero{padding:40px 0 8px;text-align:center}
+  /* ヒーローは左寄せ。下の余白は、カバー上辺の弓(.plate-arc。上へ 70px 張り出す)に
+     タイトルや文が隠れないための分。狭い画面は左右 16px の余白を自前で持つ(.wrap が全幅のため) */
+  .hero{padding:48px 16px 96px;text-align:left}
+  @media (min-width:900px){
+    .hero{padding:64px 0 96px}
+  }
+  .hero h1,.hero p{position:relative;z-index:2}  /* ダイヤル(z 1)より手前 */
   .hero h1{
-    margin:0 0 10px;font-size:22px;font-weight:700;
-    color:var(--text);
-    background:linear-gradient(180deg,#ffffff 0%, #cdd9ff 100%);
-    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-    text-shadow:0 0 18px rgba(120,150,255,.25);
+    margin:0 0 10px;
+    font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+    font-size:clamp(30px,7vw,44px);font-weight:500;letter-spacing:.14em;line-height:1.3;
+    color:var(--ivory);
   }
-  .hero p{margin:0;color:var(--faint)}
+  .hero p{margin:0;color:var(--faint);letter-spacing:.08em}
 
-  /* 星と両側へ消えていく線。中央の「✦」以外はCSS疑似要素のグラデーションだけで組む。 */
-  .star-divider{
-    display:flex;align-items:center;gap:10px;
-    max-width:220px;margin:0 auto 10px;
-    color:var(--gold);font-size:11px;line-height:1;
-    opacity:.75;
-  }
-  .star-divider::before,.star-divider::after{
-    content:'';flex:1 1 auto;height:1px;
-    background:linear-gradient(to right, transparent, var(--gold-dim));
-  }
-  .star-divider::after{background:linear-gradient(to left, transparent, var(--gold-dim))}
-  .hero h1 + .star-divider{margin:10px auto 0}
-
-  section{margin-top:32px}
-  section h2{
-    margin:0 0 14px;font-size:15px;font-weight:700;
-    color:var(--accent-heading);letter-spacing:.04em;
-  }
-  section h2::after{
-    content:'';display:block;margin-top:8px;width:64px;height:8px;
+  section{margin-top:72px}
+  .plate > section{position:relative;z-index:2}  /* ダイヤル(z 1)より手前 */
+  /* 環の下側は文字が無く、そのまま 72px 空けると間延びするので最初のセクションだけ詰める
+     (上の余白は .plate の padding-top が受け持つ) */
+  .plate > .plate-arc + section{margin-top:24px}
+  /* 早見盤のカバー。本文はこの半透明の面の上に載せる。上辺は窓の縁のような弓なり(.plate-arc)、
+     両脇には時刻目盛り(長い目盛り60px・短い目盛り12px)。.wrap のオープニング用 opacity と干渉しない。 */
+  .plate{
+    position:relative;margin:0;padding:72px 48px 56px; /* z-index は付けない(背景をルート文脈でダイヤルの下に塗る) */
+    /* 半透明なので、上端の 70px(弓 .plate-arc の下半分と重なる帯)は塗らずに弓に任せる。
+       両脇の線も同じ理由で 70px から下だけ背景として引く(弓の側の線へそのままつながる) */
+    --plate-bg:rgba(13,18,51,.70);--plate-edge:rgba(143,122,72,.53);
     background:
-      radial-gradient(circle at center, var(--gold) 0%, var(--gold) 12%, transparent 75%),
-      linear-gradient(to right, transparent, var(--gold-dim) 35%, var(--gold-dim) 65%, transparent);
-    background-repeat:no-repeat;
-    background-size:8px 8px, 100% 1px;
-    background-position:left center, left center;
+      linear-gradient(var(--plate-edge),var(--plate-edge)) left 70px / 1px calc(100% - 70px) no-repeat,
+      linear-gradient(var(--plate-edge),var(--plate-edge)) right 70px / 1px calc(100% - 70px) no-repeat,
+      linear-gradient(var(--plate-bg),var(--plate-bg)) 0 70px / 100% calc(100% - 70px) no-repeat;
+  }
+  .plate::before,.plate::after{
+    content:'';position:absolute;top:56px;bottom:0;width:14px;pointer-events:none; /* 弓の外にはみ出さない高さから */
+    background:
+      repeating-linear-gradient(to bottom,var(--gold) 0 1px,transparent 1px 60px),
+      repeating-linear-gradient(to bottom,rgba(143,122,72,.67) 0 1px,transparent 1px 12px);
+    background-size:14px 100%,7px 100%;background-repeat:no-repeat;
     opacity:.55;
   }
-
-  /* corners: 四隅の細い星座線を、コーナーごとに独立した背景レイヤーとして重ねる
-     (要素追加なし)。1枚のスプライトに全コーナーをまとめると、カードの実寸に応じて
-     位置がずれる(左上以外のコーナーがカード内側に食い込む)ため、コーナーの数だけ
-     background-image レイヤーを分けて各々を対応する角に position させている。 */
-  .panel,.tool-card{
-    --corner-tl:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8dcb0' stroke-width='1' opacity='.5'%3E%3Cpath d='M2 10 V2 H10'/%3E%3Ccircle cx='2' cy='2' r='1.3' fill='%23e8dcb0' stroke='none' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
-    --corner-tr:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8dcb0' stroke-width='1' opacity='.5'%3E%3Cpath d='M14 2 H22 V10'/%3E%3Ccircle cx='22' cy='2' r='1.3' fill='%23e8dcb0' stroke='none' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
-    --corner-bl:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8dcb0' stroke-width='1' opacity='.5'%3E%3Cpath d='M2 14 V22 H10'/%3E%3Ccircle cx='2' cy='22' r='1.3' fill='%23e8dcb0' stroke='none' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
-    --corner-br:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23e8dcb0' stroke-width='1' opacity='.5'%3E%3Cpath d='M14 22 H22 V14'/%3E%3Ccircle cx='22' cy='22' r='1.3' fill='%23e8dcb0' stroke='none' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
-    background-image:
-      var(--corner-tl), var(--corner-tr), var(--corner-bl), var(--corner-br),
-      linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 40%);
-    background-repeat:no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
-    background-size:20px 20px, 20px 20px, 20px 20px, 20px 20px, 100% 100%;
-    background-position:top left, top right, bottom left, bottom right, top left;
+  .plate::before{left:10px;background-position:left top,left top}
+  .plate::after{right:10px;background-position:right top,right top}
+  .plate-arc{
+    position:absolute;left:0;right:0;top:-70px;height:140px;pointer-events:none;
+    background:var(--plate-bg);
+    border:1px solid var(--plate-edge);border-top-color:rgba(227,198,123,.47);border-bottom:none;
+    border-radius:50% 50% 0 0 / 100% 100% 0 0;
+  }
+    section h2{
+    margin:0 0 12px;
+    font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+    font-size:20px;font-weight:500;letter-spacing:.1em;
+    color:var(--gold);
   }
 
+  /* 説明文のパネル。ここは1段だけの静かな面にとどめる(装飾は環に集中させる)。 */
   .panel{
-    background-color:rgba(31,36,48,.55);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    border:1px solid rgba(228,231,240,.10);
-    border-top-color:rgba(232,220,176,.35);
-    border-radius:10px;padding:20px;
-    box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+    background:rgba(11,16,48,.55);
+    border:1px solid rgba(227,198,123,.18);
+    border-radius:8px;padding:20px;
   }
   .panel p{margin:0 0 12px}
   .panel p:last-child{margin-bottom:0}
 
+  /* 金の細枠のピルボタン。GitHub は同じ部品で枠だけ gold-dim にして一段静かにする。 */
   .invite-btn{
     display:inline-flex;align-items:center;gap:8px;
-    margin-top:4px;padding:10px 20px;
-    background:var(--accent);color:#fff;font-weight:700;
+    margin-top:4px;padding:9px 20px;
+    background:transparent;border:1px solid var(--gold);
+    color:var(--ivory);font-weight:500;
     text-decoration:none;border-radius:999px;
-    transition:background .2s ease, box-shadow .3s ease;
+    transition:background-color .2s ease;
   }
-  .invite-btn:hover{
-    background:#3a63e0;
-    box-shadow:0 0 0 5px rgba(79,124,255,.18), 0 0 22px rgba(79,124,255,.35);
-  }
-  .github-btn{background:#24292f}
-  .github-btn:hover{
-    background:#33393f;
-    box-shadow:0 0 0 5px rgba(36,41,47,.22), 0 0 22px rgba(36,41,47,.4);
-  }
+  .invite-btn:hover,.invite-btn:focus-visible{background:rgba(227,198,123,.12)}
+  .invite-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .github-btn{border-color:var(--gold-dim)}
 
-  .tool-grid{
-    display:grid;grid-template-columns:repeat(2,1fr);gap:12px;
+  /* ツール一覧。カードではなく罫線で区切った行にする。
+     ::before の点は1行目の文字の中心に合わせ、説明(span)は同じ列の2行目に置く
+     (明示的に grid-column を指定しないと、自動配置で span が点の列に入ってしまう)。 */
+  .tool-list{list-style:none;margin:0;padding:0}
+  .tool-list a{
+    display:grid;grid-template-columns:14px 1fr;column-gap:10px;
+    padding:12px 4px;
+    border-bottom:1px solid rgba(227,198,123,.16);
+    color:var(--text);text-decoration:none;
+    transition:background-color .2s ease;
   }
-  @media (max-width:480px){
-    .tool-grid{grid-template-columns:1fr}
+  .tool-list a::before{
+    content:'';grid-column:1;grid-row:1;
+    width:5px;height:5px;margin-top:10px;
+    border-radius:50%;background:var(--gold);
+    box-shadow:0 0 6px var(--gold);
   }
-  .tool-card{
-    position:relative;display:block;
-    background-color:rgba(31,36,48,.5);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    border:1px solid rgba(228,231,240,.10);
-    border-top-color:rgba(232,220,176,.32);
-    border-radius:10px;padding:16px;color:var(--text);text-decoration:none;
-    transition:border-color .3s ease, background-color .3s ease, transform .3s ease, box-shadow .3s ease;
+  .tool-list strong{
+    grid-column:2;grid-row:1;
+    font-size:15px;font-weight:700;color:var(--text);
+    transition:color .2s ease;
   }
-  .tool-card:hover{
-    transform:translateY(-2px);
-    border-color:rgba(232,220,176,.4);
-    background-color:rgba(36,43,58,.6);
-    box-shadow:0 8px 24px rgba(0,0,0,.3), 0 0 0 1px rgba(232,220,176,.15);
-  }
-  .tool-card strong{display:block;margin-bottom:4px;font-size:15px}
-  .tool-card span{color:var(--faint);font-size:13px}
+  .tool-list span{grid-column:2;grid-row:2;font-size:13.5px;color:var(--faint)}
+  .tool-list a:hover,.tool-list a:focus-visible{background:rgba(227,198,123,.05)}
+  .tool-list a:hover strong,.tool-list a:focus-visible strong{color:var(--ivory)}
+  .tool-list a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
-  .social-section{text-align:center}
   .social-row{
     display:flex;justify-content:center;align-items:flex-start;
-    gap:28px;margin-top:4px;
+    gap:28px;
   }
   .social-btn{
     display:flex;flex-direction:column;align-items:center;gap:6px;
@@ -220,28 +252,19 @@
   .social-icon{
     display:flex;align-items:center;justify-content:center;
     width:40px;height:40px;border-radius:50%;
-    background-color:rgba(31,36,48,.55);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    border:1px solid rgba(228,231,240,.12);
-    transition:border-color .3s ease, box-shadow .3s ease;
+    border:1px solid rgba(227,198,123,.2);
+    transition:border-color .2s ease;
   }
-  .social-icon svg{
-    width:18px;height:18px;fill:var(--gold);opacity:.6;
-    transition:opacity .3s ease;
-  }
+  .social-icon svg{width:18px;height:18px;fill:var(--gold)}
   .social-btn:hover .social-icon,
-  .social-btn:focus-visible .social-icon{
-    border-color:rgba(232,220,176,.5);
-    box-shadow:0 0 0 1px rgba(232,220,176,.2), 0 0 16px rgba(232,220,176,.25);
-  }
-  .social-btn:hover .social-icon svg,
-  .social-btn:focus-visible .social-icon svg{opacity:1}
+  .social-btn:focus-visible .social-icon{border-color:rgba(227,198,123,.55)}
   .social-btn:focus-visible{outline:2px solid var(--gold);outline-offset:4px;border-radius:10px}
-  .social-label{font-size:11px;color:var(--faint)}
+  .social-label{font-size:11.5px;color:var(--faint)}
 
-  footer{margin-top:40px;text-align:center;font-size:11.5px;color:var(--faint)}
-  footer a{color:var(--gold-dim)}
-  footer .disclaimer{margin:6px 0 0;font-size:10.5px;opacity:.7}
+  /* SNS とフッターはヒーローと対になる締めなので中央寄せのまま */
+  footer{position:relative;z-index:2;margin-top:56px;text-align:center;font-size:11.5px;color:var(--faint)}
+  footer a{color:var(--gold)}  /* gold-dim だと 11.5px でコントラストが 4.5:1 に届かない */
+  footer .disclaimer{margin:6px 0 0;font-size:11.5px}
 
   /* ============ オープニング(星の細剣のエンブレム) ============
      html.opening の間だけ、背景なしのオーバーレイでエンブレムを星空の上に出し、本文は隠す。
@@ -258,31 +281,63 @@
   /* 細剣は viewBox の上端より外から降りてくるので、枠で切らない(背景が無いので切れ目が見えてしまう) */
   #emblem{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 50%}
   html.opening body{overflow:hidden}
-  html.opening .toolnav-bar,html.opening .wrap{
+  html.opening .toolnav-bar,html.opening .wrap,html.opening #dial,html.opening #dial-index{
     opacity:0;pointer-events:none;transition:opacity .45s ease;
   }
   html.opening.opening-done #opening{opacity:0;transform:scale(1.06);pointer-events:none}
-  html.opening.opening-done .toolnav-bar,html.opening.opening-done .wrap{opacity:1}
+  html.opening.opening-done .toolnav-bar,html.opening.opening-done .wrap,html.opening.opening-done #dial,html.opening.opening-done #dial-index{opacity:1}
 
+  @media (max-width:520px){
+    .plate{padding:64px 26px 48px}
+    .plate::before{left:4px}
+    .plate::after{right:4px}
+  }
   @media (prefers-reduced-motion: reduce){
-    .panel,.tool-card,.invite-btn,.social-icon,.social-icon svg{transition:none}
+    .invite-btn,.tool-list a,.tool-list strong,.social-icon{transition:none}
   }
 </style>
 </head>
 <body>
-<div class="galaxy-bg" aria-hidden="true"></div>
 <canvas id="star-canvas" aria-hidden="true"></canvas>
-<div class="galaxy-overlay" aria-hidden="true"></div>
+<div id="dial" aria-hidden="true">
+  <svg id="dial-ring" viewBox="0 0 512 512" aria-hidden="true" focusable="false" fill="none" stroke="#E3C67B">
+  <circle cx="256" cy="256" r="242" stroke-width="1.5" opacity=".45"/>
+  <circle cx="256" cy="256" r="222" stroke-width=".75" opacity=".3"/>
+  <circle cx="256" cy="256" r="232" stroke-width="10" stroke-dasharray="1.5 119.97" opacity=".45"/>
+  <circle cx="256" cy="256" r="217" stroke-width="5" stroke-dasharray="1 17.93" opacity=".25"/>
+  <circle cx="256" cy="256" r="204" stroke-width=".75" opacity=".25"/>
+  <circle cx="256" cy="14" r="4" fill="#E3C67B" stroke="none" opacity=".8"/>
+  <!-- 黄道十二星座の記号(♈〜♓)を内側の環(r=190)に、目盛り(30°ごと)の間へ1つずつ。上に置いた字を中心まわりに回して外向きを上にし、環と一緒に回る。
+       並びは ♈ を真上(赤経0h の向き)から時計回り。早見盤では赤経が時計回りに増えるので、空の黄道の星座とおおよそ同じ向きに並ぶ。
+       字のあとの U+FE0E(異体字セレクタ15)は「絵文字でなく文字で描く」指定。無いとスマホで色つきの絵文字(紫の四角)になる。 -->
+  <g fill="#E3C67B" stroke="none" opacity=".55" font-size="22" text-anchor="middle" dominant-baseline="central" font-family="'Segoe UI Symbol','Noto Sans Symbols','Noto Sans Symbols 2','Apple Symbols','DejaVu Sans',serif">
+  <text x="256" y="66" transform="rotate(15 256 256)">♈︎</text>
+  <text x="256" y="66" transform="rotate(45 256 256)">♉︎</text>
+  <text x="256" y="66" transform="rotate(75 256 256)">♊︎</text>
+  <text x="256" y="66" transform="rotate(105 256 256)">♋︎</text>
+  <text x="256" y="66" transform="rotate(135 256 256)">♌︎</text>
+  <text x="256" y="66" transform="rotate(165 256 256)">♍︎</text>
+  <text x="256" y="66" transform="rotate(195 256 256)">♎︎</text>
+  <text x="256" y="66" transform="rotate(225 256 256)">♏︎</text>
+  <text x="256" y="66" transform="rotate(255 256 256)">♐︎</text>
+  <text x="256" y="66" transform="rotate(285 256 256)">♑︎</text>
+  <text x="256" y="66" transform="rotate(315 256 256)">♒︎</text>
+  <text x="256" y="66" transform="rotate(345 256 256)">♓︎</text>
+  </g>
+  </svg>
+</div>
+<div id="dial-index" aria-hidden="true"></div>
 {% include "home_opening.html" %}
 {% include "toolnav.html" %}
 <div class="wrap">
 
   <div class="hero">
-    <div class="star-divider" aria-hidden="true">✦</div>
     <h1>アステシアちゃんbot</h1>
-    <div class="star-divider" aria-hidden="true">✦</div>
     <p>F鯖を支えるbotと、便利ツールのご案内</p>
   </div>
+
+  <main class="plate">
+  <div class="plate-arc" aria-hidden="true"></div>
 
   <section>
     <h2>F鯖(フレーム鯖)について</h2>
@@ -308,60 +363,59 @@
 
   <section>
     <h2>アークナイツ</h2>
-    <div class="tool-grid">
-      <a class="tool-card" href="/shortcut/recruitment" target="_blank" rel="noopener noreferrer">
+    <ul class="tool-list">
+      <li><a href="/shortcut/recruitment" target="_blank" rel="noopener noreferrer">
         <strong>公開求人ショートカット</strong>
         <span>iOSからワンクリックで公開求人検索</span>
-      </a>
-      <a class="tool-card" href="https://www.icloud.com/shortcuts/a203881800bd4de18f49c823dc306b47" target="_blank" rel="noopener noreferrer">
+      </a></li>
+      <li><a href="https://www.icloud.com/shortcuts/a203881800bd4de18f49c823dc306b47" target="_blank" rel="noopener noreferrer">
         <strong>理性タイマーショートカット</strong>
         <span>iOSで理性満タンになる瞬間をお知らせ</span>
-      </a>
-      <a class="tool-card" href="/FrameKillCalculator">
+      </a></li>
+      <li><a href="/FrameKillCalculator">
         <strong>フレームキル計算機</strong>
         <span>スキルダメージが敵を撃破できるか計算</span>
-      </a>
-      <a class="tool-card" href="/api/risei/skill.zip" download>
+      </a></li>
+      <li><a href="/api/risei/skill.zip" download>
         <strong>理性効率APIスキル（Claude用）</strong>
         <span>理性効率・理性価値をClaudeが直接引けるスキルをダウンロード</span>
-      </a>
-    </div>
+      </a></li>
+    </ul>
   </section>
 
   <section>
     <h2>エンドフィールド</h2>
-    <div class="tool-grid">
-      <a class="tool-card" href="/WLBatterySimulator">
+    <ul class="tool-list">
+      <li><a href="/WLBatterySimulator">
         <strong>武陵発電計算機</strong>
         <span>武陵ステージの発電制御を最適化</span>
-      </a>
-      <a class="tool-card" href="/EFRecipeCalculator">
+      </a></li>
+      <li><a href="/EFRecipeCalculator">
         <strong>ENDFIELDレシピ計算機</strong>
         <span>エンドフィールドの資材レシピを計算</span>
-      </a>
-    </div>
+      </a></li>
+    </ul>
   </section>
 
   <section>
     <h2>他の趣味ツール</h2>
-    <div class="tool-grid">
-      <a class="tool-card" href="/LodChestSolver">
+    <ul class="tool-list">
+      <li><a href="/LodChestSolver">
         <strong>幽霊船宝箱ソルバー</strong>
         <span>レジェンド オブ ドラグーンの幽霊船宝箱を解く</span>
-      </a>
-      <a class="tool-card" href="/TestRunner">
+      </a></li>
+      <li><a href="/TestRunner">
         <strong>試験手順ランナー</strong>
         <span>試験手順書をチェックリスト形式で進行</span>
-      </a>
-      <a class="tool-card" href="https://github.com/holmesfems/clawd-parade" target="_blank" rel="noopener noreferrer">
+      </a></li>
+      <li><a href="https://github.com/holmesfems/clawd-parade" target="_blank" rel="noopener noreferrer">
         <strong>ClawdなでなでMod</strong>
         <span>Claude Codeでお仕事中になでなで</span>
-      </a>
-    </div>
+      </a></li>
+    </ul>
   </section>
 
   <section class="social-section">
-    <div class="star-divider" aria-hidden="true">✦</div>
     <div class="social-row">
       <a class="social-btn" href="https://www.youtube.com/holmesfems" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
         <span class="social-icon">
@@ -394,14 +448,16 @@
     <p class="disclaimer">データ出典<br>
       　ドロップ率: <a href="https://penguin-stats.io/" target="_blank" rel="noopener noreferrer">Penguin Statistics</a>（<a href="https://creativecommons.org/licenses/by-nc/4.0/deed.ja" target="_blank" rel="noopener noreferrer">CC BY-NC 4.0</a>。理性価値・理性効率はこれを元に独自に計算）<br>
       　ゲームデータ: <a href="https://github.com/Kengxxiao/ArknightsGameData" target="_blank" rel="noopener noreferrer">Kengxxiao/ArknightsGameData</a>
-      / <a href="https://github.com/ArknightsAssets/ArknightsGamedata" target="_blank" rel="noopener noreferrer">ArknightsAssets/ArknightsGamedata</a></p>
+      / <a href="https://github.com/ArknightsAssets/ArknightsGamedata" target="_blank" rel="noopener noreferrer">ArknightsAssets/ArknightsGamedata</a><br>
+      　星の位置: Yale Bright Star Catalog, 5th ed.（Hoffleit &amp; Warren 1991, <a href="https://cdsarc.cds.unistra.fr/viz-bin/cat/V/50" target="_blank" rel="noopener noreferrer">CDS/VizieR V/50</a>）</p>
   </footer>
 
+  </main>
 </div>
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
 </script>
-<script src="/static/starfield.js" defer></script>
+<script src="/static/planisphere.js" defer></script>
 <script src="/static/opening.js" defer></script>
 </body>
 </html>
