@@ -53,4 +53,7 @@
   （手で編集しない）。48px 以下と maskable は simple 版、180px 以上は通常版。simple 版の星は
   `<use fill="…">` なので、ブラウザ以外のラスタライザだと黒くなる。PNG 化は必ず generate.mjs 経由。
   新しいページは `head_icons.html` を include し、`mod.rs` の `every_page_links_site_icons` にも足す。
+- **home の星データは生成物**: `home/static/stars.json` は `assets/stars/generate.mjs` で作る（手で編集しない）。
+  `planisphere.js` は早見盤（天の北極中心の正距方位図法）で、スクロールに合わせて星空と右の fixed ダイヤル
+  （`#dial`。北極＝その中心。狭い画面は右端から覗くつまみ）の環を回す。ダイヤルを掴んで回すとページがスクロールする。
 - ef_recipe_calculator のアルゴリズムは `EFRecipeCalculator.md` §4。

@@ -4,8 +4,9 @@
 //! 日本語のみ・1URL（`/`）。LodChestSolver/TestRunnerのような言語別URL分割はしない。
 //! F鯖向けの案内が主目的で、汎用ツールのようにクローラへ多言語を見せる必要が薄いため。
 //! CSSは分量が小さいので `templates_shared/toolnav.html` と同様にページ内に直書きしている。
-//! `static/` は OGP画像(ogp.png)と星空背景のスクリプト(starfield.js)、オープニングの
-//! スクリプト(opening.js)の配信用。どちらのJSも分量が大きいのでテンプレートから切り出している。
+//! `static/` は OGP画像(ogp.png)、星座早見盤の背景を描くスクリプト(planisphere.js)とその星データ
+//! (stars.json。`assets/stars/generate.mjs` の生成物)、オープニングのスクリプト(opening.js)の配信用。
+//! どちらのJSも分量が大きいのでテンプレートから切り出している。
 //! オープニング（星の細剣のエンブレム）のSVGは `templates/home_opening.html` を include して
 //! サーバー側で埋め込む（JS無効でも本文はそのまま見える。再生の要否は home_index.html の <head>）。
 
@@ -76,15 +77,77 @@ mod tests {
         assert!(html.contains(r#"href="/api/risei/skill.zip" download"#));
         assert!(html.contains("<h2>エンドフィールド</h2>"));
         assert!(html.contains("<h2>他の趣味ツール</h2>"));
-        assert!(html.contains(r#"<script src="/static/starfield.js" defer></script>"#));
+        assert!(html.contains(r#"<script src="/static/planisphere.js" defer></script>"#));
         assert!(html.contains(r#"<script src="/static/opening.js" defer></script>"#));
         assert!(html.contains(r#"<div id="opening" aria-hidden="true">"#));
         assert!(html.contains(r#"<svg id="emblem""#));
+        assert!(html.contains(r#"id="dial""#));
+        assert!(html.contains(r#"id="dial-ring""#));
+    }
+
+    /// `%XX` を UTF-8 として戻すだけの小さなデコーダ（依存を増やさないためテスト内に置く）。
+    fn percent_decode(s: &str) -> String {
+        let b = s.as_bytes();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < b.len() {
+            if b[i] == b'%' {
+                let hex = std::str::from_utf8(&b[i + 1..i + 3]).unwrap();
+                out.push(u8::from_str_radix(hex, 16).unwrap());
+                i += 3;
+            } else {
+                out.push(b[i]);
+                i += 1;
+            }
+        }
+        String::from_utf8(out).unwrap()
+    }
+
+    /// 見出し用 Web フォントは `text=` の文字だけを配信する。見出しを変えて
+    /// `text=` を直し忘れると、その字だけ代替フォントになるので、ここで気づけるようにする。
+    #[tokio::test]
+    async fn heading_font_subset_covers_all_heading_chars() {
+        let app = router::<()>();
+        let response = app
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let html = String::from_utf8(bytes.to_vec()).unwrap();
+
+        let mut headings = Vec::new();
+        for tag in ["h1", "h2"] {
+            let (open, close) = (format!("<{tag}>"), format!("</{tag}>"));
+            let mut rest = html.as_str();
+            while let Some(start) = rest.find(&open) {
+                let after = &rest[start + open.len()..];
+                let end = after.find(&close).expect("見出しタグが閉じていない");
+                headings.push(&after[..end]);
+                rest = &after[end + close.len()..];
+            }
+        }
+        assert!(headings.len() >= 2, "h1/h2 が見つからない");
+
+        let link = html
+            .lines()
+            .find(|l| l.contains("family=Shippori+Mincho+B1"))
+            .expect("Shippori Mincho B1 の stylesheet がない");
+        let query = link.split("text=").nth(1).expect("text= がない");
+        let encoded = query.split('"').next().unwrap();
+        let subset = percent_decode(encoded);
+
+        for h in headings {
+            for c in h.chars().filter(|c| !c.is_whitespace()) {
+                assert!(subset.contains(c), "text= に {c:?} がない（見出し: {h}）");
+            }
+        }
     }
 
     #[tokio::test]
-    async fn static_scripts_are_served() {
-        for uri in ["/static/starfield.js", "/static/opening.js"] {
+    async fn static_files_are_served() {
+        for uri in ["/static/planisphere.js", "/static/opening.js", "/static/stars.json"] {
             let app = router::<()>();
             let response = app
                 .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
