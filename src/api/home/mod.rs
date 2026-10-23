@@ -84,8 +84,8 @@ mod tests {
         assert!(html.contains(r#"id="dial""#));
         assert!(html.contains(r#"id="dial-ring""#));
         assert!(html.contains(r#"id="dial-index""#));
-        // 惑星記号は絵文字にされないよう異体字セレクタ15(U+FE0E)を付けている
-        assert!(html.contains("☿︎"));
+        // 星座記号は絵文字にされないよう異体字セレクタ15(U+FE0E)を付けている
+        assert!(html.contains("♈︎"));
     }
 
     /// `%XX` を UTF-8 として戻すだけの小さなデコーダ（依存を増やさないためテスト内に置く）。
