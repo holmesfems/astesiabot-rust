@@ -1,4 +1,5 @@
 use super::calc::MatchItem;
+use std::cmp::Reverse;
 use std::collections::BTreeSet;
 
 /// 5段ソート（chunks と responseForAI で共通）。
@@ -6,15 +7,15 @@ use std::collections::BTreeSet;
 /// 適用順（最後が最優先）:
 ///   keyLen desc → valueLen asc → maxstar desc → minstar desc → containsPickup desc
 fn sort_items(items: &mut [MatchItem]) {
-    items.sort_by(|a, b| b.combo.len().cmp(&a.combo.len())); // keyLen desc
-    items.sort_by(|a, b| a.operators.len().cmp(&b.operators.len())); // valueLen asc
+    items.sort_by_key(|a| Reverse(a.combo.len())); // keyLen desc
+    items.sort_by_key(|a| a.operators.len()); // valueLen asc
     items.sort_by(|a, b| {
         let ma = a.star_set.iter().max().copied().unwrap_or(0);
         let mb = b.star_set.iter().max().copied().unwrap_or(0);
         mb.cmp(&ma) // maxstar desc
     });
-    items.sort_by(|a, b| b.min_star.cmp(&a.min_star)); // minstar desc
-    items.sort_by(|a, b| b.contains_pickup.cmp(&a.contains_pickup)); // containsPickup desc
+    items.sort_by_key(|a| Reverse(a.min_star)); // minstar desc
+    items.sort_by_key(|a| Reverse(a.contains_pickup)); // containsPickup desc
 }
 
 fn star_set_str(set: &BTreeSet<u8>) -> String {

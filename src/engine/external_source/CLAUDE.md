@@ -6,8 +6,7 @@ bot にも api にも依存しない。fetch 失敗の扱いと Seed の運用�
 
 ## 仕組み
 
-- `mod.rs`: `ExternalSourceRegistry`。`load` / `refresh_all`（日次の一括 fetch）/
-  `refresh_by_name`（機能側からの個別更新）。`SEED_JOBS`（regen_seeds が回す一覧）もここ。
+- `mod.rs`: `ExternalSourceRegistry`。`load` / `refresh_all`（日次の一括 fetch）。`SEED_JOBS`（regen_seeds が回す一覧）もここ。
   **情報源を増やす手順はこのファイルのコメント**。
 - `cache.rs`: `Source<T>`。Seed は読むだけ。`write_seed_file` は regen_seeds 専用。
 - `http.rs`: 全情報源共通の fetch（7s タイムアウト・最大3回リトライ）。巨大 JSON の一部だけ

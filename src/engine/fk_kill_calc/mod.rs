@@ -539,6 +539,7 @@ fn build_combined_entry(
 ///      `attack@s2.atk_scale`。後者は`attack@s2.magic_atk_scale`より
 ///      アルファベット順で先に来るため、物理側が選ばれる)
 ///   3. どちらも無ければ1.0
+///
 /// (1敗のBlaze/Hornで実データ調査済み。詳細は`overrides.yaml`のコメント参照)。
 ///
 /// 候補一覧はキーに"scale"を含む項目全部。**順序はSeed経由/実fetch経由で

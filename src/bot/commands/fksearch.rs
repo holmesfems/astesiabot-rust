@@ -119,9 +119,7 @@ async fn autocomplete_operator_name(
 /// （`bot/commands/operator_cost_calc/mod.rs`の同名関数を参照）。
 async fn send_reply(ctx: Context<'_>, reply: EmbedReply) -> Result<(), Error> {
     for batch in to_embed_batches(&reply) {
-        let mut created = poise::CreateReply::default();
-        created.embeds = batch;
-        ctx.send(created).await?;
+        ctx.send(poise::CreateReply { embeds: batch, ..Default::default() }).await?;
     }
     Ok(())
 }

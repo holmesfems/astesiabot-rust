@@ -10,12 +10,9 @@ use std::sync::OnceLock;
 const JP_RELEASE_YAML: &str = include_str!("../../../data/recruitment/jp_release.yaml");
 
 #[derive(Deserialize)]
+// YAML の `comment`（人が読む見出し）は読まずに捨てる（serde は知らないキーを無視する）。
 struct RawEntry {
     date: String,
-    // human-readable label; not used by code
-    #[serde(default)]
-    #[allow(dead_code)]
-    comment: Option<String>,
     operators: Vec<String>,
 }
 

@@ -27,7 +27,7 @@ const MAX_BASE_STAGE_UPDATE_ITERATIONS: usize = 1_000;
 
 /// 換算行列・基準マップ行列などの1行分（Python `Calculator.ConvertionItem`）。
 struct ConvertionItem {
-    #[allow(dead_code)]
+    #[allow(dead_code, reason = "行列の行のラベル。収束のデバッグでどの行かを見分けるために残している")]
     name: String,
     value_array: DVector<f64>,
 }
@@ -60,32 +60,32 @@ fn convertion_item_from_map(len: usize, value_target: &[&str], name: &str, dict:
 fn build_convertion_matrix(server: Server, item_names: &ItemNames, formulas: &[RawFormula]) -> Vec<ConvertionItem> {
     let value_target_list = value_target(server);
     let n = value_target_list.len();
-    let mut items = Vec::new();
-
-    items.push(convertion_item_from_map(
-        n,
-        &value_target_list,
-        "経験値換算1",
-        HashMap::from([("基础作战记录", -2.0), ("初级作战记录", 1.0)]),
-    ));
-    items.push(convertion_item_from_map(
-        n,
-        &value_target_list,
-        "経験値換算2",
-        HashMap::from([("初级作战记录", -2.5), ("中级作战记录", 1.0)]),
-    ));
-    items.push(convertion_item_from_map(
-        n,
-        &value_target_list,
-        "経験値換算3",
-        HashMap::from([("中级作战记录", -2.0), ("高级作战记录", 1.0)]),
-    ));
-    items.push(convertion_item_from_map(
-        n,
-        &value_target_list,
-        "純金換算",
-        HashMap::from([("赤金", -2.0), ("龙门币1000", 1.0)]),
-    ));
+    let mut items = vec![
+        convertion_item_from_map(
+            n,
+            &value_target_list,
+            "経験値換算1",
+            HashMap::from([("基础作战记录", -2.0), ("初级作战记录", 1.0)]),
+        ),
+        convertion_item_from_map(
+            n,
+            &value_target_list,
+            "経験値換算2",
+            HashMap::from([("初级作战记录", -2.5), ("中级作战记录", 1.0)]),
+        ),
+        convertion_item_from_map(
+            n,
+            &value_target_list,
+            "経験値換算3",
+            HashMap::from([("中级作战记录", -2.0), ("高级作战记录", 1.0)]),
+        ),
+        convertion_item_from_map(
+            n,
+            &value_target_list,
+            "純金換算",
+            HashMap::from([("赤金", -2.0), ("龙门币1000", 1.0)]),
+        ),
+    ];
 
     for raw in formulas {
         let zh = item_names.get_zh(&raw.item_id);
@@ -104,7 +104,7 @@ fn build_convertion_matrix(server: Server, item_names: &ItemNames, formulas: &[R
 
 /// 理性消費のみで換算される定番周回マップ（Python `Calculator.ConstStageMatrix`）。
 struct StageDropItem {
-    #[allow(dead_code)]
+    #[allow(dead_code, reason = "行列の行のラベル。収束のデバッグでどの行かを見分けるために残している")]
     name: String,
     value_array: DVector<f64>,
     ap_cost: f64,
@@ -280,10 +280,10 @@ fn build_dev_matrix(
     let n = value_target.len();
     let mut data = Vec::with_capacity(n * n);
     for _ in convertion_items {
-        data.extend(std::iter::repeat(0.0).take(n));
+        data.extend(std::iter::repeat_n(0.0, n));
     }
     for _ in const_stage_items {
-        data.extend(std::iter::repeat(0.0).take(n));
+        data.extend(std::iter::repeat_n(0.0, n));
     }
     for item in base_stage_matrix.items.values() {
         data.extend(item.stage.to_std_dev_array(value_target, item_names).iter());

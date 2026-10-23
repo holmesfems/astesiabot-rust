@@ -31,8 +31,7 @@ pub use cache::{BoxFuture, FetchError, Source};
 ///    （中身は `fetch()` を呼んで `cache::write_seed_file` に渡すだけ）を足し、
 ///    下の [`SEED_JOBS`] に1エントリ追加する（`regen_seeds` バイナリが使う）。
 /// 3. このstructにフィールドを足し、[`ExternalSourceRegistry::load`] /
-///    [`ExternalSourceRegistry::refresh_all`] / [`ExternalSourceRegistry::refresh_by_name`]
-///    に1行ずつ追加する。
+///    [`ExternalSourceRegistry::refresh_all`] に1行ずつ追加する。
 pub struct ExternalSourceRegistry {
     /// オペレーターの中国語→日本語名変換 + 昇進/スキル特化/モジュール消費素材データ
     /// （character_table.json / uniequip_table.json / char_patch_table.json を1回のfetchで
@@ -64,7 +63,7 @@ impl ExternalSourceRegistry {
     /// [`Source::load`] を参照（Seedがあればそれで代替、無ければpanic）。
     ///
     /// `debug`がtrueなら（`--debug`起動時）fetchを一切行わず、常にSeedを使う。
-    /// 以後の再fetch（[`refresh_all`](Self::refresh_all) / [`refresh_by_name`](Self::refresh_by_name)や
+    /// 以後の再fetch（[`refresh_all`](Self::refresh_all)や
     /// 各機能側のTTL駆動更新）も同様にno-opになる（[`Source::refresh`]参照）。
     pub async fn load(debug: bool) -> Self {
         Self {
@@ -97,27 +96,6 @@ impl ExternalSourceRegistry {
             self.recruit_pool.refresh(),
             self.operator_birthdays.refresh(),
         );
-    }
-
-    /// 名前を指定して1つだけ再fetchする（機能側からのオンデマンド更新用。
-    /// risei_calculator_engine は`RiseiCalculatorEngine::refresh`で ark_stages /
-    /// ark_matrix を直接再fetchしているため、現状これを使う箇所は無い）。
-    /// 該当する情報源が無ければ `None`。
-    #[allow(dead_code)]
-    pub async fn refresh_by_name(&self, name: &str) -> Option<bool> {
-        match name {
-            "operator_data" => Some(self.operator_data.refresh().await),
-            "operator_combat" => Some(self.operator_combat.refresh().await),
-            "skill_data" => Some(self.skill_data.refresh().await),
-            "item_names" => Some(self.item_names.refresh().await),
-            "zones" => Some(self.zones.refresh().await),
-            "ark_stages" => Some(self.ark_stages.refresh().await),
-            "ark_matrix" => Some(self.ark_matrix.refresh().await),
-            "formulas" => Some(self.formulas.refresh().await),
-            "recruit_pool" => Some(self.recruit_pool.refresh().await),
-            "operator_birthdays" => Some(self.operator_birthdays.refresh().await),
-            _ => None,
-        }
     }
 }
 

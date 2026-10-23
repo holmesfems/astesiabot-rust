@@ -505,7 +505,7 @@ async fn ban_and_report(
 ///   - SameChannel : メッセージが来たチャンネル1つ
 ///   - MultiChannel: multi_ch_history に記録された channel_id 群（撒かれた先のみ）
 ///     ※人間本人の MultiChannel はBAN（メッセージ削除込み）で処断するため、ここには来ない。
-///       来るのは、BANでは消えない bot の返信を消すコマンド経由の場合だけ
+///     来るのは、BANでは消えない bot の返信を消すコマンド経由の場合だけ
 ///
 /// 検知は Instant（単調クロック）だが、purge の範囲指定はDiscord APIの都合上
 /// 実時計でしか行えない。数秒の誤差はスパム判定が出ている以上割り切る。

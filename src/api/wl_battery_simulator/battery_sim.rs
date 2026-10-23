@@ -70,10 +70,10 @@ impl PowerControllerWuling {
     pub fn fit(&mut self, required_power: f64) {
         let mut result = [false; 11];
         let mut remain = required_power;
-        for i in 0..11 {
-            if remain >= self.switch_value[i] as f64 {
-                remain -= self.switch_value[i] as f64;
-                result[i] = true;
+        for (on, &value) in result.iter_mut().zip(&self.switch_value) {
+            if remain >= value as f64 {
+                remain -= value as f64;
+                *on = true;
             }
             if remain == 0.0 {
                 break;
@@ -86,11 +86,9 @@ impl PowerControllerWuling {
 
         let mut on_num = self.switch_on_off[6..11].iter().filter(|&&x| x).count();
         self.remain_loop.clear();
-        if on_num == 5 {
-            if self.can_increase2() {
-                self.increase2();
-                on_num = 0;
-            }
+        if on_num == 5 && self.can_increase2() {
+            self.increase2();
+            on_num = 0;
         }
         if on_num <= 2 {
             self.switch_on_off[6..11]

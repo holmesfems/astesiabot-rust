@@ -5,9 +5,6 @@ use super::battery_sim::{
 
 pub struct OptimizationResult {
     pub required_power: i64,
-    /// 図面の最大発電量に対する商（必要電力が最大発電量を超える場合の、常時フル稼働ブロック数）
-    #[allow(dead_code)]
-    pub quotient: i64,
     /// 最大発電量で割った余り。制御回路で精密に賄う必要がある分。0ならフル稼働のみで賄えるため計算不要。
     pub remainder: i64,
     /// 「[最大発電]×[商]+余り」形式の表示用文字列
@@ -85,7 +82,6 @@ pub fn optimize(
         // 最大発電量の整数倍で丁度賄えるため、常時フル稼働のみで済み制御回路の計算は不要。
         return Ok(OptimizationResult {
             required_power,
-            quotient,
             remainder,
             setting_display: format!("{}×{}", max_power, quotient),
             time_series: Vec::new(),
@@ -161,7 +157,6 @@ pub fn optimize(
 
     Ok(OptimizationResult {
         required_power,
-        quotient,
         remainder,
         setting_display,
         time_series,

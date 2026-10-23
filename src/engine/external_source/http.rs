@@ -50,7 +50,7 @@ async fn fetch_with_retry<T: DeserializeOwned>(
         let mut req = client.get(url);
         // ヘッダーは値にAPIキーを載せることがある（fk_dataの`X-goog-api-key`等）ため、名前だけ出す。
         let header_names: Vec<&str> = headers.iter().map(|(key, _)| *key).collect();
-        print!("[fetch_json] try {i} url={url} headers={header_names:?}\n");
+        println!("[fetch_json] try {i} url={url} headers={header_names:?}");
         for (key, value) in headers {
             req = req.header(*key, *value);
         }
