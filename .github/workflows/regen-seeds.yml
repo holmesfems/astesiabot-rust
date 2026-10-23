@@ -8,8 +8,6 @@ on:
   schedule:
     - cron: "0 18 * * 0" # 毎週月曜 03:00 JST
   workflow_dispatch:
-  push: # 【一時的】動作確認用。マージ前に消す
-    branches: [ci/regen-seeds-65]
 
 permissions:
   contents: write
@@ -60,7 +58,6 @@ jobs:
           cat "$RUNNER_TEMP/pr_body.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: PR を作る
-        if: github.event_name != 'push' # 【一時的】動作確認では PR を作らない。マージ前に消す
         uses: peter-evans/create-pull-request@v7
         with:
           branch: auto/regen-seeds
