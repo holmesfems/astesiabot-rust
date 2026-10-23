@@ -18,6 +18,9 @@
      href="/FrameKillCalculator"{% if active_tool == "fkc" %} aria-current="page"{% endif %}>{% if lang == "en" %}Frame Kill Calc{% else %}フレームキル計算機{% endif %}</a>
 </nav>
 <style>
+  /* 色はページ側で --toolnav-* を定義すると上書きできる(未定義なら下の既定値)。
+     今はトップページ(home_index.html)だけが紺と金に変えている。
+     選択中チップの枠は box-shadow で描く(border だと既定のページでもチップの大きさが変わるため)。 */
   /* 狭い画面でも折り返さず1行のまま横スクロールさせる(折り返すと sticky のバーが
      縦に膨らんで本文を覆うため)。スクロールバーは細くして目立たせない。 */
   .toolnav-bar {
@@ -28,12 +31,12 @@
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
-    scrollbar-color: #3a4258 transparent;
+    scrollbar-color: var(--toolnav-scrollbar, #3a4258) transparent;
     align-items: center;
     gap: 8px;
     padding: 8px 16px;
-    background: #1f2430;
-    border-bottom: 1px solid #333a4a;
+    background: var(--toolnav-bg, #1f2430);
+    border-bottom: 1px solid var(--toolnav-border, #333a4a);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 13px;
     line-height: 1.4;
@@ -47,7 +50,7 @@
   }
   .toolnav-label {
     white-space: nowrap;
-    color: #8891a5;
+    color: var(--toolnav-label, #8891a5);
     margin-right: 4px;
     letter-spacing: .02em;
   }
@@ -55,19 +58,20 @@
     display: inline-block;
     padding: 4px 12px;
     border-radius: 999px;
-    background: #2c3244;
-    color: #cfd4e2;
+    background: var(--toolnav-chip-bg, #2c3244);
+    color: var(--toolnav-chip-fg, #cfd4e2);
     text-decoration: none;
     white-space: nowrap;
     transition: background .15s ease, color .15s ease;
   }
   .toolnav-chip:hover {
-    background: #3a4258;
-    color: #fff;
+    background: var(--toolnav-chip-hover-bg, #3a4258);
+    color: var(--toolnav-chip-hover-fg, #fff);
   }
   .toolnav-chip-active {
-    background: #4f7cff;
-    color: #fff;
+    background: var(--toolnav-active-bg, #4f7cff);
+    color: var(--toolnav-active-fg, #fff);
+    box-shadow: inset 0 0 0 1px var(--toolnav-active-ring, transparent);
     cursor: default;
     pointer-events: none;
   }

@@ -62,6 +62,20 @@
     --ivory:#F1E9D2;     /* h1・ボタンの文字 */
     --text:#e4e7f0;
     --faint:#b0b7ca;     /* 補足の文字。薄くしたいときも opacity は使わずこの色にする */
+
+    /* 共通のツールナビ(toolnav.html)をこのページだけ紺と金にする。選択中のチップは
+       「Discordに参加する」ボタンと同じ、金の細枠＋アイボリーの文字 */
+    --toolnav-bg:rgba(9,12,32,.86);
+    --toolnav-border:rgba(227,198,123,.22);
+    --toolnav-scrollbar:rgba(227,198,123,.3);
+    --toolnav-label:#9aa2b8;
+    --toolnav-chip-bg:rgba(255,255,255,.04);
+    --toolnav-chip-fg:var(--text);
+    --toolnav-chip-hover-bg:rgba(227,198,123,.10);
+    --toolnav-chip-hover-fg:var(--ivory);
+    --toolnav-active-bg:rgba(227,198,123,.14);
+    --toolnav-active-fg:var(--ivory);
+    --toolnav-active-ring:var(--gold);
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
