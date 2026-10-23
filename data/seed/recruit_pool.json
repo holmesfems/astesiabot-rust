@@ -1,18 +1,6 @@
 {
   "cn_only": [
     {
-      "char_id": "char_4227_gallus",
-      "cn_name": "GALLUS²",
-      "job": "術師",
-      "name": "GALLUS²",
-      "stars": 1,
-      "tags": [
-        "遠距離",
-        "ロボット",
-        "弱化"
-      ]
-    },
-    {
       "char_id": "char_421_crow",
       "cn_name": "羽毛笔",
       "job": "前衛",
@@ -21,18 +9,6 @@
       "tags": [
         "近距離",
         "火力"
-      ]
-    },
-    {
-      "char_id": "char_485_pallas",
-      "cn_name": "帕拉斯",
-      "job": "前衛",
-      "name": "パラス",
-      "stars": 6,
-      "tags": [
-        "近距離",
-        "火力",
-        "支援"
       ]
     },
     {
@@ -131,6 +107,18 @@
         "近距離",
         "ロボット",
         "牽制"
+      ]
+    },
+    {
+      "char_id": "char_4227_gallus",
+      "cn_name": "GALLUS²",
+      "job": "術師",
+      "name": "GALLUS²",
+      "stars": 1,
+      "tags": [
+        "遠距離",
+        "ロボット",
+        "弱化"
       ]
     },
     {
@@ -1877,6 +1865,18 @@
         "遠距離",
         "範囲攻撃",
         "防御"
+      ]
+    },
+    {
+      "char_id": "char_485_pallas",
+      "cn_name": "帕拉斯",
+      "job": "前衛",
+      "name": "パラス",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "火力",
+        "支援"
       ]
     }
   ]

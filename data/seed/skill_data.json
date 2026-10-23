@@ -13055,7 +13055,7 @@
         "audio_trigger_cnt": 3.0,
         "ep_break_duration": 1.0,
         "ep_damage_scale": 2.5,
-        "projectile_life_time": 5.0,
+        "projectile_life_time": 3.5,
         "s3_atk_scale": 3.0,
         "trigger_time": 10.0
       },
@@ -13068,7 +13068,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 1.5,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.0,
           "trigger_time": 10.0
         },
@@ -13080,7 +13080,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 1.5,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.0,
           "trigger_time": 10.0
         },
@@ -13092,7 +13092,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 1.5,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.3,
           "trigger_time": 10.0
         },
@@ -13104,7 +13104,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 1.8,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.5,
           "trigger_time": 10.0
         },
@@ -13116,7 +13116,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 1.8,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.5,
           "trigger_time": 10.0
         },
@@ -13128,7 +13128,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 1.8,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.5,
           "trigger_time": 10.0
         },
@@ -13140,7 +13140,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 2.0,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.7,
           "trigger_time": 10.0
         },
@@ -13152,7 +13152,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 2.1,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.8,
           "trigger_time": 10.0
         },
@@ -13164,7 +13164,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 2.3,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 2.9,
           "trigger_time": 10.0
         },
@@ -13176,7 +13176,7 @@
           "audio_trigger_cnt": 3.0,
           "ep_break_duration": 1.0,
           "ep_damage_scale": 2.5,
-          "projectile_life_time": 5.0,
+          "projectile_life_time": 3.5,
           "s3_atk_scale": 3.0,
           "trigger_time": 10.0
         }
@@ -13254,9 +13254,9 @@
           "shield_cnt": 1.0
         }
       ],
-      "description": "自然回復/自動発動 ⌚8.0秒\n▶1 ⚡8\n立即使自身的援军获得1层护盾（不叠加），技能持续时间内逐渐获得3点部署费用；部署后每使用过一次技能，获得的部署费用+1（最多提升至7点）",
+      "description": "自然回復/自動発動 ⌚8.0秒\n▶1 ⚡8\n即座に自身の援軍にシールドを1枚付与し（重複不可）、スキル発動中所持コストが徐々に増加（合計3）。配置後スキルを使用するたびに、増加する所持コスト+1（最大7まで）",
       "is_ammo_skill": false,
-      "name": "递归策略"
+      "name": "再帰的アプローチ"
     },
     "skchr_closur_2": {
       "blackboard": {
@@ -13382,9 +13382,9 @@
           "def": 0.6
         }
       ],
-      "description": "自然回復/手動発動 ⌚30.0秒\n▶34 ⚡40\n立即获得10点部署费用，持续时间内逐渐获得15点部署费用，自身的援军防御力+60%，阻挡数+1，自身攻击力+80%，同时攻击2个目标且能攻击到自身援军阻挡的敌人；在战术点效果范围内部署干员时，立即返还部署费用的40%",
+      "description": "自然回復/手動発動 ⌚30.0秒\n▶34 ⚡40\n所持コスト+10、スキル発動中所持コストが徐々に増加（合計15）。自身の援軍の防御力+60%、ブロック数+1。自身の攻撃力+80%、2体を同時に攻撃し、自身の援軍がブロックしている敵を攻撃可能になる\n戦術召集点の効果範囲内にオペレーターを配置すると、配置コストの40%を即座に返還",
       "is_ammo_skill": false,
-      "name": "模型扩展"
+      "name": "モデル拡張"
     },
     "skchr_closur_3": {
       "blackboard": {
@@ -13554,7 +13554,7 @@
           "max_trigger_cnt": 6.0
         }
       ],
-      "description": "自然回復/手動発動 ⌚30.0秒\n▶23 ⚡30\n技能持续时间内逐渐获得18点部署费用，攻击间隔缩短，锁定自身和援军原本攻击范围内的敌人进行攻击，造成可露希尔250%攻击力的物理伤害并施加持续3秒的6%迟钝效果（可叠加，最高60%），每攻击9次后攻击目标数+1（最多触发6次）",
+      "description": "自然回復/手動発動 ⌚30.0秒\n▶23 ⚡30\nスキル発動中所持コストが徐々に増加（合計18）、攻撃間隔短縮。自身および援軍の初期攻撃範囲内の敵をロックオンして攻撃し、クロージャの攻撃力の250%の物理ダメージを与え、3秒間6%の鈍化状態を付与（最大60%まで重複可能）。9回攻撃するたびに攻撃対象数+1（最大6回まで発動）",
       "is_ammo_skill": false,
       "name": "Q.E.D."
     },
@@ -27721,9 +27721,9 @@
           "attack_speed": 50.0
         }
       ],
-      "description": "自然回復/手動発動 ⌚35.0秒\n▶28 ⚡35\n攻击力+90%，攻击速度+50，所有其他起飞的友方干员阻挡范围扩大",
+      "description": "自然回復/手動発動 ⌚35.0秒\n▶28 ⚡35\n攻撃力+90%、攻撃速度+50、自身以外の離陸中のオペレーター全員のブロック範囲が拡大",
       "is_ammo_skill": false,
-      "name": "应急肃正防线"
+      "name": "緊急粛清防衛ライン"
     },
     "skchr_kalts2_2": {
       "blackboard": {
@@ -27805,9 +27805,9 @@
           "attack@trigger_time": 10.0
         }
       ],
-      "description": "自然回復/手動発動\n▶28 ⚡35\n攻击范围扩大，攻击力+150%，攻击变为射出医疗单元（优先选择敌人），击中时对目标周围所有敌人造成相当于攻击力380%的真实伤害，使其停顿5秒并回复目标周围所有友方干员相当于攻击力200%的生命\n攻击装有10发弹药，可以随时停止技能",
+      "description": "自然回復/手動発動\n▶28 ⚡35\n攻撃範囲拡大、攻撃力+150%、通常攻撃が医療ユニット射撃（攻撃範囲内の敵を優先して攻撃）になり、命中時、対象の周囲一定範囲内の敵全員に攻撃力の380%の確定ダメージを与え、5秒間足止めし、同範囲内のオペレーター全員のHPを攻撃力の200%回復する\n合計10発の弾薬を撃ち切るとスキルが終了（手動でスキルを停止可能）",
       "is_ammo_skill": true,
-      "name": "保护性拒止"
+      "name": "保護的拒否"
     },
     "skchr_kalts2_3": {
       "blackboard": {
@@ -27856,9 +27856,9 @@
           "base_attack_time": -1.55
         }
       ],
-      "description": "自然回復/手動発動 ⌚35.0秒\n▶35 ⚡50\n立刻获得战术锚点，攻击力+150%，攻击间隔大幅缩小，额外治疗1个目标，部署战术锚点后，自身移动至该位置，并使攻击范围内最多2名友方干员可以部署至自身攻击范围的另一位置",
+      "description": "自然回復/手動発動 ⌚35.0秒\n▶35 ⚡50\n戦術アンカーを即座に1つ獲得、攻撃力+150%、攻撃間隔を大幅に短縮、治療対象数+1。戦術アンカーを配置すると、自身がその位置に移動し、攻撃範囲内に配置されていたオペレーター最大2名を、移動後の攻撃範囲内に再配置できる",
       "is_ammo_skill": false,
-      "name": "破梏重生"
+      "name": "枷なき新生"
     },
     "skchr_kalts_1": {
       "blackboard": {
@@ -50634,9 +50634,9 @@
           "max_hp": 1.0
         }
       ],
-      "description": "自然回復/手動発動 ⌚20.0秒\n▶15 ⚡30\n生命上限+100%，自身每秒回复120点元素损伤",
+      "description": "自然回復/手動発動 ⌚20.0秒\n▶15 ⚡30\n最大HP+100%、自身の元素損傷が1秒ごとに120回復",
       "is_ammo_skill": false,
-      "name": "涤净"
+      "name": "洗浄"
     },
     "skchr_tanya_2": {
       "blackboard": {
@@ -50707,9 +50707,9 @@
           "max_stack_cnt": 5.0
         }
       ],
-      "description": "自然回復/手動発動\n▶12 ⚡25\n获得5层可叠加的防御力+20%的增益，受到攻击后消耗1层，并对周围所有地面敌人造成相当于攻击力35%的侵蚀损伤\n增益最多叠加5层",
+      "description": "自然回復/手動発動\n▶12 ⚡25\n防御力+20%の効果を5回獲得。ダメージを受けるたびに回数を1回消費し、周囲8マス内の地上にいる敵全員に攻撃力の35%の侵蝕損傷を与える\n防御力上昇効果は最大5回まで重複可能",
       "is_ammo_skill": false,
-      "name": "溃决"
+      "name": "決壊"
     },
     "skchr_taraxa_1": {
       "blackboard": {
@@ -54718,9 +54718,9 @@
           "attack_speed": 100.0
         }
       ],
-      "description": "自然回復/自動発動 ⌚18.0秒\n▶12 ⚡25\n攻击速度+100",
+      "description": "自然回復/自動発動 ⌚18.0秒\n▶12 ⚡25\n攻撃速度+100",
       "is_ammo_skill": false,
-      "name": "“自呼号生发”"
+      "name": "「叫びより出でよ」"
     },
     "skchr_veen_2": {
       "blackboard": {
@@ -54791,9 +54791,9 @@
           "base_attack_time": -0.5
         }
       ],
-      "description": "自然回復/手動発動 ⌚28.0秒\n▶10 ⚡32\n攻击间隔小幅缩短，每次攻击或发射储存能量后，使自身后续攻击力+15%，攻击速度+8（至多叠加9层，发射转置能量可叠加3层），持续至技能结束",
+      "description": "自然回復/手動発動 ⌚28.0秒\n▶10 ⚡32\n攻撃間隔をわずかに短縮し、攻撃またはチャージしたエネルギーを発射するたび、自身の攻撃力+15%、攻撃速度+8（最大9回まで重複可能。転置エネルギー発射時は一度に効果が3回分重複する）。スキル終了まで効果継続",
       "is_ammo_skill": false,
-      "name": "“以鲜血洗去”"
+      "name": "「血で洗い流せ」"
     },
     "skchr_veen_3": {
       "blackboard": {
@@ -54886,9 +54886,9 @@
           "merge_hit_cnt": 3.0
         }
       ],
-      "description": "自然回復/手動発動\n▶28 ⚡45\n攻击速度+180，储存的能量发射后会在敌人间（优先不同目标）跳跃一次，并造成相当于165%攻击力的法术伤害，转置能量改为跳跃3次\n攻击装有27发弹药，仅在发射每个储存能量时消耗1发弹药，发射转置能量消耗3发弹药，弹药打完后结束（可随时停止技能）",
+      "description": "自然回復/手動発動\n▶28 ⚡45\n攻撃速度+180、チャージしたエネルギーを発射すると、敵の間で1回跳躍し（異なる対象を優先）、攻撃力の165%の術ダメージを与える。転置エネルギー発射時は跳躍回数が3回まで増加\n合計27発の弾薬を所持し、チャージしたエネルギーの発射時は1発、転置エネルギーの発射時は3発消費する。全ての弾薬を撃ち切るとスキルが終了（手動でスキルを停止可能）",
       "is_ammo_skill": true,
-      "name": "“用赤铁铭记”"
+      "name": "「赤鉄に刻もう」"
     },
     "skchr_vendla_2": {
       "blackboard": {
@@ -61923,33 +61923,6 @@
       "is_ammo_skill": false,
       "name": "火を入れる"
     },
-    "sktok_closur_ourbase1": {
-      "blackboard": {},
-      "blackboard_by_level": [
-        {}
-      ],
-      "description": "",
-      "is_ammo_skill": false,
-      "name": "支援范围"
-    },
-    "sktok_closur_ourbase2": {
-      "blackboard": {},
-      "blackboard_by_level": [
-        {}
-      ],
-      "description": "",
-      "is_ammo_skill": false,
-      "name": "支援范围"
-    },
-    "sktok_closur_ourbase3": {
-      "blackboard": {},
-      "blackboard_by_level": [
-        {}
-      ],
-      "description": "",
-      "is_ammo_skill": false,
-      "name": "支援范围"
-    },
     "sktok_condtr": {
       "blackboard": {
         "trap_condtr[buff_to_char][depressed].atk": 0.6,
@@ -65038,60 +65011,6 @@
       "is_ammo_skill": false,
       "name": "弱体化"
     },
-    "sktok_mtship_1": {
-      "blackboard": {},
-      "blackboard_by_level": [
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {}
-      ],
-      "description": "",
-      "is_ammo_skill": false,
-      "name": "应急肃正防线"
-    },
-    "sktok_mtship_2": {
-      "blackboard": {},
-      "blackboard_by_level": [
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {}
-      ],
-      "description": "",
-      "is_ammo_skill": false,
-      "name": "保护性拒止"
-    },
-    "sktok_mtship_3": {
-      "blackboard": {},
-      "blackboard_by_level": [
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {}
-      ],
-      "description": "",
-      "is_ammo_skill": false,
-      "name": "破梏重生"
-    },
     "sktok_mufrprn_1": {
       "blackboard": {
         "attack@cnt": 1.0,
@@ -66632,9 +66551,9 @@
           "talent@sp": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡55\n随机选取场上一个可部署的地面位置生成一个泄漏源",
+      "description": "自然回復/自動発動\n▶0 ⚡55\n配置可能な地面マスをランダムに1つ選び、漏洩源を1つ生成する",
       "is_ammo_skill": false,
-      "name": "泄漏"
+      "name": "漏洩"
     },
     "sktok_rnfcar": {
       "blackboard": {
@@ -66921,6 +66840,50 @@
       "is_ammo_skill": false,
       "name": "会話発生"
     },
+    "sktok_shadvr": {
+      "blackboard": {
+        "cost": 3.0
+      },
+      "blackboard_by_level": [
+        {
+          "cost": 3.0
+        }
+      ],
+      "description": "自然回復/自動発動\n▶0 ⚡20\n立即获得3点部署费用",
+      "is_ammo_skill": false,
+      "name": "布方"
+    },
+    "sktok_shadvr2": {
+      "blackboard": {
+        "cost": 3.0
+      },
+      "blackboard_by_level": [
+        {
+          "cost": 3.0
+        }
+      ],
+      "description": "自然回復/自動発動\n▶0 ⚡20\n立即获得3点部署费用",
+      "is_ammo_skill": false,
+      "name": "布方"
+    },
+    "sktok_shadvt": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "自然回復/自動発動\n▶0 ⚡240\n使关卡强制结束，让探索开启不同的方向",
+      "is_ammo_skill": false,
+      "name": "太阳渴望鲜血！"
+    },
+    "sktok_shadvt2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "自然回復/自動発動\n▶0 ⚡240\n使关卡强制结束，让探索开启不同的方向",
+      "is_ammo_skill": false,
+      "name": "太阳渴望鲜血！"
+    },
     "sktok_shchst": {
       "blackboard": {},
       "blackboard_by_level": [
@@ -66968,6 +66931,15 @@
       "description": "自然回復/自動発動\n▶0 ⚡25\n对全场我方单位造成少量法术伤害，并使源阶方损失8%生命",
       "is_ammo_skill": false,
       "name": "全域信息失真"
+    },
+    "sktok_shmetr": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n会被沉沦之人攻击",
+      "is_ammo_skill": false,
+      "name": "祭台"
     },
     "sktok_shnbox": {
       "blackboard": {},
@@ -67291,7 +67263,7 @@
           "duration_normal": 5.0
         }
       ],
-      "description": "パッシブ\n設置すると、周囲8マス内の敵全員を5秒間睡眠状態にさせる。動物に対しては効き目が少し上がる",
+      "description": "パッシブ\n設置すると、周囲8マス内の敵全員を5秒間睡眠状態にする。動物に対しては効き目が少し上がる",
       "is_ammo_skill": false,
       "name": "惑いの香"
     },
@@ -71139,7 +71111,7 @@
           "enemy_key": 0.0
         }
       ],
-      "description": "パッシブ\n配置後、レア香草翼獣を召喚する。レア香草翼獣はマスに種をまくことができ、影響を受けたマスにいる味方の攻撃速度+40、また<巨大な岩>、<レアな鉱脈>と敵【ロボット】に与えるダメージが40%上昇する。周期的に配置中の数名のオペレーターに「次の撤退時、再配置時間-30%」の効果を付与",
+      "description": "パッシブ\n配置後、レア香草翼獣を召喚する。レア香草翼獣はマスに種をまくことができ、影響を受けたマスにいる味方の攻撃速度+40、また<巨大な岩>、<稀少鉱脈>と敵【機械】に与えるダメージが40%上昇する。周期的に配置中の数名のオペレーターに「次の撤退時、再配置時間-30%」の効果を付与",
       "is_ammo_skill": false,
       "name": "点火"
     },
@@ -71206,7 +71178,7 @@
           "enemy_key": 0.0
         }
       ],
-      "description": "パッシブ\n配置後、香草翼獣を召喚する。香草翼獣はマスに種をまくことができ、影響を受けたマスにいる味方の攻撃速度+40、また<巨大な岩>、<レアな鉱脈>と敵【ロボット】に与えるダメージが40%上昇する。周期的に配置中の数名のオペレーターに「次の撤退時、再配置時間-25%」の効果を付与",
+      "description": "パッシブ\n配置後、香草翼獣を召喚する。香草翼獣はマスに種をまくことができ、影響を受けたマスにいる味方の攻撃速度+40、また<巨大な岩>、<稀少鉱脈>と敵【機械】に与えるダメージが40%上昇する。周期的に配置中の数名のオペレーターに「次の撤退時、再配置時間-25%」の効果を付与",
       "is_ammo_skill": false,
       "name": "点火"
     },
@@ -71285,9 +71257,156 @@
           "max_cnt": 1.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡1\n攻撃範囲内にいる通常の獲物を1匹捕獲する",
+      "description": "自然回復/自動発動\n▶0 ⚡1\n攻撃範囲内の任意の野生動物を1匹捕獲",
       "is_ammo_skill": false,
       "name": "捕獲"
+    },
+    "sktok_xbcbag": {
+      "blackboard": {
+        "item": 0.0,
+        "produce": 90.0
+      },
+      "blackboard_by_level": [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {
+          "item": 0.0,
+          "produce": 1.0
+        },
+        {
+          "item": 0.0,
+          "produce": 2.0
+        },
+        {
+          "item": 0.0,
+          "produce": 1.0
+        },
+        {
+          "item": 0.0,
+          "produce": 2.0
+        },
+        {
+          "item": 0.0,
+          "produce": 1.0
+        },
+        {
+          "item": 0.0,
+          "produce": 2.0
+        },
+        {
+          "item": 0.0,
+          "produce": 6.0
+        },
+        {
+          "item": 0.0,
+          "produce": 1.0
+        },
+        {
+          "item": 0.0,
+          "produce": 5.0
+        },
+        {
+          "item": 0.0,
+          "produce": 2.0
+        },
+        {
+          "item": 0.0,
+          "produce": 3.0
+        },
+        {
+          "item": 0.0,
+          "produce": 6.0
+        },
+        {
+          "item": 0.0,
+          "produce": 3.0
+        },
+        {
+          "item": 0.0,
+          "produce": 6.0
+        },
+        {
+          "item": 0.0,
+          "produce": 3.0
+        },
+        {
+          "item": 0.0,
+          "produce": 6.0
+        },
+        {
+          "item": 0.0,
+          "produce": 18.0
+        },
+        {
+          "item": 0.0,
+          "produce": 3.0
+        },
+        {
+          "item": 0.0,
+          "produce": 10.0
+        },
+        {
+          "item": 0.0,
+          "produce": 6.0
+        },
+        {
+          "item": 0.0,
+          "produce": 2.0
+        },
+        {
+          "item": 0.0,
+          "produce": 45.0
+        },
+        {
+          "item": 0.0,
+          "produce": 6.0
+        },
+        {
+          "item": 0.0,
+          "produce": 90.0
+        }
+      ],
+      "description": "自然回復/自動発動\n▶0 ⚡1\n大型畜舎で飼育可能。スキル発動時、<粗悪な地金>を90個産出",
+      "is_ammo_skill": false,
+      "name": "捕獲された霊絨獣"
     },
     "sktok_xbcbag2": {
       "blackboard": {
@@ -71453,7 +71572,7 @@
           "sandbox_res_collector.hp_ratio[wood]": 0.008
         }
       ],
-      "description": "自然回復/自動発動\n▶5 ⚡10\n<ハイパー採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<レアな鉱脈>、<透珀石鉱脈>から素材を採取できる。性能がさらに上がり、<透珀石鉱脈>からの採取効率も向上した",
+      "description": "自然回復/自動発動\n▶5 ⚡10\n<ハイパー採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<稀少鉱脈>、<透珀石鉱脈>から素材を採取できる。性能がさらに上がり、<透珀石鉱脈>からの採取効率も向上した",
       "is_ammo_skill": false,
       "name": "採取"
     },
@@ -71499,7 +71618,7 @@
           "sandbox_res_collector.hp_ratio[wood]": 0.06
         }
       ],
-      "description": "自然回復/自動発動\n▶15 ⚡20\n<採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<レアな鉱脈>から素材を採取できる。<雑木林>からの採取なら使い物になるが、ほかは今一つの性能",
+      "description": "自然回復/自動発動\n▶15 ⚡20\n<採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<稀少鉱脈>から素材を採取できる。<雑木林>からの採取なら使い物になるが、ほかは今一つの性能",
       "is_ammo_skill": false,
       "name": "採取"
     },
@@ -71526,7 +71645,7 @@
           "sandbox_res_collector.hp_ratio[wood]": 0.07
         }
       ],
-      "description": "自然回復/自動発動\n▶10 ⚡15\n<採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<レアな鉱脈>から素材を採取できる。性能が上がり、<巨大な岩>からの採取効率も向上した",
+      "description": "自然回復/自動発動\n▶10 ⚡15\n<採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<稀少鉱脈>から素材を採取できる。性能が上がり、<巨大な岩>からの採取効率も向上した",
       "is_ammo_skill": false,
       "name": "採取"
     },
@@ -71553,7 +71672,7 @@
           "sandbox_res_collector.hp_ratio[wood]": 0.08
         }
       ],
-      "description": "自然回復/自動発動\n▶5 ⚡10\n<採取ロボ>を最大4台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<レアな鉱脈>から素材を採取できる。性能がさらに上がり、<レアな鉱脈>からの採取効率も向上した",
+      "description": "自然回復/自動発動\n▶5 ⚡10\n<採取ロボ>を最大4台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<稀少鉱脈>から素材を採取できる。性能がさらに上がり、<稀少鉱脈>からの採取効率も向上した",
       "is_ammo_skill": false,
       "name": "採取"
     },
@@ -71580,7 +71699,7 @@
           "sandbox_res_collector.hp_ratio[wood]": 0.06
         }
       ],
-      "description": "自然回復/自動発動\n▶15 ⚡20\n<採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<レアな鉱脈>から素材を採取できる。<雑木林>からの採取なら使い物になるが、ほかは今一つの性能",
+      "description": "自然回復/自動発動\n▶15 ⚡20\n<採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<稀少鉱脈>から素材を採取できる。<雑木林>からの採取なら使い物になるが、ほかは今一つの性能",
       "is_ammo_skill": false,
       "name": "採取"
     },
@@ -71607,7 +71726,7 @@
           "sandbox_res_collector.hp_ratio[wood]": 0.07
         }
       ],
-      "description": "自然回復/自動発動\n▶10 ⚡15\n<採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<レアな鉱脈>から素材を採取できる。性能が上がり、<巨大な岩>からの採取効率も向上した",
+      "description": "自然回復/自動発動\n▶10 ⚡15\n<採取ロボ>を最大3台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<稀少鉱脈>から素材を採取できる。性能が上がり、<巨大な岩>からの採取効率も向上した",
       "is_ammo_skill": false,
       "name": "採取"
     },
@@ -71634,7 +71753,7 @@
           "sandbox_res_collector.hp_ratio[wood]": 0.08
         }
       ],
-      "description": "自然回復/自動発動\n▶5 ⚡10\n<採取ロボ>を最大4台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<レアな鉱脈>から素材を採取できる。性能がさらに上がり、<レアな鉱脈>からの採取効率も向上した",
+      "description": "自然回復/自動発動\n▶5 ⚡10\n<採取ロボ>を最大4台まで組み立てて発進させ、<雑木林>、<巨大な岩>、<稀少鉱脈>から素材を採取できる。性能がさらに上がり、<稀少鉱脈>からの採取効率も向上した",
       "is_ammo_skill": false,
       "name": "採取"
     },
