@@ -217,9 +217,160 @@ impl EngineSnapshot {
 mod tests {
     use super::*;
     use crate::engine::external_source::ExternalSourceRegistry;
+    use serde::{Deserialize, Serialize};
+    use tokio::sync::OnceCell;
+
+    const SERVERS: [Server; 2] = [Server::Global, Server::Mainland];
+
+    async fn seed_source() -> &'static ExternalSourceRegistry {
+        static SOURCE: OnceCell<ExternalSourceRegistry> = OnceCell::const_new();
+        SOURCE.get_or_init(|| ExternalSourceRegistry::load(true)).await
+    }
+
+    async fn seed_engine() -> &'static RiseiCalculatorEngine {
+        static ENGINE: OnceCell<RiseiCalculatorEngine> = OnceCell::const_new();
+        ENGINE
+            .get_or_init(|| async { RiseiCalculatorEngine::load(seed_source().await).await.expect("seedから理性価値表を計算できる") })
+            .await
+    }
+
+    /// 起動時に組み立てた計算結果が、Seedに依存しない性質（`calculator::check_invariants`）を満たすこと。
+    async fn assert_invariants(engine: &RiseiCalculatorEngine, source: &ExternalSourceRegistry) {
+        let item_names = source.item_names.get().await;
+        let formulas = source.formulas.get().await;
+        let mut bad = Vec::new();
+        for server in SERVERS {
+            let calc = engine.lock_for(server).read().await;
+            bad.extend(calculator::check_invariants(&calc, &item_names, &formulas.formulas));
+        }
+        assert!(bad.is_empty(), "理性価値表の不変条件が破れている:\n{}", bad.join("\n"));
+    }
+
+    #[tokio::test]
+    async fn seed_calculation_satisfies_invariants() {
+        assert_invariants(seed_engine().await, seed_source().await).await;
+    }
+
+    /// 理性価値表の計算結果の写し。`testdata/golden_<server>.json` に置き、コードの退行を見張る。
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Golden {
+        /// カテゴリ → 基準マップの作戦コード
+        base_stages: BTreeMap<String, String>,
+        /// 素材(中国語名) → 理性価値
+        values: BTreeMap<String, f64>,
+        /// 素材(中国語名) → 理性価値の誤差
+        std_devs: BTreeMap<String, f64>,
+        /// stage_id → 理性効率（試行数が基準マップの条件を満たす通常ステージだけ）
+        stage_efficiencies: BTreeMap<String, f64>,
+    }
+
+    impl Golden {
+        fn from_snapshot(snapshot: &EngineSnapshot) -> Self {
+            let values = &snapshot.values;
+            let target = || values.value_target.iter().enumerate();
+            Self {
+                base_stages: snapshot.base_stage_display.clone(),
+                values: target().map(|(i, zh)| (zh.to_string(), values.value_array[i])).collect(),
+                std_devs: target().map(|(i, zh)| (zh.to_string(), values.dev_array[i])).collect(),
+                stage_efficiencies: snapshot
+                    .stage_info
+                    .main_stage_dict
+                    .values()
+                    .filter(|s| s.ap_cost > 0.0 && s.max_times() >= DEFAULT_BASE_MIN_TIMES)
+                    .map(|s| (s.stage_id.clone(), s.get_efficiency(values)))
+                    .collect(),
+            }
+        }
+    }
+
+    fn golden_path(server: Server) -> std::path::PathBuf {
+        let name = match server {
+            Server::Global => "global",
+            Server::Mainland => "mainland",
+        };
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/engine/risei_calculator_engine/testdata")
+            .join(format!("golden_{name}.json"))
+    }
+
+    /// 2つの表のキーが同じで、値が相対誤差1e-9以内で一致すること。違いは`bad`に足す。
+    fn diff_numbers(label: &str, expected: &BTreeMap<String, f64>, actual: &BTreeMap<String, f64>, bad: &mut Vec<String>) {
+        for key in expected.keys().filter(|k| !actual.contains_key(*k)) {
+            bad.push(format!("{label}: {key} が無くなった"));
+        }
+        for (key, a) in actual {
+            match expected.get(key) {
+                None => bad.push(format!("{label}: {key} が増えた ({a})")),
+                Some(e) if (a - e).abs() > 1e-9 * e.abs().max(a.abs()) => {
+                    bad.push(format!("{label}: {key} {e} → {a} ({:+.4}%)", (a - e) / e * 100.0));
+                }
+                Some(_) => {}
+            }
+        }
+    }
+
+    /// `UPDATE_GOLDEN=1 cargo test risei_golden` で期待値を書き直す（Seedを作り直したとき）。
+    async fn check_golden(server: Server) {
+        let actual = Golden::from_snapshot(&seed_engine().await.snapshot(server).await);
+        let path = golden_path(server);
+        if std::env::var_os("UPDATE_GOLDEN").is_some() {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, serde_json::to_string_pretty(&actual).unwrap() + "\n").unwrap();
+            println!("{} を書き直しました", path.display());
+            return;
+        }
+        let text = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!("{} を読めない（初回は UPDATE_GOLDEN=1 cargo test risei_golden で作る）: {e}", path.display())
+        });
+        let expected: Golden = serde_json::from_str(&text).unwrap();
+
+        let mut bad = Vec::new();
+        if expected.base_stages != actual.base_stages {
+            bad.push(format!("基準マップ: {:?} → {:?}", expected.base_stages, actual.base_stages));
+        }
+        diff_numbers("理性価値", &expected.values, &actual.values, &mut bad);
+        diff_numbers("誤差", &expected.std_devs, &actual.std_devs, &mut bad);
+        diff_numbers("ステージ効率", &expected.stage_efficiencies, &actual.stage_efficiencies, &mut bad);
+        assert!(
+            bad.is_empty(),
+            "{server:?} の理性価値表が golden と違う（{}件。先頭20件）:\n{}\n\
+             Seedを作り直したのなら、差分を確かめてから UPDATE_GOLDEN=1 cargo test risei_golden で更新する",
+            bad.len(),
+            bad.iter().take(20).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+
+    #[tokio::test]
+    async fn risei_golden_global() {
+        check_golden(Server::Global).await;
+    }
+
+    #[tokio::test]
+    async fn risei_golden_mainland() {
+        check_golden(Server::Mainland).await;
+    }
+
+    /// 基準マップの初期値と差し替え先は乱数で選ぶが、収束先は1つに決まっていること。
+    /// 揺れると、2時間ごとの再計算のたびに理性価値が変わってしまう。
+    #[tokio::test]
+    async fn calculation_does_not_depend_on_random_choices() {
+        let source = seed_source().await;
+        let first = seed_engine().await;
+        for _ in 0..2 {
+            let other = RiseiCalculatorEngine::load(source).await.expect("seedから理性価値表を計算できる");
+            for server in SERVERS {
+                assert_eq!(
+                    Golden::from_snapshot(&first.snapshot(server).await),
+                    Golden::from_snapshot(&other.snapshot(server).await),
+                    "{server:?} の計算結果が実行ごとに変わる"
+                );
+            }
+        }
+    }
 
     /// 実ネットワークに対して起動時ロード〜線形連立方程式の解決〜基準マップ収束・
     /// ステージ検索まで一通り動くかの疎通確認。`cargo test -- --ignored` で明示実行する。
+    /// 今の penguin-stats のデータでも不変条件が成り立つかを見る（データ側の不整合の検知）。
     /// riseiXXX相当のDTO構築ロジックはbot層(`bot/commands/risei/*.rs`)に移ったため
     /// ここでは検証しない。
     #[tokio::test]
@@ -229,8 +380,9 @@ mod tests {
         let engine = RiseiCalculatorEngine::load(&outer_source)
             .await
             .expect("engine should build against real network data");
+        assert_invariants(&engine, &outer_source).await;
 
-        for server in [Server::Global, Server::Mainland] {
+        for server in SERVERS {
             let snapshot = engine.snapshot(server).await;
             assert!(
                 snapshot.values.get_value_from_zh("龙门币1000").is_finite(),
