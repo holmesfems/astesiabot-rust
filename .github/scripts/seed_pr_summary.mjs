@@ -115,5 +115,5 @@ for (const server of ["global", "mainland"]) {
 }
 
 lines.push("---");
-lines.push("このPRは `.github/workflows/regen-seeds.yml` が作りました。`GITHUB_TOKEN` で作ったPRでは CI が動かないので、テストはワークフローの中で回して上に載せています。");
+lines.push("このPRは `.github/workflows/regen-seeds.yml` が作りました。テストはワークフローの中で回して上に載せています。このPRの CI は自動では回らないので、マージする前に PR の画面で「Approve workflows」を押して回してください。直したいことがあれば、このブランチに push してください（開いたまま次の週の更新が来ると上書きされるので、直したら早めにマージする）。");
 console.log(lines.join("\n"));
