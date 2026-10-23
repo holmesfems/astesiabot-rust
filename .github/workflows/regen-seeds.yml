@@ -1,7 +1,8 @@
 # 毎週 Seed（data/seed/*.json）を作り直し、理性価値表の golden も出し直して PR を作る。
 # 差分が無ければ PR は作らない。開いたままの PR があれば、それを最新に更新する。
 # regen_seeds が失敗したら（外部の fetch 失敗など）ジョブを失敗させ、PR は作らない。
-# GITHUB_TOKEN で作った PR では CI が動かないので、テストはここで回して結果を PR の本文に載せる。
+# Actions が作った PR の CI は自動では回らず、PR の画面で「Approve workflows」を押すと回る。
+# なのでテストはここでも回して、結果を PR の本文に載せる。
 name: Seed の作り直し
 
 on:
