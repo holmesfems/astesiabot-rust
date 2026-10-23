@@ -5,7 +5,8 @@
 //! F鯖向けの案内が主目的で、汎用ツールのようにクローラへ多言語を見せる必要が薄いため。
 //! CSSは分量が小さいので `templates_shared/toolnav.html` と同様にページ内に直書きしている。
 //! `static/` は OGP画像(ogp.png)、星座早見盤の背景を描くスクリプト(planisphere.js)とその星データ
-//! (stars.json。`assets/stars/generate.mjs` の生成物)、オープニングのスクリプト(opening.js)の配信用。
+//! (stars.json)と黄道十二星座の線(zodiac_lines.json。どちらも `assets/stars/generate.mjs` の生成物)、
+//! オープニングのスクリプト(opening.js)の配信用。
 //! どちらのJSも分量が大きいのでテンプレートから切り出している。
 //! オープニング（星の細剣のエンブレム）のSVGは `templates/home_opening.html` を include して
 //! サーバー側で埋め込む（JS無効でも本文はそのまま見える。再生の要否は home_index.html の <head>）。
@@ -150,7 +151,7 @@ mod tests {
 
     #[tokio::test]
     async fn static_files_are_served() {
-        for uri in ["/static/planisphere.js", "/static/opening.js", "/static/stars.json"] {
+        for uri in ["/static/planisphere.js", "/static/opening.js", "/static/stars.json", "/static/zodiac_lines.json"] {
             let app = router::<()>();
             let response = app
                 .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())

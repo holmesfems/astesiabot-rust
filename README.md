@@ -105,7 +105,7 @@ cargo run --bin regen_seeds
 
 ## License
 
-ソースコードは [MIT License](LICENSE) です。`data/seed/` 配下（上記の外部データを取得・保存したもの）と `src/api/home/static/stars.json`（上記の星表から生成したもの）は MIT の対象外で、それぞれの出典の権利・ライセンスに従います。
+ソースコードは [MIT License](LICENSE) です。`data/seed/` 配下（上記の外部データを取得・保存したもの）と `src/api/home/static/stars.json`・`zodiac_lines.json`（上記の星表から生成したもの）は MIT の対象外で、それぞれの出典の権利・ライセンスに従います。
 
 ## Author
 

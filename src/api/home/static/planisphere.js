@@ -25,6 +25,8 @@
 // prefers-reduced-motion の人には rot を 0 に固定する(静止した星空は描く)。
 //
 // 天の川は描かない(ぼかした帯は安っぽく見えたため。星と目盛りだけで見せる)。
+// 星座の線は、ダイヤルの記号と対になる黄道十二星座だけを淡い金で結ぶ(static/zodiac_lines.json。
+// 結び方は generate.mjs に書き起こしたもの)。線分は短いので、両端を投影して直線で結ぶ。
 //
 // 描画先は #star-canvas。装飾専用なので、失敗しても本文には影響させない。
 (function(){
@@ -57,7 +59,9 @@
       ALPHA_PER_MAG: 0.18,
       FLARE_MAG: 1.6,            // これより明るい星に十字の光条を付ける
       FLARE_LEN: 5,              // 光条の長さ(星の半径の倍数)
-      FLARE_ALPHA: 0.35
+      FLARE_ALPHA: 0.35,
+      ZODIAC_COLOR: "rgba(227,198,123,.28)", // 黄道十二星座の線(目盛りより少しだけ濃く、星よりは控えめに)
+      ZODIAC_WIDTH: 0.8
     };
 
     // B-V から星の色(RGB)を選ぶ。
@@ -86,6 +90,8 @@
     var starRa = null, starDec = null, starR = null, starRad = null;
     var starFill = null, starFlare = null;
     var starsLoaded = false;
+    // 黄道十二星座の線分([赤経, 赤緯, 赤経, 赤緯] を並べたもの。読み込み後に埋める)
+    var zodiac = null;
 
     // ============ 星の読み込み ============
     function prepareStars(data){
@@ -205,6 +211,20 @@
       }
       ctx.stroke();
 
+      // 黄道十二星座の線(星より下に描き、星の点が線の上に乗るようにする)
+      if(zodiac){
+        ctx.strokeStyle = CFG.ZODIAC_COLOR;
+        ctx.lineWidth = CFG.ZODIAC_WIDTH;
+        ctx.beginPath();
+        for(i = 0; i < zodiac.length; i += 4){
+          var a1 = (zodiac[i] + rot) * DEG, r1 = (90 - zodiac[i + 1]) / SPAN * R;
+          var a2 = (zodiac[i + 2] + rot) * DEG, r2 = (90 - zodiac[i + 3]) / SPAN * R;
+          ctx.moveTo(poleX + r1 * Math.sin(a1), poleY - r1 * Math.cos(a1));
+          ctx.lineTo(poleX + r2 * Math.sin(a2), poleY - r2 * Math.cos(a2));
+        }
+        ctx.stroke();
+      }
+
       if(!starsLoaded){ return }
 
       // 星。x = px + r sinθ, y = py - r cosθ (θ = 赤経 + rot)
@@ -257,5 +277,15 @@
       .then(function(res){ return res.json() })
       .then(function(data){ prepareStars(data); draw() })
       .catch(function(){ /* 星が無くても本文はそのまま使える */ });
+    fetch("/static/zodiac_lines.json")
+      .then(function(res){ return res.json() })
+      .then(function(data){
+        zodiac = new Float32Array(data.length * 4);
+        for(var j = 0; j < data.length; j++){
+          for(var c = 0; c < 4; c++){ zodiac[j * 4 + c] = data[j][c] / 10 }
+        }
+        draw();
+      })
+      .catch(function(){ /* 線が無くても星空はそのまま */ });
   } catch(e) { /* 装飾専用。失敗しても本文には影響させない */ }
 })();
