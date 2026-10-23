@@ -3,10 +3,14 @@
 // 実在の星(Yale Bright Star Catalog。static/stars.json。assets/stars/generate.mjs が作る)を、
 // 天の北極を中心にした正距方位図法で描く。早見盤を地上から見上げる向き(天球を内側から見る)なので、
 // 赤経は画面上で時計回りに増える(オリオンを北極の下に置くと、肩のベテルギウスが足のリゲルより左)。
-// 北極の位置は右に固定したダイヤル(#dial。金の環 #dial-ring を描く)の中心に合わせ、
-// 本文カラム(早見盤のカバー)の後ろから星空が覗くように見せる。ダイヤルは position:fixed なので
-// スクロール量の補正は要らない。スクロール量に比例して空(と環)を北極まわりに回す。
-// 狭い画面ではダイヤルが右端から覗くつまみになり、北極は画面の右端に来る(空はつまみのまわりを回る)。
+// 北極の位置はダイヤル(#dial。金の環 #dial-ring を描く)の中心に合わせる。ダイヤルの中心は
+// 本文カラム(早見盤のカバー。main.plate)の右辺に固定する: 本物の早見盤のように、カバーが回る盤の
+// 半分を隠し、盤はカバーの縁を軸に回る。位置と大きさは layout() が JS で決めて #dial に入れる
+// (x = カバーの右辺、y = ツールナビの下の領域の縦の真ん中。幅が広い画面では盤をカバーの右の空きに
+// 収まる大きさにする)。その同じ値を北極にも使う(回転中の要素を測り直さない)。
+// 狭い画面は本文が全幅なのでカバーの右辺=画面の右端で、ダイヤルは右端から覗くつまみになる
+// (空はつまみのまわりを回る)。広い画面では金の目印 #dial-index をカバーの右辺の内側に立てる。
+// ダイヤルは position:fixed なのでスクロール量の補正は要らない。スクロール量に比例して空(と環)を回す。
 // 勝手には動かない: 再描画はスクロールとリサイズのときだけ。
 //
 // ダイヤルを掴んで回すとページがスクロールする(これもスクロールの別の入口で、ホイール・タッチ・
@@ -42,6 +46,12 @@
       DEC_MIN: -55,              // 盤の縁の赤緯(北緯35°の地平線。日本から見える範囲)
       EDGE_SCALE: 1.02,          // 盤の半径を「北極から画面の一番遠い角まで」より少し大きくする倍率
       FALLBACK_POLE: [0.75, 0.5],// ダイヤルが見つからないときの北極位置(画面比)
+      DIAL_MAX_VH: 0.7,          // 広い画面のダイヤルの直径の上限(画面の高さ比)
+      DIAL_MARGIN_VW: 0.03,      // ダイヤルの右端と画面の右端の間(画面の幅比)
+      DIAL_MIN: 96,              // 直径の下限(px。空きが無くてもつまみとして掴める大きさ)
+      NARROW_MAX_W: 899,         // これ以下は狭い画面(CSS の max-width と揃える。つまみは CSS の 96px)
+      NAV_FALLBACK_H: 36,        // ツールナビの高さが測れないときの値(px)
+      INDEX_W: 8,                // #dial-index の幅(px。CSS と揃える)
       GRID_DECS: [60, 30, 0, -30],// 赤緯の同心円
       GRID_RA_STEP_H: 2,         // 赤経線の間隔(時)
       GRID_COLOR: "rgba(227,198,123,.10)",
@@ -75,6 +85,8 @@
     // 下のドラッグ処理は読み込み時に dial へリスナーを付けるので、resize() を待たずにここで取る
     var ring = document.getElementById("dial-ring");  // 回す環
     var dial = document.getElementById("dial");       // 北極の位置を決め、掴んで回せるコンテナ
+    var dialIndex = document.getElementById("dial-index");  // カバーの右辺に立てる金の目印(広い画面だけ)
+    var laidOut = false;      // layout() が中心を決めたか(決めていなければ CSS の位置を測る)
 
     // 星(読み込み後に埋める。盤の外の星は読み込み時に捨てる)
     var count = 0;
@@ -114,11 +126,45 @@
     }
 
     // ============ 画面 ============
+    // ダイヤルの中心をカバーの右辺に置き、広い画面では大きさも決める(理由は冒頭のコメント)。
+    // カバーは横には動かない(縦スクロールだけ)ので、読み込み・リサイズ・フォント読み込み後に呼べばよい。
+    function layout(){
+      var plate = document.querySelector("main.plate");
+      if(!dial || !plate){ return }
+      var pr = plate.getBoundingClientRect();
+      if(pr.width <= 0){ return }
+      var bar = document.querySelector(".toolnav-bar");
+      var navBottom = bar ? bar.getBoundingClientRect().bottom : CFG.NAV_FALLBACK_H;
+      if(!(navBottom > 0)){ navBottom = CFG.NAV_FALLBACK_H }
+      var vw = window.innerWidth, vh = window.innerHeight;
+      var cx = pr.right, cy = (navBottom + vh) / 2;
+      var narrow = vw <= CFG.NARROW_MAX_W;
+      if(narrow){
+        dial.style.removeProperty("--dial-size");   // つまみの大きさは CSS の 96px
+      }else{
+        // 見える右半分(半径)が、カバーの右の空き(右の余白を除く)に収まる大きさ
+        var room = document.documentElement.clientWidth - cx - CFG.DIAL_MARGIN_VW * vw;
+        var size = Math.max(CFG.DIAL_MIN, Math.min(CFG.DIAL_MAX_VH * vh, 2 * room));
+        dial.style.setProperty("--dial-size", size + "px");
+      }
+      dial.style.right = "auto";
+      dial.style.left = cx + "px";
+      dial.style.top = cy + "px";
+      dial.style.transform = "translate(-50%,-50%)";
+      if(dialIndex){
+        // 三角の先端をカバーの右辺(右の罫線の内側)に付ける。狭い画面は CSS で非表示
+        dialIndex.style.left = (cx - 1 - CFG.INDEX_W) + "px";
+        dialIndex.style.top = cy + "px";
+      }
+      poleX = cx; poleY = cy;
+      laidOut = true;
+    }
     function measurePole(){
+      // layout() が決めた値(poleX/poleY)があればそれをそのまま使う(fixed なのでスクロールの補正は要らない。
+      // 環(svg)は中で回るが、コンテナは動かないので中心は変わらない)。無ければ CSS の位置を測る。
+      if(laidOut){ return }
       var rect = dial ? dial.getBoundingClientRect() : null;
       if(rect && rect.width > 0){
-        // ダイヤルは fixed なのでビューポート座標のまま使える(スクロールの補正は要らない)。
-        // 環(svg)は中で回るが、コンテナは動かないので中心は変わらない。
         poleX = rect.left + rect.width / 2;
         poleY = rect.top + rect.height / 2;
       }else{
@@ -134,8 +180,7 @@
       canvas.height = Math.round(height * dpr);
       canvas.style.width = width + "px";
       canvas.style.height = height + "px";
-      dial = document.getElementById("dial");
-      ring = document.getElementById("dial-ring");
+      layout();
       measurePole();
       var far = Math.max(
         Math.hypot(poleX, poleY), Math.hypot(width - poleX, poleY),
@@ -216,9 +261,13 @@
     // 指の角度は一手ごとに最短の差(-180〜180度)を足していく。180度をまたいでも飛ばないため。
     var dragId = null, lastAngle = 0, turned = 0, startScroll = 0;
     function pointerAngle(e){
-      var rect = dial.getBoundingClientRect();
-      return Math.atan2(e.clientY - (rect.top + rect.height / 2),
-                        e.clientX - (rect.left + rect.width / 2)) / DEG;
+      // 中心は layout() の値(北極と同じ)。レイアウト前なら CSS の位置を測る
+      var cx = poleX, cy = poleY;
+      if(!laidOut){
+        var rect = dial.getBoundingClientRect();
+        cx = rect.left + rect.width / 2; cy = rect.top + rect.height / 2;
+      }
+      return Math.atan2(e.clientY - cy, e.clientX - cx) / DEG;
     }
     function endDrag(e){
       if(dragId === null || e.pointerId !== dragId){ return }
@@ -256,6 +305,9 @@
       resizeTimer = setTimeout(resize, 150);
     }, {passive: true});
 
+    if(document.fonts && document.fonts.ready){
+      document.fonts.ready.then(resize);   // 見出しフォントの読み込みでカバーの位置がずれ得る
+    }
     resize();   // 背景とグリッドは星の読み込みを待たずに描く
     fetch("/static/stars.json")
       .then(function(res){ return res.json() })

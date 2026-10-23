@@ -56,4 +56,5 @@
 - **home の星データは生成物**: `home/static/stars.json` は `assets/stars/generate.mjs` で作る（手で編集しない）。
   `planisphere.js` は早見盤（天の北極中心の正距方位図法）で、スクロールに合わせて星空と右の fixed ダイヤル
   （`#dial`。北極＝その中心。狭い画面は右端から覗くつまみ）の環を回す。ダイヤルを掴んで回すとページがスクロールする。
+  ダイヤルの中心は本文カバー（`main.plate`）の右辺に固定（スマホは全幅なので画面の右端）で、位置と大きさは JS（`layout()`）が入れる。
 - ef_recipe_calculator のアルゴリズムは `EFRecipeCalculator.md` §4。

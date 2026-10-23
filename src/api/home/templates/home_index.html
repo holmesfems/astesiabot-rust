@@ -80,7 +80,7 @@
      position:fixed でビューポートに固定し、本文のスクロールから切り離す。
      stacking順(奥→手前): 星空の canvas(-1) → ダイヤル #dial(0) → 本文 .wrap(1) → ツールナビ(1000)。
      星空は /static/planisphere.js が描く(実在の星を天の北極中心に描き、スクロールに合わせて回す)。
-     北極は #dial の中心。ダイヤルは右に置いた金の環で、つまんで回すとページがスクロールする。
+     北極は #dial の中心。ダイヤルは本文カバーの右辺を軸にした金の環で、つまんで回すとページがスクロールする。
      本文の読みやすさは、本文カラム(.plate)を早見盤のカバーに見立てた不透明な面にして確保する
      (中くらいの幅ではカバーがダイヤルの左側に重なる。本物の早見盤のカバーが盤を隠すのと同じ)。
      canvas は aria-hidden かつ pointer-events:none で操作・読み上げに影響しない。 */
@@ -98,9 +98,20 @@
   #dial.dragging{cursor:grabbing}
   #dial-ring{display:block;width:100%;height:100%;transform-origin:50% 50%;pointer-events:none}
 
+  /* ダイヤルの中心(=回転軸=北極)は、常に本文カバー(.plate)の右辺に置く。位置と広い画面での大きさは
+     planisphere.js が決めて #dial に直接入れる(上の CSS は JS が動かないときの代わり)。
+     金の目印 #dial-index は本物の早見盤の「今」の三角で、カバーの右辺の内側、ダイヤルの中心と同じ高さに立てる。
+     ダイヤルはカバーの後ろに回るので、目印はカバーより手前(.wrap の z-index:1 より上)に出す。 */
+  #dial-index{
+    position:fixed;z-index:2;left:0;top:50%;width:8px;height:12px;
+    transform:translateY(-50%);pointer-events:none;
+    background:var(--gold);clip-path:polygon(0 0,100% 50%,0 100%);
+  }
+
   /* 狭い画面: 本文が全幅なので、ダイヤルは右端から半分だけ覗くつまみにする(中心がビューポートの右端)。
-     本文(.plate)より手前に出して掴めるようにし、読めるよう塗りつぶす。 */
+     本文(.plate)より手前に出して掴めるようにし、読めるよう塗りつぶす。目印はつまみ自体が代わりなので出さない。 */
   @media (max-width:899px){
+    #dial-index{display:none}
     #dial{
       --dial-size:96px;
       right:calc(var(--dial-size) / -2);top:62%;transform:translateY(-50%);
@@ -252,11 +263,11 @@
   /* 細剣は viewBox の上端より外から降りてくるので、枠で切らない(背景が無いので切れ目が見えてしまう) */
   #emblem{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 50%}
   html.opening body{overflow:hidden}
-  html.opening .toolnav-bar,html.opening .wrap,html.opening #dial{
+  html.opening .toolnav-bar,html.opening .wrap,html.opening #dial,html.opening #dial-index{
     opacity:0;pointer-events:none;transition:opacity .45s ease;
   }
   html.opening.opening-done #opening{opacity:0;transform:scale(1.06);pointer-events:none}
-  html.opening.opening-done .toolnav-bar,html.opening.opening-done .wrap,html.opening.opening-done #dial{opacity:1}
+  html.opening.opening-done .toolnav-bar,html.opening.opening-done .wrap,html.opening.opening-done #dial,html.opening.opening-done #dial-index{opacity:1}
 
   /* 狭い画面は右にダイヤルのつまみの見える半分(48px)が載るので、その分だけ右の余白を足す */
   @media (max-width:899px){
@@ -284,6 +295,7 @@
   <circle cx="256" cy="14" r="4" fill="#E3C67B" stroke="none" opacity=".8"/>
   </svg>
 </div>
+<div id="dial-index" aria-hidden="true"></div>
 {% include "home_opening.html" %}
 {% include "toolnav.html" %}
 <div class="wrap">

@@ -83,6 +83,7 @@ mod tests {
         assert!(html.contains(r#"<svg id="emblem""#));
         assert!(html.contains(r#"id="dial""#));
         assert!(html.contains(r#"id="dial-ring""#));
+        assert!(html.contains(r#"id="dial-index""#));
     }
 
     /// `%XX` を UTF-8 として戻すだけの小さなデコーダ（依存を増やさないためテスト内に置く）。
