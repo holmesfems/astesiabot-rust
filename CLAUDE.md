@@ -16,6 +16,7 @@ cargo test
 cargo run                        # bot + API（.env の環境変数が要る。下記）
 cargo run --bin serve_web        # Web UI だけ（bot・外部取得なし、.env 不要。WEB_UI_PORT 既定3001、127.0.0.1のみ）
 cargo run --bin regen_seeds      # data/seed/*.json を作り直す（push 前に思い出したら。差分を確認して commit）
+$env:UPDATE_GOLDEN=1; cargo test risei_golden; Remove-Item Env:UPDATE_GOLDEN  # Seed を作り直したら理性価値表の golden も出し直す
 cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を作り直す
 
 # フロントエンドの検証（node は PATH に無いので絶対パスで）
@@ -28,6 +29,9 @@ cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を
 
 - 変更したら `cargo test`・`verify.mjs`（計算層。DOM 非依存のモジュールを import）・`e2e.mjs`
   （表現層。Playwright で実ブラウザ）を通し、必要なら実際に画面や Discord で触って確かめる。
+- 理性価値表は `risei_calculator_engine/testdata/golden_*.json` と突き合わせる。Seed を作り直すと
+  golden のテストが落ちるので、diff で値の動きを確かめてから golden を出し直し、Seed と一緒に commit する。
+  Seed の更新とコードの変更は同じ commit に混ぜない（コードの退行が Seed の変化に紛れる）。
 - `e2e.mjs` は `serve_web` を自分で spawn して `/health` を待ち（初回ビルド込みで最大240秒）、
   最後に `taskkill /pid <pid> /T /F` で子プロセスごと落とす。Playwright はプロジェクト直下でなく
   `%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\playwright` にあり、e2e.mjs が自動で探す。

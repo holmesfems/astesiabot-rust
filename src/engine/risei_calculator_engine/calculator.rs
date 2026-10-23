@@ -416,3 +416,79 @@ impl Calculator {
         target_stage.get_std_dev(&self.values) / cost
     }
 }
+
+/// 計算結果が満たすはずの性質を検査し、破れていたものの一覧を返す（空ならOK）。
+/// Seedの中身に依存しない性質だけを見るので、Seedを作り直しても期待値の更新は要らない。
+/// `formulas`は`calc`を組み立てたときと同じもの（換算行列を組み直して連立方程式の残差を見る）。
+#[cfg(test)]
+pub(super) fn check_invariants(calc: &Calculator, item_names: &ItemNames, formulas: &[RawFormula]) -> Vec<String> {
+    let server = calc.values.server;
+    let values = &calc.values;
+    let stage_info = &calc.stage_info;
+    let base = &calc.base_stage_matrix;
+    let mut bad = Vec::new();
+
+    // 1. 連立方程式が解けている: 換算・定番周回・基準マップのすべての行で 確率行列×理性価値 = 理性消費
+    let convertion_items = build_convertion_matrix(server, item_names, formulas);
+    let const_stage_items = build_const_stage_matrix(server);
+    match build_prob_matrix(&values.value_target, item_names, &convertion_items, &const_stage_items, base) {
+        Ok(prob_matrix) => {
+            let cost_array = build_cost_array(&convertion_items, &const_stage_items, base);
+            let residual = &prob_matrix * &values.value_array - &cost_array;
+            let tolerance = 1e-9 * cost_array.amax().max(1.0);
+            if residual.amax() > tolerance {
+                bad.push(format!("{server:?}: 連立方程式の残差が大きい (max={:e})", residual.amax()));
+            }
+        }
+        Err(e) => bad.push(format!("{server:?}: 確率行列を組み立てられない: {e}")),
+    }
+
+    // 2. 基準マップの理性効率はちょうど1
+    for item in base.items.values() {
+        let eff = item.stage.get_efficiency(values);
+        if (eff - 1.0).abs() > 1e-9 {
+            bad.push(format!("{server:?}: 基準マップ{}({})の効率が1でない: {eff}", item.stage.name, item.category));
+        }
+    }
+
+    // 3. 最適になっている: 基準マップ候補のどれも効率が 1+EPSILON を超えない（収束の条件そのもの）
+    for stage in stage_info.valid_base_stages(base.valid_base_min_times) {
+        let eff = stage.get_efficiency(values);
+        if eff > 1.0 + EPSILON {
+            bad.push(format!("{server:?}: 基準マップより効率の良い候補{}がある: {eff}", stage.name));
+        }
+    }
+
+    // 4. 基準マップはカテゴリごとに1つずつ、そのカテゴリのステージで、重複しない
+    let categories: Vec<&String> = stage_info.category_instance_dict.keys().collect();
+    let base_categories: Vec<&String> = base.items.keys().collect();
+    if categories != base_categories {
+        bad.push(format!("{server:?}: 基準マップのカテゴリがカテゴリ定義と一致しない: {base_categories:?} != {categories:?}"));
+    }
+    let mut seen = std::collections::HashSet::new();
+    for item in base.items.values() {
+        if !seen.insert(&item.stage.stage_id) {
+            bad.push(format!("{server:?}: 基準マップ{}が複数のカテゴリで重複している", item.stage.name));
+        }
+        let in_category = stage_info
+            .category_instance_dict
+            .get(&item.category)
+            .is_some_and(|c| c.stage_ids.contains(&item.stage.stage_id));
+        if !in_category {
+            bad.push(format!("{server:?}: 基準マップ{}がカテゴリ{}に属していない", item.stage.name, item.category));
+        }
+    }
+
+    // 5. 理性価値は有限の正の値、誤差は有限の0以上
+    for (i, zh) in values.value_target.iter().enumerate() {
+        let (value, dev) = (values.value_array[i], values.dev_array[i]);
+        if !(value.is_finite() && value > 0.0) {
+            bad.push(format!("{server:?}: {zh}の理性価値が正の有限値でない: {value}"));
+        }
+        if !(dev.is_finite() && dev >= 0.0) {
+            bad.push(format!("{server:?}: {zh}の誤差が0以上の有限値でない: {dev}"));
+        }
+    }
+
+    bad
+}
