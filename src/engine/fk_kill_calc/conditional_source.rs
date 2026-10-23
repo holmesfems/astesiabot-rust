@@ -103,7 +103,7 @@ fn resolve_talent_base(talent: &RawTalent, key: &str, elite: u8, potential: u8) 
         .iter()
         .filter(|c| c.phase <= elite && c.potential_rank <= potential)
         .filter_map(|c| c.blackboard.get(key))
-        .last()
+        .next_back()
         .copied()
         .unwrap_or(0.0)
 }
@@ -118,7 +118,7 @@ fn resolve_module_override(module: &RawModuleCombat, talent_index: usize, key: &
         .iter()
         .filter(|c| c.talent_index == talent_index && c.potential_rank <= potential)
         .filter_map(|c| c.blackboard.get(key))
-        .last()
+        .next_back()
         .copied()
 }
 
@@ -149,11 +149,11 @@ pub(super) fn build_talent_source(op: &RawOperatorCombat, talent_index: usize, k
     for m in &op.modules {
         let mut mvalues = [[0.0_f64; NUM_POTENTIAL]; 3];
         let mut differs = false;
-        for level_idx in 0..3usize {
-            for potential in 0..NUM_POTENTIAL {
+        for (level_idx, row) in mvalues.iter_mut().enumerate() {
+            for (potential, slot) in row.iter_mut().enumerate() {
                 let base = values[NUM_ELITE - 1][potential]; // モジュールはE2前提なのでE2側にフォールバック
                 let value = resolve_module_override(m, talent_index, key, level_idx, potential as u8).unwrap_or(base);
-                mvalues[level_idx][potential] = value;
+                *slot = value;
                 if (value - base).abs() > 1e-9 {
                     differs = true;
                 }
@@ -405,6 +405,7 @@ pub fn build_individual_sourced_buffers(combat: &OperatorCombat, ops: &OperatorD
 
 /// 1件分のソース仕様が実データ(operator_combat/operator_data/skill_data)と整合しているかを
 /// 検証する。`scope_label`はエラーメッセージの接頭辞("conditional"/"individual")。
+#[cfg(test)]
 fn validate_one_source(
     scope_label: &str,
     id: &str,
@@ -496,7 +497,7 @@ fn validate_one_source(
 /// 整合しているかを検証する。不一致の一覧を返す(空ならOK)。ゲームデータ更新で
 /// オペレーターID・talentIndex・skill_num・キー名が変わった際のドリフト検知用
 /// (`cargo test`で実行する)。
-#[allow(dead_code)] // `mod.rs`の`#[cfg(test)]`からのみ呼ばれる(通常ビルドでは未使用)。
+#[cfg(test)] // `mod.rs`の`#[cfg(test)]`からのみ呼ばれる。
 pub fn validate_conditional_sources(combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData) -> Vec<String> {
     let mut bad = Vec::new();
     for cond in buffers::raw_conditional_sourced() {
@@ -508,7 +509,7 @@ pub fn validate_conditional_sources(combat: &OperatorCombat, ops: &OperatorData,
 
 /// `raw_individual_sourced()`が実データと整合しているかを検証する(P5。
 /// `validate_conditional_sources`の個別バフ版)。
-#[allow(dead_code)] // `mod.rs`の`#[cfg(test)]`からのみ呼ばれる(通常ビルドでは未使用)。
+#[cfg(test)] // `mod.rs`の`#[cfg(test)]`からのみ呼ばれる。
 pub fn validate_individual_sources(combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData) -> Vec<String> {
     let mut bad = Vec::new();
     for ind in buffers::raw_individual_sourced() {

@@ -33,9 +33,7 @@ pub fn elite_ranking_text(ranking: &RankingPosition) -> String {
 /// `send_reply`と同じ役割。feature間の結合を避けるためここに複製している）。
 pub async fn send_reply(ctx: Context<'_>, reply: EmbedReply) -> Result<(), Error> {
     for batch in to_embed_batches(&reply) {
-        let mut created = poise::CreateReply::default();
-        created.embeds = batch;
-        ctx.send(created).await?;
+        ctx.send(poise::CreateReply { embeds: batch, ..Default::default() }).await?;
     }
     Ok(())
 }

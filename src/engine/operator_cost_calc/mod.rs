@@ -103,8 +103,8 @@ pub struct AllOperatorsInfo {
 }
 
 impl AllOperatorsInfo {
-    /// bot/REST APIが共有する計算コンテキストの構築（Python版`OperatorCostsCalculator.operatorInfo`
-    /// + `CalculatorManager.getValues`相当）。外部ソースと理性価値表の現在のキャッシュを
+    /// bot/REST APIが共有する計算コンテキストの構築（Python版`OperatorCostsCalculator.operatorInfo`と
+    /// `CalculatorManager.getValues`相当）。外部ソースと理性価値表の現在のキャッシュを
     /// 読むだけでfetch・再計算はしない。`FormulaMap`は呼び出しごとに`formulas`から再構築する。
     pub async fn snapshot(
         external_source: &ExternalSourceRegistry,

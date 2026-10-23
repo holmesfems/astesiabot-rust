@@ -43,8 +43,7 @@ pub async fn send_reply_with_attachment(
     let last = batches.len().saturating_sub(1);
     let mut attachment = attachment;
     for (i, batch) in batches.into_iter().enumerate() {
-        let mut created = poise::CreateReply::default();
-        created.embeds = batch;
+        let mut created = poise::CreateReply { embeds: batch, ..Default::default() };
         if i == last {
             if let Some(a) = attachment.take() {
                 created = created.attachment(a);

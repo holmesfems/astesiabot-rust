@@ -240,7 +240,7 @@ impl StageInfo {
         let mut best: Option<(f64, Arc<StageItem>)> = None;
         for stage in self.valid_base_stages(valid_base_min_times) {
             let eff = stage.get_efficiency(values);
-            if best.as_ref().map_or(true, |(v, _)| eff > *v) {
+            if best.as_ref().is_none_or(|(v, _)| eff > *v) {
                 best = Some((eff, stage));
             }
         }

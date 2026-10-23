@@ -139,6 +139,7 @@ const MAX_TEXT_CHARS: usize = 2_000;
 /// `/recruitment/` のリクエスト本文の上限。text の上限＋pickupOperators 等に十分な大きさで、
 /// axum 既定の 2MB を丸ごと受け取ってから弾くのを避ける。超えると axum が 413 を返す。
 pub(super) const MAX_BODY_BYTES: usize = 64 * 1024;
+const _: () = assert!(MAX_BODY_BYTES > MAX_TEXT_CHARS * 4, "本文の上限はtextの上限(UTF-8最大4バイト/文字)より大きいこと");
 
 /// `text` が長すぎる場合のエラー応答（ショートカットがそのまま表示できる通常の形）。
 fn reject_too_long_text(text: &str) -> Option<TagReplyData> {
@@ -236,7 +237,6 @@ mod tests {
                       募集可能範囲\n★1 ★2 ★3\n★4\n募集条件\n(最大3個)\n狙撃タイプ\n重装タイプ\n補助タイプ\n\
                       術師タイプ\n遠距離\nHUMAN RESOURCES DEPARTMENT\nタグをリセット\n募集予算\n999+/1\nRHODES ISLAND";
         assert!(reject_too_long_text(screen).is_none());
-        assert!(MAX_BODY_BYTES > MAX_TEXT_CHARS * 4, "本文の上限はtextの上限(UTF-8最大4バイト/文字)より大きいこと");
     }
 
     #[tokio::test]

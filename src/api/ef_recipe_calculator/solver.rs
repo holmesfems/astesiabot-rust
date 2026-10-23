@@ -510,7 +510,7 @@ pub fn calculate(set: &RecipeSet, req: &CalcRequest) -> Result<CalcResult, Strin
 
     let mut bottleneck: Option<&CalcStep> = None;
     for step in &steps {
-        if bottleneck.map_or(true, |b| step.utilization > b.utilization) {
+        if bottleneck.is_none_or(|b| step.utilization > b.utilization) {
             bottleneck = Some(step);
         }
     }
@@ -995,7 +995,7 @@ mod tests {
         let second = recipe("b", 2.0, vec![output("製品", 1.0)], vec![]);
         let mut set = recipe_set(vec![first, second]);
         set.selected_recipe_ids = std::iter::once("a".to_string())
-            .chain(std::iter::repeat("b".to_string()).take(10_000))
+            .chain(std::iter::repeat_n("b".to_string(), 10_000))
             .collect();
         set.raw_items.push("製品".to_string());
 
