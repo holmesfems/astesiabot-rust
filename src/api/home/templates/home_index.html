@@ -81,8 +81,9 @@
      stacking順(奥→手前): 星空の canvas(-1) → ダイヤル #dial(0) → 本文 .wrap(1) → ツールナビ(1000)。
      星空は /static/planisphere.js が描く(実在の星を天の北極中心に描き、スクロールに合わせて回す)。
      北極は #dial の中心。ダイヤルは本文カバーの右辺を軸にした金の環で、つまんで回すとページがスクロールする。
-     本文の読みやすさは、本文カラム(.plate)を早見盤のカバーに見立てた不透明な面にして確保する
-     (中くらいの幅ではカバーがダイヤルの左側に重なる。本物の早見盤のカバーが盤を隠すのと同じ)。
+     本文の読みやすさは、本文カラム(.plate)を早見盤のカバーに見立てた濃紺の面にして確保する。
+     カバーは少し透かし(不透明度 .70)、下に隠れたダイヤルの左半分と目盛りがうっすら続いて見えるようにする
+     (透明なカバー越しに盤が回る早見盤と同じ見え方。空はスクロール中しか動かないので、この濃さなら文字は読める)。
      canvas は aria-hidden かつ pointer-events:none で操作・読み上げに影響しない。 */
   #star-canvas{position:fixed;inset:0;pointer-events:none;z-index:-1;width:100%;height:100%}
 
@@ -144,15 +145,20 @@
   /* 環の下側は文字が無く、そのまま 72px 空けると間延びするので最初のセクションだけ詰める
      (上の余白は .plate の padding-top が受け持つ) */
   .plate > .plate-arc + section{margin-top:24px}
-  /* 早見盤のカバー。本文はこの不透明な面の上に載せる。上辺は窓の縁のような弓なり(.plate-arc)、
+  /* 早見盤のカバー。本文はこの半透明の面の上に載せる。上辺は窓の縁のような弓なり(.plate-arc)、
      両脇には時刻目盛り(長い目盛り60px・短い目盛り12px)。.wrap のオープニング用 opacity と干渉しない。 */
   .plate{
     position:relative;margin:0;padding:72px 48px 56px;
-    background:#0d1233;
-    border-left:1px solid rgba(143,122,72,.53);border-right:1px solid rgba(143,122,72,.53);
+    /* 半透明なので、上端の 70px(弓 .plate-arc の下半分と重なる帯)は塗らずに弓に任せる。
+       両脇の線も同じ理由で 70px から下だけ背景として引く(弓の側の線へそのままつながる) */
+    --plate-bg:rgba(13,18,51,.70);--plate-edge:rgba(143,122,72,.53);
+    background:
+      linear-gradient(var(--plate-edge),var(--plate-edge)) left 70px / 1px calc(100% - 70px) no-repeat,
+      linear-gradient(var(--plate-edge),var(--plate-edge)) right 70px / 1px calc(100% - 70px) no-repeat,
+      linear-gradient(var(--plate-bg),var(--plate-bg)) 0 70px / 100% calc(100% - 70px) no-repeat;
   }
   .plate::before,.plate::after{
-    content:'';position:absolute;top:24px;bottom:0;width:14px;pointer-events:none;
+    content:'';position:absolute;top:56px;bottom:0;width:14px;pointer-events:none; /* 弓の外にはみ出さない高さから */
     background:
       repeating-linear-gradient(to bottom,var(--gold) 0 1px,transparent 1px 60px),
       repeating-linear-gradient(to bottom,rgba(143,122,72,.67) 0 1px,transparent 1px 12px);
@@ -163,7 +169,8 @@
   .plate::after{right:10px;background-position:right top,right top}
   .plate-arc{
     position:absolute;left:0;right:0;top:-70px;height:140px;pointer-events:none;
-    background:#0d1233;border-top:1px solid rgba(227,198,123,.47);
+    background:var(--plate-bg);
+    border:1px solid var(--plate-edge);border-top-color:rgba(227,198,123,.47);border-bottom:none;
     border-radius:50% 50% 0 0 / 100% 100% 0 0;
   }
   .plate > section:first-of-type h2{position:relative}
