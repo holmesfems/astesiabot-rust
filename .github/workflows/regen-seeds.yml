@@ -1,0 +1,70 @@
+# 毎週 Seed（data/seed/*.json）を作り直し、理性価値表の golden も出し直して PR を作る。
+# 差分が無ければ PR は作らない。開いたままの PR があれば、それを最新に更新する。
+# regen_seeds が失敗したら（外部の fetch 失敗など）ジョブを失敗させ、PR は作らない。
+# GITHUB_TOKEN で作った PR では CI が動かないので、テストはここで回して結果を PR の本文に載せる。
+name: Seed の作り直し
+
+on:
+  schedule:
+    - cron: "0 18 * * 0" # 毎週月曜 03:00 JST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: regen-seeds
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Seed を作り直す
+        run: cargo run --locked --bin regen_seeds
+        env:
+          FK_SHEETS_API_KEY: ${{ secrets.FK_SHEETS_API_KEY }}
+          FK_SHEETS_SPREADSHEET_ID: ${{ secrets.FK_SHEETS_SPREADSHEET_ID }}
+          # jp_first_seen が GitHub API を叩くときのレート制限対策
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: 理性価値表の golden を出し直す
+        run: cargo test --locked risei_golden
+        env:
+          UPDATE_GOLDEN: "1"
+
+      # ゲームデータの変化をドリフト検知のテストが拾うことがあるので、落ちても止めずに PR へ載せる
+      - name: テスト
+        id: test
+        run: |
+          set +e
+          cargo test --locked 2>&1 | tee "$RUNNER_TEMP/test.log"
+          status=${PIPESTATUS[0]}
+          sed -n -E 's/^test (.*) \.\.\. FAILED$/\1/p' "$RUNNER_TEMP/test.log" > "$RUNNER_TEMP/failed_tests.txt"
+          if [ "$status" -eq 0 ]; then echo "result=ok" >> "$GITHUB_OUTPUT"; else echo "result=failed" >> "$GITHUB_OUTPUT"; fi
+
+      - name: PR の本文を作る
+        run: |
+          node .github/scripts/seed_pr_summary.mjs "${{ steps.test.outputs.result }}" "$RUNNER_TEMP/failed_tests.txt" > "$RUNNER_TEMP/pr_body.md"
+          cat "$RUNNER_TEMP/pr_body.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: PR を作る
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: auto/regen-seeds
+          delete-branch: true
+          add-paths: |
+            data/seed/*.json
+            src/engine/risei_calculator_engine/testdata/*.json
+          commit-message: Seed を作り直す（週1の自動更新）
+          title: ${{ steps.test.outputs.result == 'ok' && 'Seed を作り直す（週1の自動更新）' || '⚠ Seed を作り直す（週1の自動更新・テスト失敗あり）' }}
+          body-path: ${{ runner.temp }}/pr_body.md

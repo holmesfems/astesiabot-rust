@@ -15,7 +15,7 @@ cargo build
 cargo test
 cargo run                        # bot + API（.env の環境変数が要る。下記）
 cargo run --bin serve_web        # Web UI だけ（bot・外部取得なし、.env 不要。WEB_UI_PORT 既定3001、127.0.0.1のみ）
-cargo run --bin regen_seeds      # data/seed/*.json を作り直す（push 前に思い出したら。差分を確認して commit）
+cargo run --bin regen_seeds      # data/seed/*.json を作り直す（週1で自動 PR が来るので、手で回すのは急ぐときだけ）
 $env:UPDATE_GOLDEN=1; cargo test risei_golden; Remove-Item Env:UPDATE_GOLDEN  # Seed を作り直したら理性価値表の golden も出し直す
 cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を作り直す
 
