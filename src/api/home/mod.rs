@@ -82,6 +82,8 @@ mod tests {
         assert!(html.contains(r#"<script src="/static/opening.js" defer></script>"#));
         assert!(html.contains(r#"<div id="opening" aria-hidden="true">"#));
         assert!(html.contains(r#"<svg id="emblem""#));
+        assert!(html.contains(r#"<div id="sky" aria-hidden="true"><canvas id="star-canvas"></canvas></div>"#));
+        assert!(html.contains(r#"id="dial-glyphs""#));
         assert!(html.contains(r#"id="dial""#));
         assert!(html.contains(r#"id="dial-ring""#));
         assert!(html.contains(r#"id="dial-index""#));

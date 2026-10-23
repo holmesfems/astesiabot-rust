@@ -56,7 +56,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500&amp;display=swap&amp;text=%E3%82%A2%E3%82%B9%E3%83%86%E3%82%B7%E3%81%A1%E3%82%83%E3%82%93botF%E9%AF%96%28%E3%83%95%E3%83%AC%E3%83%BC%E3%83%A0%29%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%82%AF%E3%83%8A%E3%82%A4%E3%83%84%E3%82%A8%E3%83%B3%E3%83%89%E3%82%A3%E3%83%AB%E4%BB%96%E3%81%AE%E8%B6%A3%E5%91%B3" rel="stylesheet">
 <style>
   :root{
-    --bg:#161a24;
+    --bg:#070a1c;        /* 空の一番外側の色(SKY_STOPS の最後と同じ)。空の canvas の外・読み込み前に別の色が見えないように */
     --gold:#E3C67B;      /* h2・星の点・アストロラーベの環・ボタンの枠 */
     --gold-dim:#8F7A48;  /* 細い罫線・控えめな枠 */
     --ivory:#F1E9D2;     /* h1・ボタンの文字 */
@@ -92,33 +92,52 @@
 
   /* ============ 装飾レイヤー: 星空背景(星座早見盤) ============
      position:fixed でビューポートに固定し、本文のスクロールから切り離す。
-     星空は /static/planisphere.js が描く(実在の星を天の北極中心に描き、スクロールに合わせて回す)。
+     星空は /static/planisphere.js が描く: 実在の星を天の北極中心に、一辺 2R の正方形の canvas へ回転0で1回だけ描く。
+     canvas を包む #sky の中心(=回転軸)が北極で、スクロールに合わせて #sky と環 #dial-ring を CSS の rotate で回す
+     (再描画なし。スマホの慣性スクロールにメインスレッドが追いつかず空がガクガクしたため)。
      北極は #dial の中心。ダイヤルは本文カバーの右辺を軸にした大きな金の環で、カバーの背景の上・文字の下に敷く。
      本文の読みやすさは、本文カラム(.plate)を早見盤のカバーに見立てた濃紺の面(不透明度 .70)にして確保する。
      透かしたカバー越しに、ダイヤルの左半分と目盛り・星座記号がうっすら見える(空はスクロール中しか動かない)。
 
      重ね順(奥→手前)は、全幅で次の1通り。どこにも z-index つきの重ね合わせ文脈(stacking context)を作らず、
      ルート文脈の中で並べる(.wrap と .plate に z-index を付けない。付けるとダイヤルをその間に挟めなくなる):
-       星空の canvas(z -1) → .plate の背景と弓・目盛り(位置指定で z-index 無し=z 0 の段) → #dial(z 1)
+       星空 #sky(z -1) → .plate の背景と弓・目盛り(位置指定で z-index 無し=z 0 の段) → #dial(z 1)
        → 文字とリンク(ヒーロー・.plate > section・footer。position:relative; z-index:2) → #dial-index(3) → ツールナビ(1000)
      (z-index 無しの位置指定要素は z 0 の段で木の順に塗られ、その中身はまとめて #dial より下になる。
       文字側を z 2 で持ち上げるので、パネルの面ごとダイヤルの手前に出る。)
      #dial は pointer-events:none なので、下の文字やリンクはそのまま触れる。ダイヤルは掴めない(ページを普通にスクロールすると回る)。
-     canvas・ダイヤルとも aria-hidden で読み上げに影響しない。 */
-  #star-canvas{position:fixed;inset:0;pointer-events:none;z-index:-1;width:100%;height:100%}
+     #sky・ダイヤルとも aria-hidden で読み上げに影響しない。 */
+  /* 位置(北極)と大きさ(2R)は planisphere.js が入れる。回転は個別プロパティ rotate(translate はオープニングの
+     スライド用に別枠で持つ。transform にまとめると互いを打ち消す)。will-change でコンポジタの層に分けておく。 */
+  #sky{position:fixed;z-index:-1;left:0;top:0;pointer-events:none;will-change:rotate}
+  #star-canvas{display:block}
+
+  /* スクロール連動で回す。rotate を 0 → var(--rot-max) へ、ルートのスクロールに線形に結び付ける
+     (--rot-max = スクロールできる幅 × 0.06deg は planisphere.js が入れるので、角度は scrollY × 0.06deg と一致する)。
+     非対応のブラウザは planisphere.js が scroll で style.rotate を入れる。reduced-motion の人には回さない。 */
+  @media (prefers-reduced-motion: no-preference){
+    @supports (animation-timeline: scroll()){
+      @keyframes home-spin{from{rotate:0deg}to{rotate:var(--rot-max,0deg)}}
+      #sky,#dial-ring{animation:home-spin linear both;animation-timeline:scroll(root block)}
+    }
+  }
 
   /* ダイヤル。中は透明(星が透ける)で、縁の環と星座記号だけ描く。コンテナは動かさず、環(svg)だけが回る。
      中心(=回転軸=北極)は常に本文カバー(.plate)の右辺。位置と直径 min(78vh, カバーの幅×1.6) は
      planisphere.js(layout())が決めて #dial に直接入れる(下の値は JS が動かないときの代わり。
      狭い画面ではカバーが全幅なので、中心は画面の右端になり、環の右半分は画面の外にはみ出す)。
-     ツールナビは約36px あるので、中心は残りの高さの真ん中(18px 下げ)に置く。 */
+     ツールナビは約36px あるので、中心は残りの高さの真ん中(18px 下げ)に置く。
+     中心合わせは transform でなく margin(負の半径): オープニングの個別プロパティ translate / scale と
+     合成されるとき、transform の -50% まで scale で拡縮されて中心がずれてしまうため。 */
   #dial{
     --dial-size:min(78vh,160vw);
-    position:fixed;z-index:1;right:0;top:calc(50% + 18px);transform:translate(50%,-50%);
+    position:fixed;z-index:1;left:100%;top:calc(50% + 18px);
+    margin:calc(var(--dial-size) / -2) 0 0 calc(var(--dial-size) / -2);
     width:var(--dial-size);height:var(--dial-size);border-radius:50%;
     pointer-events:none;
   }
-  #dial-ring{display:block;width:100%;height:100%;transform-origin:50% 50%}
+  #dial-ring{display:block;width:100%;height:100%;transform-origin:50% 50%;will-change:rotate}
+  #dial-glyphs{opacity:.55}
 
   /* 金の目印 #dial-index は本物の早見盤の「今」の三角で、カバーの右辺の内側、ダイヤルの中心と同じ高さに立てる。
      広い画面だけ(狭い画面は右端がそのまま画面の端なので出さない)。 */
@@ -268,24 +287,48 @@
 
   /* ============ オープニング(星の細剣のエンブレム) ============
      html.opening の間だけ、背景なしのオーバーレイでエンブレムを星空の上に出し、本文は隠す。
-     終わると opening.js が html.opening-done を付けるので、エンブレムを消して本文をフェードインする
-     (0.45s。opening.js の T.FADE と揃える)。クラスが付かなければ(JS無効等)オーバーレイは出ない。 */
+     この間、ダイヤルと星空の北極はエンブレムの位置・大きさに置く: planisphere.js が本来の姿との差を
+     --open-tx / --open-ty / --open-s に入れ、下の規則が個別プロパティ translate / scale として当てる(FLIP)。
+     エンブレムの環とダイヤルの環は同じ幾何なので、ステージと同じ大きさのダイヤルがエンブレムの環にぴったり重なる。
+     再生の間は環を #opening 側が描くので、ダイヤルの環と星座記号は隠す。
+     自然に終わると opening.js が html.opening-done を付ける。すると
+       ・ダイヤルの環を出し(transition なし)、エンブレム側の環を隠す: 環が途切れずにつながる
+       ・エンブレムの残りを .35s でフェードアウト、星座記号を .45s(遅れ .15s)でフェードイン
+       ・姿の規則が外れるので、ダイヤルと空が transition(.7s)で本来の位置へ滑る
+       ・ツールナビ・本文・目印が .25s 遅れて .45s でフェードイン(スライドと同じ .7s で終わる)
+     この長さは opening.js の T.HANDOFF(750ms。.7s より少し長い余裕を取って、この後にオーバーレイとクラスを外す)と揃える。
+     スキップ(クリック・キー)や保険のタイマーは、クラスを外すだけでその場で本来の姿になる:
+     transition の規則は html.opening-done の下にしか無いので、クラスが外れた変化では何も動かない。
+     クラスが付かなければ(JS無効等)オーバーレイは出ない。 */
   #opening{display:none}
   html.opening #opening{
     display:flex;align-items:center;justify-content:center;
     position:fixed;inset:0;z-index:100;cursor:pointer;
-    transition:opacity .45s ease, transform .45s ease;
+    transition:opacity .35s ease;
   }
   html.opening #opening:not(.playing){visibility:hidden}
   .opening-stage{width:min(80vw,70vh,480px);aspect-ratio:1/1}
   /* 細剣は viewBox の上端より外から降りてくるので、枠で切らない(背景が無いので切れ目が見えてしまう) */
   #emblem{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 50%}
+  /* 再生中は body を固定する。スクロールバーの有無で幅が変わると、本文カバーの右辺(=ダイヤルの終点)が
+     オープニングの途中・終わりでずれるので、溝は確保したままにする */
+  html.opening{scrollbar-gutter:stable}
   html.opening body{overflow:hidden}
-  html.opening .toolnav-bar,html.opening .wrap,html.opening #dial,html.opening #dial-index{
-    opacity:0;pointer-events:none;transition:opacity .45s ease;
+  html.opening .toolnav-bar,html.opening .wrap,html.opening #dial-index{
+    opacity:0;pointer-events:none;transition:opacity .45s ease .25s;
   }
-  html.opening.opening-done #opening{opacity:0;transform:scale(1.06);pointer-events:none}
-  html.opening.opening-done .toolnav-bar,html.opening.opening-done .wrap,html.opening.opening-done #dial,html.opening.opening-done #dial-index{opacity:1}
+  html.opening #dial-ring,html.opening #dial-glyphs{opacity:0}
+  html.opening:not(.opening-done) #dial{
+    translate:var(--open-tx,0px) var(--open-ty,0px);scale:var(--open-s,1);
+  }
+  html.opening:not(.opening-done) #sky{translate:var(--open-tx,0px) var(--open-ty,0px)}
+  html.opening-done #dial{transition:translate .7s ease-in-out,scale .7s ease-in-out}
+  html.opening-done #sky{transition:translate .7s ease-in-out}
+  html.opening.opening-done #opening{opacity:0;pointer-events:none}
+  html.opening.opening-done #ring{visibility:hidden}
+  html.opening.opening-done #dial-ring{opacity:1}
+  html.opening.opening-done #dial-glyphs{opacity:.55;transition:opacity .45s ease .15s}
+  html.opening.opening-done .toolnav-bar,html.opening.opening-done .wrap,html.opening.opening-done #dial-index{opacity:1}
 
   @media (max-width:520px){
     .plate{padding:64px 26px 48px}
@@ -298,7 +341,7 @@
 </style>
 </head>
 <body>
-<canvas id="star-canvas" aria-hidden="true"></canvas>
+<div id="sky" aria-hidden="true"><canvas id="star-canvas"></canvas></div>
 <div id="dial" aria-hidden="true">
   <svg id="dial-ring" viewBox="0 0 512 512" aria-hidden="true" focusable="false" fill="none" stroke="#E3C67B">
   <circle cx="256" cy="256" r="242" stroke-width="1.5" opacity=".45"/>
@@ -310,7 +353,7 @@
   <!-- 黄道十二星座の記号(♈〜♓)を内側の環(r=190)に、目盛り(30°ごと)の間へ1つずつ。上に置いた字を中心まわりに回して外向きを上にし、環と一緒に回る。
        並びは ♈ を真上(赤経0h の向き)から時計回り。早見盤では赤経が時計回りに増えるので、空の黄道の星座とおおよそ同じ向きに並ぶ。
        字のあとの U+FE0E(異体字セレクタ15)は「絵文字でなく文字で描く」指定。無いとスマホで色つきの絵文字(紫の四角)になる。 -->
-  <g fill="#E3C67B" stroke="none" opacity=".55" font-size="22" text-anchor="middle" dominant-baseline="central" font-family="'Segoe UI Symbol','Noto Sans Symbols','Noto Sans Symbols 2','Apple Symbols','DejaVu Sans',serif">
+  <g id="dial-glyphs" fill="#E3C67B" stroke="none" font-size="22" text-anchor="middle" dominant-baseline="central" font-family="'Segoe UI Symbol','Noto Sans Symbols','Noto Sans Symbols 2','Apple Symbols','DejaVu Sans',serif">
   <text x="256" y="66" transform="rotate(15 256 256)">♈︎</text>
   <text x="256" y="66" transform="rotate(45 256 256)">♉︎</text>
   <text x="256" y="66" transform="rotate(75 256 256)">♊︎</text>

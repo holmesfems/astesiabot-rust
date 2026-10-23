@@ -5,9 +5,18 @@
 // 付いているときだけ動く。流れは
 //   星占盤の輪 → 天球儀 → 2本の軌道を星が一周 → 細剣が上から刺さる → 着地の閃光
 // で、元の単独版（約5.4秒）から各段の開始を前倒しして重ね、全体を約2秒にしている。
-// 再生が終わったら html.opening-done を付けてエンブレムを消し、本文をフェードインさせ、
-// 最後にオーバーレイを DOM から外して html.opening を外す（CSS側の遷移は home_index.html）。
-// オーバーレイのクリック/タップか任意のキーでスキップできる。
+// 再生中は、星空の北極とダイヤル(planisphere.js)もエンブレムの位置・大きさに置かれている
+// （エンブレムの環とダイヤルの環は同じ幾何なので重なる。環はエンブレム側が描き、ダイヤルの環は隠してある）。
+// 自然に再生が終わったら html.opening-done を付ける。すると CSS が一斉に
+//   ・ダイヤルの環を出し、エンブレム側の環を隠す（環が途切れずにつながって見える）
+//   ・エンブレムの残りをフェードアウト、星座記号をフェードイン
+//   ・ダイヤルと空を本来の位置（本文カバーの右辺）へ滑らせる（FLIP。planisphere.js が置いた
+//     --open-tx/ty/s の姿から transition で戻る）
+//   ・ツールナビ・本文・目印を遅れてフェードイン
+// する。スライドが終わったらオーバーレイを DOM から外して html.opening を外す。
+// オーバーレイのクリック/タップか任意のキーでスキップすると、これらをすべて飛ばして
+// その場で本来の姿にする（クラスを外すだけ。transition の規則は html.opening-done の下にしか無いので動かない）。
+// 終わりは window の CustomEvent "home-opening-end"（detail.skipped）で planisphere.js に知らせる。
 // 装飾専用なので、途中で例外が出ても本文を隠したままにしない（catch で即座に終わらせる）。
 (function(){
   "use strict";
@@ -26,21 +35,36 @@
     ORB: 350, ORB_DUR: 1000,                        // 軌道（星が一周する）
     SWORD: 1000, SWORD_DUR: 380,                    // 細剣の差し込み（軌道の終わりに重ねる）
     AFTER: 700,                                     // 着地から再生終了まで（閃光の余韻）
-    FADE: 450                                       // 本文への切り替え（CSSの transition と揃える）
+    // 本文への切り替え。html.opening-done が付いてからの長さで、home_index.html の CSS の transition と揃える:
+    //   スライド .7s / エンブレムのフェード .35s / 星座記号 .45s(遅れ .15s) / 本文 .45s(遅れ .25s)
+    HANDOFF: 750   // CSS の最長(.7s)より少し長くして、遷移の終わる前にクラスを外して姿が跳ぶことがないようにする
   };
   var IMPACT = T.SWORD + T.SWORD_DUR;
   var END = IMPACT + T.AFTER;
 
   var finished = false;
-  function finish(){
+  function notify(skipped){
+    try { window.dispatchEvent(new CustomEvent("home-opening-end", { detail: { skipped: skipped } })) } catch(e) {}
+  }
+  // skipped=true: 再生中の割り込み。スライドもフェードも無しで本来の姿にする。
+  // skipped=false: 自然終了。opening-done でハンドオフとスライドを始め、終わってから後片付けする。
+  function finish(skipped){
     if(finished) return;
     finished = true;
     cancelAnimationFrame(raf);
-    root.classList.add("opening-done");
+    if(skipped === true){
+      overlay.remove();
+      root.classList.remove("opening", "opening-done");
+      notify(true);
+      return;
+    }
+    // 保険のタイマーを先に仕掛けてから、失敗し得る処理を行う
     setTimeout(function(){
       overlay.remove();
       root.classList.remove("opening", "opening-done");
-    }, T.FADE);
+    }, T.HANDOFF);
+    root.classList.add("opening-done");
+    notify(false);
   }
 
   var raf = 0;
@@ -51,16 +75,16 @@
       if(!t0) t0 = now;
       var t = now - t0;
       render(Math.min(t, END));
-      if(t >= END){ finish(); return }
+      if(t >= END){ finish(false); return }
       raf = requestAnimationFrame(frame);
     };
     render(0);
     overlay.classList.add("playing"); // 初期姿を描くまでは CSS で隠している（完成形が一瞬見えないように）
     raf = requestAnimationFrame(frame);
-    overlay.addEventListener("click", finish);
-    window.addEventListener("keydown", finish, { once: true });
+    overlay.addEventListener("click", function(){ finish(true) });
+    window.addEventListener("keydown", function(){ finish(true) }, { once: true });
   } catch(e) {
-    finish();
+    finish(true);
   }
 
   // エンブレムの各パーツにトラックを登録し、時刻 t の姿を描く関数を返す。
