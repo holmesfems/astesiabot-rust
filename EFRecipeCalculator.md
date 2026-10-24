@@ -1,7 +1,8 @@
-# エンドフィールド レシピ計算機 — 設計仕様書 (Rust / v2)
+# エンドフィールド レシピ計算機 — 設計仕様書 (v3)
 
-> Claude Code への実装指示用ドキュメント。既存 Rust プロジェクトへの機能追加を前提とする。
-> この仕様は「何を作るか」と「計算の正しさ」を規定する。具体的な crate 選定・モジュール構成は既存プロジェクトの慣習に従う。
+> この仕様は「何を作るか」と「計算の正しさ」を規定する。
+> v2 までは Rust（axum + askama + htmx）でサーバー計算していたが、v3（issue #69）で計算をブラウザの JS に移した。
+> §3〜§4 の型・擬似コードは Rust 風に書いてあるが、実装は `static/solver.js`（フィールド名は同じ snake_case）。
 
 ---
 
@@ -37,22 +38,15 @@ UI 層  ──(RecipeSet, CalcRequest)──▶  計算エンジン(pure)  ─�
 データ層(プリセットJSON / 入力保持)  ◀────┘
 ```
 
-計算エンジンを独立モジュール（例: `mod solver`）にし、`serde` でシリアライズ可能な純データ型に対して動く関数群として実装する。
+計算エンジンは DOM 非依存の ES モジュール（`static/solver.js`）にする。JSON にそのまま書けるデータ型に対して動く関数群で、フィールド名は JSON エクスポート・プリセットと同じ snake_case。
 
-### 既存プロジェクト (astesiabot-rust) への準拠
+### 構成（astesiabot-rust 準拠）
 
-このツールは既存の `WLBatterySimulator`（武陵発電制御計算機）と同じ流儀で実装する。既存スタックとパターンに完全準拠すること:
-
-- **Webフレームワーク**: axum 0.7（`json`, `multipart` feature 済み）
-- **テンプレート**: askama（`#[derive(Template)]` + `templates/*.html`。`{{ x|safe }}` でフラグメント埋め込み）
-- **フロント**: htmx 2（CDN）+ **バニラJS**（フレームワークなし。Alpine等は導入しない）。チャートが要る場合のみ Chart.js 4（CDN）。
-- **状態**: サーバは**ステートレス**。編集中の RecipeSet はクライアント（バニラJSの配列）が真実の源。
-- **送信**: フォーム全体を `hx-post` + `hx-swap="none"` + `multipart/form-data` で送る。可変長ネストのため、RecipeSet を JS で `JSON.stringify` し、**単一 `payload` フィールド**に入れて POST。
-- **サーバ復元**: 既存の `while multipart.next_field()` ループで `payload` を拾い、`serde_json::from_str::<RecipeSet>()` で一発復元。serde_json は既存の `preserve_order` feature が効くのでレシピ順序が保たれる。
-- **画面更新**: 既存 `render_result_fragment` と同じく、1レスポンスに複数の `hx-swap-oob` 要素を詰めて、工程テーブル/原料/採掘使用/副産物余剰/律速/warning を一括更新。
-- **索引・需要マップ**: 標準 HashMap ではなく既存依存の `indexmap::IndexMap` を使い、出力順序を決定的にする（§4 の「決定的にする」要件をこれで満たす）。
+- **計算はブラウザだけで完結する**。サーバーはページ（askama の `ef_index.html`）と静的ファイルを返すだけで、計算用のエンドポイントは持たない（CPU を使う計算をサーバーでしない。issue #69）。
+- **フロント**: バニラJS の ES モジュール（フレームワークなし。htmx も使わない）。
+- **状態**: 編集中の RecipeSet はクライアント（JS のオブジェクト）が真実の源。
+- **順序**: 索引・需要マップは JS の `Map`（挿入順を保つ）で持ち、出力順序を決定的にする（§4 の「決定的にする」要件）。
 - **パス prefix**: `/EFRecipeCalculator`。静的ファイルは `nest_service` で `/EFRecipeCalculator/static`。
-- **エンジンとハンドラの関係**: ハンドラは薄いラッパー。既存 `optimizer::optimize(...) -> Result<OptimizationResult, String>` と同じく、`solver::calculate(&RecipeSet, &CalcRequest) -> Result<CalcResult, String>` を呼んで結果をテンプレートに流すだけ。
 - **ライセンス/公開**: MIT、GitHub 公開（既存フッターの作法に合わせる）。
 
 ---
@@ -137,7 +131,7 @@ struct CalcRequest {
 
 ## 4. 計算エンジン仕様
 
-`fn calculate(set: &RecipeSet, req: &CalcRequest) -> CalcResult`
+`calculate(recipeSet, request)` → `{ result: CalcResult }`、入力異常（目標レートが正の数でない）のときだけ `{ error: string }`
 
 ### 4.1 全体の流れ
 
@@ -235,7 +229,7 @@ struct MinedUsage { item: String, used_rate: f64, surplus_rate: f64, cap_rate: f
 
 ## 5. テスト（必須 / 計算エンジンは純粋関数なので厚く）
 
-最低限、以下を単体テストで固定する:
+`verify.mjs`（node で solver.js を import）で、最低限以下を固定する。表示は `e2e.mjs`（Playwright）で確かめる:
 
 1. **単段**: 原料→最終製品1段。台数・原料レートが正しい。
 2. **多段**: 3段以上。中間素材の需要伝播が正しい。
@@ -283,70 +277,21 @@ struct MinedUsage { item: String, used_rate: f64, surplus_rate: f64, cap_rate: f
 ### 6.4 配布・永続化
 - 既存プロジェクトの構成に従う。RecipeSet の serde によるエクスポート/インポート関数を用意（将来の保存/共有の土台）。ブラウザストレージ等の永続化は今回スコープ外。
 
-### 6.5 実装構成（astesiabot-rust 準拠 / 具体）
+### 6.5 実装構成
 
-#### ルーティング（axum 0.7、既存 `router()` パターン踏襲）
-```rust
-pub fn router<S>() -> Router<S>
-where S: Clone + Send + Sync + 'static {
-    Router::new()
-        .route("/", get(index))
-        .route("/calculate", get(calculate_redirect).post(calculate))
-        // 任意: プリセット取得を別エンドポイントにするなら
-        .route("/presets", get(presets))
-        .nest_service("/static", ServeDir::new(STATIC_DIR))
-}
-// 上位で `.nest("/EFRecipeCalculator", router())` する想定
+```
+src/api/ef_recipe_calculator/
+├── mod.rs              … GET / (ef_index.html) と /static だけ
+├── static/solver.js    … 計算エンジン（DOM 非依存。calculate を export）
+├── static/render.js    … CalcResult を結果カードに描く（数値の整形もここ。名前は textContent で入れる）
+├── static/app.js       … エディタ・プリセット・エクスポート/インポート。「計算する」で calculate → render
+├── static/presets.json … 同梱プリセット
+├── verify.mjs          … 計算層の検証（§5 ＋ プリセットが warning なしで計算できること）
+└── e2e.mjs             … 表示層の検証（serve_web を起動して Playwright）
 ```
 
-#### ハンドラ（既存 `calculate(Multipart)` パターン踏襲。payload を JSON で受ける）
-```rust
-async fn calculate(mut multipart: Multipart) -> Html<String> {
-    let mut payload: Option<String> = None;
-    while let Ok(Some(field)) = multipart.next_field().await {
-        let Some(name) = field.name().map(|s| s.to_string()) else { continue };
-        let Ok(text) = field.text().await else { continue };
-        if name == "payload" { payload = Some(text); }
-    }
-    let Some(payload) = payload else {
-        return render_error_fragment("入力がありません。".into());
-    };
-    // RecipeSet + CalcRequest をまとめた入力型を JSON で受ける
-    let input: CalcInput = match serde_json::from_str(&payload) {
-        Ok(v) => v,
-        Err(e) => return render_error_fragment(format!("JSON解析に失敗: {e}")),
-    };
-    match solver::calculate(&input.recipe_set, &input.request) {
-        Ok(result) => render_result_fragment(result),
-        Err(error) => render_error_fragment(error),
-    }
-}
-```
-`CalcInput { recipe_set: RecipeSet, request: CalcRequest }` はフォーム送信用のまとめ型。
-
-#### OOB フラグメント（既存 `render_result_fragment` 踏襲。複数領域を1レスポンスで）
-成功時レスポンスは以下の OOB 要素を連結して返す（`hx-swap-oob="outerHTML"`）:
-- `#error`（hidden にして消す）
-- `#steps`（工程テーブル）
-- `#raw-materials`（原料所要）
-- `#mined-usage`（採掘使用状況）
-- `#byproduct-surplus`（副産物余剰）
-- `#bottleneck`（律速）
-- `#warnings`（warning 一覧。空なら hidden）
-
-askama テンプレートは領域ごとに分割（`steps.html`, `raw_materials.html`, … / `error.html`）し、`#[derive(Template)]` 型を用意。既存の ErrorTemplate/ResultTemplate と同じ流儀。
-
-#### フロント（index.html、htmx 2 + バニラJS）
-- フォームは既存同様 `hx-post="/EFRecipeCalculator/calculate"` `hx-swap="none"` `hx-encoding="multipart/form-data"`。
-- **RecipeSet はバニラJSの配列で保持**（既存の blueprintMap をオブジェクトで持つのと同じ発想）。レシピ行・材料行・産出行・稼働コスト行・採掘供給の追加/削除/編集は JS が配列を更新して DOM を再描画。
-- 計算時、hidden input `name="payload"` に `JSON.stringify({recipe_set, request})` を書き込んでから `calcForm.requestSubmit()`（既存が図面切替時にやっているのと同じ手法）。
-- 結果は htmx が OOB で各領域に差し込む。チャート等を後で足す場合のみ、既存の `htmx:afterSettle` フックパターンを流用。
-
-#### 保存/読み込み（ステートレスの弱点を埋める）
-- 「エクスポート」: 現在の JS 配列（RecipeSet）を `JSON.stringify` して Blob 化しダウンロード。
-- 「インポート」: ファイル読み込み→`JSON.parse`→JS 配列に反映→DOM 再描画。
-- サーバの serde 経路（`serde_json`）と JSON スキーマが同一なので、POST 送信・保存・プリセット読込が全部同じ形。
-
+- 結果カード（工程 / 原料所要 / 採掘使用状況 / 副産物余剰 / 律速 / warning）の枠と見出しは `ef_index.html` に置き、中身（`.card-body`）を render.js が差し替える。計算前は全部 hidden、入力エラーのときは結果カードを隠してエラーだけ出す、warning が無ければ warning カードは隠す。
+- エクスポートは RecipeSet を `JSON.stringify` してダウンロード、インポートは `JSON.parse` してエディタに反映。プリセット・エクスポート・計算の入力が全部同じ形。
 
 ---
 
@@ -394,39 +339,6 @@ askama テンプレートは領域ごとに分割（`steps.html`, `raw_materials
 ```
 
 ---
-
-## 8. 実装チェックリスト（Claude Code 向け）
-
-### 計算エンジン（solver モジュール / 純粋関数）
-- [ ] 型定義（Output/Input/OperatingCost/Recipe/ExternalSupply/RecipeSet/CalcRequest/CalcResult/CalcStep/MaterialNeed/MinedUsage）に serde 付与
-- [ ] レート正規化（cycle_seconds+qty ⇔ per_min の相互変換ユーティリティ）
-- [ ] 索引構築は `indexmap::IndexMap`（選択レシピのみ / raw_items 停止 / 代替レシピ衝突 warning / 出力順序を決定的に）
-- [ ] 反復ソルバ（需要展開→台数 ceil・最小1→実効算出→需要再構築→収束判定, 上限N・ε）
-- [ ] 採掘控除（採掘優先・使い切り・充当/余剰記録）
-- [ ] 稼働コストの反復足し戻し（自己消費を循環扱いしない）
-- [ ] 副産物 max 合わせ台数決定＋余剰報告（レベルA）
-- [ ] 律速（稼働率最大）判定
-- [ ] 収束失敗時 warning（黙って誤答しない）
-- [ ] `solver::calculate(&RecipeSet, &CalcRequest) -> Result<CalcResult, String>` として公開
-- [ ] 単体テスト §5 の 1〜12 全件
-
-### Web層（axum + askama、既存 WLBatterySimulator 準拠）
-- [ ] `router()` に `/`(index) と `/calculate`(post) と `/static`(nest_service)。上位で `/EFRecipeCalculator` にネスト
-- [ ] `calculate` ハンドラ: multipart から `payload` を拾い `serde_json::from_str::<CalcInput>()` で復元 → solver 呼び出し
-- [ ] askama テンプレート: index.html + 領域別フラグメント（steps / raw_materials / mined_usage / byproduct_surplus / bottleneck / warnings）+ error.html、各々 `#[derive(Template)]`
-- [ ] 成功/エラーとも複数 `hx-swap-oob="outerHTML"` を連結して返す（既存 render_result_fragment 踏襲）
-
-### フロント（htmx 2 + バニラJS、CDN。新規ライブラリ追加なし）
-- [ ] フォーム: `hx-post=/EFRecipeCalculator/calculate` `hx-swap="none"` `hx-encoding="multipart/form-data"`
-- [ ] RecipeSet をバニラJS配列で保持。レシピ/材料/産出/稼働コスト/採掘の行を動的に追加・削除・編集し DOM 再描画
-- [ ] 使用レシピ選択（全選択ボタン）/ 原料の底指定 / 採掘供給テーブルの UI
-- [ ] 計算時: hidden `name="payload"` に `JSON.stringify({recipe_set, request})` を入れ `requestSubmit()`（既存の図面切替パターン流用）
-- [ ] JSON エクスポート（Blobダウンロード）/ インポート（ファイル→parse→配列反映→再描画）
-- [ ] プリセット読み込み UI（同梱JSON → 配列へ流し込み）
-
-### 仕上げ
-- [ ] プリセットのダミー数値を実データに差し替え（開発者作業）
-- [ ] MIT ライセンス表記・GitHub リンク（既存フッター流儀）
 
 ## 付録: 拡張ポイント（今回作らない）
 - レベルB（副産物余剰の自動充当）: §4.4 の順序2を有効化し、副産物余剰を demand から控除するだけ。データ構造は対応済み。

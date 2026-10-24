@@ -25,6 +25,8 @@ cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を
 & "C:\Program Files\nodejs\node.exe" src/api/test_runner/e2e.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/fk_kill_calculator/verify.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/fk_kill_calculator/e2e.mjs
+& "C:\Program Files\nodejs\node.exe" src/api/ef_recipe_calculator/verify.mjs
+& "C:\Program Files\nodejs\node.exe" src/api/ef_recipe_calculator/e2e.mjs
 ```
 
 - 変更したら `cargo test`・`verify.mjs`（計算層。DOM 非依存のモジュールを import）・`e2e.mjs`

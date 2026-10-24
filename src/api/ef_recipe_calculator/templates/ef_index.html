@@ -12,7 +12,6 @@
   <meta property="og:locale" content="ja_JP" />
   {% include "og_square_image.html" %}
   <link rel="stylesheet" href="/EFRecipeCalculator/static/style.css" />
-  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body>
   {% include "toolnav.html" %}
@@ -65,43 +64,43 @@
 
     <section class="card">
       <h2>目標と計算</h2>
-      <form id="calcForm" class="form"
-        hx-post="/EFRecipeCalculator/calculate"
-        hx-swap="none"
-        hx-encoding="multipart/form-data"
-      >
-        <label>目標製品(選択中レシピの産出から選ぶ)</label>
+      <div class="form">
+        <label for="targetItemSelect">目標製品(選択中レシピの産出から選ぶ)</label>
         <select id="targetItemSelect"></select>
 
-        <label>目標レート(個/min)</label>
+        <label for="targetRateInput">目標レート(個/min)</label>
         <input id="targetRateInput" type="number" min="0" step="0.01" placeholder="例: 30" required />
 
-        <input type="hidden" name="payload" id="payloadInput" />
         <button type="button" id="calcSubmitBtn">計算する</button>
-      </form>
-
-      <div id="error" class="error" hidden="true">
-        {{ error_html|safe }}
       </div>
+
+      <div id="error" class="error" hidden></div>
     </section>
 
-    <div id="steps" class="card full" hidden="true">
-      {{ steps_html|safe }}
+    <!-- 結果カード。見出しはここに置き、.card-body の中身を render.js が入れる -->
+    <div id="steps" class="card full" hidden>
+      <h3>工程</h3>
+      <div class="card-body"></div>
     </div>
-    <div id="raw-materials" class="card" hidden="true">
-      {{ raw_materials_html|safe }}
+    <div id="raw-materials" class="card" hidden>
+      <h3>原料の総所要レート</h3>
+      <div class="card-body"></div>
     </div>
-    <div id="mined-usage" class="card" hidden="true">
-      {{ mined_usage_html|safe }}
+    <div id="mined-usage" class="card" hidden>
+      <h3>採掘供給の使用状況</h3>
+      <div class="card-body"></div>
     </div>
-    <div id="byproduct-surplus" class="card" hidden="true">
-      {{ byproduct_surplus_html|safe }}
+    <div id="byproduct-surplus" class="card" hidden>
+      <h3>副産物の余剰</h3>
+      <div class="card-body"></div>
     </div>
-    <div id="bottleneck" class="card" hidden="true">
-      {{ bottleneck_html|safe }}
+    <div id="bottleneck" class="card" hidden>
+      <h3>律速工程</h3>
+      <div class="card-body"></div>
     </div>
-    <div id="warnings" class="card full" hidden="true">
-      {{ warnings_html|safe }}
+    <div id="warnings" class="card full" hidden>
+      <h3>Warning</h3>
+      <div class="card-body"></div>
     </div>
   </main>
 
@@ -128,6 +127,7 @@
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>
-  <script src="/EFRecipeCalculator/static/app.js"></script>
+  <!-- ?v= はブラウザに残った旧 app.js(サーバーで計算していた版)を読ませないため。app.js の作りを変えたら上げる -->
+  <script type="module" src="/EFRecipeCalculator/static/app.js?v=2"></script>
 </body>
 </html>
