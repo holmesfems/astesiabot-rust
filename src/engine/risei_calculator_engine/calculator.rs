@@ -10,7 +10,7 @@ use crate::engine::external_source::item_names::ItemNames;
 use crate::engine::external_source::zones::Zones;
 use chrono::{DateTime, Utc};
 use nalgebra::{DMatrix, DVector};
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
@@ -204,7 +204,7 @@ impl BaseStageMatrix {
         }
         let target_category = max_item
             .categories
-            .choose(&mut rand::thread_rng())
+            .choose(&mut rand::rng())
             .expect("categories is checked non-empty above")
             .clone();
         println!(
