@@ -498,6 +498,15 @@ mod guaranteed_star_tags_tests {
         let data = make_data();
         assert!(data.guaranteed_star_tags(6, true).is_empty());
     }
+
+    /// 反映時刻は JST（UTC+9）の hour:00。chrono-tz を上げたときにタイムゾーンの中身がずれていないこと。
+    #[test]
+    fn release_at_is_jst() {
+        let date = NaiveDate::from_ymd_opt(2026, 10, 24).unwrap();
+        let at = RecruitData::release_at(date, 16).unwrap();
+        assert_eq!(at.to_rfc3339(), "2026-10-24T16:00:00+09:00");
+        assert_eq!(at.with_timezone(&Utc).to_rfc3339(), "2026-10-24T07:00:00+00:00");
+    }
 }
 
 #[cfg(test)]
