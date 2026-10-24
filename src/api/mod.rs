@@ -37,6 +37,10 @@ use utoipa_swagger_ui::SwaggerUi;
 )]
 struct ApiDoc;
 
+fn swagger_ui() -> SwaggerUi {
+    SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi())
+}
+
 /// アプリ全体で共有する状態。今後 DB やキャッシュもここに載せられる。
 pub struct AppState {
     pub recruit: RecruitEngine,
@@ -238,7 +242,7 @@ pub async fn run_api(state: Arc<AppState>) {
             risei: state.risei_calculator.clone(),
             external_source: state.external_source.clone(),
         }))
-        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(swagger_ui())
         .fallback(not_found)
         .with_state(state);
     // 旧ホスト（*.herokuapp.com / www.）の GET を PUBLIC_BASE_URL へ 301。未設定なら何もしない。
@@ -318,6 +322,34 @@ mod tests {
             assert!(head.contains(r#"<link rel="icon" href="/favicon.svg""#), "{path}");
             assert!(head.contains(r#"<link rel="apple-touch-icon" href="/apple-touch-icon.png">"#), "{path}");
             assert!(head.contains(r#"<link rel="manifest" href="/site.webmanifest">"#), "{path}");
+        }
+    }
+
+    /// Swagger UI の画面と OpenAPI の JSON が出ること（utoipa を上げたときの確認用）。
+    #[tokio::test]
+    async fn swagger_ui_serves_openapi() {
+        let app = || Router::<()>::new().merge(swagger_ui());
+        let response = app()
+            .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert!(response.status().is_redirection(), "{}", response.status());
+        assert_eq!(response.headers()[header::LOCATION], "/docs/");
+        let response = app()
+            .oneshot(Request::builder().uri("/docs/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = app()
+            .oneshot(Request::builder().uri("/api-docs/openapi.json").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let doc: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert!(doc["paths"]["/recruitment/"]["post"].is_object(), "{doc}");
+        for schema in ["OcrRawData", "TagReplyData", "ShortcutUpdate"] {
+            assert!(doc["components"]["schemas"][schema].is_object(), "{schema}");
         }
     }
 
