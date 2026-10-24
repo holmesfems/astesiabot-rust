@@ -1,0 +1,32 @@
+# 依存 crate の既知の脆弱性（RustSec）を Cargo.lock と突き合わせる。
+# 新しい脆弱性はコードを変えなくても後から公開されるので、PR・master のほかに週1でも回す。
+# 無視するものは .cargo/audit.toml に理由つきで書く。
+# master の必須チェックには入れない（関係ない PR が、その日に出た脆弱性でマージできなくなるため）。
+name: Audit
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  schedule:
+    - cron: "0 19 * * 0" # 月曜 04:00 JST（Seed の自動 PR の1時間後）
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ビルド済みの cargo-audit を入れる（cargo install だと毎回数分かかる）
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: cargo audit
