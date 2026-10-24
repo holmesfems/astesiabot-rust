@@ -11,17 +11,17 @@ use poise::serenity_prelude as serenity;
 use std::collections::HashSet;
 
 const KAKIN_XLSX_FILENAME: &str = "kakinList.xlsx";
-/// [`value_block`]と同じ並び順(Python `KakinPack.targetValueList`)。
+/// [`value_block`]と同じ並び順。
 const KAKIN_TARGET_COLUMNS: [&str; 7] =
     ["総合効率", "ガチャ効率", "パック値段", "合計理性価値", "純正源石換算", "マネー換算", "ガチャ数"];
 
 // 計算(価格表の読み込み・パック効率)は`engine/risei_calculator_engine/kakin.rs`にある
 // （REST API `GET /api/risei/lists/kakin` と共有するため）。ここは embed / xlsx への整形だけを持つ。
 
-/// riseikakinのtarget="全体比較(グローバル)"相当（Python `totalJATuple`）。
+/// riseikakinのtarget="全体比較(グローバル)"相当。
 const TOTAL_TARGETS: [&str; 2] = ["全体比較(グローバル)", "Total_Global"];
 
-/// riseikakin の target 引数のオートコンプリート相当（Python `autoCompletion_riseikakin`）。
+/// riseikakin の target 引数のオートコンプリート相当。
 /// まず期間限定パック名(+全体比較)を部分一致で探し、何も無ければ恒常パック名にフォールバックする。
 async fn autocomplete_kakin_target(
     _ctx: Context<'_>,
@@ -56,7 +56,7 @@ async fn autocomplete_kakin_target(
         .collect()
 }
 
-/// YAMLの個数表示用。整数値なら小数点無しで表示する（Python `str(count)`相当の簡略版）。
+/// YAMLの個数表示用。整数値なら小数点無しで表示する。
 fn format_count(v: f64) -> String {
     if v.fract() == 0.0 {
         format!("{}", v as i64)
@@ -73,7 +73,7 @@ fn contents_block(contents: &[(String, f64)]) -> String {
     format!("```\n{}\n```\n", lines.join("\n"))
 }
 
-/// Python `KakinPack.strBlock`。
+/// パック1件分の効率表示ブロック。
 fn value_block(pack: &KakinPack) -> String {
     let lines = [
         format!("総合効率    : {:.2}%", pack.total_efficiency * 100.0),
@@ -87,7 +87,7 @@ fn value_block(pack: &KakinPack) -> String {
     format!("```\n{}\n```\n", lines.join("\n"))
 }
 
-/// Python `riseikakin`の`constantStrBlock`（参考用課金効率一覧）。
+/// 参考用の課金効率一覧ブロック。
 fn constant_block(constants: &[KakinPack]) -> String {
     let lines: Vec<String> = constants
         .iter()
@@ -106,7 +106,7 @@ fn total_comparison_chunks(limited: &[KakinPack], constants: &[KakinPack]) -> Ve
     chunks
 }
 
-/// xlsx出力(`csv_file`オプション)用にKakinPackを畳み込む（Python `KakinPack.targetValueList`相当）。
+/// xlsx出力(`csv_file`オプション)用にKakinPackを畳み込む。
 fn to_export_pack(pack: &KakinPack) -> KakinExportPack {
     KakinExportPack {
         name: pack.name.clone(),
@@ -123,8 +123,7 @@ fn to_export_pack(pack: &KakinPack) -> KakinExportPack {
     }
 }
 
-/// 列に出す素材名の集合（登場順で重複排除。Python `getMaterialSet`は`set`のため
-/// 順序不定だが、内容が合っていればよいのでここでは決定的な順序にしている）。
+/// 列に出す素材名の集合（登場順で重複排除するので、出力は決定的な順序になる）。
 fn material_columns(packs: &[KakinPack]) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut columns = Vec::new();
@@ -138,7 +137,7 @@ fn material_columns(packs: &[KakinPack]) -> Vec<String> {
     columns
 }
 
-/// riseikakinのxlsx添付を組み立てる（Python `listToCSV`相当）。
+/// riseikakinのxlsx添付を組み立てる。
 fn build_kakin_attachment(packs: &[KakinPack], values: &RiseiValues) -> Result<serenity::CreateAttachment, Error> {
     let columns = material_columns(packs);
     let value_row: Vec<f64> = columns.iter().map(|ja| values.get_value_from_ja(ja)).collect();

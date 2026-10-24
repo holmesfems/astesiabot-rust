@@ -22,7 +22,7 @@ pub struct EmbedReply {
 }
 
 impl EmbedReply {
-    /// エラー表示用のコンストラクタ（Python の actionToDiscord のエラー系に対応）。
+    /// エラー表示用のコンストラクタ。
     pub fn error(msg: &str) -> EmbedReply {
         EmbedReply {
             title: "エラー".to_string(),
@@ -33,7 +33,7 @@ impl EmbedReply {
     }
 }
 
-/// メッセージ種別（Python の RCMsgType）
+/// メッセージ種別
 #[derive(Clone, Copy)]
 pub enum MsgType {
     Ok,
@@ -43,7 +43,7 @@ pub enum MsgType {
     Rarity(u8),
 }
 
-/// Python の colour() に対応。0x8be02b(緑) / マゼンタ。
+/// embed の色。0x8be02b(緑) / マゼンタ。
 /// Rarity はアークナイツのレアリティ配色に合わせる
 /// （★6オレンジ/★5黄/★4薄紫/★1白、それ以外（★2,3・該当無し）は虚無っぽい薄い青）。
 fn colour_for(msg_type: MsgType) -> u32 {
@@ -58,7 +58,7 @@ fn colour_for(msg_type: MsgType) -> u32 {
     }
 }
 
-/// Python の getEmbbeds() 相当: EmbedReply を Discord の1メッセージ上限
+/// EmbedReply を Discord の1メッセージ上限
 /// （embed数10個・全embed合計6000字）を満たすバッチ列に変換する。
 /// チャンネル送信(`send_embed_reply`)・スラッシュコマンド応答の両方から使う。
 pub fn to_embed_batches(reply: &EmbedReply) -> Vec<Vec<serenity::CreateEmbed>> {
@@ -102,7 +102,7 @@ pub fn to_embed_batches(reply: &EmbedReply) -> Vec<Vec<serenity::CreateEmbed>> {
     batches
 }
 
-/// Python の actionToDiscord 相当。EmbedReply を受け取り、実際に Discord へ送信する。
+/// EmbedReply を受け取り、実際に Discord へ送信する。
 pub async fn send_embed_reply(
     cache_http: impl serenity::CacheHttp,
     channel_id: serenity::ChannelId,
@@ -143,8 +143,7 @@ pub async fn reply_embed_reply(
     Ok(())
 }
 
-/// embed を伴わない、プレーンテキストのみの正式リプライ。
-/// Python の `RCReply(plainText=...)` を `message.reply` で送るケースに対応
+/// embed を伴わない、プレーンテキストのみの正式リプライ（`message.reply`）。
 /// （例: OCRフローのタグ不足/過多に対するリプライ誘導メッセージ）。
 pub async fn reply_plain_text(
     cache_http: impl serenity::CacheHttp,

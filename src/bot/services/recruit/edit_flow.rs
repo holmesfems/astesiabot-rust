@@ -6,7 +6,6 @@ use crate::engine::recruit::format;
 use poise::serenity_prelude as serenity;
 
 /// テキストを含むメッセージの処理。対象embedのタグをリプライ本文で編集し、再計算する。
-/// Python の msgForOCRReply に対応。
 pub async fn build(
     ctx: &serenity::Context,
     msg: &serenity::Message,

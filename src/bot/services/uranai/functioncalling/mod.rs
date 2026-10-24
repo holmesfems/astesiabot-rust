@@ -92,10 +92,9 @@ pub fn items_to_json(items: &[(String, f64)]) -> Value {
         .collect::<Vec<_>>())
 }
 
-/// GPTが誤って生成しがちなオペレーター名の誤字補正(Python版`toolCalling`内の
-/// `operator_typo_correction_dict`相当)。オペレーター名を引数に取る4関数
-/// (operatorEliteCost/operatorSkillInfo/operatorModuleCost/operatorFKInfo)の
-/// autocomplete解決の後段で共通して使う。
+/// GPTが誤って生成しがちなオペレーター名の誤字補正(`operator_typo_correction_dict`)。
+/// オペレーター名を引数に取る4関数(operatorEliteCost/operatorSkillInfo/operatorModuleCost/
+/// operatorFKInfo)のautocomplete解決の後段で共通して使う。
 pub fn operator_typo_correction(name: &str) -> String {
     match name {
         "メラニート" => "メラナイト".to_string(),

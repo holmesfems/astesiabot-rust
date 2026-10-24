@@ -1,5 +1,5 @@
 //! 計算結果のDTO一式。整形(Discord embed化)は`bot/commands/operator_cost_calc`の責務。
-//! アイテム列は`(日本語名, 個数)`の`Vec`で、既にPython版`normalize()`と同じ並び順
+//! アイテム列は`(日本語名, 個数)`の`Vec`で、既に`normalize()`済みの並び順
 //! （龍門幣1000統合＋value_target順＋ε除去）になっている。
 //!
 //! 全DTOは`Serialize`(REST API `/api/risei/operators/*`がそのままJSONで返す)。アイテム列の
@@ -46,7 +46,7 @@ impl std::fmt::Display for OperatorCostError {
 
 impl std::error::Error for OperatorCostError {}
 
-/// 消費素材1ブロック分（Python各所の「特化N/昇進N/合計」表示単位）。
+/// 消費素材1ブロック分（「特化N/昇進N/合計」の表示単位）。
 #[derive(Serialize)]
 pub struct ItemCostView {
     pub risei_value: f64,
@@ -65,7 +65,7 @@ pub struct SkillMasterCostDto {
     /// 特化1〜3。
     pub masteries: Vec<ItemCostView>,
     pub total: ItemCostView,
-    /// 合計の中級素材換算後アイテム列（このブロックには理性価値を表示しない。Python版と同じ）。
+    /// 合計の中級素材換算後アイテム列（このブロックには理性価値を表示しない）。
     #[serde(serialize_with = "serialize_items")]
     pub total_r2_items: Vec<(String, f64)>,
     /// 同じ星のスキル特化ランキング内の位置。ランキング対象外(理性価値0以下)なら`None`。
@@ -81,7 +81,7 @@ pub struct EliteCostDto {
     pub total: ItemCostView,
     #[serde(serialize_with = "serialize_items")]
     pub total_r2_items: Vec<(String, f64)>,
-    /// 非昇格 & 星5/6のみ`Some`（Python版の掲載条件と同じ）。
+    /// 非昇格 & 星5/6のみ`Some`。
     pub ranking: Option<RankingPosition>,
 }
 
@@ -116,8 +116,8 @@ pub struct ModuleCostDto {
     pub modules: Vec<ModuleEntryDto>,
 }
 
-/// Python `printCostRanking`の1行分。`rank`は絞り込み前の全体順位を保持する
-/// （onlyRecentで一部除外しても番号は詰めない。Python版と同じ振る舞い）。
+/// ランキングの1行分。`rank`は絞り込み前の全体順位を保持する
+/// （onlyRecentで一部除外しても番号は詰めない）。
 #[derive(Serialize)]
 pub struct RankedEntry {
     pub rank: usize,
@@ -133,7 +133,7 @@ pub struct EliteRankingDto {
     pub entries: Vec<RankedEntry>,
 }
 
-/// Python `operatorCostList`の costofcnonly/costofglobal 共通形。
+/// costofcnonly/costofglobal 共通形。
 #[derive(Serialize)]
 pub struct CostSummaryDto {
     /// costofcnonly のみ使用（未実装オペレーター一覧）。costofglobalは空。
@@ -154,7 +154,7 @@ pub struct MasterStatsFullDto {
     pub skill_nums: usize,
     pub heaviest_name: String,
     pub heaviest: ItemCostView,
-    /// 上位10件（理性価値降順。skillNums<10なら全件で、lightest上位10件と内容が重複し得る。Python版と同じ）。
+    /// 上位10件（理性価値降順。skillNums<10なら全件で、lightest上位10件と内容が重複し得る）。
     pub top10_heaviest: Vec<RankedEntry>,
     pub lightest_name: String,
     pub lightest: ItemCostView,

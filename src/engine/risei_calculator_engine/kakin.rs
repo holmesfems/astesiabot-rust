@@ -1,4 +1,4 @@
-//! 課金パックの理性効率（Python `CalculatorManager.KakinPack`）。
+//! 課金パックの理性効率。
 //!
 //! 元はbotの`/riseikakin`コマンド層に閉じていたが、REST API(`GET /api/risei/lists/kakin`)からも
 //! 同じ計算結果を返すためengineへ移した（api は bot に依存しないため）。整形(embed/xlsx)は
@@ -8,8 +8,7 @@
 //! (`data/risei/price_kakin.yaml`)だけで計算する。毎回の計算は掛け算と足し算だけなので
 //! パック効率自体はキャッシュしない（理性価値表の更新タイミングにそのまま追従する）。
 //!
-//! グローバル版のみ対応。Mainland版の課金パック対応は元々使用頻度が低くオミット済み
-//! （`ref_python/RiseiCalculatorBot-main/riseicalculator2/Design.md`参照）。
+//! グローバル版のみ対応。Mainland版の課金パックは使用頻度が低いため対応していない。
 
 use super::values::RiseiValues;
 use indexmap::IndexMap;
@@ -20,10 +19,10 @@ use std::sync::OnceLock;
 const KAKIN_LIST_PATH: &str = "data/risei/price_kakin.yaml";
 const CONST_GACHA_PATH: &str = "data/risei/const_gacha.yaml";
 
-/// 課金パック一覧の基準として使う恒常パック名（Python `KakinPack.__init__` の`basicPackName`）。
+/// 課金パック一覧の基準として使う恒常パック名。
 pub const BASIC_PACK_NAME: &str = "10000円恒常パック";
 
-/// `data/risei/price_kakin.yaml` の1パック分（Python `getKakinList`の値側）。
+/// `data/risei/price_kakin.yaml` の1パック分。
 #[derive(Debug, Clone, Deserialize)]
 pub struct KakinPackDef {
     pub price: f64,
@@ -53,7 +52,7 @@ fn const_gacha() -> &'static HashMap<String, f64> {
     })
 }
 
-/// 計算済みの課金パック理性効率（Python `CalculatorManager.KakinPack`）。
+/// 計算済みの課金パック理性効率。
 #[derive(Debug, Clone)]
 pub struct KakinPack {
     pub name: String,
@@ -94,7 +93,7 @@ fn to_real_money(value: f64, values: &RiseiValues) -> f64 {
     value / pack_value(&basic.contents, values) * basic.price
 }
 
-/// Python `KakinPack.__init__`。基準パック(`BASIC_PACK_NAME`)は`price_kakin.yaml`に
+/// パック定義から理性効率を計算する。基準パック(`BASIC_PACK_NAME`)は`price_kakin.yaml`に
 /// 必ず存在する前提。
 pub fn build_kakin_pack(name: &str, def: &KakinPackDef, values: &RiseiValues) -> KakinPack {
     let total_value = pack_value(&def.contents, values);

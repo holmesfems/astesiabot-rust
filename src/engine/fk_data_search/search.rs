@@ -5,15 +5,15 @@ use crate::engine::external_source::skill_data::SkillData;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
-/// skillNum(1始まりの文字列) -> skillId のマップを構築する（Python
-/// `SkillFKInfo.__init__`の`idDict`相当。`RawOperatorCost.skills`の並び順が
-/// スキル1,2,3...という前提）。`engine::fk_kill_calc`からも同じロジックで
+/// skillNum(1始まりの文字列) -> skillId のマップを構築する
+/// （`RawOperatorCost.skills`の並び順がスキル1,2,3...という前提）。
+/// `engine::fk_kill_calc`からも同じロジックで
 /// 再利用するため`pub(crate)`にして重複させない。
 pub(crate) fn skill_id_by_num(op: &RawOperatorCost) -> HashMap<String, &str> {
     op.skills.iter().enumerate().map(|(i, s)| ((i + 1).to_string(), s.skill_id.as_str())).collect()
 }
 
-/// Python `FKInfo.getReply` 相当。オペレーター名・スキル指定からFK情報を解決する。
+/// オペレーター名・スキル指定からFK情報を解決する。
 pub fn resolve(
     fk_data: &FkSheetData,
     operator_data: &OperatorData,
@@ -34,7 +34,7 @@ pub fn resolve(
             .unwrap_or_default()
     };
 
-    // `.strip()==""`の判定はトリム後、実際の一致比較は生値で行う非対称性をPython版から踏襲する
+    // 空かどうかはトリム後で判定し、実際の一致比較は生値で行う（意図的に非対称）
     // （ユーザーが空白混じりの値を入れた場合、空扱いにはならないが一致もしないという挙動）。
     let trimmed_empty = skill_num.trim().is_empty();
     if trimmed_empty && rows.len() != 1 {
@@ -74,7 +74,7 @@ pub fn resolve(
     }
 }
 
-/// Python `FKInfo.autoComplete`相当。部分一致(`in`演算子=部分文字列)でオペレーター名を絞り込む。
+/// 部分文字列一致でオペレーター名を絞り込む。
 pub fn autocomplete(fk_data: &FkSheetData, partial: &str, limit: usize) -> Vec<String> {
     fk_data
         .by_operator

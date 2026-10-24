@@ -16,7 +16,7 @@ const SKILL_TABLE_URL_JP: &str = "https://raw.githubusercontent.com/ArknightsAss
 
 pub const SEED_PATH: &str = "data/seed/skill_data.json";
 
-/// スキル1件分（Python `SkillIdToName.SkillItem`相当）。
+/// スキル1件分。
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct SkillItem {
     pub name: String,
@@ -38,19 +38,19 @@ pub struct SkillItem {
     pub is_ammo_skill: bool,
 }
 
-/// スキルID→名前/説明文（Python `SkillIdToName`相当。旧`SkillNames`を統合）。
+/// スキルID→名前/説明文（旧`SkillNames`を統合）。
 #[derive(Serialize, Deserialize, Default)]
 pub struct SkillData {
     id_to_item: HashMap<String, SkillItem>,
 }
 
 impl SkillData {
-    /// idから名前を解決する。無ければ"Missing"（Python `SkillIdToName.getStr`と同じフォールバック）。
+    /// idから名前を解決する。無ければ"Missing"。
     pub fn get_str(&self, id: &str) -> &str {
         self.id_to_item.get(id).map(|item| item.name.as_str()).unwrap_or("Missing")
     }
 
-    /// idから説明文を解決する。無ければ空文字列（Python `SkillIdToName.getDescription`と同じフォールバック）。
+    /// idから説明文を解決する。無ければ空文字列。
     pub fn get_description(&self, id: &str) -> &str {
         self.id_to_item.get(id).map(|item| item.description.as_str()).unwrap_or("")
     }
@@ -100,14 +100,14 @@ async fn fetch_impl() -> Result<SkillData, FetchError> {
         for (id, cn_value) in cn_map {
             let jp_value = jp_table.get(id.as_str());
             let source = jp_value.unwrap_or(cn_value);
-            // Python版は`levels[-1]`のskillJsonから名前/説明文を組み立てる。
+            // 最大レベル(`levels`の末尾)のデータから名前/説明文を組み立てる。
             let Some(levels) = source.get("levels").and_then(Value::as_array) else { continue };
             let Some(last_level) = levels.last() else { continue };
             let Ok(level) = serde_json::from_value::<RawSkillLevel>(last_level.clone()) else {
                 continue;
             };
             let description = description::build_description(&level);
-            // `value`が`None`の項目（Python版もduck typingで実質参照しない）は除外する。
+            // `value`が`None`の項目は除外する。
             let blackboard: IndexMap<String, f64> =
                 level.blackboard.iter().filter_map(|item| item.value.map(|v| (item.key.clone(), v))).collect();
             let is_ammo_skill = level.duration_type == "AMMO";

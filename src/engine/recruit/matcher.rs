@@ -28,7 +28,7 @@ impl Matcher {
         let zh: BTreeMap<String, String> =
             serde_saphyr::from_str(&std::fs::read_to_string("data/recruitment/tagZhToJa.yaml")?)?;
 
-        // ja_extra（Python の __jaExtraDict）。順序が意味を持つので Vec で保持。
+        // ja_extra。順序が意味を持つので Vec で保持。
         // 怪しいやつは後ろに置く。
         let ja_extra = compile_pairs(&[
             (r"範[围圍囲困匯田]攻[擊撃]", "範囲攻撃"),
@@ -81,7 +81,7 @@ impl Matcher {
         })
     }
 
-    /// OCR全文テキストからタグ集合を判定（Python の matchTag）。
+    /// OCR全文テキストからタグ集合を判定。
     pub fn match_tag(&self, result: &str) -> MatchResult {
         // 改行で分割 → strip → clear正規表現除去 → 誤字置換
         let mut lines: Vec<String> = result
@@ -131,7 +131,7 @@ impl Matcher {
         }
     }
 
-    /// Python の matchTagCoreProcess。完全一致 or 空白split一致 → extraで正規表現補正。
+    /// 完全一致 or 空白split一致 → extraで正規表現補正。
     fn match_core(
         &self,
         result: &[String],

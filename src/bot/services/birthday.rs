@@ -5,12 +5,12 @@ use chrono::{DateTime, Datelike, FixedOffset, TimeZone, Utc};
 use poise::serenity_prelude as serenity;
 use std::sync::Arc;
 
-/// 個別の反映先名（Python の reflectDict 相当）。
+/// 個別の反映先名。
 const REFLECT_DICT: &[(&str, &str)] = &[("アステシア", "私"), ("アステジーニ", "エレナ")];
-/// 「さん」ではなく「ちゃん」付けするオペレーター（Python の chanList 相当）。
+/// 「さん」ではなく「ちゃん」付けするオペレーター。
 const CHAN_LIST: &[&str] = &["スズラン", "ポプカル", "シャマレ", "バブル"];
 
-/// Python の reflectName 相当。表示名（日本語）に敬称を付ける。
+/// 表示名（日本語）に敬称を付ける。
 fn reflect_name(ja_name: &str) -> String {
     if let Some((_, reflect)) = REFLECT_DICT.iter().find(|(name, _)| *name == ja_name) {
         return reflect.to_string();
@@ -22,7 +22,7 @@ fn reflect_name(ja_name: &str) -> String {
     }
 }
 
-/// Python の mentionStr 相当。0件→空文字, 1件→そのまま, 複数件→「、」区切り＋末尾「と」。
+/// 0件→空文字, 1件→そのまま, 複数件→「、」区切り＋末尾「と」。
 fn mention_str(names: &[String]) -> String {
     match names {
         [] => String::new(),
@@ -34,7 +34,7 @@ fn mention_str(names: &[String]) -> String {
     }
 }
 
-/// Python の checkBirthday 相当。該当者がいなければ None。
+/// 該当者がいなければ None。
 pub fn check_birthday(birthdays: &OperatorBirthdays, now: DateTime<FixedOffset>) -> Option<EmbedReply> {
     let reflected: Vec<String> = birthdays
         .on(now.month(), now.day())
@@ -75,8 +75,7 @@ fn duration_until_next_midnight_jst() -> std::time::Duration {
         .unwrap_or(std::time::Duration::from_secs(1))
 }
 
-/// 毎日 JST 0:00 に誕生日をチェックして送信し続けるループ（Python の
-/// `@tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=JST))` 相当）。
+/// 毎日 JST 0:00 に誕生日をチェックして送信し続けるループ。
 /// bot起動中ずっと動き続ける想定なので、呼び出し側は `tokio::spawn` すること。
 /// 誕生日は `state.external_source` がメモリに保持する最新の一覧を
 /// チェックの都度参照する（定期fetchで更新されればここにも反映される）。
@@ -138,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn check_birthday_matches_python_format() {
+    fn check_birthday_message_format() {
         let birthdays = OperatorBirthdays {
             operators: vec![op("チョンユエ", 1, 1), op("オッダ", 1, 1), op("バブル", 1, 2)],
         };

@@ -8,7 +8,7 @@ const PENGUIN_USER_AGENT: (&str, &str) = ("User-Agent", "ArkPlanner");
 
 pub const SEED_PATH: &str = "data/seed/ark_stages.json";
 
-/// penguin-stats `/stages` の生データ1件（Python の `getStage()` が返す辞書相当）。
+/// penguin-stats `/stages` の生データ1件。
 /// ここでは生データを保持するのみで、カテゴリ分類やドロップ集計は
 /// risei_calculator_engine 側（stage.rs / stage_info.rs）が行う。
 #[derive(Serialize, Deserialize, Clone)]

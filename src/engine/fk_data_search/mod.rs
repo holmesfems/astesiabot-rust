@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// FK情報スプレッドシートの鮮度管理（Python `FKInfo.getInfoFromName`のTTLチェック相当）。
+/// FK情報スプレッドシートの鮮度管理（TTLチェック付き）。
 /// `OuterSourceRegistry::refresh_all`（日次バッチ）とは別軸で、読み取り駆動で1時間毎に
 /// 再fetchする。
 pub struct FkDataSearchEngine {
@@ -43,8 +43,7 @@ impl Default for FkDataSearchEngine {
     }
 }
 
-/// 検索・オートコンプリートに必要な情報一式のスナップショット
-/// （Python `AllOperatorsInfo` + `SkillIdToName` + `FKInfo.fkData`を束ねたもの）。
+/// 検索・オートコンプリートに必要な情報一式のスナップショット。
 pub struct FkDataView {
     pub fk_data: Arc<FkSheetData>,
     pub operator_data: Arc<OperatorData>,
@@ -56,8 +55,8 @@ impl FkDataView {
         search::resolve(&self.fk_data, &self.operator_data, &self.skill_data, operator_name, skill_num)
     }
 
-    /// Python `FKInfo.autoComplete`相当。TTLチェックは行わない
-    /// （Python版も`autoComplete`は`fkData`を直接見るだけで鮮度更新をトリガーしない）。
+    /// オペレーター名のオートコンプリート。TTLチェックは行わず、
+    /// 保持中の`fk_data`を直接見るだけで鮮度更新をトリガーしない。
     pub fn autocomplete(&self, partial: &str, limit: usize) -> Vec<String> {
         search::autocomplete(&self.fk_data, partial, limit)
     }
@@ -69,8 +68,7 @@ mod tests {
     use crate::engine::external_source::{fk_data, operator_data, skill_data};
 
     /// 実ネットワークで実際のFKスプレッドシート+ゲームデータを突き合わせ、
-    /// スキルを1つしか持たないオペレーターがskill_num省略で解決できることを確認する
-    /// （Python `FKInfo.getReply`のhasOnlyOneSkill分岐の実データ検証）。
+    /// スキルを1つしか持たないオペレーターがskill_num省略で解決できることを確認する。
     #[tokio::test]
     #[ignore]
     async fn resolves_real_single_skill_operator() {
@@ -94,7 +92,7 @@ mod tests {
         }
     }
 
-    /// 実データでの複数スキル分岐の検証（Python `getReply`のスキル未指定+複数候補、
+    /// 実データでの複数スキル分岐の検証（スキル未指定+複数候補、
     /// および指定スキルでの解決の両方を1件の実オペレーターで確認する）。
     #[tokio::test]
     #[ignore]

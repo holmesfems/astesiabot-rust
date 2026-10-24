@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 /// `is_global: bool` スラッシュコマンド引数から [`Server`] へ変換する
-/// （Python版の各コマンドの `is_global` 引数と同じ意味。true=グローバル版基準）。
+/// （true=グローバル版基準）。
 pub fn server_from_bool(is_global: bool) -> Server {
     if is_global {
         Server::Global
@@ -29,9 +29,8 @@ pub async fn send_reply(ctx: Context<'_>, reply: EmbedReply) -> Result<(), Error
     send_reply_with_attachment(ctx, reply, None).await
 }
 
-/// [`send_reply`]にDiscord添付ファイル(csv_fileオプションのxlsx等)を追加できる版
-/// （Python版 `RCReply.attatchments` 相当）。複数バッチに分かれる場合、添付は最後の
-/// バッチにのみ付与する（Python版の「最後のチャンクにfilesを付ける」動作を踏襲）。
+/// [`send_reply`]にDiscord添付ファイル(csv_fileオプションのxlsx等)を追加できる版。
+/// 複数バッチに分かれる場合、添付は最後のバッチにのみ付与する。
 /// 汎用の`EmbedReply`(`bot/reply.rs`)は他機能からも広く使われるため添付フィールドを
 /// 持たせず、riseiローカルのこの関数だけを拡張している。
 pub async fn send_reply_with_attachment(
@@ -56,7 +55,7 @@ pub async fn send_reply_with_attachment(
 
 /// csv_fileオプション用xlsxの参照ブロック(列見出し・理性価値行・基準ステージ行)を組み立てる。
 /// riseimaterials/riseistages/riseievents の3コマンドで共通。
-/// Python版の換算行列・定番周回マップ行列は検証用途で実用上参照されないため、
+/// 換算行列・定番周回マップ行列のような検証用の生データは載せず、
 /// 「理性価値」「基準ステージ」の2行に簡略化している（詳細は`bot/utils/xlsx.rs`冒頭コメント参照）。
 pub fn build_reference_block(
     snapshot: &EngineSnapshot,
@@ -102,12 +101,12 @@ pub fn build_stage_export_row(raw: &Arc<StageItem>, snapshot: &EngineSnapshot, n
     }
 }
 
-/// パーセント表示（小数点以下1桁）。Python `"{0:.1%}"`.
+/// パーセント表示（小数点以下1桁）。
 pub fn fmt_percent(value: f64) -> String {
     format!("{:.1}%", value * 100.0)
 }
 
-/// 効率などの小数表示（小数点以下3桁）。Python `"{0:.3f}"`.
+/// 効率などの小数表示（小数点以下3桁）。
 pub fn fmt_value(value: f64) -> String {
     format!("{value:.3}")
 }

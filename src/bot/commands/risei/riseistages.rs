@@ -9,7 +9,7 @@ use poise::serenity_prelude as serenity;
 const MAX_ITEMS: usize = 15;
 const STAGE_XLSX_FILENAME: &str = "StageDrop.xlsx";
 
-/// Python版と同じく、常に大陸版のステージ一覧からオートコンプリート候補を出す
+/// 常に大陸版のステージ一覧からオートコンプリート候補を出す
 /// (大陸版が最も先行しておりステージ数が多いため)。
 async fn autocomplete_stage(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
     let state = ctx.data().state.clone();

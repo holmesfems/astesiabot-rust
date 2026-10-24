@@ -34,7 +34,7 @@ pub async fn resolve(
     })
 }
 
-/// 明示リプライの解決（Python の msgForOCRReply 冒頭に対応）。
+/// 明示リプライの解決。
 /// 参照先がbot自身の発言でも、embedが無い（誘導メッセージ等のプレーンリプライ）、
 /// またはタイトルが解析不能（エラーembed等）な場合は、明示参照が無かったものとして
 /// フォールバック探索に委譲する。これにより「誘導メッセージやエラーメッセージに
@@ -56,8 +56,7 @@ async fn resolve_explicit(
     };
 
     if target.author.id != ctx.cache.current_user().id {
-        // bot以外の発言へのリプライは対象外（Python の
-        // `referenced_message.author != client.user` と同じ）。
+        // bot以外の発言へのリプライは対象外。
         return Ok(Resolution::Ignore);
     }
 

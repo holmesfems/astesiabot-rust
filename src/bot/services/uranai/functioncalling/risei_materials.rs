@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
-/// GPT向けの表示件数上限(Python版`toolCalling`の`maxItems=5`相当。Discordコマンド版の
-/// `MAX_ITEMS=15`よりトークン消費を抑えるため小さくしている)。
+/// GPT向けの表示件数上限。Discordコマンド版の`MAX_ITEMS=15`より
+/// トークン消費を抑えるため小さくしている。
 const MAX_ITEMS_FOR_AI: usize = 5;
 
 #[derive(Deserialize)]
@@ -65,7 +65,7 @@ impl ToolFunction for RiseiMaterials {
             return ToolResponse::Error(format!("不明な素材カテゴリです: {}", parsed.target));
         };
 
-        // Python版と同じくGPTからの呼び出しは常にグローバル版基準
+        // GPTからの呼び出しは常にグローバル版基準
         // (newカテゴリ指定時は material_search 内部で自動的に大陸版へ切り替わる)。
         match ctx.risei_calculator.material_search(Server::Global, &key).await {
             Err(msg) => ToolResponse::Error(msg),

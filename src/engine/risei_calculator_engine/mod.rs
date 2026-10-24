@@ -28,15 +28,14 @@ use values::RiseiValues;
 /// risei_calculator_engine ドメイン共通のエラー型（bot にも api にも依存しない）。
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
-/// 理性価値表をバックグラウンドで再計算する間隔（Python `DEFAULT_CACHE_TIME`=120分）。
-/// Python版は「リクエスト時にキャッシュが古ければ再計算」だったが、Rust版は更新と応答を
-/// 切り分け、main.rsのループがこの間隔で[`RiseiCalculatorEngine::refresh`]を呼ぶ。
+/// 理性価値表をバックグラウンドで再計算する間隔（120分）。
+/// 更新と応答を切り分け、main.rsのループがこの間隔で[`RiseiCalculatorEngine::refresh`]を呼ぶ。
 /// リクエスト側([`RiseiCalculatorEngine::snapshot`])は常にキャッシュを読むだけ。
 pub const REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(120 * 60);
-/// 基準マップとして選ばれるために必要な最小試行数（Python版コマンドのデフォルト値）。
+/// 基準マップとして選ばれるために必要な最小試行数。
 const DEFAULT_BASE_MIN_TIMES: i64 = 3000;
 
-/// 理性価値表の計算エンジン（Python `CalculatorManager`相当のfacade）。
+/// 理性価値表の計算エンジン（facade）。
 /// bot/api には依存しない。グローバル版・大陸版それぞれの計算結果を
 /// 内部で保持する。参照([`Self::snapshot`])と更新([`Self::refresh`]。main.rsが
 /// [`REFRESH_INTERVAL`]毎に呼ぶ)は切り分けてあり、参照側は再計算を起こさない。
@@ -67,7 +66,7 @@ impl RiseiCalculatorEngine {
     }
 
     /// ark_stages/ark_matrix を再fetchしてから両サーバ分を丸ごと再計算する
-    /// （Python `Calculator.tryReInit`相当。main.rsの定期ループから[`REFRESH_INTERVAL`]毎に呼ぶ）。
+    /// （main.rsの定期ループから[`REFRESH_INTERVAL`]毎に呼ぶ）。
     /// 再計算に失敗したサーバは既存の値を保持したまま継続する（`outer_source::Source::refresh`と
     /// 同じ方針）。計算中もリクエストは旧スナップショットを読み続け、完成後に一瞬で差し替える。
     pub async fn refresh(&self, outer_source: &ExternalSourceRegistry) {
@@ -150,8 +149,7 @@ pub struct EngineSnapshot {
     pub last_updated: DateTime<Utc>,
 }
 
-/// カテゴリのmainItem/subItemドロップ率を`120秒`あたりの入手数に換算する
-/// （Python版riseimaterials/riseistagesの`dropPerMin`計算と同じ式）。
+/// カテゴリのmainItem/subItemドロップ率を`120秒`あたりの入手数に換算する。
 /// riseimaterials/riseistagesの両方が使う汎用計算のためengineに残す。
 pub fn drop_per_minute(stage: &StageItem, info: &server::StageCategoryInfo, values: &RiseiValues) -> f64 {
     let mut drop_values = stage.get_drop_rate(&info.main_item, &values.value_target, &values.item_names);
@@ -161,8 +159,7 @@ pub fn drop_per_minute(stage: &StageItem, info: &server::StageCategoryInfo, valu
     drop_values / stage.min_clear_time * 120.0
 }
 
-/// 試行数が足りないステージを除外する。全滅した場合は無条件で全部返す
-/// （Python `CalculatorManager.filterStagesByShowMinTimes`）。
+/// 試行数が足りないステージを除外する。全滅した場合は無条件で全部返す。
 pub fn filter_stages_by_show_min_times(stages: Vec<Arc<StageItem>>, show_min_times: i64) -> Vec<Arc<StageItem>> {
     let filtered: Vec<Arc<StageItem>> = stages.iter().filter(|s| s.max_times() >= show_min_times).cloned().collect();
     if filtered.is_empty() {

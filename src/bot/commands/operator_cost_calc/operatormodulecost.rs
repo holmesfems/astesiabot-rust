@@ -7,9 +7,7 @@ use poise::serenity_prelude as serenity;
 
 const BASE_TITLE: &str = "モジュール必要素材検索";
 
-/// Python `OperatorCostsCalculator.operatorModuleCost`の整形込み版。
-/// Python版と異なりモジュール1種＝1チャンク（`bodyMsg + lastMsg + "\n"`を1要素として
-/// `embbedContents`に積むのと同じ構造）。
+/// モジュールコストの整形込み版。モジュール1種＝1チャンク。
 pub async fn module_cost_reply(state: &AppState, operator_name: &str) -> EmbedReply {
     let (info, values) = build_context(state).await;
     match operator_module_cost(&info, &values, operator_name) {

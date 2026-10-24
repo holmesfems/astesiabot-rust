@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
-/// GPT向けの表示件数上限(Python版`toolCalling`の`maxItems=5`相当)。
+/// GPT向けの表示件数上限。
 const MAX_ITEMS_FOR_AI: usize = 5;
 
 #[derive(Deserialize)]
@@ -50,7 +50,7 @@ impl ToolFunction for RiseiStages {
             Err(e) => return ToolResponse::Error(e),
         };
 
-        // Python版と同じく、常に大陸版のオートコンプリートで表記ゆれ(全角/半角等)を解決してから
+        // 常に大陸版のオートコンプリートで表記ゆれ(全角/半角等)を解決してから
         // グローバル版基準で検索する(該当が無ければstage_search内部で大陸版へフォールバックする)。
         let mainland_snapshot = ctx.risei_calculator.snapshot(Server::Mainland).await;
         let resolved_code = mainland_snapshot

@@ -1,9 +1,8 @@
-//! riseiXXX系コマンドの `csv_file` オプション用xlsx出力（Python `stagesToExcelFile`/
-//! `listToCSV`相当）。Discordの添付ファイルとして使う以外の用途が無いため`engine`ではなく
-//! ここに置く。値の中身さえPython版と合っていればよく、フォント等の見た目は踏襲しない。
+//! riseiXXX系コマンドの `csv_file` オプション用xlsx出力。Discordの添付ファイルとして使う以外の用途が無いため
+//! `engine`ではなくここに置く。値だけを出し、フォント等の見た目は凝らない。
 //!
-//! Python版の参照ブロック(`Calculator.toDataFrame`)は換算行列・定番周回マップ行列まで
-//! 含む連立方程式の生データだが、検証用途で実用上参照されないため、ここでは
+//! 参照ブロックは、換算行列・定番周回マップ行列のような連立方程式の生データを
+//! 検証用途で実用上参照しないため載せず、ここでは
 //! 「理性価値」「基準ステージ」の2行だけに簡略化している。
 
 use rust_xlsxwriter::{Workbook, XlsxError};
@@ -73,7 +72,7 @@ pub struct KakinExportPack {
     pub target_values: Vec<f64>,
 }
 
-/// riseikakinのxlsxを1シート分組み立てる（Python `listToCSV`相当）。
+/// riseikakinのxlsxを1シート分組み立てる。
 ///
 /// - 1行目: 空セル + `material_columns` + `target_columns`
 /// - 2行目以降: `packs`の1件ずつ(素材列は個数、集計列は`target_values`)

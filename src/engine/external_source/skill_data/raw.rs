@@ -14,8 +14,8 @@ pub struct RawSkillLevel {
     #[serde(rename = "spData")]
     pub sp_data: RawSpData,
     /// この値そのものがJSON上常に小数リテラル(例: `8.0`)であるため、
-    /// ヘッダ表示ではPython `str(float)`同様に整数値でも小数点付きで表示する
-    /// （`description::python_float_str`を参照）。
+    /// ヘッダ表示では整数値でも小数点付きで表示する
+    /// （`description::float_str_keep_point`を参照）。
     pub duration: f64,
     /// フレームキル計算機の「弾薬スキル」タグ判定に使う機械フィールド
     /// （`"NONE"`/`"AMMO"`等。実データ調査済み: `durationType == "AMMO"`のスキルが
@@ -32,9 +32,8 @@ pub struct RawSpData {
     /// 本来は`"INCREASE_WITH_TIME"`等の文字列だが、一部スキル(PASSIVE中心に600件超、
     /// 2024年時点のCNデータで確認済み)は数値(例: `8`)が入っている。ここを`String`型で
     /// 厳格にパースするとそのスキル1件全体(name/descriptionを含む)がdeserializeに失敗し、
-    /// スキル名解決が丸ごと欠落する（Python版はduck typingで同じ値を無条件に保持するため
-    /// この欠落は起きない）。`string_or_number`で数値も文字列化して受け付け、Python版と
-    /// 同じ「name/descriptionは必ず解決できる」を保証する。
+    /// スキル名解決が丸ごと欠落する。`string_or_number`で数値も文字列化して受け付け、
+    /// 「name/descriptionは必ず解決できる」を保証する。
     #[serde(rename = "spType", deserialize_with = "string_or_number")]
     pub sp_type: String,
     #[serde(rename = "initSp")]

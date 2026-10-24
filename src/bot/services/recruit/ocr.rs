@@ -2,7 +2,7 @@ use crate::bot::data::Error;
 use serde::Deserialize;
 use std::sync::Mutex;
 
-/// Vision APIのバージョン別エンドポイント（Python の _clientTypes 相当）
+/// Vision APIのバージョン別エンドポイント
 const ENDPOINTS: &[&str] = &[
     "https://vision.googleapis.com/v1/images:annotate",
     "https://vision.googleapis.com/v1p1beta1/images:annotate",
@@ -12,7 +12,6 @@ const ENDPOINTS: &[&str] = &[
 ];
 
 /// 前回成功したエンドポイントのインデックスを記憶
-/// （Python の _lastAvailabledClient 相当）
 static LAST_OK: Mutex<Option<usize>> = Mutex::new(None);
 
 #[derive(Deserialize)]
@@ -63,7 +62,7 @@ async fn try_endpoint(
     Ok(text)
 }
 
-/// 全エンドポイントを Python と同じ戦略で試す。
+/// 全エンドポイントを試す。
 /// 前回成功→ランダム順で残りを試す→成功を記憶。
 pub async fn get_text(image_uri: &str) -> Result<Option<String>, Error> {
     let api_key =

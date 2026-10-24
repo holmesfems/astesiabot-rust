@@ -19,12 +19,12 @@ pub async fn build_context(state: &AppState) -> (AllOperatorsInfo, ValueSet) {
     AllOperatorsInfo::snapshot(&state.external_source, &state.risei_calculator).await
 }
 
-/// Python `星{star}スキル{nums}個中、第{index}位の消費です`。
+/// 特化コストのランキング文言。
 pub fn mastery_ranking_text(ranking: &RankingPosition) -> String {
     format!("星{}スキル{}個中、第{}位の消費です", ranking.star, ranking.total, ranking.rank)
 }
 
-/// 昇進素材のランキング文言（Python版と同じ）。
+/// 昇進素材のランキング文言。
 pub fn elite_ranking_text(ranking: &RankingPosition) -> String {
     format!("星{}オペレーター{}名中、第{}位の消費です", ranking.star, ranking.total, ranking.rank)
 }
@@ -38,12 +38,12 @@ pub async fn send_reply(ctx: Context<'_>, reply: EmbedReply) -> Result<(), Error
     Ok(())
 }
 
-/// Python `dumpToPrint`(header無し版)。```で囲んだコードブロックにする。
+/// ```で囲んだコードブロックにする。
 pub fn dump_to_print(lines: &[String]) -> String {
     format!("```\n{}```", lines.join("\n"))
 }
 
-/// Python `"{0} × {1:d}".format(...)`/`"{0} × {1:.3f}".format(...)`の丸め判定込み表示。
+/// 整数なら小数点なし、そうでなければ小数点以下3桁で表示する（整数かどうかは`DISPLAY_EPSILON`で判定）。
 fn fmt_item_line(name: &str, count: f64) -> String {
     let rounded = count.round();
     if (count - rounded).abs() < DISPLAY_EPSILON {
@@ -53,7 +53,7 @@ fn fmt_item_line(name: &str, count: f64) -> String {
     }
 }
 
-/// Python `ItemCost.toStrBlock(sortByCount)`。`sort_by_count`時は個数降順に安定並べ替え
+/// 素材を```のコードブロックに整形する。`sort_by_count`時は個数降順に安定並べ替え
 /// （タイは元の`value_target`順を保つ）。
 pub fn fmt_item_block(items: &[(String, f64)], sort_by_count: bool) -> String {
     let mut items = items.to_vec();

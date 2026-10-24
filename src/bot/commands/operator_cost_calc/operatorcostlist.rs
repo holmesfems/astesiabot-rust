@@ -10,8 +10,7 @@ use crate::engine::operator_cost_calc::dto::{
     RankedEntry,
 };
 
-/// Python `OperatorCostsCalculator.CostListSelection`。`#[name]`はRiseiCalculator.pyの
-/// `Choice(name=...)`表示文字列と一致させること。
+/// コストランキングの種別。`#[name]`がDiscordの選択肢の表示文字列になる。
 #[derive(Debug, poise::ChoiceParameter)]
 pub enum CostListSelection {
     #[name = "星6昇進素材価値表"]
@@ -32,7 +31,7 @@ pub enum CostListSelection {
     MasterStar4,
 }
 
-/// Python `printCostRanking`。
+/// 昇進コストランキングの表示チャンク。
 fn elite_ranking_chunks(dto: &EliteRankingDto) -> Vec<String> {
     let mut chunks = vec![format!(
         "オペレーター総数:{}\nSoCは以下の計算に含まれません:",
@@ -85,7 +84,7 @@ fn cost_summary_chunks(dto: &CostSummaryDto, unimplemented: bool) -> Vec<String>
     chunks
 }
 
-/// Python `msg = "```\n" + ... + "```\n"`（`dumpToPrint`とは末尾の改行位置が異なる専用整形）。
+/// コードブロックで囲み、閉じの```の後にも改行を入れる専用整形（`dump_to_print`とは末尾の改行位置が異なる）。
 fn ranked_block_with_trailing_newline(entries: &[RankedEntry]) -> String {
     let mut msg = String::from("```\n");
     for e in entries {

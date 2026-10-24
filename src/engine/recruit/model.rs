@@ -13,12 +13,12 @@ pub struct TagList {
     pub other_tags: Vec<String>,
 }
 
-/// タグの種別。Python の tagType 文字列を enum にしたもの。
+/// タグの種別。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TagType {
     Elite,
     Job,
-    Other, // position + other をまとめて扱う（Python と同じ）
+    Other, // position + other をまとめて扱う
 }
 
 /// 分類済みのタグ（名前＋種別）

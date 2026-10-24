@@ -7,7 +7,7 @@ use poise::serenity_prelude as serenity;
 
 const BASE_TITLE: &str = "昇進必要素材検索";
 
-/// Python `OperatorCostsCalculator.operatorEliteCost`の整形込み版。
+/// 昇進コストの整形込み版。
 pub async fn elite_cost_reply(state: &AppState, operator_name: &str) -> EmbedReply {
     let (info, values) = build_context(state).await;
     match operator_elite_cost(&info, &values, operator_name) {
