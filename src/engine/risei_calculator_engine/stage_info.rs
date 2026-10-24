@@ -5,7 +5,7 @@ use crate::engine::external_source::ark_matrix::ArkMatrix;
 use crate::engine::external_source::ark_stages::ArkStages;
 use crate::engine::external_source::item_names::ItemNames;
 use crate::engine::external_source::zones::Zones;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
@@ -206,7 +206,7 @@ impl StageInfo {
         &self,
         valid_base_min_times: i64,
     ) -> Result<HashMap<String, Arc<StageItem>>, super::Error> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..MAX_SEED_GENERATION_ATTEMPTS {
             let mut ret = HashMap::new();
             for key in self.category_instance_dict.keys() {
