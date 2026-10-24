@@ -44,7 +44,7 @@ UI 層  ──(RecipeSet, CalcRequest)──▶  計算エンジン(pure)  ─�
 このツールは既存の `WLBatterySimulator`（武陵発電制御計算機）と同じ流儀で実装する。既存スタックとパターンに完全準拠すること:
 
 - **Webフレームワーク**: axum 0.7（`json`, `multipart` feature 済み）
-- **テンプレート**: askama 0.12（`#[derive(Template)]` + `templates/*.html`。`{{ x|safe }}` でフラグメント埋め込み）
+- **テンプレート**: askama（`#[derive(Template)]` + `templates/*.html`。`{{ x|safe }}` でフラグメント埋め込み）
 - **フロント**: htmx 2（CDN）+ **バニラJS**（フレームワークなし。Alpine等は導入しない）。チャートが要る場合のみ Chart.js 4（CDN）。
 - **状態**: サーバは**ステートレス**。編集中の RecipeSet はクライアント（バニラJSの配列）が真実の源。
 - **送信**: フォーム全体を `hx-post` + `hx-swap="none"` + `multipart/form-data` で送る。可変長ネストのため、RecipeSet を JS で `JSON.stringify` し、**単一 `payload` フィールド**に入れて POST。
@@ -410,7 +410,7 @@ askama テンプレートは領域ごとに分割（`steps.html`, `raw_materials
 - [ ] `solver::calculate(&RecipeSet, &CalcRequest) -> Result<CalcResult, String>` として公開
 - [ ] 単体テスト §5 の 1〜12 全件
 
-### Web層（axum 0.7 + askama 0.12、既存 WLBatterySimulator 準拠）
+### Web層（axum + askama、既存 WLBatterySimulator 準拠）
 - [ ] `router()` に `/`(index) と `/calculate`(post) と `/static`(nest_service)。上位で `/EFRecipeCalculator` にネスト
 - [ ] `calculate` ハンドラ: multipart から `payload` を拾い `serde_json::from_str::<CalcInput>()` で復元 → solver 呼び出し
 - [ ] askama テンプレート: index.html + 領域別フラグメント（steps / raw_materials / mined_usage / byproduct_surplus / bottleneck / warnings）+ error.html、各々 `#[derive(Template)]`
