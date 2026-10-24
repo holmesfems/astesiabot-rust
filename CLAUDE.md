@@ -31,6 +31,9 @@ cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を
   （表現層。Playwright で実ブラウザ）を通し、必要なら実際に画面や Discord で触って確かめる。
 - PR と master への push で CI（`.github/workflows/ci.yml`。Ubuntu で clippy `-D warnings`・`cargo test`・
   verify.mjs）が回る。e2e.mjs は Windows 専用なので CI に無く、手元で回す。
+- 依存の脆弱性は `.github/workflows/audit.yml`（`cargo audit`。PR・master・週1）で見る。必須チェックではない。
+  赤くなったらまず `cargo update -p <crate>` で直るか試し、直せないものだけ `.cargo/audit.toml` に
+  理由と外せる条件を書いて ignore する。
 - 理性価値表は `risei_calculator_engine/testdata/golden_*.json` と突き合わせる。Seed を作り直すと
   golden のテストが落ちるので、diff で値の動きを確かめてから golden を出し直し、Seed と一緒に commit する。
   Seed の更新とコードの変更は同じ commit に混ぜない（コードの退行が Seed の変化に紛れる）。

@@ -1,0 +1,30 @@
+# cargo audit の設定（.github/workflows/audit.yml が読む）。
+# ignore に足すのは「直す手段がまだ無い」か「このプロジェクトでは届かない経路」だけにして、
+# 必ず理由と、外せる条件を書く。条件を満たしたら消す。
+
+[advisories]
+ignore = [
+    # --- rustls 0.22 / rustls-webpki 0.102 ---
+    # serenity 0.12 → tokio-tungstenite 0.21 が Discord の Gateway（WebSocket）につなぐときだけ使う。
+    # 修正は rustls 0.23.46 以降にしか無く、serenity を上げないと直らない（serenity は poise に合わせて据え置き）。
+    # つなぐ先は Discord だけで、どれも経路上の攻撃者（MITM）か、使っていない機能が前提:
+    "RUSTSEC-2026-0346", # rustls: Debug でセッションの秘密が出る（セッションを Debug 表示していない）
+    "RUSTSEC-2026-0349", # rustls: ServerHello で耐量子でない鍵交換に落とされる（MITM が前提）
+    "RUSTSEC-2026-0049", # webpki: CRL の配布点の扱い（CRL を使っていない）
+    "RUSTSEC-2026-0104", # webpki: CRL の解析で panic（CRL を使っていない）
+    "RUSTSEC-2026-0098", # webpki: URI 名の名前制約（不正な証明書＋MITM が前提）
+    "RUSTSEC-2026-0099", # webpki: ワイルドカードの名前制約（不正な証明書＋MITM が前提）
+    "RUSTSEC-2026-0382", # webpki: 失効した中間証明書を受け入れ得る（不正な証明書＋MITM が前提）
+    # 外せる条件: poise / serenity が rustls 0.23 系の tungstenite に上がったとき。
+
+    # --- zip 3 / 7 / 8 ---
+    # どれも「信用できない zip を展開（extract）したとき」の脆弱性で、修正は zip 9 以降にしか無い。
+    # このプロジェクトは zip を作るだけ（skill.zip・rust_xlsxwriter の xlsx）。展開するのは
+    # utoipa-swagger-ui のビルドスクリプトが Swagger UI の配布物を展開するところと、
+    # テストで calamine が xlsx を読むところだけ（extract は呼ばない）:
+    "RUSTSEC-2026-0367", # SUID/SGID ビットを残したまま展開する
+    "RUSTSEC-2026-0368", # 展開先の外を指すシンボリックリンクを作る
+    "RUSTSEC-2026-0369", # シンボリックリンク越しにパーミッションを付ける
+    # 外せる条件: 自分の zip を 9 に、rust_xlsxwriter を 0.101・calamine を 0.37・
+    # utoipa-swagger-ui を 10（utoipa 6 が要る）に上げ、Cargo.lock から zip 3/7/8 が消えたとき。
+]
