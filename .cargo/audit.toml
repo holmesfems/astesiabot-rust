@@ -16,15 +16,4 @@ ignore = [
     "RUSTSEC-2026-0099", # webpki: ワイルドカードの名前制約（不正な証明書＋MITM が前提）
     "RUSTSEC-2026-0382", # webpki: 失効した中間証明書を受け入れ得る（不正な証明書＋MITM が前提）
     # 外せる条件: poise / serenity が rustls 0.23 系の tungstenite に上がったとき。
-
-    # --- zip 3 / 7 / 8 ---
-    # どれも「信用できない zip を展開（extract）したとき」の脆弱性で、修正は zip 9 以降にしか無い。
-    # このプロジェクトは zip を作るだけ（skill.zip・rust_xlsxwriter の xlsx）。展開するのは
-    # utoipa-swagger-ui のビルドスクリプトが Swagger UI の配布物を展開するところと、
-    # テストで calamine が xlsx を読むところだけ（extract は呼ばない）:
-    "RUSTSEC-2026-0367", # SUID/SGID ビットを残したまま展開する
-    "RUSTSEC-2026-0368", # 展開先の外を指すシンボリックリンクを作る
-    "RUSTSEC-2026-0369", # シンボリックリンク越しにパーミッションを付ける
-    # 外せる条件: 自分の zip を 9 に、rust_xlsxwriter を 0.101・calamine を 0.37・
-    # utoipa-swagger-ui を 10（utoipa 6 が要る）に上げ、Cargo.lock から zip 3/7/8 が消えたとき。
 ]
