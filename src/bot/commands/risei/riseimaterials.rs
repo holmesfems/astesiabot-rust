@@ -8,8 +8,8 @@ use poise::serenity_prelude as serenity;
 const MAX_ITEMS: usize = 15;
 const MATERIALS_XLSX_FILENAME: &str = "MaterialsDrop.xlsx";
 
-/// riseimaterials/riseicalculator の target_item 選択肢(Python版は常に大陸版の
-/// 全カテゴリ(main+new)を選択肢に使う)。
+/// riseimaterials/riseicalculator の target_item 選択肢。常に大陸版の
+/// 全カテゴリ(main+new)を使う。
 async fn autocomplete_target_item(
     ctx: Context<'_>,
     partial: &str,

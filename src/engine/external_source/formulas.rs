@@ -8,7 +8,7 @@ const FORMULA_URL: &str = "https://raw.githubusercontent.com/Kengxxiao/Arknights
 
 pub const SEED_PATH: &str = "data/seed/formulas.json";
 
-/// 素材合成レシピ1件の生データ（Python の `FormulaItem` のコンストラクタ引数相当）。
+/// 素材合成レシピ1件の生データ。
 /// 実際の合成換算行列への変換は risei_calculator_engine 側（calculator.rs）が行う。
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RawFormula {

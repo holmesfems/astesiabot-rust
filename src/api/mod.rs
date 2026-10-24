@@ -228,7 +228,7 @@ pub async fn run_api(state: Arc<AppState>) {
     let catalog_provider = catalog_provider_for(state.clone());
     let mut app = web_ui_router::<Arc<AppState>>()
         .merge(fk_kill_calculator::catalog_router::<Arc<AppState>>(catalog_provider))
-        // Python と同じパス。認証なしで叩けるので本文の大きさを絞る（recruitment.rs 参照）
+        // 既存のクライアントが使っているパスなので変えない。認証なしで叩けるので本文の大きさを絞る（recruitment.rs 参照）
         .route(
             "/recruitment/",
             post(recruitment::do_recruitment)

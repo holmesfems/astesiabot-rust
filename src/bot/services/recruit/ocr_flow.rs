@@ -6,7 +6,6 @@ use poise::serenity_prelude as serenity;
 pub struct OcrOutcome {
     pub reply: EmbedReply,
     /// true の場合、計算結果に加えてリプライ誘導メッセージも送る
-    /// （Python の `tagMatch.isIllegal()` 分岐に対応）。
     pub needs_guidance: bool,
 }
 

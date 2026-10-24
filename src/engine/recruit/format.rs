@@ -2,8 +2,8 @@ use super::calc::MatchItem;
 use std::cmp::Reverse;
 use std::collections::BTreeSet;
 
-/// 5段ソート（chunks と responseForAI で共通）。
-/// Python の searchMapToStringChunks と同じ順序を、安定ソートの重ねがけで再現する。
+/// 5段ソート（display_chunks と response_for_ai で共通）。
+/// 安定ソートを重ねがけして並べる。
 /// 適用順（最後が最優先）:
 ///   keyLen desc → valueLen asc → maxstar desc → minstar desc → containsPickup desc
 fn sort_items(items: &mut [MatchItem]) {
@@ -25,9 +25,9 @@ fn star_set_str(set: &BTreeSet<u8>) -> String {
         .join(",")
 }
 
-/// embbedContents 相当。各組み合わせを1チャンク文字列にして Vec で返す。
+/// 各組み合わせを1チャンク文字列にして Vec で返す。
 /// bot の embed で使う。
-/// Python: key + " -> ★{minStar}" + "```\n" + "★{star}{name},..." + "```\n"
+/// 1チャンクは「タグ -> ★minStar」の後にコードブロックで「★星名前,...」を並べた形式。
 pub fn display_chunks(mut items: Vec<MatchItem>) -> Vec<String> {
     sort_items(&mut items);
     let mut chunks = Vec::new();
@@ -45,7 +45,7 @@ pub fn display_chunks(mut items: Vec<MatchItem>) -> Vec<String> {
     chunks
 }
 
-/// Python の responseForAI（"".join(aiChunks)）を完全再現する。
+/// AI 向けのチャンクを区切り無しで連結した文字列を返す。
 pub fn response_for_ai(mut items: Vec<MatchItem>) -> String {
     sort_items(&mut items);
     let mut out = String::new();
@@ -92,7 +92,7 @@ pub fn response_for_ai(mut items: Vec<MatchItem>) -> String {
     out
 }
 
-/// title 生成（Python の recruitDoProcess のタイトル部分）。
+/// title 生成。
 /// sorted_input は正規化済み（定義順ソート済み）を渡す。
 pub fn make_title(sorted_input: &[String], is_global: bool, show_tag_loss: bool) -> String {
     let mut title = sorted_input.join(" ");
@@ -108,11 +108,11 @@ pub fn make_title(sorted_input: &[String], is_global: bool, show_tag_loss: bool)
     title
 }
 
-// ---- 分割ユーティリティ（Python の rcReply.py 相当）----
-// 注意: Python の len() は文字数。Rust の String::len() はバイト数なので、
+// ---- 分割ユーティリティ ----
+// 注意: Rust の String::len() はバイト数なので、
 // 日本語で挙動がズレないよう chars() ベースで文字数を数える。
 
-/// Python の chunk_text。limit超のテキストを改行/空白優先で分割。
+/// limit超のテキストを改行/空白優先で分割。
 pub fn chunk_text(text: &str, limit: usize) -> Vec<String> {
     let chars: Vec<char> = text.chars().collect();
     let n = chars.len();
@@ -146,7 +146,7 @@ pub fn chunk_text(text: &str, limit: usize) -> Vec<String> {
     chunks
 }
 
-/// Python の arrangementChunks。chunk群を maxLength に収まるよう結合。
+/// chunk群を maxLength に収まるよう結合。
 pub fn arrangement_chunks(msg_list: &[String], max_length: usize) -> Vec<String> {
     let mut chunks: Vec<String> = Vec::new();
     for item in msg_list {

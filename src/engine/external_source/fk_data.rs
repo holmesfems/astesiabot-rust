@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// Google Sheets上のFK情報シート名（Python `SSNAME`）。reqwest/url が非ASCII文字を
+/// Google Sheets上のFK情報シート名。reqwest/url が非ASCII文字を
 /// URLパスとして自動で%エンコードするため、手動エンコードは不要。
 const SHEET_NAME: &str = "スキル一覧";
 
@@ -13,7 +13,7 @@ const SHEET_NAME: &str = "スキル一覧";
 /// リポジトリに含めておく（起動時fetchが失敗した場合のフォールバック用）。
 pub const SEED_PATH: &str = "data/seed/fk_data.json";
 
-/// FKスプレッドシート1行分の生データ（Python `SkillFKInfo`からスキル名解決を除いた部分）。
+/// FKスプレッドシート1行分の生データ（スキル名の解決は含まない）。
 /// スキル名解決（`skillNum`をオペレーターの`skillIds`と突き合わせて`SkillData`から引く）は
 /// このデータ層の責務ではなく`engine::fk_data_search`が行う。
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -27,11 +27,11 @@ pub struct FkSheetRow {
     pub state: String,
 }
 
-/// FKスプレッドシート全体（Python `FKInfo.fkData`相当）。
+/// FKスプレッドシート全体。
 #[derive(Serialize, Deserialize, Default)]
 pub struct FkSheetData {
     /// オペレーター名(シート列E) -> そのオペレーターのFK行一覧。
-    /// `IndexMap`はシート行の挿入順(=Python dictの挿入順)を保持するため。
+    /// `IndexMap`はシートの行順を保つため。
     pub by_operator: IndexMap<String, Vec<FkSheetRow>>,
 }
 
@@ -60,10 +60,10 @@ async fn fetch_impl() -> Result<FkSheetData, FetchError> {
         return Ok(FkSheetData { by_operator });
     };
 
-    // 先頭2行はヘッダのため除外(Python `fkList = fkJson["values"][2:]`)。
+    // 先頭2行はヘッダのため除外。
     for row in rows.iter().skip(2) {
         let Some(cells) = row.as_array() else { continue };
-        // 列L(index11)までアクセスするため、それ未満の行は対象外(Python `len(item)<12`)。
+        // 列L(index11)までアクセスするため、それより短い行は対象外。
         if cells.len() < 12 {
             continue;
         }
@@ -77,7 +77,7 @@ async fn fetch_impl() -> Result<FkSheetData, FetchError> {
             last_edited: cell(10),
             state: cell(11),
         };
-        // 最終更新が空のものは未整備データとして除外(Python `SkillFKInfo.isAvailable`)。
+        // 最終更新が空のものは未整備データとして除外。
         if sheet_row.last_edited.is_empty() {
             continue;
         }

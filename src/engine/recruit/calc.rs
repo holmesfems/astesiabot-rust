@@ -28,14 +28,13 @@ struct FutureOperatorRef {
 }
 
 impl FutureOperatorRef {
-    /// 反映時刻を過ぎていればグローバル版でも対象。大陸版（is_global=false）なら常に対象
-    /// （Python の Mainland 相当）。
+    /// 反映時刻を過ぎていればグローバル版でも対象。大陸版（is_global=false）なら常に対象。
     fn is_available(&self, now: &chrono::DateTime<chrono_tz::Tz>, is_global: bool) -> bool {
         !is_global || self.release.is_some_and(|r| *now >= r)
     }
 }
 
-/// タグ名から種別を判定（Python の tagType 相当）。
+/// タグ名から種別を判定する。
 /// load() 時（self がまだ無い段階）でも使うためフリー関数にしてある。
 fn tag_type_of(tag_list: &TagList, name: &str) -> TagType {
     if tag_list.elite_tags.iter().any(|t| t == name) {
@@ -50,13 +49,13 @@ fn tag_type_of(tag_list: &TagList, name: &str) -> TagType {
 /// 公開求人のプールから組み立てて保持するデータ。
 ///
 /// タグ組み合わせ→該当オペレーターのマップ（main_map / future_map）はプールを受け取った時
-/// （起動時と日次更新時）に1回だけ構築する（Python 版の GlobalTagMap / FutureTagMap 相当）。
+/// （起動時と日次更新時）に1回だけ構築する。
 /// future の反映時刻フィルタは、この事前計算済みマップを引いた後に、都度「今反映済みか」
 /// だけを軽くチェックする形にしているため、反映タイミングを監視して再計算するような仕組みは不要。
 pub struct RecruitData {
     tag_list: TagList,
     /// tagList の全タグを定義順に並べたもの（入力の並べ替え・フィルタに使う）
-    /// Python: tagNameList = jobTags + positionTags + eliteTags + otherTags
+    /// 並びは job → position → elite → other の各タグ。
     tag_name_order: Vec<String>,
     /// タグ組み合わせ（定義順タプル）→ 満たす main オペレーター一覧。
     main_map: HashMap<Vec<String>, Vec<OperatorRef>>,
@@ -180,7 +179,7 @@ impl RecruitData {
         }
     }
 
-    /// タグ名から種別を判定（Python の tagType 相当）
+    /// タグ名から種別を判定する。
     fn tag_type(&self, name: &str) -> TagType {
         tag_type_of(&self.tag_list, name)
     }
@@ -204,7 +203,6 @@ impl RecruitData {
     }
 
     /// 入力タグ列を「既知のタグのみ・重複除去・定義順ソート」に正規化。
-    /// Python の recruitDoProcess 冒頭の処理に対応。
     fn normalize_input(&self, input: &[String]) -> Vec<Tag> {
         let seen: HashSet<&String> = input.iter().collect();
         let mut valid: Vec<&String> = seen
@@ -236,7 +234,7 @@ impl RecruitData {
     }
 
     /// 計算本体。入力タグから、条件を満たすタグ組み合わせを返す。
-    /// is_global=false なら未実装 future も無条件で対象に含める（Python の Mainland 相当）。
+    /// is_global=false なら未実装 future も無条件で対象に含める。
     /// pickup があれば、その対象を含む組み合わせを星に関わらず採用する。
     pub fn calculate(
         &self,
@@ -259,7 +257,7 @@ impl RecruitData {
         // future は反映済みかどうかを現在時刻で都度判定する（キャッシュ自体は時刻に依存しない）。
         let now = Utc::now().with_timezone(&Tokyo);
 
-        // minStar==4 のとき showRobot=true（Python の recruitDoProcess）
+        // minStar==4 のときだけロボットを表示対象にする
         let show_robot = min_star == 4;
 
         // ピックアップ名の集合は1回だけ作る。pickup は Web API の利用者が長さを
@@ -283,7 +281,7 @@ impl RecruitData {
             if satisfied.is_empty() {
                 continue;
             }
-            // 星昇順ソート（Python の OperatorList は stars 昇順）
+            // 星昇順ソート
             satisfied.sort_by_key(|o| o.stars);
             let ms = min_star_of(&satisfied);
 
@@ -303,7 +301,7 @@ impl RecruitData {
                 None => (false, Vec::new()),
             };
 
-            // 採用判定（Python: containsPickup優先 → robot → minStar閾値）
+            // 採用判定（ピックアップ優先 → ロボット → minStar閾値）
             let keep = contains_pickup || (ms == 1 && show_robot) || ms >= min_star;
             if !keep {
                 continue;
@@ -321,10 +319,10 @@ impl RecruitData {
         result
     }
 
-    /// 指定した星のオペレーターのみが出現することを保証するタグ組み合わせを列挙する
-    /// (Python `showHighStars` / `calculateTagMatchResult(equals=True)` 相当)。
-    /// エリートタグ(エリート/上級エリート)は探索対象から除外する(Python版`searchList`が
-    /// `positionTags + jobTags + otherTags`のみでeliteTagsを含めないのと同じ)。
+    /// 指定した星のオペレーターのみが出現することを保証するタグ組み合わせを列挙する。
+    ///
+    /// エリートタグ(エリート/上級エリート)は探索対象から除外し、
+    /// position / job / other タグだけで組み合わせを作る。
     /// `main_map`/`future_map`は起動時に全タグの全組み合わせで構築済みのため、ここでは
     /// 既存マップのキーを走査するだけで済む(`calculate()`のように都度組み合わせを
     /// 生成し直す必要はない)。
@@ -366,7 +364,7 @@ impl RecruitData {
     }
 }
 
-/// 星を保証するタグ組み合わせ1件(Python `showHighStars`のjsonForAI 1エントリ相当)。
+/// 星を保証するタグ組み合わせ1件。
 #[derive(Debug, Clone)]
 pub struct GuaranteedTagCombo {
     /// 定義順に並んだタグ名の組み合わせ(1〜3個)。
@@ -382,14 +380,14 @@ pub struct MatchItem {
     pub min_star: u8,
     /// 星昇順ソート済み
     pub operators: Vec<OperatorRef>,
-    /// 表示順を安定させるため BTreeSet（Python の出力は昇順）
+    /// 表示順を安定させるため BTreeSet（昇順）
     pub star_set: BTreeSet<u8>,
     pub contains_pickup: bool,
     /// `operators` のうちピックアップ指定された名前（format.rs で包含判定にだけ使う）。
     pub pickup_target: Vec<String>,
 }
 
-/// オペレーターが全タグを満たすか（Python の satisfyTags）。
+/// オペレーターが全タグを満たすか。
 fn satisfy_tags(op: &PoolOperator, combo: &[&Tag]) -> bool {
     let need_elite = op.stars == 6;
     let mut has_elite = false;
@@ -421,7 +419,7 @@ fn satisfy_tags(op: &PoolOperator, combo: &[&Tag]) -> bool {
     true
 }
 
-/// オペレーター集合の「最低星」（Python の minStar）。
+/// オペレーター集合の「最低星」。
 /// 3以上があればその最小、なければ3未満の最大。
 fn min_star_of(ops: &[OperatorRef]) -> u8 {
     let stars: HashSet<u8> = ops.iter().map(|o| o.stars).collect();

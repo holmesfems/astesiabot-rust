@@ -171,7 +171,7 @@ pub struct RawOperatorCombat {
 /// オペレーター戦闘生データ一式。
 #[derive(Serialize, Deserialize, Default)]
 pub struct OperatorCombat {
-    /// `IndexMap`はPython系の他ソースと同じくファイル順を保持する（現時点では
+    /// `IndexMap`でファイル順を保持する（現時点では
     /// 順序に依存する機能は無いが、`operator_data.rs`との一貫性のため合わせる）。
     pub operators: IndexMap<String, RawOperatorCombat>,
     pub name_to_id: HashMap<String, String>,
@@ -487,7 +487,7 @@ fn build_patches(
     let patch_info_jp = jp_patch.get("patchChars");
     let Some(Value::Object(patch_key_cn)) = cn_patch.get("infos") else { return };
 
-    // `tmplIds`にpatch_keyを含むoriginal operatorを逆引きする（Python `originalOperatorName`相当）。
+    // `tmplIds`にpatch_keyを含むoriginal operatorを逆引きする。
     let find_original = |patch_key: &str| -> Option<(&str, &str)> {
         for (original_id, info) in patch_key_cn.iter() {
             let matches = info

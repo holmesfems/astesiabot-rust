@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, OnceLock};
 use utoipa::ToSchema;
 
-/// Python の OCRRawData に対応。
+/// OCR 生テキストを受け取る /recruitment/ のリクエスト本文。
 #[derive(Deserialize, ToSchema)]
 pub(super) struct OcrRawData {
     text: String,
@@ -20,7 +20,7 @@ pub(super) struct OcrRawData {
     shortcut_version: Option<serde_json::Value>,
 }
 
-/// Python の TagReplyData に対応（`tagCount` / `update` は Rust 版で追加）。
+/// /recruitment/ の応答。`tagCount` / `update` は後から追加したフィールド。
 #[derive(Serialize, ToSchema)]
 pub(super) struct TagReplyData {
     title: String,
@@ -154,7 +154,7 @@ fn reject_too_long_text(text: &str) -> Option<TagReplyData> {
 fn build_tag_reply(engine: &RecruitEngine, ocr_text: &str, pickup: Option<&[String]>) -> TagReplyData {
     let matched = engine.matcher.match_tag(ocr_text);
 
-    // isEmpty チェック（Python: matchTag.isEmpty()）
+    // タグが1つも見つからなければエラー応答
     if matched.matches.is_empty() {
         return TagReplyData {
             title: "エラー".to_string(),
@@ -164,8 +164,8 @@ fn build_tag_reply(engine: &RecruitEngine, ocr_text: &str, pickup: Option<&[Stri
         };
     }
 
-    // matches を Vec 化。8個超なら先頭8個に切り詰め（Python の list(matches)[:8]）
-    // 注意: 8個超は OCR 大誤爆時のみ。順序は Python set と一致しない（許容）。
+    // matches を Vec 化。8個超なら先頭8個に切り詰め
+    // 注意: 8個超は OCR 大誤爆時のみ。順序は不定（許容）。
     let mut matches: Vec<String> = matched.matches.into_iter().collect();
     if matches.len() > 8 {
         matches.truncate(8);

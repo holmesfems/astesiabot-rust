@@ -1,5 +1,4 @@
-//! riseimaterials/riseistages/riseievents 相当のステージ検索DTO+計算(Python
-//! `CalculatorManager.riseimaterials`/`riseistages`/`riseievents`の計算部相当)。整形(Discord
+//! riseimaterials/riseistages/riseievents 相当のステージ検索DTO+計算。整形(Discord
 //! embed化/GPT向けJSON化/REST API)は呼び出し側(`bot/commands/risei/*.rs` /
 //! `bot/services/uranai/functioncalling/*.rs` / `api/risei.rs`)の責務。
 //! 元は`bot/commands/risei/riseimaterials.rs`等にあったが、bot/apiの両方から参照するため
@@ -11,7 +10,7 @@ use super::{drop_per_minute, filter_stages_by_show_min_times, RiseiCalculatorEng
 use serde::Serialize;
 use std::sync::Arc;
 
-/// 昇進素材カテゴリの1ステージ分の効率情報(Python `riseimaterials`のjsonForAI各項目相当)。
+/// 昇進素材カテゴリの1ステージ分の効率情報。
 #[derive(Serialize)]
 pub struct MaterialStageInfo {
     pub name: String,
@@ -50,7 +49,7 @@ pub struct StageCategoryEfficiency {
     pub drop_per_minute: Option<f64>,
 }
 
-/// riseistages の1ステージ分の効率情報(Python `riseistages`のjsonForAI各項目相当)。
+/// riseistages の1ステージ分の効率情報。
 #[derive(Serialize)]
 pub struct StageEfficiencyInfo {
     pub name: String,
@@ -76,7 +75,7 @@ pub struct StageSearchResult {
     pub stages: Vec<StageEfficiencyInfo>,
 }
 
-/// riseievents の1ステージ分の効率情報（Python `riseievents`のjsonForAI各項目相当）。
+/// riseievents の1ステージ分の効率情報。
 /// 元は`bot/commands/risei/riseievents.rs`にあった。
 #[derive(Serialize)]
 pub struct EventStageInfo {
@@ -98,8 +97,8 @@ pub struct EventStageInfo {
 
 impl RiseiCalculatorEngine {
     /// 素材カテゴリの指定(キー`main_x`/`new_x`、または日本語名`to_ja`)からカテゴリキーを
-    /// 解決する。キー完全一致→日本語名完全一致→部分一致(Python版`estimateCategoryFromJPName`の
-    /// `current in to_ja or to_ja in current`相当)の順で、AIの表記ゆれを吸収する。
+    /// 解決する。キー完全一致→日本語名完全一致→部分一致(入力が`to_ja`に含まれる、または
+    /// `to_ja`が入力に含まれる)の順で、AIの表記ゆれを吸収する。
     /// GPT function calling(uranai)とREST API(`api/risei.rs`)の共通部。
     pub fn resolve_category_key(&self, target: &str) -> Option<String> {
         let file = self.stage_category();

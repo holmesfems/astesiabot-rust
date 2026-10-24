@@ -13,9 +13,8 @@ pub struct DropItem {
     pub times: i64,
 }
 
-/// ステージ1件分のドロップ集計（Python `DropList`）。
-/// Python版の `minTimes()` は常に0を返す未使用の欠陥コードだったため、
-/// 意図的に移植していない（`maxTimes()` のみ実際に使われている）。
+/// ステージ1件分のドロップ集計。
+/// 最小試行数は使い道が無いため持たず、最大試行数（`max_times`）だけを保持する。
 #[derive(Clone, Default)]
 pub struct DropList {
     drop_dict: HashMap<String, DropItem>,
@@ -38,7 +37,7 @@ impl DropList {
         }
     }
 
-    /// 重複するアイテムIDは新しいものを適用する（Python `DropList.__iadd__`)。
+    /// 重複するアイテムIDは新しいものを適用する。
     pub fn merge_from(&mut self, other: DropList) {
         for (key, value) in other.drop_dict {
             self.drop_dict.insert(key, value);
@@ -90,7 +89,7 @@ impl DropList {
     }
 }
 
-/// 1マップ分の情報（Python `StageItem`）。理性(Sanity)軸のみを扱い、
+/// 1マップ分の情報。理性(Sanity)軸のみを扱い、
 /// 時間(Time)軸のコスト分岐は持たない。`minClearTime` は表示用の付随情報として保持する。
 pub struct StageItem {
     pub name: String,
@@ -132,7 +131,7 @@ impl StageItem {
         }
     }
 
-    /// 作戦コード（Re版のサフィックス付き）。Python `nameWithReplicate`。
+    /// 作戦コード（Re版のサフィックス付き）。
     pub fn name_with_replicate(&self) -> String {
         if self.zone_id.contains("re_") {
             format!("{}(Re)", self.name)
@@ -155,8 +154,7 @@ impl StageItem {
         }
     }
 
-    /// matrix由来のドロップ記録を1件追加する（value_targetに含まれる場合のみ。
-    /// Python `StageItem.addDropList`）。
+    /// matrix由来のドロップ記録を1件追加する（value_targetに含まれる場合のみ）。
     pub fn add_drop_record(&mut self, record: &RawDropRecord, value_target: &[&str], item_names: &ItemNames) {
         let zh = item_names.get_zh(&record.item_id);
         if value_target.contains(&zh) {
@@ -206,7 +204,7 @@ impl StageItem {
         total_value / self.ap_cost
     }
 
-    /// 指定アイテム群だけに絞った効率（Python `getPartialEfficiency`）。
+    /// 指定アイテム群だけに絞った効率。
     pub fn get_partial_efficiency(&self, values: &RiseiValues, items: &[&str]) -> f64 {
         let total_value: f64 = items
             .iter()
@@ -215,7 +213,7 @@ impl StageItem {
         total_value / self.ap_cost
     }
 
-    /// 理性効率の誤差項（Python `getStdDev`）。
+    /// 理性効率の誤差項。
     pub fn get_std_dev(&self, values: &RiseiValues) -> f64 {
         let std_dev = self.to_std_dev_array(&values.value_target, &values.item_names);
         let drop_array = self.to_drop_array(&values.value_target, &values.item_names);

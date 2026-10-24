@@ -8,7 +8,7 @@ pub struct ParsedTitle {
 }
 
 /// リプライ編集で起き得るエラー。
-/// Python の msgForOCRReply が返すエラーメッセージに対応する。
+/// 各バリアントは、ユーザーへ返すエラーメッセージに対応する。
 #[derive(Debug)]
 pub enum EditError {
     /// コマンド中に tagList.json に無いタグ名が含まれていた。
@@ -17,7 +17,7 @@ pub enum EditError {
     TooManyTags(usize),
 }
 
-/// Python の msgForOCRReply 冒頭（タイトル→タグ復元部分）に対応。
+/// リプライ元メッセージのタイトルから既存のタグを復元する。
 /// `format::make_title` の出力形式（タグ名をスペース区切りで結合し、
 /// 大陸版/タグ不足/タグ過多の装飾を付加したもの）を逆変換する。
 /// タイトルに未知のトークンが1つでも混ざっていれば None（呼び出し側は無視する）。
@@ -40,7 +40,7 @@ pub fn parse_title(data: &RecruitData, title: &str) -> Option<ParsedTitle> {
     Some(ParsedTitle { tags, is_global })
 }
 
-/// タグの略称→正式名（Python の abbreviations）。
+/// タグの略称→正式名。
 const ABBREVIATIONS: &[(&str, &str)] = &[
     ("上エリ", "上級エリート"),
     ("エリ", "エリート"),
@@ -49,7 +49,7 @@ const ABBREVIATIONS: &[(&str, &str)] = &[
     ("コスト回復", "COST回復"),
 ];
 
-/// Python の formatToTags。末尾の「タイプ」除去→大文字化→略称展開。
+/// 入力コマンドをタグ名に整形する。末尾の「タイプ」除去→大文字化→略称展開。
 fn format_to_tag(command: &str) -> String {
     let normalized = command.replace("タイプ", "").to_uppercase();
     ABBREVIATIONS
@@ -59,13 +59,13 @@ fn format_to_tag(command: &str) -> String {
         .unwrap_or(normalized)
 }
 
-/// Python の `re.split(r"(?:->)|→", command)` 相当。
+/// コマンドを "->" または "→" で分割する。
 /// "→" を "->" に置き換えてから分割することで、同じ分割位置を再現する。
 fn split_arrow(command: &str) -> Vec<String> {
     command.replace('→', "->").split("->").map(str::to_string).collect()
 }
 
-/// Python の msgForOCRReply のコマンド適用ループに対応。
+/// コマンド適用ループ。
 /// existing（parse_title で復元した既存タグ）にリプライ本文のコマンドを適用し、
 /// 編集後のタグ集合を返す。
 pub fn apply_edit_commands(
@@ -97,7 +97,7 @@ pub fn apply_edit_commands(
                     }
                 }
             }
-            _ => {} // 3要素以上は Python 版同様、意図的なチェック無しで素通り
+            _ => {} // 3要素以上は意図的にチェックせず素通り
         }
     }
 

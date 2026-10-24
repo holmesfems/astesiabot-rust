@@ -8,8 +8,8 @@ const BASE_TITLE: &str = "FK情報検索";
 /// reply_dispatch がリプライ解決時にfooterから読む固有名。
 pub const REPLY_MARKER_KEY: &str = "FKSEARCH";
 
-/// コマンド呼び出し1回分の検索コンテキストを構築する（Python `FKInfo.getInfoFromName`の
-/// TTLチェック込み）。`operator_data`/`skill_data`はスキル名解決にのみ使う。
+/// コマンド呼び出し1回分の検索コンテキストを構築する（TTLチェック込み）。
+/// `operator_data`/`skill_data`はスキル名解決にのみ使う。
 pub async fn build_view(state: &AppState) -> FkDataView {
     FkDataView {
         fk_data: state.fk_data_search.snapshot(&state.external_source).await,
@@ -33,7 +33,7 @@ pub async fn fk_parse_payload_reply(state: &AppState, payload: &str, reply: &str
     fk_search_reply(state, name, skill_num).await
 }
 
-/// Python `FKInfo.getReply`の整形込み版。
+/// 検索結果の整形込み。
 pub async fn fk_search_reply(state: &AppState, operator_name: &str, skill_num: &str) -> EmbedReply {
     let view = build_view(state).await;
     match view.search(operator_name, skill_num) {
@@ -101,8 +101,8 @@ pub async fn fk_search_reply(state: &AppState, operator_name: &str, skill_num: &
     }
 }
 
-/// Python版`operator_name_autocomplete_forfk`相当。TTLチェックは行わない
-/// （Python版の`autoComplete`も鮮度更新をトリガーしない非対称性を踏襲）。
+/// オペレーター名のオートコンプリート。TTLチェックは行わない
+/// （補完のたびに鮮度更新をトリガーしないため）。
 async fn autocomplete_operator_name(
     ctx: Context<'_>,
     partial: &str,
@@ -115,7 +115,7 @@ async fn autocomplete_operator_name(
         .collect()
 }
 
-/// Python版`send_reply`と同じ役割。feature間の結合を避けるためここに複製している
+/// embed 返信を送る。feature間の結合を避けるためここに複製している
 /// （`bot/commands/operator_cost_calc/mod.rs`の同名関数を参照）。
 async fn send_reply(ctx: Context<'_>, reply: EmbedReply) -> Result<(), Error> {
     for batch in to_embed_batches(&reply) {

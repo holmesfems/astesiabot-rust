@@ -17,7 +17,7 @@ const PATCH_CHAR_TABLE_URL_JP: &str = "https://raw.githubusercontent.com/Arknigh
 /// リポジトリに含めておく（起動時fetchが失敗した場合のフォールバック用）。
 pub const SEED_PATH: &str = "data/seed/operator_data.json";
 
-/// 職業ID→日本語表記（Python `jobIdToName`。昇格オペレーターの名前 "元名(職名)" に使う）。
+/// 職業ID→日本語表記（昇格オペレーターの名前 "元名(職名)" に使う）。
 const JOB_ID_TO_NAME: &[(&str, &str)] = &[
     ("WARRIOR", "前衛"),
     ("SNIPER", "狙撃"),
@@ -37,14 +37,14 @@ fn job_ja(profession: &str) -> &'static str {
         .unwrap_or("不明")
 }
 
-/// 素材1件分（アイテムID→個数）。Python の `{"id":..., "count":...}` そのまま。
+/// 素材1件分（アイテムID→個数）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CostEntry {
     pub id: String,
     pub count: f64,
 }
 
-/// スキル1本分の特化コスト（Python `OperatorCosts.skills` の1要素）。
+/// スキル1本分の特化コスト（`levelUpCostCond` 由来）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RawSkill {
     pub skill_id: String,
@@ -52,7 +52,7 @@ pub struct RawSkill {
     pub masteries: Vec<Vec<CostEntry>>,
 }
 
-/// モジュール1種分（Python `EQCostItem`）。
+/// モジュール1種分。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RawModule {
     pub eq_type: String,
@@ -61,8 +61,7 @@ pub struct RawModule {
     pub phase_costs: Vec<Vec<CostEntry>>,
 }
 
-/// オペレーター1名分の消費素材生データ（Python `OperatorCosts.__init__` の結果。
-/// 理性価値・中級換算などの計算は含めない）。
+/// オペレーター1名分の消費素材生データ（理性価値・中級換算などの計算は含めない）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RawOperatorCost {
     pub id: String,
@@ -74,25 +73,24 @@ pub struct RawOperatorCost {
     pub cn_only: bool,
     /// 昇格オペレーター(前衛/医療アーミヤ等)か。
     pub is_patch: bool,
-    /// 昇進1,2に必要な素材（`evolveCost`の`[1..]`。Python `OperatorCosts.phases`）。
+    /// 昇進1,2に必要な素材（`evolveCost`の`[1..]`）。
     pub phases: Vec<Vec<CostEntry>>,
     pub skills: Vec<RawSkill>,
-    /// スキルLv1→7に必要な素材（Python `OperatorCosts.allSkills`）。
+    /// スキルLv1→7に必要な素材（`allSkillLvlupCost`）。
     pub all_skill_lvlup: Vec<Vec<CostEntry>>,
     /// typeName2が空、またはitemCostがnullのモジュールは除外済み。`eq_type`昇順ソート済み。
     pub modules: Vec<RawModule>,
 }
 
-/// オペレーター消費素材データ一式（Python `AllOperatorsInfo`相当）。
+/// オペレーター消費素材データ一式。
 /// `cn_to_ja` は旧`operator_names::OperatorNames`と同一ロジックで構築しており、
 /// 中国語名→日本語名変換（`to_ja`）に使う。
 #[derive(Serialize, Deserialize, Default)]
 pub struct OperatorData {
     cn_to_ja: HashMap<String, String>,
-    /// `IndexMap`はPython dictの挿入順(char_table.jsonのファイル順→昇格オペレーターの順)を
-    /// 保持するために使う。ランキング系関数(`AllOperatorsInfo::sorted_by_elite_cost`等)の
-    /// 安定ソートがPython版と同じタイブレーク順になることの前提（`Cargo.toml`で
-    /// `serde_json`の`preserve_order`を有効にしてファイル順そのものを保つのと対）。
+    /// `IndexMap`で char_table.json のファイル順→昇格オペレーターの順を保つ。
+    /// ランキング系関数(`sorted_by_elite_cost`等)の安定ソートのタイブレークをこの順にするため
+    /// （`Cargo.toml`で`serde_json`の`preserve_order`を有効にしてファイル順そのものを保つのと対）。
     pub operators: IndexMap<String, RawOperatorCost>,
     pub name_to_id: HashMap<String, String>,
 }
@@ -157,14 +155,12 @@ async fn fetch_impl() -> Result<OperatorData, FetchError> {
     })
 }
 
-/// character_table.json のキーが `char_xxx_yyy` 形式（オペレーター）かどうか
-/// （Python の `re.match(r"([^_]+)_(\d+)_([^_]+)", key).group(1) == "char"` 相当）。
+/// character_table.json のキーが `char_xxx_yyy` 形式（オペレーター）かどうか。
 fn is_char_key(key: &str) -> bool {
     key.split('_').next() == Some("char")
 }
 
-/// "TIER_n"（大陸版）/ int（日本版、+1する）のどちらでも星の数を解決する
-/// （Python `OperatorCosts.__init__` の rarity 分岐）。
+/// "TIER_n"（大陸版）/ int（日本版、+1する）のどちらでも星の数を解決する。
 fn parse_stars(value: &Value) -> u32 {
     match value.get("rarity") {
         Some(Value::String(s)) => s.trim_start_matches("TIER_").parse::<u32>().unwrap_or(0),
@@ -187,7 +183,7 @@ fn parse_cost_list(value: Option<&Value>) -> Vec<CostEntry> {
         .collect()
 }
 
-/// evolveCostの`[1..]`（phase0はコスト無しのため除外。Python `[ItemCost(...) for ...][1:]`）。
+/// evolveCostの`[1..]`（phase0はコスト無しのため除外）。
 fn parse_phases(value: &Value) -> Vec<Vec<CostEntry>> {
     let Some(Value::Array(phases)) = value.get("phases") else {
         return Vec::new();
@@ -219,8 +215,7 @@ fn parse_all_skill_lvlup(value: &Value) -> Vec<Vec<CostEntry>> {
     items.iter().map(|item| parse_cost_list(item.get("lvlUpCost"))).collect()
 }
 
-/// char_table.json のCN/JPをマージしながらオペレーター一覧を構築する
-/// （Python `AllOperatorsInfo.init` 前半）。
+/// char_table.json のCN/JPをマージしながらオペレーター一覧を構築する。
 fn build_characters(
     cn_table: &Value,
     jp_table: &Value,
@@ -275,7 +270,7 @@ fn build_characters(
     }
 }
 
-/// 昇格オペレーター(前衛/医療アーミヤ等)を追加する（Python `AllOperatorsInfo.init` 中盤）。
+/// 昇格オペレーター(前衛/医療アーミヤ等)を追加する。
 /// `base_operators`は追加前のスナップショット(元オペレーター名逆引き用)。
 fn build_patches(
     cn_patch: &Value,
@@ -288,7 +283,7 @@ fn build_patches(
     let patch_info_jp = jp_patch.get("patchChars");
     let Some(Value::Object(patch_key_cn)) = cn_patch.get("infos") else { return };
 
-    // Python `originalOperatorName`: tmplIds に patch_key を含む original operator を逆引きする。
+    // tmplIds に patch_key を含む original operator を逆引きする。
     let find_original = |patch_key: &str| -> Option<(&str, &str)> {
         for (original_id, info) in patch_key_cn.iter() {
             let matches = info
@@ -336,14 +331,13 @@ fn build_patches(
     }
 }
 
-/// uniequip_table.json からモジュール消費素材を各オペレーターへ追加する
-/// （Python `AllOperatorsInfo.init` 後半、`OperatorCosts.addEq`）。
+/// uniequip_table.json からモジュール消費素材を各オペレーターへ追加する。
 ///
-/// **振り分け先は`tmplId`優先（Python版と意図的に異なる）**: アーミヤの前衛/医療形態のような
+/// **振り分け先は`tmplId`優先**: アーミヤの前衛/医療形態のような
 /// `char_patch_table`の派生形専用モジュールは、`charId`が基礎オペレーター("char_002_amiya")の
-/// ままで、`tmplId`に派生形("char_1001_amiya2"等)が入る。Python版は`charId`だけで振り分けて
-/// いたため、派生形のモジュールが術師アーミヤに付き、派生形側はモジュール無しになっていた
-/// (issue #20)。`tmplId`を持たないモジュール(通常のオペレーターや、濁心スカジのように専用
+/// ままで、`tmplId`に派生形("char_1001_amiya2"等)が入る。`charId`だけで振り分けると
+/// 派生形のモジュールが術師アーミヤに付き、派生形側はモジュール無しになる(issue #20)。
+/// `tmplId`を持たないモジュール(通常のオペレーターや、濁心スカジのように専用
 /// charIdを持つ派生キャラ)は`charId`のままで正しいので`tmplId.unwrap_or(charId)`にする
 /// (`operator_combat.rs`の`build_modules`と同じ)。
 fn build_modules(cn_uniequip: &Value, jp_uniequip: &Value, operators: &mut IndexMap<String, RawOperatorCost>) {
@@ -352,11 +346,11 @@ fn build_modules(cn_uniequip: &Value, jp_uniequip: &Value, operators: &mut Index
 
     let mut by_operator: HashMap<String, Vec<RawModule>> = HashMap::new();
     for (equip_id, value) in equip_dict {
-        // itemCost==null は統合戦略モジュール等、対象外（Python `if value["itemCost"]==None: continue`）。
+        // itemCost==null は統合戦略モジュール等のため対象外。
         let Some(item_cost_obj) = value.get("itemCost").filter(|v| !v.is_null()).and_then(Value::as_object) else {
             continue;
         };
-        // typeName2が空/無しはデフォルトモジュールとしてスキップ（Python `if not eqType: return`）。
+        // typeName2が空/無しはデフォルトモジュールとしてスキップ。
         let Some(eq_type) = value.get("typeName2").and_then(Value::as_str).filter(|s| !s.is_empty()) else {
             continue;
         };
@@ -368,8 +362,7 @@ fn build_modules(cn_uniequip: &Value, jp_uniequip: &Value, operators: &mut Index
         if !operators.contains_key(char_id) {
             continue;
         }
-        // itemCost・typeName2はCN側の値をそのまま使う。JP側は実装済みか(cnOnly)の判定にのみ使う
-        // （Python版もuniEqJsonにはCN値を渡し、cnOnlyだけ後付けで上書きしている）。
+        // itemCost・typeName2はCN側の値をそのまま使う。JP側は実装済みか(cnOnly)の判定にのみ使う。
         let cn_only = jp_equip_dict.and_then(|jp| jp.get(equip_id.as_str())).is_none();
         let phase_costs: Vec<Vec<CostEntry>> = item_cost_obj.values().map(|v| parse_cost_list(Some(v))).collect();
         by_operator.entry(char_id.to_string()).or_default().push(RawModule {

@@ -9,9 +9,7 @@ const PENGUIN_USER_AGENT: (&str, &str) = ("User-Agent", "ArkPlanner");
 
 pub const SEED_PATH: &str = "data/seed/ark_matrix.json";
 
-/// penguin-stats `/result/matrix` の生データ1件（Python の `getMatrix()` が
-/// 返す配列の要素相当）。`server` は常にCN固定
-/// （Python版のコメント「matrix代入, targetServerはCNで固定」を踏襲）。
+/// penguin-stats `/result/matrix` の生データ1件。`server` は常にCN固定。
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RawDropRecord {
     #[serde(rename = "stageId")]

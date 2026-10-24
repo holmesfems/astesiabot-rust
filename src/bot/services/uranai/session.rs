@@ -3,8 +3,7 @@ use std::time::{Duration, Instant};
 
 /// 直近10往復程度を保持する会話メモリ。ユーザー区別なしの単一グローバルセッション
 /// （呼び出し側が `tokio::sync::Mutex<ChatSession>` で1個だけ保持する想定）。
-/// Python版の `previous_response_id` 無制限チェーンとは異なり、こちらは
-/// 明示的に往復数を打ち切る方針を優先する（要件定義で確定済み）。
+/// 会話を無制限につなげず、明示的に往復数を打ち切る方針を優先する（要件定義で確定済み）。
 pub struct ChatSession {
     messages: Vec<(Role, String)>,
     last_updated: Instant,

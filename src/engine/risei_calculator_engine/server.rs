@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// 大陸版(CN)基準かグローバル版基準かの計算軸
-/// （Python の `isGlobal:bool` 相当。bool blindness を避けるためenumにした）。
+/// （bool blindness を避けるためboolでなくenumにした）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Server {
@@ -10,8 +10,7 @@ pub enum Server {
     Mainland,
 }
 
-/// 理性価値表の計算対象アイテム（中国語名）。順序はPython版 `listInfo.ValueTarget`
-/// と同一（インデックスの意味は無いが、表示順の一致のため崩さない）。
+/// 理性価値表の計算対象アイテム（中国語名）。表示順はこの並びに従う。
 pub const VALUE_TARGET: &[&str] = &[
     "基础作战记录",
     "初级作战记录",
@@ -80,10 +79,10 @@ pub const VALUE_TARGET: &[&str] = &[
     "技巧概要·卷3",
 ];
 
-/// 大陸先行の新素材（Mainland のみ計算対象に追加。Python `ValueTarget_new`）。
+/// 大陸先行の新素材（Mainland のみ計算対象に追加）。
 pub const VALUE_TARGET_NEW: &[&str] = &["电极单元", "聚能动力单元", "液化高能气体", "液化醚吸聚体"];
 
-/// 初級資格証(te2list)の対象アイテム（Python `Item_rarity2`）。
+/// 初級資格証(te2list)の対象アイテム。
 pub const ITEM_RARITY2: &[&str] = &[
     "固源岩组",
     "全新装置",
@@ -107,7 +106,7 @@ pub const ITEM_RARITY2: &[&str] = &[
 ];
 pub const ITEM_RARITY2_NEW: &[&str] = &["电极单元", "液化高能气体"];
 
-/// 上級資格証(te3list)の対象アイテム（Python `Item_rarity3`）。
+/// 上級資格証(te3list)の対象アイテム。
 pub const ITEM_RARITY3: &[&str] = &[
     "提纯源岩",
     "改量装置",
@@ -132,11 +131,11 @@ pub const ITEM_RARITY3: &[&str] = &[
 pub const ITEM_RARITY3_NEW: &[&str] = &["聚能动力单元", "液化醚吸聚体"];
 
 /// 上級素材(Item_rarity4)。中級換算(`rare3and4ToRare2`)専用で、資格証効率表には出てこない
-/// （Python `Item_rarity4`。`_new`側は空のため定数を用意していない）。
+/// （`_new`側は空のため定数を用意していない）。
 pub const ITEM_RARITY4: &[&str] = &["聚合剂", "双极纳米片", "D32钢", "晶体电子单元", "烧结核凝晶", "重相位对映体"];
 
 /// 大陸版実装済み、グローバル版未実装のゾーン一覧。新章実装時にここへ追記し、
-/// グローバル版で実装され次第削除する運用（Python版 `new_zone` と同じ役割）。
+/// グローバル版で実装され次第削除する運用。
 pub const NEW_ZONE_MAINLAND_ONLY: &[&str] = &["main_17"];
 
 fn for_server<'a>(base: &'a [&'a str], new: &'a [&'a str], server: Server) -> Vec<&'a str> {
@@ -159,12 +158,12 @@ pub fn item_rarity3(server: Server) -> Vec<&'static str> {
     for_server(ITEM_RARITY3, ITEM_RARITY3_NEW, server)
 }
 
-/// 上級素材一覧（`_new`側が無いためサーバに関わらず同一。Python `getItemRarity4`）。
+/// 上級素材一覧（`_new`側が無いためサーバに関わらず同一）。
 pub fn item_rarity4(_server: Server) -> Vec<&'static str> {
     ITEM_RARITY4.to_vec()
 }
 
-/// `data/risei/stage_category.json` の1カテゴリ分（Python `StageCategoryInfo`）。
+/// `data/risei/stage_category.json` の1カテゴリ分。
 #[derive(Debug, Clone, Deserialize)]
 pub struct StageCategoryInfo {
     #[serde(rename = "Stages")]
@@ -193,7 +192,7 @@ pub fn load_stage_category_file() -> Result<StageCategoryFile, crate::engine::ri
     Ok(serde_json::from_str(&s)?)
 }
 
-/// サーバに応じたカテゴリ辞書（Python `getStageCategoryDict`。Mainlandは
+/// サーバに応じたカテゴリ辞書（Mainlandは
 /// `new`カテゴリも含む）。
 pub fn stage_category_dict(
     file: &StageCategoryFile,

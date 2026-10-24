@@ -8,14 +8,13 @@ use crate::bot::data::{Data, Error};
 use crate::bot::reply::{reply_embed_reply, reply_plain_text};
 use poise::serenity_prelude as serenity;
 
-/// OCR結果のタグ数が5個ちょうどでないときの誘導メッセージ（Python の msgForOCR に対応）。
+/// OCR結果のタグ数が5個ちょうどでないときの誘導メッセージ。
 /// このメッセージ自体にリプしても reply_target のフォールバックが直近の
 /// 計算結果embedまで遡って拾うため、「計算結果の方にリプして」という注意書きは不要。
 const TAG_COUNT_GUIDANCE: &str =
     "タグが欠けているようね。上の計算結果に足りないタグを日本語でリプすれば、再計算させていただきますわ。";
 
-/// 実画像（width/height を持つ添付）か。Python の `not file.width or not file.height`
-/// によるスキップと同じ判定。
+/// 実画像（width/height を持つ添付）か。
 fn is_image_attachment(a: &serenity::Attachment) -> bool {
     a.width.is_some() && a.height.is_some()
 }

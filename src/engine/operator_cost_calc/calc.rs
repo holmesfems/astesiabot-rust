@@ -1,4 +1,4 @@
-//! Python `OperatorCostsCalculator` の各コマンド相当の計算関数。DTOを返すのみで、
+//! 各コマンドに対応する計算関数。DTOを返すのみで、
 //! Discord embed整形は`bot/commands/operator_cost_calc`側の責務。
 
 use super::dto::{
@@ -11,7 +11,7 @@ use super::{AllOperatorsInfo, SkillCostInfo, ValueSet, EPSILON};
 use crate::engine::external_source::operator_data::RawOperatorCost;
 use super::aggregate;
 
-/// Python `OperatorCostsCalculator.skillMasterCost`。
+/// 特化コスト（指定スキルの特化1〜3と合計）。
 pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str, skill_num: u32) -> Result<SkillMasterCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
         return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
@@ -65,7 +65,7 @@ pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_na
     })
 }
 
-/// Python `OperatorCostsCalculator.operatorEliteCost`。
+/// 昇進コスト（昇進1・2と合計）。
 pub fn operator_elite_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str) -> Result<EliteCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
         return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
@@ -112,7 +112,7 @@ pub fn operator_elite_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_
     })
 }
 
-/// Python `OperatorCostsCalculator.operatorModuleCost`。
+/// モジュールコスト。
 pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str) -> Result<ModuleCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
         return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
@@ -163,7 +163,7 @@ pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator
     })
 }
 
-/// Python `operatorCostList`のSTAR4/5/6ELITE分岐（`printCostRanking`）。
+/// 星4/5/6の昇進コストランキング。
 pub fn cost_list_by_elite(info: &AllOperatorsInfo, values: &ValueSet, star: u32, only_recent: bool) -> EliteRankingDto {
     let ranking = info.sorted_by_elite_cost(star, values);
     let total_count = ranking.len();
@@ -180,7 +180,7 @@ pub fn cost_list_by_elite(info: &AllOperatorsInfo, values: &ValueSet, star: u32,
     EliteRankingDto { star, total_count, entries }
 }
 
-/// Python `operatorCostList`のCOSTOFCNONLY分岐。
+/// 大陸限定オペレーターの消費合計。
 pub fn cost_list_cost_of_cn_only(info: &AllOperatorsInfo, values: &ValueSet) -> CostSummaryDto {
     let cn_only_ops: Vec<&RawOperatorCost> = info.data.operators.values().filter(|op| op.cn_only).collect();
     let operator_names = cn_only_ops.iter().map(|op| op.name.clone()).collect();
@@ -208,7 +208,7 @@ pub fn cost_list_cost_of_cn_only(info: &AllOperatorsInfo, values: &ValueSet) -> 
     }
 }
 
-/// Python `operatorCostList`のCOSTOFGLOBAL分岐。
+/// 実装済みオペレーターの消費合計。
 pub fn cost_list_cost_of_global(info: &AllOperatorsInfo, values: &ValueSet) -> CostSummaryDto {
     let global_ops: Vec<&RawOperatorCost> = info.data.operators.values().filter(|op| !op.cn_only).collect();
 
@@ -240,7 +240,7 @@ fn skill_cost_item_view(item: &SkillCostInfo, values: &ValueSet, info: &AllOpera
     }
 }
 
-/// Python `getMasterCostStatistics` / `getMasterCostStatistics_OnlyRecent`。
+/// 特化コストの統計（`only_recent`で直近実装のオペレーターに絞る）。
 pub fn cost_list_master_stats(info: &AllOperatorsInfo, values: &ValueSet, star: u32, only_recent: bool) -> Result<MasterStatsDto, OperatorCostError> {
     let ranking = info.sorted_skill_cost(star, values);
 

@@ -1,4 +1,4 @@
-//! riseilists相当のDTO+計算(Python `CalculatorManager.riseilists`の各分岐相当)。
+//! riseilists相当のDTO+計算。
 //! 整形(Discord embed化/GPT向けJSON化)は呼び出し側の責務。元は
 //! `bot/commands/risei/riseilists.rs`にあったが、bot/apiの両方(Discordコマンド・GPT function
 //! calling)から参照するためengineへ移した。`RiseiListTarget`(poise::ChoiceParameter)は
@@ -16,11 +16,11 @@ const PRICE_PATH: &str = "data/risei/price.yaml";
 const PRICE_SPECIAL_PATH: &str = "data/risei/price_special.yaml";
 const PRICE_CC_PATH: &str = "data/risei/price_cc.yaml";
 
-/// 契約賞金引換証の現行シーズン番号(Python `listInfo.__ccNumber`)。表示用定数のため
+/// 契約賞金引換証の現行シーズン番号。表示用定数のため
 /// コマンド層(`bot/commands/risei/riseilists.rs`)の`CC_NUMBER`と手動で同期させること。
 pub const CC_NUMBER: &str = "4";
 
-/// 契約賞金引換証(CC)の1アイテム分の交換レート(Python `listInfo.CCExchangeItem`)。
+/// 契約賞金引換証(CC)の1アイテム分の交換レート。
 /// 結晶交換所(Pinch Out)相当のデータ・実装はオミット済み。
 #[derive(Debug, Clone, Deserialize)]
 struct CCExchangeItem {
@@ -32,7 +32,7 @@ struct CCExchangeItem {
 }
 
 impl CCExchangeItem {
-    /// Python `CCExchangeItem.fullname`。
+    /// 表示用のフルネーム（日本語名＋個数など）。
     fn full_name(&self, item_names: &ItemNames) -> String {
         let ja = item_names.zh_to_ja(&self.name);
         if self.quantity == "∞" {
@@ -76,8 +76,8 @@ fn price_cc() -> &'static Vec<CCExchangeItem> {
     })
 }
 
-/// 理性/時間価値一覧の1項目(Python版は`(String,f64,f64)`のタプルだったが、各値の
-/// 意味が読み手から追えるよう名前付きにした)。
+/// 理性/時間価値一覧の1項目(タプルでなく、各値の意味が
+/// 読み手から追えるよう名前付きにした)。
 #[derive(Serialize)]
 pub struct ValueEntry {
     pub name_ja: String,

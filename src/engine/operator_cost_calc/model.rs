@@ -7,12 +7,11 @@ use crate::engine::risei_calculator_engine::values::RiseiValues;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
-/// Python `rcutils.itemArray.ItemArray` の `EPSILON = 0.0001`
-/// （`normalize()` でこの絶対値以下の項を除去する。表示整形の丸め判定用の
-/// `1e-6`（charmaterials.py側のEPSILON、formatレイヤで使う）とは別物）。
+/// `normalize()` でこの絶対値以下の項を除去する閾値
+/// （表示整形の丸め判定用の`1e-6`（formatレイヤで使う）とは別物）。
 const NORMALIZE_EPSILON: f64 = 0.0001;
 
-/// 素材合成レシピの参照表（アイテムID→レシピ）。Python `Formula.__idToFormula`相当。
+/// 素材合成レシピの参照表（アイテムID→レシピ）。
 /// `risei_calculator_engine::formula::FormulaItem` をそのまま再利用する
 /// （合成レシピの構造自体はrisei_calculator_engineと共有のドメインのため）。
 pub type FormulaMap = HashMap<String, FormulaItem>;
@@ -24,12 +23,11 @@ pub fn build_formula_map(formulas: &[RawFormula], item_names: &ItemNames) -> For
         .collect()
 }
 
-/// アイテムID→個数の消費素材データ（Python `charmaterials.ItemCost`）。
+/// アイテムID→個数の消費素材データ。
 ///
-/// 内部表現は挿入順を保持する`IndexMap`（Python dictの挿入順保持セマンティクスを
-/// 正確に再現するため）。`normalize()`（表示直前の並び替え）はタイになった項の
-/// 順序を「その時点の挿入順」で安定ソートするため、挿入順の忠実な再現が
-/// Python版と1文字レベルで出力一致するための前提になる
+/// 内部表現は挿入順を保持する`IndexMap`。`normalize()`（表示直前の並び替え）は
+/// タイになった項の順序を「その時点の挿入順」で安定ソートするため、挿入順を
+/// 保っておかないと表示順が安定しない
 /// （例: スキル特化3段の合計に現れる複数のSoC芯片アイテムの並び順）。
 #[derive(Clone, Default, Debug)]
 pub struct ItemCost {
@@ -41,8 +39,7 @@ impl ItemCost {
         Self::default()
     }
 
-    /// Python `ItemCost.__init__`。同一id重複時は上書き(最後の値が勝つ)、
-    /// 位置は初出時のまま（Python dictの`d[key]=value`と同じ挙動）。
+    /// 同一id重複時は上書き(最後の値が勝つ)、位置は初出時のまま。
     pub fn from_cost_entries(entries: &[CostEntry]) -> Self {
         let mut dict = IndexMap::new();
         for e in entries {
@@ -51,7 +48,7 @@ impl ItemCost {
         Self { dict }
     }
 
-    /// Python `ItemCost.__iadd__`/`__add__`。既存キーは加算(位置は変えない)、
+    /// 既存キーは加算(位置は変えない)、
     /// 新規キーは`other`側の順で末尾に追加。
     pub fn add(&self, other: &ItemCost) -> ItemCost {
         let mut dict = self.dict.clone();
@@ -75,7 +72,7 @@ impl ItemCost {
         self.dict.get(id).copied().unwrap_or(0.0)
     }
 
-    /// Python `ItemArray.normalizeGold`。龍門幣→龍門幣1000(/1000)へ統合し、元キーは削除する。
+    /// 龍門幣→龍門幣1000(/1000)へ統合し、元キーは削除する。
     fn normalize_gold(&self, item_names: &ItemNames) -> ItemCost {
         let mut dict = self.dict.clone();
         let Some(gold_id) = item_names.ja_to_id("龍門幣") else {
@@ -93,9 +90,8 @@ impl ItemCost {
         Self { dict }
     }
 
-    /// Python `ItemArray.normalize`(gold統合 + `value_target(Mainland)`順の安定ソート + ε除去) +
-    /// `toZHStrCountDict`/`toNameCountDict`が呼ぶ`normalize()`まで込み。
-    /// 順序基準は常にMainland版基準(`getValueTarget(False)`固定。Python `_ORDERCRITERIA`)。
+    /// 表示・価値計算の前処理（gold統合 + `value_target(Mainland)`順の安定ソート + ε除去）。
+    /// 順序基準は常に大陸版基準。
     fn normalized(&self, item_names: &ItemNames) -> Vec<(String, f64)> {
         let gold_merged = self.normalize_gold(item_names);
         let order = server::value_target(Server::Mainland);
@@ -109,7 +105,7 @@ impl ItemCost {
         items
     }
 
-    /// 表示用: 日本語名×個数（normalize済み順）。Python `ItemArray.toNameCountDict`。
+    /// 表示用: 日本語名×個数（normalize済み順）。
     pub fn ordered_name_counts(&self, item_names: &ItemNames) -> Vec<(String, f64)> {
         self.normalized(item_names)
             .into_iter()
@@ -118,7 +114,7 @@ impl ItemCost {
     }
 
     /// 職SoC(32xx系chip、8職×3段)→汎用3種(320X_CUSTOM)へ集約する。理性価値計算専用
-    /// （表示(`ordered_name_counts`)には使わない）。Python `ItemArray.normalizeSoC`。
+    /// （表示(`ordered_name_counts`)には使わない）。
     fn normalize_soc(&self) -> ItemCost {
         const GROUPS: [(&[&str], &str); 3] = [
             (&["3211", "3221", "3231", "3241", "3251", "3261", "3271", "3281"], "3201_CUSTOM"),
@@ -137,8 +133,7 @@ impl ItemCost {
         result
     }
 
-    /// Python `RiseiOrTimeValues.getValueFromItemArray`
-    /// (`normalizeSoC()`→`toZHStrCountDict()`(=normalize込み)→`getValueFromZH`合計)。
+    /// 理性価値の合計（SoC集約→normalize→各素材の価値を合計）。
     pub fn to_risei_value(&self, values: &RiseiValues, item_names: &ItemNames) -> f64 {
         self.normalize_soc()
             .normalized(item_names)
@@ -147,8 +142,7 @@ impl ItemCost {
             .sum()
     }
 
-    /// Python `RiseiOrTimeValues.getValueFromItemArray_OnlyValueTarget`
-    /// (normalizeSoCなし。normalize済みの上で`value_target(values.server)`内のみ合計)。
+    /// SoC集約なし。normalize済みの上で`value_target(values.server)`内の素材のみ合計する。
     pub fn to_risei_value_only_value_target(&self, values: &RiseiValues, item_names: &ItemNames) -> f64 {
         let target = server::value_target(values.server);
         self.normalized(item_names)
@@ -158,7 +152,7 @@ impl ItemCost {
             .sum()
     }
 
-    /// Python `ItemCost.filterRare2`。常にMainland基準(`getItemRarity2(False)`固定)。
+    /// 初級素材だけに絞る。常に大陸版基準。
     fn filter_rare2(&self, item_names: &ItemNames) -> ItemCost {
         let list = server::item_rarity2(Server::Mainland);
         Self {
@@ -172,9 +166,9 @@ impl ItemCost {
     }
 
     /// 上級/中級素材→初級素材への換算（副産物無し）。常にMainland基準の
-    /// 素材リストで走査する(Python `rare3and4ToRare2`は`glob`引数を取らず常に`False`固定)。
-    /// レシピが存在しない(=合成不可)素材はそのまま残り、最後の`filterRare2`で
-    /// 除外される(Python版と同じ挙動)。
+    /// 素材リストで走査する。
+    /// レシピが存在しない(=合成不可)素材はそのまま残り、最後の`filter_rare2`で
+    /// 除外される。
     pub fn rare3and4_to_rare2(&self, item_names: &ItemNames, formulas: &FormulaMap) -> ItemCost {
         let mut result = self.clone();
         let mut targets: Vec<&str> = server::item_rarity4(Server::Mainland);
@@ -192,7 +186,7 @@ impl ItemCost {
                 .into_iter()
                 .map(|(k, v)| (k, v * count))
                 .collect();
-            // Python: `formulaArray.normalize()` を加算前に呼ぶ。
+            // 加算前にnormalizeしておく（ε以下の項を落とす）。
             let normalized = ItemCost { dict: scaled }.normalized(item_names);
             let contribution = ItemCost {
                 dict: normalized.into_iter().collect(),

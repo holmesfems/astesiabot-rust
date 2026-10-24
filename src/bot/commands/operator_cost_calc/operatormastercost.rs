@@ -7,7 +7,7 @@ use poise::serenity_prelude as serenity;
 
 const BASE_TITLE: &str = "スキル特化検索";
 
-/// Python `OperatorCostsCalculator.skillMasterCost`の整形込み版。
+/// 特化コストの整形込み版。
 pub async fn master_cost_reply(
     state: &AppState,
     operator_name: &str,

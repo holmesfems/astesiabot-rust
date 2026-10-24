@@ -68,7 +68,7 @@ impl ToolFunction for RiseiLists {
             return ToolResponse::Error(format!("不明な表です: {}", parsed.target));
         };
 
-        // Python版と同じくGPTからの呼び出しは常にグローバル版基準。
+        // GPTからの呼び出しは常にグローバル版基準。
         let engine = &ctx.risei_calculator;
         let server = Server::Global;
         let body = match target {

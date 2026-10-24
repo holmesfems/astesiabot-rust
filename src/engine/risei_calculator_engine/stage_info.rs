@@ -9,11 +9,10 @@ use rand::seq::SliceRandom;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
-/// オートコンプリート等で使うデフォルトの最小試行数（Python `DEFAULT_SHOW_MIN_TIMES`）。
+/// オートコンプリート等で使うデフォルトの最小試行数。
 pub const DEFAULT_SHOW_MIN_TIMES: i64 = 1000;
 
-/// `generate_category_seed` の重複リトライ上限。Python版は無条件でリトライし続けるが
-/// （`while(True)` + `hasduplicates`）、カテゴリ定義次第では重複が構造的に解消しない
+/// `generate_category_seed` の重複リトライ上限。カテゴリ定義次第では重複が構造的に解消しない
 /// 場合があり得るため、テスト・実運用双方が無限ループしないよう上限を設ける。
 const MAX_SEED_GENERATION_ATTEMPTS: usize = 10_000;
 
@@ -22,16 +21,16 @@ pub struct CategoryInstance {
     pub stage_ids: Vec<String>,
 }
 
-/// 最大効率のステージとその所属カテゴリ（Python `StageInfo.CategoryMaxEfficiencyItem`）。
+/// 最大効率のステージとその所属カテゴリ。
 pub struct CategoryMaxEfficiencyItem {
     pub max_value: f64,
     pub stage: Arc<StageItem>,
     pub categories: Vec<String>,
 }
 
-/// サーバ1つ分のステージ全体像（Python `StageInfo`）。penguin-statsの生データ
+/// サーバ1つ分のステージ全体像。penguin-statsの生データ
 /// (`ArkStages`/`ArkMatrix`)から構築する不変のスナップショット。再fetch後は
-/// 作り直す（Python版の「ドロップ情報のみ更新」という部分更新最適化は行わず、
+/// 作り直す（ドロップ情報だけを差分更新する最適化は行わず、
 /// 毎回フルに再構築する。データ量的にコストは無視できるためシンプルさを優先）。
 pub struct StageInfo {
     pub server: Server,
@@ -45,7 +44,7 @@ pub struct StageInfo {
 }
 
 impl StageInfo {
-    /// Python `StageInfo.init`/`initMatrix` に相当。
+    /// 生データからステージ情報を構築する。
     ///
     /// `eventMainList`（新章実装直後の期間限定ドロップ倍率ウィンドウを`(Event)`ステージへ
     /// 退避する仕組み）自体は移植していない（対象の新章はとうに実装済みで
@@ -58,10 +57,8 @@ impl StageInfo {
     /// `end=1715716800000`のレコードが実装から1年以上経った現在も残っている）。
     /// これをそのまま合算するとそのステージの`maxTimes`や特定アイテムのドロップ率が
     /// 汚染され、基準マップ差し替えループが収束しなくなる実害があったため、
-    /// `end`付きレコードはMAIN/SUBステージについては読み飛ばす
-    /// （Python版が`(Event)`ステージへ退避して本編ステージのdropListに
-    /// 混ぜないのと同じ効果）。ACTIVITYステージ（`event_stage_dict`）は
-    /// 元々期間限定運用が前提のため対象外（Python版と同じ）。
+    /// `end`付きレコードはMAIN/SUBステージについては読み飛ばす。ACTIVITYステージ
+    /// （`event_stage_dict`）は元々期間限定運用が前提のため対象外。
     pub fn build(
         server: Server,
         stage_category_file: &StageCategoryFile,
@@ -73,7 +70,7 @@ impl StageInfo {
     ) -> Self {
         let value_target_list = value_target(server);
 
-        // グローバル版のみ、大陸先行実装ゾーンを除外する（Python `new_zone if isGlobal else []`）。
+        // グローバル版のみ、大陸先行実装ゾーンを除外する。
         let exclusion_zones: &[&str] = if server == Server::Global {
             super::server::NEW_ZONE_MAINLAND_ONLY
         } else {
@@ -202,7 +199,7 @@ impl StageInfo {
     }
 
     /// カテゴリごとにランダムなステージを選び、基準マップの初期seedを作る
-    /// （重複した場合はやり直す。Python `generateCategorySeed`）。
+    /// （重複した場合はやり直す）。
     /// `MAX_SEED_GENERATION_ATTEMPTS` 回リトライしても重複が解消しない場合はエラーを返す
     /// （カテゴリ定義が競合していて構造的に解消不可能なケースの安全弁。詳細は定数コメント参照）。
     pub fn generate_category_seed(
@@ -231,7 +228,7 @@ impl StageInfo {
         .into())
     }
 
-    /// 全基準候補ステージの中で最大効率のものを探す（Python `getCategoryMaxEfficiency`）。
+    /// 全基準候補ステージの中で最大効率のものを探す。
     pub fn get_category_max_efficiency(
         &self,
         values: &RiseiValues,

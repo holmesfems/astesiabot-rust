@@ -3,7 +3,7 @@ use crate::engine::external_source::formulas::RawFormula;
 use crate::engine::external_source::item_names::ItemNames;
 use std::collections::HashMap;
 
-/// 素材合成レシピ1件（Python `formulation.FormulaItem`）。
+/// 素材合成レシピ1件。
 pub struct FormulaItem {
     pub output_item_id: String,
     pub name: String,
@@ -56,7 +56,7 @@ impl FormulaItem {
         let filtered = self.outcome_array.filter_by_zh(value_target, item_names);
         let total = filtered.total_count();
         if total.abs() < f64::EPSILON {
-            // Python版はここでゼロ除算し得るが、現行データでは発生しない前提。
+            // 現行データでは発生しない前提だが、ゼロ除算を避けるため
             // 安全側に倒して空配列を返す。
             return filtered;
         }

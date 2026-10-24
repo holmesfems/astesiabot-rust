@@ -16,16 +16,15 @@ use std::sync::Arc;
 
 use super::Error;
 
-/// 合成レシピの副産物ドロップ率（Python `ConvertionMatrix.__init__` のデフォルト値）。
+/// 合成レシピの副産物ドロップ率。
 const CONVERTION_DROP_RATE: f64 = 0.18;
 
 /// 基準マップ差し替え収束ループ(`BaseStageMatrix::update`)の最大反復回数。
-/// Python版は`while(baseMatrix.update(values))`で無条件に回し続けるが、
 /// カテゴリ数（数十件）に対して十分すぎるほど大きい値を安全弁として設定し、
 /// 収束しないケース（データ不整合等）でテスト・実運用が無限ループしないようにする。
 const MAX_BASE_STAGE_UPDATE_ITERATIONS: usize = 1_000;
 
-/// 換算行列・基準マップ行列などの1行分（Python `Calculator.ConvertionItem`）。
+/// 換算行列・基準マップ行列などの1行分。
 struct ConvertionItem {
     #[allow(dead_code, reason = "行列の行のラベル。収束のデバッグでどの行かを見分けるために残している")]
     name: String,
@@ -56,7 +55,7 @@ fn convertion_item_from_map(len: usize, value_target: &[&str], name: &str, dict:
     item
 }
 
-/// 素材合成・経験値・純金換算の行列（Python `Calculator.ConvertionMatrix`）。
+/// 素材合成・経験値・純金換算の行列。
 fn build_convertion_matrix(server: Server, item_names: &ItemNames, formulas: &[RawFormula]) -> Vec<ConvertionItem> {
     let value_target_list = value_target(server);
     let n = value_target_list.len();
@@ -102,7 +101,7 @@ fn build_convertion_matrix(server: Server, item_names: &ItemNames, formulas: &[R
     items
 }
 
-/// 理性消費のみで換算される定番周回マップ（Python `Calculator.ConstStageMatrix`）。
+/// 理性消費のみで換算される定番周回マップ。
 struct StageDropItem {
     #[allow(dead_code, reason = "行列の行のラベル。収束のデバッグでどの行かを見分けるために残している")]
     name: String,
@@ -145,14 +144,14 @@ fn build_const_stage_matrix(server: Server) -> Vec<StageDropItem> {
     ]
 }
 
-/// 基準マップ1件（カテゴリ→選ばれたステージ。Python `Calculator.BaseStageDropItem`）。
+/// 基準マップ1件（カテゴリ→選ばれたステージ）。
 pub struct BaseStageDropItem {
     pub category: String,
     pub name: String,
     pub stage: Arc<StageItem>,
 }
 
-/// カテゴリごとの基準マップ集合（Python `Calculator.BaseStageMatrix`）。
+/// カテゴリごとの基準マップ集合。
 pub struct BaseStageMatrix {
     pub valid_base_min_times: i64,
     pub items: BTreeMap<String, BaseStageDropItem>,
@@ -178,7 +177,7 @@ impl BaseStageMatrix {
         self.items.values().any(|item| item.stage.stage_id == stage_id)
     }
 
-    /// カテゴリ`to_ja`名→選択中のステージコード（基準マップ表示用。Python `toString`）。
+    /// カテゴリ`to_ja`名→選択中のステージコード（基準マップ表示用）。
     pub fn to_ja_display_map(&self) -> BTreeMap<String, String> {
         self.items
             .values()
@@ -186,8 +185,8 @@ impl BaseStageMatrix {
             .collect()
     }
 
-    /// 基準マップより明らかに効率の良いステージがあれば1件だけ入れ替える
-    /// （Python `BaseStageMatrix.update`）。入れ替えが起きなければ `Ok(false)`。
+    /// 基準マップより明らかに効率の良いステージがあれば1件だけ入れ替える。
+    /// 入れ替えが起きなければ `Ok(false)`。
     fn update(&mut self, stage_info: &StageInfo, values: &RiseiValues) -> Result<bool, Error> {
         let max_item = match stage_info.get_category_max_efficiency(values, self.valid_base_min_times) {
             Some(item) => item,
@@ -309,9 +308,9 @@ fn solve_values(
     Ok(RiseiValues::new(server, value_array, item_names, const_values))
 }
 
-/// サーバ1つ分の理性価値表計算エンジン全体（Python `Calculator`）。
+/// サーバ1つ分の理性価値表計算エンジン全体。
 /// 起動時、およびキャッシュ期限切れ時に [`Calculator::build`] で丸ごと再構築する
-/// （Python版の部分更新最適化(`initMatrix`のみ再実行)は行わず、都度フル再構築する。
+/// （ドロップ情報だけを差分更新する最適化は行わず、都度フル再構築する。
 /// ステージ数・レシピ数の規模ではコスト的に問題にならないため簡潔さを優先した）。
 pub struct Calculator {
     pub stage_info: Arc<StageInfo>,
@@ -362,7 +361,7 @@ impl Calculator {
         )?;
 
         // 明らかに現在の基準マップより効率の良いステージが見つからなくなるまで、
-        // 基準マップを差し替えて再計算し続ける（Python `solveOptimizedValue`）。
+        // 基準マップを差し替えて再計算し続ける。
         let mut converged = false;
         for _ in 0..MAX_BASE_STAGE_UPDATE_ITERATIONS {
             if !base_stage_matrix.update(&stage_info, &values)? {

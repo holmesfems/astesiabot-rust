@@ -4,8 +4,8 @@ use nalgebra::DVector;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 理性消費ベースの理性価値表（Python `RiseiOrTimeValues` からTIME軸を除いたもの）。
-/// 時間軸(`CalculateMode.TIME`)は使われていなかったため移植していない。
+/// 理性消費ベースの理性価値表。
+/// 時間軸の価値は使われていないため持たない。
 #[derive(Clone)]
 pub struct RiseiValues {
     pub server: Server,
@@ -14,7 +14,7 @@ pub struct RiseiValues {
     pub dev_array: DVector<f64>,
     pub item_names: Arc<ItemNames>,
     /// value_target に含まれないアイテム(スカウト券・合成玉など)のフォールバック定数値
-    /// （`data/risei/const_values.yaml`。Python `RiseiOrTimeValues.__constValueDict`）。
+    /// （`data/risei/const_values.yaml`）。
     pub const_values: Arc<HashMap<String, f64>>,
 }
 
@@ -45,8 +45,7 @@ impl RiseiValues {
         self.value_target.iter().position(|x| *x == zh)
     }
 
-    /// 中国語名から理性価値を取得。value_target外なら定数辞書にフォールバック
-    /// （Python `getValueFromZH`）。
+    /// 中国語名から理性価値を取得。value_target外なら定数辞書にフォールバック。
     pub fn get_value_from_zh(&self, zh: &str) -> f64 {
         match self.index_of(zh) {
             Some(idx) => self.value_array[idx],

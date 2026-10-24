@@ -1,18 +1,16 @@
-//! スキル説明文の組み立て（Python `SkillIdToName.SkillItem`相当）。
+//! スキル説明文の組み立て。
 //!
-//! Python版は`{key[idx].attr}`のようなブラケット添字記法を潰すために説明文
-//! 全体から`[`,`]`,`.`を無条件に除去するが、これは数値フォーマット指定子
-//! (`{value:0.0%}`等)内の小数点も巻き込んで壊してしまう副作用があり、実データ上
-//! 404件が本来の"25.0%"ではなく"25.000000%"のような表示になる（Python
-//! `str.format`が精度なしの`%`指定を6桁精度扱いするため）。またPython版は
-//! `chain.max_target`というキーを無条件に`max_target`へ統合するが、実データには
-//! 両者が別の値を持つスキル(例: `skchr_halo_1`)が存在し、統合すると片方の値が
-//! 消える。
+//! 説明文中の`{key[idx].attr}`のようなブラケット添字記法を扱うために、説明文全体から
+//! `[`,`]`,`.`を無条件に除去する方式だと、数値フォーマット指定子(`{value:0.0%}`等)内の
+//! 小数点まで壊してしまい、実データ上404件が本来の"25.0%"ではなく"25.000000%"のような
+//! 表示になる（精度なしの`%`指定が6桁精度扱いになるため）。また`chain.max_target`という
+//! キーを無条件に`max_target`へ統合すると、実データには両者が別の値を持つスキル
+//! (例: `skchr_halo_1`)が存在するため、片方の値が消える。
 //!
 //! そのためここでは「`{...}`区間だけを見つけ、フィールド名部分にだけ
 //! ブラケット除去を適用し、フォーマット指定子はそのまま保持する」パーサ方式を
-//! 採用し、上記2点を実データに即して正しく表示する（Python版とは意図的に
-//! 異なる出力になるが、実データ調査の結果こちらが実際のゲーム内表示に近い）。
+//! 採用し、上記2点を実データに即して正しく表示する（実データ調査の結果、これが
+//! 実際のゲーム内表示に近い）。
 
 use super::raw::RawSkillLevel;
 use fancy_regex::Regex;
@@ -36,19 +34,18 @@ fn strip_tags(s: &str) -> String {
     without_open.replace("</>", "")
 }
 
-/// タグ除去後に適用するリテラル置換（Python `replace_byDict`相当。ただし
-/// `chain.max_target`→`max_target`は前述の理由で採用しない）。
+/// タグ除去後に適用するリテラル置換（`chain.max_target`→`max_target`の統合は前述の理由で行わない）。
 fn apply_literal_fixups(s: &str) -> String {
     s.replace("-{-", "{").replace("{-", "-{").replace("\\n", "\n").replace("AOE", "aoe")
 }
 
-/// プレースホルダのフィールド名部分だけに適用するクリーニング（Python `cleanStr`
-/// と同じ文字集合`[`,`]`,`.`除去だが、フォーマット指定子には適用しない）。
+/// プレースホルダのフィールド名部分だけに適用するクリーニング（`[`,`]`,`.`を除去する。
+/// フォーマット指定子には適用しない）。
 fn clean_field_name(s: &str) -> String {
     s.chars().filter(|c| !matches!(c, '[' | ']' | '.')).collect()
 }
 
-/// Python `checkint`。数学的に整数な値は小数点無しで表示する。
+/// 数学的に整数な値は小数点無しで表示する。
 fn number_str(value: f64) -> String {
     if value.is_finite() && value.fract() == 0.0 {
         format!("{}", value as i64)
@@ -131,9 +128,9 @@ fn sp_type_label(raw: &str) -> String {
     }
 }
 
-/// Python `str(float)`相当（整数値でも`.0`を残す）。ヘッダのduration表示専用
-/// （blackboard由来の値は`number_str`のcheckint方式を使う。別ルールなので混同しないこと）。
-fn python_float_str(v: f64) -> String {
+/// 整数値でも`.0`を残して表示する。ヘッダのduration表示専用
+/// （blackboard由来の値は`number_str`の整数なら小数点無し方式を使う。別ルールなので混同しないこと）。
+fn float_str_keep_point(v: f64) -> String {
     if v.is_finite() && v.fract() == 0.0 {
         format!("{v:.1}")
     } else {
@@ -141,8 +138,7 @@ fn python_float_str(v: f64) -> String {
     }
 }
 
-/// 最大レベルのスキルデータから完成済みの説明文を組み立てる（Python
-/// `SkillItem.description`プロパティ相当。ヘッダ(発動種別/SP/持続時間)込み）。
+/// 最大レベルのスキルデータから完成済みの説明文を組み立てる（ヘッダ(発動種別/SP/持続時間)込み）。
 /// 説明文が無いスキルは空文字列を返す。
 pub fn build_description(level: &RawSkillLevel) -> String {
     let Some(raw_desc) = level.description.as_deref().filter(|d| !d.is_empty()) else {
@@ -161,7 +157,7 @@ pub fn build_description(level: &RawSkillLevel) -> String {
         format!("{}/{}", sp_type_label(&level.sp_data.sp_type), skill_type_label(&level.skill_type))
     };
     if level.duration > 0.0 {
-        header.push_str(&format!(" ⌚{}秒", python_float_str(level.duration)));
+        header.push_str(&format!(" ⌚{}秒", float_str_keep_point(level.duration)));
     }
 
     let pre_info = if is_passive {
@@ -266,8 +262,8 @@ mod tests {
         );
     }
 
-    /// skchr_halo_1相当: `max_target`と`chain.max_target`が別々の値を持つケース
-    /// （Python版はここを統合してしまい片方の値を失うが、本実装では区別する）。
+    /// skchr_halo_1相当: `max_target`と`chain.max_target`が別々の値を持つケース。
+    /// 統合せず別々に扱う。
     #[test]
     fn max_target_and_chain_max_target_stay_distinct() {
         let lv = level(

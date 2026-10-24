@@ -13,8 +13,7 @@ const ITEM_TABLE_URL_JP: &str = "https://raw.githubusercontent.com/ArknightsAsse
 /// リポジトリに含めておく（起動時fetchが失敗した場合のフォールバック用）。
 pub const SEED_PATH: &str = "data/seed/item_names.json";
 
-/// アイテムの id / 中国語名(zh) / 日本語名(ja) 相互変換
-/// （Python の `infoFromOuterSource.idtoname.ItemIdToName` 相当）。
+/// アイテムの id / 中国語名(zh) / 日本語名(ja) 相互変換。
 /// risei_calculator_engine が理性価値表を組み立てる際の名前解決に使う。
 ///
 /// `zh_to_ja` は独立したマップとして持たず `zh_to_id` → `id_to_ja` の連鎖で導出する
@@ -137,8 +136,7 @@ async fn fetch_impl() -> Result<ItemNames, FetchError> {
     Ok(names)
 }
 
-/// 理性価値計算で使う特殊なアイテムのIDを補足する
-/// （Python の `ItemIdToName.init` 後半、`customItemId.yaml` 適用部分と同じ分岐）。
+/// 理性価値計算で使う特殊なアイテムのIDを `customItemId.yaml` から補足する。
 fn apply_custom_item_ids(names: &mut ItemNames) {
     let entries: Vec<CustomIdEntry> = match std::fs::read_to_string("data/customItemId.yaml") {
         Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),

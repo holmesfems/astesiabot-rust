@@ -2,15 +2,15 @@ use crate::engine::external_source::item_names::ItemNames;
 use std::collections::{HashMap, HashSet};
 
 /// アイテムID→個数のベクトル。素材合成レシピの換算計算（calculator.rs の
-/// ConvertionMatrix）でのみ使う、Python `rcutils.itemArray.ItemArray` の
-/// 必要最小限の移植。課金パック(kakin)・ガチャ数換算まわりのメソッドは
-/// 今回のスコープ外のため意図的に省略している。
+/// ConvertionMatrix）でのみ使う、
+/// 必要最小限の配列型。課金パック(kakin)・ガチャ数換算まわりのメソッドは
+/// スコープ外のため意図的に持たせていない。
 #[derive(Clone, Default)]
 pub struct ItemArray {
     dict: HashMap<String, f64>,
 }
 
-/// Python `rcutils.itemArray.ItemArray.normalize` の閾値（`EPSILON = 0.0001`）。
+/// `normalize` でゼロ近傍とみなす閾値。
 /// `stage.rs` の `EPSILON`（1e-6、理性効率の収束判定用）とは別物なので混同しないこと。
 const NORMALIZE_EPSILON: f64 = 0.0001;
 
@@ -53,7 +53,7 @@ impl ItemArray {
         self.dict.values().sum()
     }
 
-    /// Python `ItemArray.toZHStrCountDict`（内部で`normalize()`を呼ぶ）に相当。
+    /// 中国語名→個数の辞書に変換する（内部で`normalize()`相当の除去を行う）。
     /// `normalize()`はゼロ近傍(`abs(value) <= NORMALIZE_EPSILON`)の項を除去してから
     /// 辞書化するため、ここでも同じ閾値でフィルタする（順序・龍門幣統合は辞書化に
     /// 無関係のため移植不要）。

@@ -15,7 +15,7 @@ use chrono::{FixedOffset, NaiveDate, Utc};
 use model::{build_formula_map, FormulaMap, ItemCost};
 use std::sync::Arc;
 
-/// charmaterials.py 側の`EPSILON = 1e-6`。ランキング掲載の閾値・数値表示の
+/// ランキング掲載の閾値・数値表示の
 /// 整数丸め判定に使う（`model::ItemCost`内部の`normalize()`用ε=0.0001とは別物）。
 pub const EPSILON: f64 = 1e-6;
 
@@ -37,15 +37,14 @@ fn jp_seen_on(first_seen: Option<NaiveDate>, is_patch: bool, checked_on: Option<
 }
 
 /// グローバル版・大陸版の`RiseiValues`をまとめて保持する。オペレーターごとに
-/// `cnOnly`に応じて参照するサーバを切り替える必要がある(Python各所の
-/// `CalculatorManager.getValues(glob,...)`の`glob`切り替えに対応)。
+/// `cnOnly`に応じて参照するサーバを切り替える必要がある。
 pub struct ValueSet {
     pub global: RiseiValues,
     pub mainland: RiseiValues,
 }
 
 impl ValueSet {
-    /// Python各所の `isGlobal = not costItem.isCNOnly()` に対応する選択。
+    /// 大陸限定なら大陸版、そうでなければグローバル版の理性価値表を選ぶ。
     pub fn for_cn_only(&self, cn_only: bool) -> &RiseiValues {
         if cn_only {
             &self.mainland
@@ -62,7 +61,7 @@ impl ValueSet {
     }
 }
 
-/// 特化ランキング1件（Python `AllOperatorsInfo.SkillCostInfo`）。
+/// 特化ランキング1件。
 pub struct SkillCostInfo {
     pub operator_id: String,
     pub operator_name: String,
@@ -85,8 +84,7 @@ impl SkillCostInfo {
     }
 }
 
-/// オペレーター消費素材データへの検索・ランキング機能一式（Python `AllOperatorsInfo`+
-/// `OperatorCostsCalculator`の一部相当）。bot/apiには依存しない。
+/// オペレーター消費素材データへの検索・ランキング機能一式。bot/apiには依存しない。
 ///
 /// `Arc`保持にしているのは、コマンドハンドラ側が`outer_source`から取得した
 /// スナップショットをasyncの境界を越えて借用なしに持ち回れるようにするため
@@ -103,8 +101,7 @@ pub struct AllOperatorsInfo {
 }
 
 impl AllOperatorsInfo {
-    /// bot/REST APIが共有する計算コンテキストの構築（Python版`OperatorCostsCalculator.operatorInfo`と
-    /// `CalculatorManager.getValues`相当）。外部ソースと理性価値表の現在のキャッシュを
+    /// bot/REST APIが共有する計算コンテキストの構築。外部ソースと理性価値表の現在のキャッシュを
     /// 読むだけでfetch・再計算はしない。`FormulaMap`は呼び出しごとに`formulas`から再構築する。
     pub async fn snapshot(
         external_source: &ExternalSourceRegistry,
@@ -140,7 +137,7 @@ impl AllOperatorsInfo {
         is_recent_by(op.cn_only, seen_on, self.recent_since)
     }
 
-    /// Python `getSortedCostDict_ByEliteCost`。指定した星の非昇格オペレーターを
+    /// 指定した星の非昇格オペレーターを
     /// 昇進素材の理性価値(OnlyValueTarget)降順に並べる。
     pub fn sorted_by_elite_cost(&self, star: u32, values: &ValueSet) -> Vec<(&RawOperatorCost, f64)> {
         let mut list: Vec<(&RawOperatorCost, f64)> = self
@@ -158,7 +155,7 @@ impl AllOperatorsInfo {
         list
     }
 
-    /// Python `getSortedSkillCostDict`。指定した星の全スキル特化を理性価値降順に
+    /// 指定した星の全スキル特化を理性価値降順に
     /// 並べる（`totalRisei() > EPSILON`のみ）。
     pub fn sorted_skill_cost(&self, star: u32, values: &ValueSet) -> Vec<SkillCostInfo> {
         let mut list = Vec::new();
@@ -195,17 +192,17 @@ impl AllOperatorsInfo {
             .collect()
     }
 
-    /// Python `autoCompleteForMasterCost`。
+    /// 特化コスト用のオペレーター名補完。
     pub fn autocomplete_master_cost(&self, partial: &str, limit: usize) -> Vec<String> {
         self.autocomplete(partial, limit, |op| op.stars >= 4)
     }
 
-    /// Python `autoCompleteForEliteCost`。
+    /// 昇進コスト用のオペレーター名補完。
     pub fn autocomplete_elite_cost(&self, partial: &str, limit: usize) -> Vec<String> {
         self.autocomplete(partial, limit, |op| op.stars >= 4 && !op.is_patch)
     }
 
-    /// Python `autoCompleteForModuleCost`。
+    /// モジュールコスト用のオペレーター名補完。
     pub fn autocomplete_module_cost(&self, partial: &str, limit: usize) -> Vec<String> {
         self.autocomplete(partial, limit, aggregate::has_unique_eq)
     }
