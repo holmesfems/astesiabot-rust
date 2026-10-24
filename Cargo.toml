@@ -20,7 +20,7 @@ dotenvy = "0.15"
 askama = { version = "0.12", features = ["serde-json"] }
 tower-http = { version = "0.6", features = ["fs"] }
 nalgebra = "0.33"
-rand = "0.8"
+rand = "0.10"
 indexmap = { version = "2", features = ["serde"] }
 base64 = "0.22"
 utoipa = { version = "5", features = ["axum_extras"] }
