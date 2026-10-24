@@ -11,15 +11,12 @@
 //
 // 全部 PASS なら最後に ALL PASS と出る。1件でも落ちれば終了コードが 1 になる。
 
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import fs from 'node:fs';
 import net from 'node:net';
 import http from 'node:http';
 import { spawn, execSync } from 'node:child_process';
-
-const require = createRequire(import.meta.url);
+import { resolvePlaywright } from '../e2e_playwright.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // このファイルは src/api/test_runner/e2e.mjs なので、リポジトリルートは3階層上。
@@ -33,44 +30,8 @@ function ok(name, cond, extra) {
 }
 
 /* ========================================================================= *
- * 1. playwright の解決
- *
- * npx 経由で入っているため node_modules が標準の場所に無い。
- * まず通常の解決を試し、だめなら npx キャッシュを探す（ハッシュ名は決め打ちしない）。
+ * 1. playwright の解決（ブラウザの入っている版を選ぶ。../e2e_playwright.mjs）
  * ========================================================================= */
-function resolvePlaywright() {
-  try {
-    return require('playwright');
-  } catch (e) {
-    // フォールスルー
-  }
-
-  const npxCacheRoot = path.join(
-    process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Local'),
-    'npm-cache',
-    '_npx'
-  );
-  if (fs.existsSync(npxCacheRoot)) {
-    const hashDirs = fs.readdirSync(npxCacheRoot, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => path.join(npxCacheRoot, d.name, 'node_modules', 'playwright'));
-    for (const candidate of hashDirs) {
-      if (fs.existsSync(path.join(candidate, 'package.json'))) {
-        try {
-          return require(candidate);
-        } catch (e) {
-          // 次の候補へ
-        }
-      }
-    }
-  }
-
-  console.error('playwright が見つかりません。');
-  console.error('  npx 経由でのインストール例: npx playwright install chromium');
-  console.error('  探索したパス: ' + npxCacheRoot);
-  process.exit(1);
-}
-
 const playwright = resolvePlaywright();
 
 /* ========================================================================= *
