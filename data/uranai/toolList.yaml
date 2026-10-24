@@ -125,12 +125,12 @@
         type: string
         description: The id to specify the skill. It can be omitted if the skill is not specified
         enum:
-        - '1'
-        - '2'
-        - '3'
+        - "1"
+        - "2"
+        - "3"
         - 素質1
         - 素質2
-        - ''
+        - ""
     required:
     - target
     - skillnum

@@ -30,5 +30,5 @@ impl StaticData {
 
 fn load_yaml_map(path: &str) -> Result<HashMap<String, f64>, Error> {
     let s = std::fs::read_to_string(path)?;
-    Ok(serde_yaml::from_str(&s)?)
+    Ok(serde_saphyr::from_str(&s)?)
 }

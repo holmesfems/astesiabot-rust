@@ -56,7 +56,7 @@ fn price() -> &'static HashMap<String, f64> {
     static PRICE: OnceLock<HashMap<String, f64>> = OnceLock::new();
     PRICE.get_or_init(|| {
         let s = std::fs::read_to_string(PRICE_PATH).expect("price.yamlの読み込みに失敗しました");
-        serde_yaml::from_str(&s).expect("price.yamlのパースに失敗しました")
+        serde_saphyr::from_str(&s).expect("price.yamlのパースに失敗しました")
     })
 }
 
@@ -64,7 +64,7 @@ fn price_special() -> &'static HashMap<String, f64> {
     static PRICE_SPECIAL: OnceLock<HashMap<String, f64>> = OnceLock::new();
     PRICE_SPECIAL.get_or_init(|| {
         let s = std::fs::read_to_string(PRICE_SPECIAL_PATH).expect("price_special.yamlの読み込みに失敗しました");
-        serde_yaml::from_str(&s).expect("price_special.yamlのパースに失敗しました")
+        serde_saphyr::from_str(&s).expect("price_special.yamlのパースに失敗しました")
     })
 }
 
@@ -72,7 +72,7 @@ fn price_cc() -> &'static Vec<CCExchangeItem> {
     static PRICE_CC: OnceLock<Vec<CCExchangeItem>> = OnceLock::new();
     PRICE_CC.get_or_init(|| {
         let s = std::fs::read_to_string(PRICE_CC_PATH).expect("price_cc.yamlの読み込みに失敗しました");
-        serde_yaml::from_str(&s).expect("price_cc.yamlのパースに失敗しました")
+        serde_saphyr::from_str(&s).expect("price_cc.yamlのパースに失敗しました")
     })
 }
 

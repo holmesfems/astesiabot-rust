@@ -92,7 +92,7 @@ async fn fetch_impl() -> Result<ItemNames, FetchError> {
     let jp_items = jp_table.get("items").and_then(Value::as_object).cloned().unwrap_or_default();
 
     let custom_zh_to_ja: HashMap<String, String> = match std::fs::read_to_string("data/customItemZhToJa.yaml") {
-        Ok(s) => serde_yaml::from_str(&s).unwrap_or_default(),
+        Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
         Err(_) => HashMap::new(),
     };
 
@@ -141,7 +141,7 @@ async fn fetch_impl() -> Result<ItemNames, FetchError> {
 /// （Python の `ItemIdToName.init` 後半、`customItemId.yaml` 適用部分と同じ分岐）。
 fn apply_custom_item_ids(names: &mut ItemNames) {
     let entries: Vec<CustomIdEntry> = match std::fs::read_to_string("data/customItemId.yaml") {
-        Ok(s) => serde_yaml::from_str(&s).unwrap_or_default(),
+        Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
         Err(_) => Vec::new(),
     };
 

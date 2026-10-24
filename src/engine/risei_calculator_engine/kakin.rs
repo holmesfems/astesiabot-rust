@@ -40,7 +40,7 @@ pub fn kakin_list() -> &'static IndexMap<String, KakinPackDef> {
     LIST.get_or_init(|| {
         let s = std::fs::read_to_string(KAKIN_LIST_PATH)
             .expect("price_kakin.yamlの読み込みに失敗しました");
-        serde_yaml::from_str(&s).expect("price_kakin.yamlのパースに失敗しました")
+        serde_saphyr::from_str(&s).expect("price_kakin.yamlのパースに失敗しました")
     })
 }
 
@@ -49,7 +49,7 @@ fn const_gacha() -> &'static HashMap<String, f64> {
     GACHA.get_or_init(|| {
         let s = std::fs::read_to_string(CONST_GACHA_PATH)
             .expect("const_gacha.yamlの読み込みに失敗しました");
-        serde_yaml::from_str(&s).expect("const_gacha.yamlのパースに失敗しました")
+        serde_saphyr::from_str(&s).expect("const_gacha.yamlのパースに失敗しました")
     })
 }
 
@@ -222,7 +222,7 @@ mod tests {
     /// アイテムで効率が低く出ても気づけない。価値0は`zero_value_items.yaml`での明示を必須にする。
     #[tokio::test]
     async fn every_pack_item_has_risei_value() {
-        let zero_value_items: Vec<String> = serde_yaml::from_str(
+        let zero_value_items: Vec<String> = serde_saphyr::from_str(
             &std::fs::read_to_string(ZERO_VALUE_ITEMS_PATH).expect("zero_value_items.yamlを読める"),
         )
         .expect("zero_value_items.yamlは文字列のリスト");

@@ -13,7 +13,7 @@ const TOOL_LIST_PATH: &str = "data/uranai/toolList.yaml";
 /// 組み込みツールのうち`web_search`のみ固定エントリとして含む（要件定義で確定済み）。
 pub fn load_tool_definitions() -> Result<Vec<Value>, Error> {
     let content = std::fs::read_to_string(TOOL_LIST_PATH)?;
-    Ok(serde_yaml::from_str(&content)?)
+    Ok(serde_saphyr::from_str(&content)?)
 }
 
 /// `functioncalling::all_tools()`から名前引きして実行する。未登録の名前や不正なJSON引数は

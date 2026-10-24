@@ -121,7 +121,7 @@ async fn fetch_impl() -> Result<OperatorBirthdays, FetchError> {
         fetch_typed_with_retry::<CharTable>(&client, CHAR_TABLE_URL_CN),
         fetch_typed_with_retry::<CharTable>(&client, CHAR_TABLE_URL_JP),
     )?;
-    let custom_names: Option<HashMap<String, String>> = serde_yaml::from_str(CUSTOM_OPERATOR_ZH_TO_JA_YAML)?;
+    let custom_names: Option<HashMap<String, String>> = serde_saphyr::from_str(CUSTOM_OPERATOR_ZH_TO_JA_YAML)?;
     build(&handbook, &meta, &cn_chars, &jp_chars, &custom_names.unwrap_or_default())
 }
 

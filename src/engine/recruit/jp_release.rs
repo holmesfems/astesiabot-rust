@@ -29,7 +29,7 @@ pub struct JpReleaseSchedule {
 impl JpReleaseSchedule {
     pub fn parse(yaml: &str) -> Result<Self, Error> {
         // コメントだけのファイル（エントリ0件）は空のドキュメントになるのでOptionで受ける。
-        let raw: Option<Vec<RawEntry>> = serde_yaml::from_str(yaml)?;
+        let raw: Option<Vec<RawEntry>> = serde_saphyr::from_str(yaml)?;
         let entries = raw
             .unwrap_or_default()
             .into_iter()
