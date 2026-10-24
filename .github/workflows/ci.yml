@@ -42,3 +42,4 @@ jobs:
       - run: node src/api/test_runner/verify.mjs
       - run: node src/api/fk_kill_calculator/verify.mjs
       - run: node src/api/ef_recipe_calculator/verify.mjs
+      - run: node src/api/wl_battery_simulator/verify.mjs

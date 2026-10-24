@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>武陵高精度発電制御</title>
+  {% include "head_icons.html" %}
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="武陵発電制御計算機" />
+  <meta property="og:description" content="エンドフィールド武陵の発電制御計算機。必要電力を入力すると、最適な設定値とチャートを表示します。" />
+  <meta property="og:url" content="{{ base }}/WLBatterySimulator" />
+  <meta property="og:locale" content="ja_JP" />
+  {% include "og_square_image.html" %}
+  <link rel="stylesheet" href="/WLBatterySimulator/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  {% include "toolnav.html" %}
+  <header class="container">
+    <h1>武陵発電制御計算機</h1>
+    <p class="muted">必要電力（5刻み）を入力すると、最適な設定値とチャートを表示します。最大発電量を超える場合は自動的に按分して計算します。</p>
+  </header>
+
+  <main class="container grid">
+    <section class="card">
+      <h2>発電値計算</h2>
+      <form id="calcForm" class="form">
+        <label>必要な発電量を入力してください</label>
+        <input id="required_power" name="required_power" type="number" min="5" step="5" required
+                placeholder="例: 250"/>
+
+        <label>残電量安全マージン</label>
+        <input name="storage_margin" type="number" min="0" max="100000" step="1000"  required
+                placeholder="例: 10000" value="10000"/>
+        <!-- 追加：5分割以下のみマージン適用トグル -->
+        <label class="toggle">
+          <span class="toggle-label">5分割以下のみマージン適用</span>
+
+          <input type="checkbox" name="use_margin_under_5" checked/>
+          <span class="toggle-track" aria-hidden="true">
+            <span class="toggle-thumb"></span>
+          </span>
+        </label>
+        <button type="submit">最適設定を計算</button>
+      </form>
+      <div id="error" class="error" hidden></div>
+
+      <!-- 計算結果。中身は render.js が入れる -->
+      <div id="result" class="result" hidden></div>
+
+    </section>
+    <section class="card">
+      <h2 id="title">回路図選択</h2>
+
+      <!-- 追加：selector -->
+      <div class="code_selector style="gap:12px; align-items:center;">
+        <label class="muted" for="blueprintSelector">図面選択:</label>
+        <select id="blueprintSelector" class="select-modern" name="blueprintId" form="calcForm">
+          <!-- value を「項目ID」として扱う（= お嬢様の言う “id” の役割） -->
+          <option value="CTL_1">標準制御器(800/400/200/100/50/25/5/5/5/5/5)</option>
+          <option value="CTL_3">可変周期発電(武陵小電池)</option>
+          <option value="CTL_4" selected>可変周期発電(武陵中電池)</option>
+        </select>
+      </div>
+
+      <div class="code-row">
+        <label class="muted">
+          入力: <span id="input_freq">1.5/s</span><br> コード: <span id="codeValue">EFO01iUIAE8OIE29i72U4</span>
+        </label>
+        <button type="button" class="copy-btn" id="copyBtn">コピー</button>
+      </div>
+      <span id="tutorial_link" hidden></span>
+      </div>
+
+      <div id="toast" class="toast" role="status" aria-live="polite">コピー完了しました</div>
+
+      <img class="blueprint" id="blueprintImg"
+          src="/WLBatterySimulator/static/blueprint.png"
+          alt="発電制御器 設計図" />
+
+    </section>
+  <section id="tvChart" class="card full">
+    <h2>チャート（時間 / 残電量）</h2>
+    <div class="chart-body"><p class="muted">計算後に表示されます。</p></div>
+  </section>
+
+  </main>
+
+  <footer class="container muted">
+    <small>
+      <a class="muted" href="https://github.com/holmesfems/RiseiCalculatorBot-main/tree/main/htmlResources/WLBatterySimulator"
+        target="_blank" rel="noopener noreferrer">
+        GitHub
+      </a>
+      © <span id="year"></span> holmesfems. Licensed under the MIT License:
+      <a class="muted" href="https://opensource.org/license/mit/"
+        target="_blank" rel="noopener noreferrer">
+        https://opensource.org/license/mit/
+      </a>
+    </small>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <!-- ?v= はブラウザに残った旧版を読ませないため。app.js の作りを変えたら上げる -->
+  <script type="module" src="/WLBatterySimulator/static/app.js?v=1"></script>
+</body>
+</html>

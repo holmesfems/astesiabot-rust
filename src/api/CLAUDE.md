@@ -42,7 +42,7 @@
   ＝全ページの `<head>` に必須 / `og_square_image.html` ＝ home 以外が使う正方形 og:image。
   include 先の struct に `base` が要る）。
 - **askama の `dirs` はフラットに解決される**ので、テンプレート名はモジュールごとに前置する
-  （`ef_*` / `lod_*` / `tr_*` / `fkc_*` / `home_*`）。素の `index.html` は wl_battery_simulator と衝突する。
+  （`ef_*` / `wl_*` / `lod_*` / `tr_*` / `fkc_*` / `home_*`）。素の `index.html` などは他と衝突する。
 - **lod_chest_solver / test_runner は言語ごとに別 URL・別 HTML**（1URL=1言語）。クローラに両言語の
   中身を見せるため、静的ラベルは各言語テンプレートに直書きし、JS で差し替えない
   （localStorage / navigator.language / Accept-Language での振り分けもしない。重複扱いされ得る）。
@@ -69,3 +69,7 @@
 - **ef_recipe_calculator は計算をブラウザでする**（サーバーは計算しない。issue #69）。計算層 `static/solver.js`
   （アルゴリズムは `EFRecipeCalculator.md` §4）、表示層 `static/render.js`、エディタ `static/app.js`。
   ページは `app.js?v=N` で読む（旧版のキャッシュ対策。app.js の作りを変えたら N を上げる）。
+- **wl_battery_simulator も計算をブラウザでする**（issue #69）。計算層 `static/optimizer.js`（入口）と
+  `static/battery_sim.js`、表示層 `static/render.js`（Chart.js は CDN のグローバル）、ページの処理 `static/app.js`
+  （`?v=N` は EF と同じ）。`testdata/golden.json` は移す前の Rust 版の出力で、verify.mjs が突き合わせる
+  （計算を意図して変えたときだけ作り直す）。可変周期入力式標準制御器（CTL_2）は不安定なので外した。

@@ -25,7 +25,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 /// FastAPI の /docs 相当。JSON API（/recruitment/）のみを対象とする。
-/// WLBatterySimulator は askama+htmx のサーバーレンダリングなので対象外。
+/// Web UI のツール（WLBatterySimulator など）は HTML のページで、計算もブラウザでするので対象外。
 #[derive(OpenApi)]
 #[openapi(
     paths(recruitment::do_recruitment),
@@ -98,7 +98,7 @@ fn is_plain_http_host(host: &str) -> bool {
     name == "localhost" || name.parse::<std::net::IpAddr>().is_ok()
 }
 
-/// サーバーレンダリングしているツール類だけをクローラに拾わせる。
+/// Web UI のツール類（HTML のページ）だけをクローラに拾わせる。
 /// JSON API（/recruitment/）と Swagger UI は対象外。
 async fn robots(headers: HeaderMap) -> impl IntoResponse {
     let base = base_url(&headers);
