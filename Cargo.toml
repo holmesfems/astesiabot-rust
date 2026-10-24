@@ -23,11 +23,11 @@ nalgebra = "0.33"
 rand = "0.10"
 indexmap = { version = "2", features = ["serde"] }
 base64 = "0.22"
-utoipa = { version = "5", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "9", features = ["axum"] }
-rust_xlsxwriter = "0.96.0"
-zip = { version = "7", default-features = false }
+utoipa = { version = "6", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "10", features = ["axum"] }
+rust_xlsxwriter = "0.101.0"
+zip = { version = "9", default-features = false }
 
 [dev-dependencies]
-calamine = "0.36.0"
+calamine = "0.37.0"
 tower = { version = "0.5", features = ["util"] }

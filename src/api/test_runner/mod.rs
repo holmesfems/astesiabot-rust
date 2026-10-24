@@ -346,7 +346,7 @@ mod tests {
             zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec())).expect("valid zip");
 
         let mut names: Vec<String> = (0..archive.len())
-            .map(|i| archive.by_index(i).unwrap().name().to_string())
+            .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
             .collect();
         names.sort();
         let mut expected = vec![
