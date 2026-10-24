@@ -192,8 +192,8 @@ struct Dictionaries {
 impl Dictionaries {
     fn embedded() -> Result<Self, FetchError> {
         let tag_list: TagListJson = serde_json::from_str(TAG_LIST_JSON)?;
-        let tag_zh_to_ja: HashMap<String, String> = serde_yaml::from_str(TAG_ZH_TO_JA_YAML)?;
-        let custom_names: Option<HashMap<String, String>> = serde_yaml::from_str(CUSTOM_OPERATOR_ZH_TO_JA_YAML)?;
+        let tag_zh_to_ja: HashMap<String, String> = serde_saphyr::from_str(TAG_ZH_TO_JA_YAML)?;
+        let custom_names: Option<HashMap<String, String>> = serde_saphyr::from_str(CUSTOM_OPERATOR_ZH_TO_JA_YAML)?;
         Ok(Self {
             job_tags: tag_list.job_tags.into_iter().collect(),
             operator_tags: tag_list.position_tags.into_iter().chain(tag_list.other_tags).collect(),

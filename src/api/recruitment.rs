@@ -58,7 +58,7 @@ pub(super) const SHORTCUT_PATH: &str = "/shortcut/recruitment";
 
 fn shortcut_info() -> &'static ShortcutInfo {
     static INFO: OnceLock<ShortcutInfo> = OnceLock::new();
-    INFO.get_or_init(|| serde_yaml::from_str(SHORTCUT_YAML).expect("shortcut.yaml should parse"))
+    INFO.get_or_init(|| serde_saphyr::from_str(SHORTCUT_YAML).expect("shortcut.yaml should parse"))
 }
 
 /// `GET /shortcut/recruitment` → shortcut.yaml の iCloud リンクへ。

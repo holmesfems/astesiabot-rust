@@ -138,7 +138,7 @@ async fn fetch_impl() -> Result<OperatorData, FetchError> {
     )?;
 
     let custom: BTreeMap<String, String> = match std::fs::read_to_string("data/customOperatorZhToJa.yaml") {
-        Ok(s) => serde_yaml::from_str(&s).unwrap_or_default(),
+        Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
         Err(_) => BTreeMap::new(),
     };
 
@@ -468,7 +468,7 @@ mod tests {
             .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
         let data: OperatorData = serde_json::from_str(&json).expect("seedがOperatorDataとしてparseできること");
         let custom: BTreeMap<String, String> =
-            serde_yaml::from_str(&std::fs::read_to_string("data/customOperatorZhToJa.yaml").expect("yaml should exist"))
+            serde_saphyr::from_str(&std::fs::read_to_string("data/customOperatorZhToJa.yaml").expect("yaml should exist"))
                 .expect("yaml should parse");
 
         let ops: Vec<&RawOperatorCost> = data.operators.values().filter(|op| !op.is_patch).collect();

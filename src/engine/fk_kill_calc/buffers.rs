@@ -251,7 +251,7 @@ fn build_bonus(parent_id: &str, parent_kind: BufferKind, raw: &RawBonus) -> Buff
 }
 
 fn build_buffers() -> Vec<Buffer> {
-    let parsed: BuffersYaml = serde_yaml::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
     let mut buffers = Vec::new();
 
     // P5: `source`付きのindividualはconditionalと同じく、値をゲームデータから解決する
@@ -315,7 +315,7 @@ pub fn global() -> &'static [Buffer] {
 static CONDITIONAL_SOURCED_RAW: OnceLock<Vec<RawConditional>> = OnceLock::new();
 
 fn build_conditional_sourced_raw() -> Vec<RawConditional> {
-    let parsed: BuffersYaml = serde_yaml::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
     parsed.conditional.into_iter().filter(|c| c.source.is_some()).collect()
 }
 
@@ -331,7 +331,7 @@ pub(crate) fn raw_conditional_sourced() -> &'static [RawConditional] {
 static INDIVIDUAL_SOURCED_RAW: OnceLock<Vec<RawIndividual>> = OnceLock::new();
 
 fn build_individual_sourced_raw() -> Vec<RawIndividual> {
-    let parsed: BuffersYaml = serde_yaml::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
     parsed.individual.into_iter().filter(|i| i.source.is_some()).collect()
 }
 
@@ -350,14 +350,14 @@ pub(crate) fn build_fixed_bonus(parent_id: &str, parent_kind: BufferKind, raw: &
 static INSPIRE_RAW: OnceLock<Vec<RawInspireSource>> = OnceLock::new();
 
 fn build_inspire_raw() -> Vec<RawInspireSource> {
-    let parsed: BuffersYaml = serde_yaml::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
     parsed.inspire
 }
 
 /// `inspire`リストの生データ(P3)。`build_catalog`(mod.rs)が`operator_combat`と
 /// マージして`dto::InspireSource`を組み立てる材料として使う。プロセス内で1回だけ
 /// パースして使い回す(`global()`と同じ方針。BUFFERS_YAMLを2回パースする無駄はあるが、
-/// P1/P2からの構造(BuffersYaml一枚をserde_yamlでパース)を崩さないための素直な実装)。
+/// P1/P2からの構造(BuffersYaml一枚をserde_saphyrでパース)を崩さないための素直な実装)。
 pub fn raw_inspire_sources() -> &'static [RawInspireSource] {
     INSPIRE_RAW.get_or_init(build_inspire_raw)
 }

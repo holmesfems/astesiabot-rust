@@ -214,7 +214,7 @@ async fn fetch_impl() -> Result<OperatorCombat, FetchError> {
 
     // JP未実装オペレーターの名前フォールバック（`operator_data.rs`と同じファイルを使う）。
     let custom: BTreeMap<String, String> = match std::fs::read_to_string("data/customOperatorZhToJa.yaml") {
-        Ok(s) => serde_yaml::from_str(&s).unwrap_or_default(),
+        Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
         Err(_) => BTreeMap::new(),
     };
 

@@ -176,7 +176,7 @@ static OVERRIDES: OnceLock<Overrides> = OnceLock::new();
 impl Overrides {
     fn load() -> Self {
         let map: OverridesMap =
-            serde_yaml::from_str(OVERRIDES_YAML).expect("overrides.yamlはビルド時埋め込みなので必ずパースできるはず");
+            serde_saphyr::from_str(OVERRIDES_YAML).expect("overrides.yamlはビルド時埋め込みなので必ずパースできるはず");
         Self { map }
     }
 
@@ -217,13 +217,13 @@ mod tests {
 
     #[test]
     fn damage_type_accepts_bare_bool_true_as_true_damage() {
-        let v: OverrideVariant = serde_yaml::from_str("damage_type: true").unwrap();
+        let v: OverrideVariant = serde_saphyr::from_str("damage_type: true").unwrap();
         assert_eq!(v.damage_type, Some(DamageType::True));
     }
 
     #[test]
     fn damage_type_rejects_bool_false() {
-        let result: Result<OverrideVariant, _> = serde_yaml::from_str("damage_type: false");
+        let result: Result<OverrideVariant, _> = serde_saphyr::from_str("damage_type: false");
         assert!(result.is_err());
     }
 }
