@@ -7,7 +7,7 @@ edition = "2021"
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"
 poise = "0.6"
-axum = { version = "0.7", features = ["json", "multipart"] }
+axum = { version = "0.8", features = ["json", "multipart"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 serde-saphyr = "2"
@@ -18,16 +18,16 @@ chrono-tz = "0.6"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 dotenvy = "0.15"
 askama = { version = "0.12", features = ["serde-json"] }
-tower-http = { version = "0.5", features = ["fs"] }
+tower-http = { version = "0.6", features = ["fs"] }
 nalgebra = "0.33"
 rand = "0.8"
 indexmap = { version = "2", features = ["serde"] }
 base64 = "0.22"
-utoipa = { version = "4", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "6", features = ["axum"] }
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 rust_xlsxwriter = "0.96.0"
 zip = { version = "7", default-features = false }
 
 [dev-dependencies]
 calamine = "0.36.0"
-tower = { version = "0.4", features = ["util"] }
+tower = { version = "0.5", features = ["util"] }
