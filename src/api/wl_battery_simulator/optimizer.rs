@@ -1,7 +1,4 @@
-use super::battery_sim::{
-    search_fit_plan_for_all_clock, search_fit_plan_for_one_clock, search_plan_for_clock_circuit, FitPlan,
-    MAX_STORAGE,
-};
+use super::battery_sim::{search_fit_plan_for_one_clock, search_plan_for_clock_circuit, FitPlan, MAX_STORAGE};
 
 pub struct OptimizationResult {
     pub required_power: i64,
@@ -19,7 +16,7 @@ pub struct OptimizationResult {
 
 fn max_power_for_blueprint(blueprint_id: &str) -> Result<i64, String> {
     match blueprint_id {
-        "CTL_1" | "CTL_2" | "CTL_3" => Ok(1600),
+        "CTL_1" | "CTL_3" => Ok(1600),
         "CTL_4" => Ok(3200),
         _ => Err("存在しない図面です".to_string()),
     }
@@ -44,25 +41,6 @@ fn validate_storage_margin(x: i64) -> Result<(), String> {
 /// 表示用に小数点以下2桁へ丸める（例: 1306.1224489795918 -> 1306.12）
 fn round2(x: f64) -> f64 {
     (x * 100.0).round() / 100.0
-}
-
-fn separate_clock(clock: i64) -> Vec<i64> {
-    let base = [32, 16, 8, 4, 2];
-    let mut res = Vec::new();
-    let mut remain = clock - 40;
-    if remain <= 0 {
-        return res;
-    }
-    for &value in &base {
-        if remain >= value {
-            res.push(value);
-            remain -= value;
-            if remain == 0 {
-                return res;
-            }
-        }
-    }
-    res
 }
 
 pub fn optimize(
@@ -102,26 +80,6 @@ pub fn optimize(
             // PWM回路
             let plan = search_fit_plan_for_one_clock(remainder, storage_margin, use_margin_under_5, 40);
             (plan, None, MERGER_LEFT)
-        }
-        "CTL_2" => {
-            // 周期→PWM回路
-            let plan = search_fit_plan_for_all_clock(remainder, storage_margin, use_margin_under_5);
-            let sc = separate_clock(plan.clock);
-            let mut fit_clock = format!("{}s", plan.clock);
-            if !sc.is_empty() {
-                let mut reversed = sc.clone();
-                reversed.reverse();
-                fit_clock.push_str(" (");
-                fit_clock.push_str(
-                    &reversed
-                        .iter()
-                        .map(|item| format!("+{}", item))
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                );
-                fit_clock.push(')');
-            }
-            (plan, Some(fit_clock), MERGER_LEFT)
         }
         "CTL_3" => {
             // 周期回路(武陵小電池)

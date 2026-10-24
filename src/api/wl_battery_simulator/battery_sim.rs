@@ -397,31 +397,6 @@ pub fn search_fit_plan_for_one_clock(
     }
 }
 
-pub fn search_fit_plan_for_all_clock(required_power: i64, storage_margin: i64, use_margin_under_5: bool) -> FitPlan {
-    let dummy_controller = PowerControllerWuling::new();
-    let mut fit_plans: Vec<FitPlan> = Vec::new();
-    let mut clock = 40i64;
-    loop {
-        let is_clock_available = required_power as f64
-            <= (dummy_controller.max_power() * dummy_controller.power_time()) as f64 / clock as f64
-            && clock <= 102;
-        if !is_clock_available {
-            break;
-        }
-        fit_plans.push(search_fit_plan_for_one_clock(
-            required_power,
-            storage_margin,
-            use_margin_under_5,
-            clock,
-        ));
-        clock += 2;
-    }
-    fit_plans
-        .into_iter()
-        .min_by(|a, b| a.need_power.partial_cmp(&b.need_power).unwrap())
-        .expect("at least one clock should be available")
-}
-
 pub struct ClockCircuitSimulation {
     battery_power: i64,
 }

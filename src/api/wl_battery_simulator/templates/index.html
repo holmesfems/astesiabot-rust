@@ -66,7 +66,6 @@
         <select id="blueprintSelector" class="select-modern" name="blueprintId" form="calcForm">
           <!-- value を「項目ID」として扱う（= お嬢様の言う “id” の役割） -->
           <option value="CTL_1">標準制御器(800/400/200/100/50/25/5/5/5/5/5)</option>
-          <option value="CTL_2">可変周期入力式標準制御器(beta)</option>
           <option value="CTL_3">可変周期発電(武陵小電池)</option>
           <option value="CTL_4" selected>可変周期発電(武陵中電池)</option>
         </select>
@@ -114,14 +113,6 @@
             imgAlt: "発電制御器 設計図（入力1.5/min）",
             maxPower: 1600,
             tutorial: null
-          },
-          CTL_2: {
-            code: "EFO018Ieo6U9e6166UI73",
-            inputFreq: "可変周期",
-            imgSrc: "/WLBatterySimulator/static/blueprint2.png",
-            imgAlt: "発電制御器 設計図（可変周期）",
-            maxPower: 1600,
-            tutorial: "/WLBatterySimulator/static/tutorial_CTL2.html"
           },
           CTL_3: {
             code: "EFO01iUIAE8OIE2u272U4",
