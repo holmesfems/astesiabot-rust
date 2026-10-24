@@ -43,7 +43,9 @@ cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を
   Seed の更新とコードの変更は同じ commit に混ぜない（コードの退行が Seed の変化に紛れる）。
 - `e2e.mjs` は `serve_web` を自分で spawn して `/health` を待ち（初回ビルド込みで最大240秒）、
   最後に `taskkill /pid <pid> /T /F` で子プロセスごと落とす。Playwright はプロジェクト直下でなく
-  `%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\playwright` にあり、e2e.mjs が自動で探す。
+  `%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\playwright` にあり、`src/api/e2e_playwright.mjs` が
+  自動で探す（版ごとに要るブラウザが違うので、Chromium が入っている版のうち一番新しいものを選ぶ）。
+  どの版にもブラウザが無ければ `npx playwright install chromium`。
 - 環境変数は `.env` に一覧がある（DISCORD_TOKEN、CLOUDVISION_API_KEY、CHANNEL_ID_*、FK_SHEETS_*、
   YouTube 関係など）。足りないと起動時に panic する（YouTube のお知らせだけは任意で、無ければ起動しない）。
 - 動作確認の URL: `/recruitment/`（POST）、`/WLBatterySimulator`、`/EFRecipeCalculator`、

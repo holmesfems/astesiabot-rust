@@ -8,15 +8,13 @@
 // bot も ExternalSourceRegistry も起こさない dev サーバーに対して Playwright で検証する。
 // 後始末（サーバー停止）は正常・異常・例外いずれの経路でも必ず行う。
 
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import fs from 'node:fs';
 import net from 'node:net';
 import http from 'node:http';
 import { spawn, execSync } from 'node:child_process';
+import { resolvePlaywright } from '../e2e_playwright.mjs';
 
-const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // このファイルは src/api/wl_battery_simulator/e2e.mjs なので、リポジトリルートは3階層上。
 const REPO_ROOT = path.resolve(HERE, '..', '..', '..');
@@ -29,38 +27,8 @@ function ok(name, cond, extra) {
 }
 
 /* ========================================================================= *
- * 1. playwright の解決（test_runner/e2e.mjsと同じ。npxキャッシュも探す）
+ * 1. playwright の解決（ブラウザの入っている版を選ぶ。../e2e_playwright.mjs）
  * ========================================================================= */
-function resolvePlaywright() {
-  try {
-    return require('playwright');
-  } catch (e) {
-    // フォールスルー
-  }
-  const npxCacheRoot = path.join(
-    process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Local'),
-    'npm-cache',
-    '_npx'
-  );
-  if (fs.existsSync(npxCacheRoot)) {
-    const hashDirs = fs.readdirSync(npxCacheRoot, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => path.join(npxCacheRoot, d.name, 'node_modules', 'playwright'));
-    for (const candidate of hashDirs) {
-      if (fs.existsSync(path.join(candidate, 'package.json'))) {
-        try {
-          return require(candidate);
-        } catch (e) {
-          // 次の候補へ
-        }
-      }
-    }
-  }
-  console.error('playwright が見つかりません。');
-  console.error('  npx 経由でのインストール例: npx playwright install chromium');
-  console.error('  探索したパス: ' + npxCacheRoot);
-  process.exit(1);
-}
 const playwright = resolvePlaywright();
 
 /* ========================================================================= *
