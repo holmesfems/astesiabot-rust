@@ -66,4 +66,6 @@
   オープニング（`opening.js`）の再生中は、ダイヤルと北極をエンブレム（`.opening-stage`）に重ねて置く（`--open-tx/ty/s` の FLIP）。
   自然に終わると `html.opening-done` で CSS がダイヤルと空を本来の位置へ滑らせ、スキップ（クリック・キー）はクラスを外すだけでその場で最終状態になる。
   両 JS は `window` の `home-opening-end` イベントで緩く連携する。
-- ef_recipe_calculator のアルゴリズムは `EFRecipeCalculator.md` §4。
+- **ef_recipe_calculator は計算をブラウザでする**（サーバーは計算しない。issue #69）。計算層 `static/solver.js`
+  （アルゴリズムは `EFRecipeCalculator.md` §4）、表示層 `static/render.js`、エディタ `static/app.js`。
+  ページは `app.js?v=N` で読む（旧版のキャッシュ対策。app.js の作りを変えたら N を上げる）。
