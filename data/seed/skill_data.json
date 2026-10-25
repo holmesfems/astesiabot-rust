@@ -61181,6 +61181,25 @@
       "is_ammo_skill": false,
       "name": "レザーシャープペン"
     },
+    "sktok_bigbtle_1": {
+      "blackboard": {
+        "max_skill_count": 3.0,
+        "next_next_range": 0.0,
+        "next_range": 0.0,
+        "range_id": 0.0
+      },
+      "blackboard_by_level": [
+        {
+          "max_skill_count": 3.0,
+          "next_next_range": 0.0,
+          "next_range": 0.0,
+          "range_id": 0.0
+        }
+      ],
+      "description": "被撃回復/自動発動\n▶0 ⚡5\n被攻击数次后向周围涂上纯白水汽，范围逐渐扩大",
+      "is_ammo_skill": false,
+      "name": "再来一杯！"
+    },
     "sktok_bldore": {
       "blackboard": {
         "addondamage": 150.0,
@@ -61356,6 +61375,21 @@
       "description": "自然回復/自動発動\n▶0 ⚡20\n衝撃波を放つと同時に範囲内の全ての血珀を吸収し、新生の血裔へと変化させる",
       "is_ammo_skill": false,
       "name": "血の祭壇"
+    },
+    "sktok_booster_1": {
+      "blackboard": {
+        "duration": 15.0,
+        "move_speed": -0.7
+      },
+      "blackboard_by_level": [
+        {
+          "duration": 15.0,
+          "move_speed": -0.7
+        }
+      ],
+      "description": "8/自動発動\n▶0 ⚡0\n部署后使所有敌人移动速度-70%，持续15秒",
+      "is_ammo_skill": false,
+      "name": "横冲直撞！"
     },
     "sktok_boxmac": {
       "blackboard": {
@@ -63302,6 +63336,15 @@
       "description": "自然回復/自動発動\n▶0 ⚡15\n一定時間ごとに、周囲一定範囲内の敵全員に10秒の寒冷状態を付与する衝撃波を発生させる",
       "is_ammo_skill": false,
       "name": "氷結衝撃波"
+    },
+    "sktok_fshcave_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "8/自動発動\n▶0 ⚡0\n使<“再吃一口”源石虫>在部署的位置出现并向部署朝向的方向移动",
+      "is_ammo_skill": false,
+      "name": "梦想的第一步！"
     },
     "sktok_fxdtwr_1": {
       "blackboard": {
@@ -67559,6 +67602,19 @@
       "description": "被撃回復/自動発動\n▶0 ⚡5\nHP最大値の5%を失い敵1体に寒冷弾を発射し、半径2マス内の全ての敵に5秒間の寒冷状態を付与する",
       "is_ammo_skill": false,
       "name": "冷却処分"
+    },
+    "sktok_superstar_1": {
+      "blackboard": {
+        "duration": 15.0
+      },
+      "blackboard_by_level": [
+        {
+          "duration": 15.0
+        }
+      ],
+      "description": "8/自動発動\n▶0 ⚡0\n部署后使<“再吃一口”源石虫>15秒内不会被比其等级高的鱼击败",
+      "is_ammo_skill": false,
+      "name": "坚不可摧！"
     },
     "sktok_supplycard": {
       "blackboard": {

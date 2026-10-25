@@ -2375,11 +2375,11 @@
           "itemId": null
         },
         {
-          "dropType": "SPECIAL_DROP",
+          "dropType": "EXTRA_DROP",
           "itemId": null
         },
         {
-          "dropType": "EXTRA_DROP",
+          "dropType": "SPECIAL_DROP",
           "itemId": null
         }
       ],
@@ -2619,11 +2619,11 @@
           "itemId": null
         },
         {
-          "dropType": "SPECIAL_DROP",
+          "dropType": "EXTRA_DROP",
           "itemId": null
         },
         {
-          "dropType": "EXTRA_DROP",
+          "dropType": "SPECIAL_DROP",
           "itemId": null
         }
       ],
@@ -3091,11 +3091,11 @@
           "itemId": "30052"
         },
         {
-          "dropType": "SPECIAL_DROP",
+          "dropType": "EXTRA_DROP",
           "itemId": null
         },
         {
-          "dropType": "EXTRA_DROP",
+          "dropType": "SPECIAL_DROP",
           "itemId": null
         }
       ],
@@ -3529,10 +3529,6 @@
           "itemId": "furni"
         },
         {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
           "dropType": "NORMAL_DROP",
           "itemId": null
         },
@@ -3543,6 +3539,10 @@
         {
           "dropType": "EXTRA_DROP",
           "itemId": "31043"
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
         },
         {
           "dropType": "EXTRA_DROP",
@@ -6605,11 +6605,11 @@
           "itemId": null
         },
         {
-          "dropType": "SPECIAL_DROP",
+          "dropType": "EXTRA_DROP",
           "itemId": null
         },
         {
-          "dropType": "EXTRA_DROP",
+          "dropType": "SPECIAL_DROP",
           "itemId": null
         }
       ],
@@ -9431,12 +9431,12 @@
           "itemId": null
         },
         {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
           "dropType": "EXTRA_DROP",
           "itemId": "31043"
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
         },
         {
           "dropType": "EXTRA_DROP",
@@ -18657,10 +18657,6 @@
         },
         {
           "dropType": "EXTRA_DROP",
-          "itemId": "2001"
-        },
-        {
-          "dropType": "EXTRA_DROP",
           "itemId": "30022"
         },
         {
@@ -18686,6 +18682,10 @@
         {
           "dropType": "SPECIAL_DROP",
           "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": "2001"
         },
         {
           "dropType": "EXTRA_DROP",
@@ -22055,11 +22055,11 @@
           "itemId": null
         },
         {
-          "dropType": "SPECIAL_DROP",
+          "dropType": "EXTRA_DROP",
           "itemId": null
         },
         {
-          "dropType": "EXTRA_DROP",
+          "dropType": "SPECIAL_DROP",
           "itemId": null
         },
         {
@@ -23371,16 +23371,16 @@
           "itemId": null
         },
         {
-          "dropType": "SPECIAL_DROP",
-          "itemId": null
-        },
-        {
           "dropType": "EXTRA_DROP",
           "itemId": null
         },
         {
           "dropType": "FURNITURE",
           "itemId": "furni"
+        },
+        {
+          "dropType": "SPECIAL_DROP",
+          "itemId": null
         }
       ],
       "minClearTime": 183000.0,
@@ -26598,11 +26598,11 @@
           "itemId": null
         },
         {
-          "dropType": "SPECIAL_DROP",
+          "dropType": "EXTRA_DROP",
           "itemId": null
         },
         {
-          "dropType": "EXTRA_DROP",
+          "dropType": "SPECIAL_DROP",
           "itemId": null
         },
         {
@@ -37680,10 +37680,6 @@
       "dropInfos": [
         {
           "dropType": "EXTRA_DROP",
-          "itemId": "2001"
-        },
-        {
-          "dropType": "EXTRA_DROP",
           "itemId": "30021"
         },
         {
@@ -37733,6 +37729,10 @@
         {
           "dropType": "EXTRA_DROP",
           "itemId": null
+        },
+        {
+          "dropType": "EXTRA_DROP",
+          "itemId": "2001"
         },
         {
           "dropType": "EXTRA_DROP",
