@@ -43,7 +43,10 @@ services/
 - ふつうの動画: 公開から24時間以内・ショート以外（`/shorts/<ID>` が200ならショート、303なら動画）・
   未投稿のものを、アステシアの宣伝文（`UranaiState::write_in_character`）付きで投稿。生成に失敗したら決まった文面。
   宣伝文は AI の出力なので allowed_mentions で `ROLE_ID_YOUTUBE_NOTIFY` だけに絞る。
-- 配信: 動画ページの `ytInitialPlayerResponse`（`isLiveContent` / `isUpcoming` / `isLiveNow`）で種類を決め、
+- 配信: Data API の `videos`（`snippet.liveBroadcastContent` が live / upcoming、`liveStreamingDetails` の有無）で
+  種類を決める。**動画ページの `ytInitialPlayerResponse` だけで決めない**: Heroku から読むと `isLiveContent` が
+  欠けることがあり、配信中の枠を動画としてお知らせした（2026-10-26）。ページは「終わった配信」と「公開済みの
+  プレミア」の見分けにだけ使い、`isLiveContent` が無ければ配信とみなす。
   配信中になったら `CHANNEL_ID_STREAM_NOTIFY`（任意。無ければ配信は流さない）に決まった文面で投稿し
   `ROLE_ID_STREAM_NOTIFY`（任意）をメンション。予定・プレミア前は始まるまで待ち、過去の配信は流さない。
   配信は枠を立てた時刻より後に始まるので、24時間の絞り込みはふつうの動画だけに掛ける。

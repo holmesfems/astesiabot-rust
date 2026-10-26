@@ -6,7 +6,10 @@
 //! RSS（`/feeds/videos.xml`）は使わない。Heroku（AWS）の IP からはどのチャンネルでも 404 が
 //! 返り、読めなくなったため（動画ページ・チャンネルページは読める。2026-10 に確認）。
 //!
-//! 配信（ライブ）もアップロード一覧に載るので、動画ページの `ytInitialPlayerResponse` で見分ける。
+//! 配信（ライブ）もアップロード一覧に載るので、Data API の `videos`（`liveStreamingDetails`）で見分ける。
+//! 動画ページの `ytInitialPlayerResponse` だけで決めていたら、Heroku から読んだ配信中のページに
+//! `isLiveContent` が無く（ボット確認のページなど）、配信中の枠をふつうの動画としてお知らせしてしまった
+//! （2026-10-26）。
 //! 配信中になったら、配信告知チャンネルに決まった文面で投稿する（AI は通さない）。
 //! 配信予定・プレミア公開前のものは、始まるまで待つ。過去の配信はお知らせしない。
 //!
@@ -30,6 +33,8 @@ const POLL_INTERVAL: Duration = Duration::from_secs(10 * 60);
 /// 1回に読むアップロード一覧の件数（新しい順）。
 const PLAYLIST_MAX_RESULTS: &str = "15";
 const PLAYLIST_ITEMS_URL: &str = "https://www.googleapis.com/youtube/v3/playlistItems";
+/// 配信かどうかを読む（1回で割り当てを 1 使う。種類が決まっていない動画があるときだけ呼ぶ）。
+const VIDEOS_URL: &str = "https://www.googleapis.com/youtube/v3/videos";
 /// これより前に公開された動画はお知らせしない（初回起動時に過去の動画を流さないため）。
 const RECENT_WINDOW: chrono::Duration = chrono::Duration::hours(24);
 /// 二重投稿の判定で読む、お知らせ用チャンネルの直近のメッセージ数（Discord API の上限）。
@@ -176,23 +181,91 @@ pub fn parse_playlist_items(json: &str) -> Result<Vec<FeedVideo>, String> {
 /// アップロード一覧を Data API から読む。URL に API キーが入るので、エラーには URL を含めない
 /// （reqwest のエラーは既定で URL を表示し、ログにキーが残るため）。
 async fn fetch_uploads(client: &reqwest::Client, config: &YoutubeNotifyConfig) -> Result<Vec<FeedVideo>, Error> {
-    let resp = client
-        .get(PLAYLIST_ITEMS_URL)
-        .query(&[
+    let body = get_data_api(
+        client,
+        PLAYLIST_ITEMS_URL,
+        &[
             ("part", "snippet,contentDetails,status"),
             ("playlistId", config.uploads_playlist_id.as_str()),
             ("maxResults", PLAYLIST_MAX_RESULTS),
             ("key", config.api_key.as_str()),
-        ])
-        .send()
-        .await
-        .map_err(|e| e.without_url())?;
+        ],
+    )
+    .await?;
+    Ok(parse_playlist_items(&body)?)
+}
+
+/// Data API を GET して本文を返す。URL に API キーが入るので、エラーには URL を含めない。
+async fn get_data_api(client: &reqwest::Client, url: &str, query: &[(&str, &str)]) -> Result<String, Error> {
+    let resp = client.get(url).query(query).send().await.map_err(|e| e.without_url())?;
     let status = resp.status();
     let body = resp.text().await.map_err(|e| e.without_url())?;
     if !status.is_success() {
         return Err(format!("YouTube Data API が {status} を返した: {}", api_error_message(&body)).into());
     }
-    Ok(parse_playlist_items(&body)?)
+    Ok(body)
+}
+
+/// Data API の `videos` から読む、配信まわりの状態。
+#[derive(Debug, PartialEq)]
+pub struct ApiLive {
+    /// `liveStreamingDetails` があるか（配信・プレミア公開なら、予定・配信中・終了後のどれでもある）。
+    pub has_live_details: bool,
+    /// `snippet.liveBroadcastContent`: `live` / `upcoming` / `none`。
+    pub broadcast: String,
+}
+
+#[derive(Deserialize)]
+struct VideoList {
+    #[serde(default)]
+    items: Vec<VideoItem>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VideoItem {
+    id: String,
+    snippet: Option<VideoSnippet>,
+    live_streaming_details: Option<Value>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VideoSnippet {
+    live_broadcast_content: Option<String>,
+}
+
+/// `videos`（`part=snippet,liveStreamingDetails`）の応答を動画ID → 状態にする。
+/// 消された・非公開になった動画は応答に入らない。
+pub fn parse_videos(json: &str) -> Result<HashMap<String, ApiLive>, String> {
+    let parsed: VideoList = serde_json::from_str(json).map_err(|e| format!("動画の情報が読めない: {e}"))?;
+    Ok(parsed
+        .items
+        .into_iter()
+        .map(|item| {
+            let broadcast = item
+                .snippet
+                .and_then(|s| s.live_broadcast_content)
+                .unwrap_or_else(|| "none".to_string());
+            (item.id, ApiLive { has_live_details: item.live_streaming_details.is_some(), broadcast })
+        })
+        .collect())
+}
+
+/// 動画の配信まわりの状態を Data API でまとめて読む（`videos` は1回50件まで。一覧は15件なので1回で足りる）。
+async fn fetch_live(
+    client: &reqwest::Client,
+    config: &YoutubeNotifyConfig,
+    video_ids: &[&str],
+) -> Result<HashMap<String, ApiLive>, Error> {
+    let ids = video_ids.join(",");
+    let body = get_data_api(
+        client,
+        VIDEOS_URL,
+        &[("part", "snippet,liveStreamingDetails"), ("id", ids.as_str()), ("key", config.api_key.as_str())],
+    )
+    .await?;
+    Ok(parse_videos(&body)?)
 }
 
 /// Data API のエラー応答（`{"error":{"message":…}}`）から理由を取り出す。読めなければ本文の先頭。
@@ -248,19 +321,19 @@ impl VideoKind {
     }
 }
 
-/// 配信まわりの状態（動画ページの `ytInitialPlayerResponse` から読む）。
-#[derive(Debug, PartialEq)]
-pub struct LiveStatus {
-    pub is_live_content: bool,
-    pub is_upcoming: bool,
-    pub is_live_now: bool,
+/// Data API の状態だけで決まる種類。配信中・予定（プレミア公開前を含む）なら Some。
+fn api_kind(api: &ApiLive) -> Option<VideoKind> {
+    match api.broadcast.as_str() {
+        "live" => Some(VideoKind::LiveNow),
+        "upcoming" => Some(VideoKind::Upcoming),
+        _ => None,
+    }
 }
 
-/// 動画ページの HTML から `ytInitialPlayerResponse` を取り出して、配信まわりの状態を読む。
-/// - `videoDetails.isLiveContent`: 配信（予定・配信中・アーカイブ）なら true
-/// - `videoDetails.isUpcoming`: 配信予定・プレミア公開前なら true
-/// - `microformat.playerMicroformatRenderer.liveBroadcastDetails.isLiveNow`: 配信中なら true
-pub fn parse_live_status(html: &str) -> Result<LiveStatus, String> {
+/// 動画ページの HTML から `ytInitialPlayerResponse` の `videoDetails.isLiveContent`
+/// （配信なら true、プレミア公開した動画なら false）を読む。値が無ければ Err
+/// （ボット確認のページなどで欠けることがあり、無いのを false とみなすと配信を動画と取り違える）。
+pub fn parse_is_live_content(html: &str) -> Result<bool, String> {
     const MARKER: &str = "var ytInitialPlayerResponse = ";
     let start = html
         .find(MARKER)
@@ -272,31 +345,14 @@ pub fn parse_live_status(html: &str) -> Result<LiveStatus, String> {
         .next()
         .ok_or("ytInitialPlayerResponse が空")?
         .map_err(|e| format!("ytInitialPlayerResponse が読めない: {e}"))?;
-    let flag = |pointer: &str| player.pointer(pointer).and_then(Value::as_bool).unwrap_or(false);
-    Ok(LiveStatus {
-        is_live_content: flag("/videoDetails/isLiveContent"),
-        is_upcoming: flag("/videoDetails/isUpcoming"),
-        is_live_now: flag("/microformat/playerMicroformatRenderer/liveBroadcastDetails/isLiveNow"),
-    })
+    player
+        .pointer("/videoDetails/isLiveContent")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| "ytInitialPlayerResponse に isLiveContent が無い".to_string())
 }
 
-/// 配信まわりの状態から種類を決める。配信でもプレミアでもなければ None（ショートかどうかは別に確かめる）。
-fn live_kind(status: &LiveStatus) -> Option<VideoKind> {
-    if status.is_upcoming {
-        Some(VideoKind::Upcoming)
-    } else if status.is_live_content {
-        Some(if status.is_live_now { VideoKind::LiveNow } else { VideoKind::PastStream })
-    } else {
-        None
-    }
-}
-
-/// 動画ページと `/shorts/` を読んで種類を決める。
-async fn classify(
-    feed_client: &reqwest::Client,
-    no_redirect: &reqwest::Client,
-    video_id: &str,
-) -> Result<VideoKind, Error> {
+/// 動画ページを読んで、配信だったか（プレミア公開ではないか）を確かめる。
+async fn was_stream(feed_client: &reqwest::Client, video_id: &str) -> Result<bool, Error> {
     let html = feed_client
         .get(format!("https://www.youtube.com/watch?v={video_id}"))
         .send()
@@ -304,8 +360,32 @@ async fn classify(
         .error_for_status()?
         .text()
         .await?;
-    if let Some(kind) = live_kind(&parse_live_status(&html)?) {
+    Ok(parse_is_live_content(&html)?)
+}
+
+/// Data API の状態と、必要なら動画ページ・`/shorts/` を読んで種類を決める。
+/// `api` が None（Data API の応答に無い＝非公開になった等）なら Err（次の回にまた確かめる）。
+async fn classify(
+    feed_client: &reqwest::Client,
+    no_redirect: &reqwest::Client,
+    video_id: &str,
+    api: Option<&ApiLive>,
+) -> Result<VideoKind, Error> {
+    let api = api.ok_or("Data API の videos に出てこない")?;
+    if let Some(kind) = api_kind(api) {
         return Ok(kind);
+    }
+    if api.has_live_details {
+        // 終わった配信か、公開の済んだプレミア。ページが読めなければ配信とみなす
+        // （プレミアをお知らせし損ねるほうが、配信を動画として流すよりまし）
+        match was_stream(feed_client, video_id).await {
+            Ok(false) => {}
+            Ok(true) => return Ok(VideoKind::PastStream),
+            Err(e) => {
+                eprintln!("[youtube_notify] {video_id} が配信かプレミアか分からないので配信とみなします: {e}");
+                return Ok(VideoKind::PastStream);
+            }
+        }
     }
     Ok(if is_short(no_redirect, video_id).await? { VideoKind::Short } else { VideoKind::Video })
 }
@@ -370,13 +450,20 @@ async fn check_once(
     // 古い順にお知らせする
     videos.sort_by_key(|v| v.published);
     let since = Utc::now() - RECENT_WINDOW;
+    let unsettled: Vec<&str> = videos
+        .iter()
+        .map(|v| v.video_id.as_str())
+        .filter(|id| !kinds.contains_key(*id))
+        .collect();
+    let live = if unsettled.is_empty() { HashMap::new() } else { fetch_live(feed_client, config, &unsettled).await? };
 
     for video in videos {
         // 配信は枠を立てた時（published）より後に始まるので、RECENT_WINDOW で絞る前に種類を決める
         let kind = match kinds.get(&video.video_id) {
             Some(&kind) => kind,
             None => {
-                let kind = match classify(feed_client, no_redirect, &video.video_id).await {
+                let api = live.get(&video.video_id);
+                let kind = match classify(feed_client, no_redirect, &video.video_id, api).await {
                     Ok(kind) => kind,
                     Err(e) => {
                         // この動画だけ次の回に回す
@@ -562,10 +649,37 @@ mod tests {
         assert!(videos.iter().any(|v| v.video_id == "XeOiPXCJyFA"));
         assert!(!is_short(&no_redirect, "XeOiPXCJyFA").await.unwrap());
         assert!(is_short(&no_redirect, "ebu6YObXPiA").await.unwrap());
-        let kind = |id: &'static str| classify(&feed_client, &no_redirect, id);
+        // 2件目は配信中に動画としてお知らせしてしまった配信（2026-10-26）
+        let ids = ["XeOiPXCJyFA", "HX2CRfRKt8Y", "ebu6YObXPiA", "0rLwW1TIu1k"];
+        let live = fetch_live(&feed_client, &config, &ids).await.unwrap();
+        let kind = |id: &'static str| classify(&feed_client, &no_redirect, id, live.get(id));
         assert_eq!(kind("XeOiPXCJyFA").await.unwrap(), VideoKind::Video);
+        assert_eq!(kind("HX2CRfRKt8Y").await.unwrap(), VideoKind::PastStream);
         assert_eq!(kind("ebu6YObXPiA").await.unwrap(), VideoKind::Short);
         assert_eq!(kind("0rLwW1TIu1k").await.unwrap(), VideoKind::PastStream);
+    }
+
+    #[test]
+    fn parse_videos_reads_live_state() {
+        // 実際の `videos` の応答から使う所だけ残したもの
+        let json = r#"{"items":[
+            {"id":"XeOiPXCJyFA","snippet":{"liveBroadcastContent":"none"}},
+            {"id":"HX2CRfRKt8Y","snippet":{"liveBroadcastContent":"none"},
+             "liveStreamingDetails":{"actualStartTime":"2026-10-26T10:15:57Z","actualEndTime":"2026-10-26T13:17:47Z"}},
+            {"id":"liveNow1111","snippet":{"liveBroadcastContent":"live"},"liveStreamingDetails":{}},
+            {"id":"upcoming111","snippet":{"liveBroadcastContent":"upcoming"},"liveStreamingDetails":{}}
+        ]}"#;
+        let live = parse_videos(json).unwrap();
+        assert_eq!(live.len(), 4);
+        let video = &live["XeOiPXCJyFA"];
+        assert!(!video.has_live_details);
+        assert_eq!(api_kind(video), None);
+        let past = &live["HX2CRfRKt8Y"];
+        assert!(past.has_live_details);
+        assert_eq!(api_kind(past), None, "終わった配信はページでプレミアと見分ける");
+        assert_eq!(api_kind(&live["liveNow1111"]), Some(VideoKind::LiveNow));
+        assert_eq!(api_kind(&live["upcoming111"]), Some(VideoKind::Upcoming));
+        assert!(parse_videos("<html>").is_err());
     }
 
     fn player_page(player_json: &str) -> String {
@@ -573,25 +687,18 @@ mod tests {
     }
 
     #[test]
-    fn parse_live_status_reads_player_response() {
+    fn parse_is_live_content_requires_the_flag() {
         // 実際のページから必要な所だけ残したもの
-        let video = player_page(r#"{"videoDetails":{"videoId":"XeOiPXCJyFA","isLiveContent":false}}"#);
         let past = player_page(
-            r#"{"videoDetails":{"isLiveContent":true},"microformat":{"playerMicroformatRenderer":{"liveBroadcastDetails":{"isLiveNow":false,"startTimestamp":"2026-07-20T11:53:04+00:00","endTimestamp":"2026-07-20T16:13:42+00:00"}}}}"#,
+            r#"{"videoDetails":{"isLiveContent":true},"microformat":{"playerMicroformatRenderer":{"liveBroadcastDetails":{"isLiveNow":false}}}}"#,
         );
-        let live = player_page(
-            r#"{"videoDetails":{"isLiveContent":true,"isLive":true},"microformat":{"playerMicroformatRenderer":{"liveBroadcastDetails":{"isLiveNow":true,"startTimestamp":"2026-10-19T10:47:32+00:00"}}}}"#,
-        );
-        let upcoming = player_page(r#"{"videoDetails":{"isLiveContent":true,"isUpcoming":true}}"#);
-        let kind = |html: &str| live_kind(&parse_live_status(html).unwrap());
-        assert_eq!(kind(&video), None);
-        assert_eq!(kind(&past), Some(VideoKind::PastStream));
-        assert_eq!(kind(&live), Some(VideoKind::LiveNow));
-        assert_eq!(kind(&upcoming), Some(VideoKind::Upcoming));
-        // プレミア公開前（配信ではない）も待つ
-        let premiere = player_page(r#"{"videoDetails":{"isLiveContent":false,"isUpcoming":true}}"#);
-        assert_eq!(kind(&premiere), Some(VideoKind::Upcoming));
-        assert!(parse_live_status("<html></html>").is_err());
+        let premiere = player_page(r#"{"videoDetails":{"videoId":"XeOiPXCJyFA","isLiveContent":false}}"#);
+        assert_eq!(parse_is_live_content(&past), Ok(true));
+        assert_eq!(parse_is_live_content(&premiere), Ok(false));
+        // ボット確認のページなどで videoDetails が欠けていたら、動画とはみなさない
+        let bot_check = player_page(r#"{"playabilityStatus":{"status":"LOGIN_REQUIRED"}}"#);
+        assert!(parse_is_live_content(&bot_check).is_err());
+        assert!(parse_is_live_content("<html></html>").is_err());
     }
 
     #[test]
