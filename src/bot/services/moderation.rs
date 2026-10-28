@@ -257,13 +257,31 @@ fn has_banned_content(state: &ModerationState, msg: &serenity::Message) -> bool 
         || BANWORDS.iter().any(|word| content_lower.contains(word))
 }
 
+/// ようこそメッセージの「手を振って挨拶しましょう！」ボタンで送られたスタンプか
+/// （入室メッセージへの、本文なし・スタンプだけのリプライ）。新しい人が続けて来ると
+/// 押す人は何度も押すので、連投には数えない。本文もリンクも無いので素通りさせても害は無い。
+/// リプライ先が取れない（消された等）ときは挨拶とみなさず、今まで通り数える。
+fn is_welcome_wave(msg: &serenity::Message) -> bool {
+    msg.content.is_empty()
+        && !msg.sticker_items.is_empty()
+        && msg
+            .referenced_message
+            .as_deref()
+            .is_some_and(|r| r.kind == serenity::MessageType::MemberJoin)
+}
+
 fn detect(state: &ModerationState, msg: &serenity::Message) -> Detection {
     let is_trap_channel = state.autodel_channels.contains(&msg.channel_id);
     let trap_banned = is_trap_channel && has_banned_content(state, msg);
 
     // detect_rate_spam は履歴更新の副作用を持つため、他の判定結果に関わらず必ず呼ぶ
     // （罠チャンネル投稿や全体通知も連投/爆撃検知のカウントに含める）。
-    let rate_kind = detect_rate_spam(state, msg.author.id, msg.channel_id, Instant::now());
+    // 例外は挨拶ボタンのスタンプだけで、これは履歴にも残さない。
+    let rate_kind = if is_welcome_wave(msg) {
+        SpamKind::None
+    } else {
+        detect_rate_spam(state, msg.author.id, msg.channel_id, Instant::now())
+    };
 
     let kind = if trap_banned {
         SpamKind::TrapChannel
@@ -777,6 +795,56 @@ mod tests {
             .map(|i| detect_rate_spam(&state, invoker, serenity::ChannelId::new(10 + i), now + Duration::from_secs(i)))
             .collect();
         assert_eq!(kinds, [SpamKind::None, SpamKind::None, SpamKind::MultiChannel]);
+    }
+
+    /// 人間（id 42）の発言。kind 19（リプライ）なら referenced_type の種類のメッセージへのリプライにする
+    fn human_msg(id: u64, content: &str, sticker: bool, referenced_type: Option<u8>) -> serenity::Message {
+        let mut msg = serde_json::json!({
+            "id": id.to_string(), "channel_id": "10", "author": user_json(42, false),
+            "content": content, "timestamp": "2026-10-28T00:00:00.000000+00:00",
+            "edited_timestamp": null, "tts": false, "mention_everyone": false,
+            "mentions": [], "mention_roles": [], "attachments": [], "embeds": [],
+            "pinned": false, "type": if referenced_type.is_some() { 19 } else { 0 },
+        });
+        if sticker {
+            msg["sticker_items"] = serde_json::json!([{ "id": "749054660769218631", "name": "Wave", "format_type": 3 }]);
+        }
+        if let Some(kind) = referenced_type {
+            msg["message_reference"] = serde_json::json!({ "message_id": "1", "channel_id": "10" });
+            msg["referenced_message"] = serde_json::json!({
+                "id": "1", "channel_id": "10", "author": user_json(43, false),
+                "content": "", "timestamp": "2026-10-28T00:00:00.000000+00:00",
+                "edited_timestamp": null, "tts": false, "mention_everyone": false,
+                "mentions": [], "mention_roles": [], "attachments": [], "embeds": [],
+                "pinned": false, "type": kind,
+            });
+        }
+        serde_json::from_value(msg).expect("test message must deserialize")
+    }
+
+    #[test]
+    fn welcome_wave_is_a_sticker_only_reply_to_a_join_message() {
+        assert!(is_welcome_wave(&human_msg(1, "", true, Some(7))));
+        // 入室メッセージ以外へのスタンプ返信、本文つき、スタンプなし、リプライ先不明は挨拶ではない
+        assert!(!is_welcome_wave(&human_msg(1, "", true, Some(0))));
+        assert!(!is_welcome_wave(&human_msg(1, "ようこそ", true, Some(7))));
+        assert!(!is_welcome_wave(&human_msg(1, "ようこそ", false, Some(7))));
+        assert!(!is_welcome_wave(&human_msg(1, "", true, None)));
+    }
+
+    #[test]
+    fn welcome_waves_do_not_trip_same_channel() {
+        let state = test_state();
+        let waves: Vec<_> = (0..SAME_CH_THRESHOLD as u64 + 2)
+            .map(|i| detect(&state, &human_msg(100 + i, "", true, Some(7))).kind)
+            .collect();
+        assert!(waves.iter().all(|k| *k == SpamKind::None));
+
+        // 普通の連投はこれまで通り検知する
+        let kinds: Vec<_> = (0..SAME_CH_THRESHOLD as u64)
+            .map(|i| detect(&state, &human_msg(200 + i, "連投", false, None)).kind)
+            .collect();
+        assert_eq!(kinds.last(), Some(&SpamKind::SameChannel));
     }
 
     #[test]
