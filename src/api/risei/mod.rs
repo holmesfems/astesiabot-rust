@@ -27,7 +27,7 @@
 mod operator_cost;
 
 use crate::engine::external_source::ExternalSourceRegistry;
-use crate::engine::risei_calculator_engine::kakin::kakin_comparison;
+use crate::engine::risei_calculator_engine::kakin::{jst_now, kakin_comparison};
 use crate::engine::risei_calculator_engine::{RiseiCalculatorEngine, Server, CC_NUMBER};
 use axum::extract::{OriginalUri, Path, Query, State};
 use axum::http::{header, StatusCode};
@@ -460,7 +460,7 @@ async fn kakin(engine: &RiseiCalculatorEngine, server: Server) -> ApiResult {
     // updated_atは計算に使った理性価値表そのものの時刻を出す(別途last_updatedを読むと、
     // 間に再計算が挟まったときに値と時刻がずれ得るため)。
     let snapshot = engine.snapshot(server).await;
-    let comparison = kakin_comparison(&snapshot.values);
+    let comparison = kakin_comparison(&snapshot.values, jst_now());
     let kind = ListKind::Kakin;
     Ok(Json(envelope(
         server,
@@ -822,7 +822,7 @@ mod tests {
         assert!(body["updated_at"].is_string());
         assert_eq!(body["baselines"][0]["name"], "10000円恒常パック");
         assert_eq!(body["baselines"][0]["total_efficiency"], 1.0);
-        // 期間限定パックは販売状況次第で0件もあり得る(price_kakin.yamlで全部コメントアウト)ので、
+        // 期間限定パックは販売状況次第で0件もあり得る(販売期間外・price_kakin.yamlから削除)ので、
         // 件数には依存しない
         let packs = body["packs"].as_array().unwrap();
         let efficiencies: Vec<f64> = packs.iter().map(|p| p["total_efficiency"].as_f64().unwrap()).collect();

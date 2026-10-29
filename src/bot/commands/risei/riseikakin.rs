@@ -3,7 +3,7 @@ use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
 use crate::bot::utils::xlsx::{build_kakin_export_xlsx, KakinExportPack};
 use crate::engine::risei_calculator_engine::kakin::{
-    build_kakin_pack, constant_packs, kakin_list, limited_packs, KakinPack,
+    build_kakin_pack, constant_packs, jst_now, kakin_list, limited_pack_defs, limited_packs, KakinPack,
 };
 use crate::engine::risei_calculator_engine::values::RiseiValues;
 use crate::engine::risei_calculator_engine::Server;
@@ -22,7 +22,7 @@ const KAKIN_TARGET_COLUMNS: [&str; 7] =
 const TOTAL_TARGETS: [&str; 2] = ["全体比較(グローバル)", "Total_Global"];
 
 /// riseikakin の target 引数のオートコンプリート相当。
-/// まず期間限定パック名(+全体比較)を部分一致で探し、何も無ければ恒常パック名にフォールバックする。
+/// まず販売中の期間限定パック名(+全体比較)を部分一致で探し、何も無ければ恒常パック名にフォールバックする。
 async fn autocomplete_kakin_target(
     _ctx: Context<'_>,
     partial: &str,
@@ -31,9 +31,7 @@ async fn autocomplete_kakin_target(
     let limited: Vec<(String, String)> =
         std::iter::once((TOTAL_OPTION.0.to_string(), TOTAL_OPTION.1.to_string()))
             .chain(
-                kakin_list()
-                    .iter()
-                    .filter(|(_, def)| !def.is_constant)
+                limited_pack_defs(jst_now())
                     .map(|(name, _)| (name.clone(), name.clone())),
             )
             .filter(|(name, _)| name.contains(partial))
@@ -73,9 +71,18 @@ fn contents_block(contents: &[(String, f64)]) -> String {
     format!("```\n{}\n```\n", lines.join("\n"))
 }
 
+/// 販売期間の表示(`2026/10/28 16:00〜2026/11/25 03:59`)。期間が書かれていないパックは`None`。
+fn sale_period(pack: &KakinPack) -> Option<String> {
+    if pack.start.is_none() && pack.end.is_none() {
+        return None;
+    }
+    let fmt = |t: Option<chrono::NaiveDateTime>| t.map(|t| t.format("%Y/%m/%d %H:%M").to_string()).unwrap_or_default();
+    Some(format!("{}〜{}", fmt(pack.start), fmt(pack.end)))
+}
+
 /// パック1件分の効率表示ブロック。
 fn value_block(pack: &KakinPack) -> String {
-    let lines = [
+    let mut lines = vec![
         format!("総合効率    : {:.2}%", pack.total_efficiency * 100.0),
         format!("ガチャ効率  : {:.2}%", pack.gacha_efficiency * 100.0),
         format!("パック値段  : {:.0}円", pack.price),
@@ -84,6 +91,9 @@ fn value_block(pack: &KakinPack) -> String {
         format!("マネー換算  : {:.2}円", pack.total_real_money),
         format!("ガチャ数    : {:.2}", pack.gacha_count),
     ];
+    if let Some(period) = sale_period(pack) {
+        lines.push(format!("販売期間    : {period}"));
+    }
     format!("```\n{}\n```\n", lines.join("\n"))
 }
 
@@ -168,7 +178,7 @@ pub async fn riseikakin(
     let constants = constant_packs(values);
 
     let (reply, attachment) = if TOTAL_TARGETS.contains(&target.as_str()) {
-        let limited = limited_packs(values);
+        let limited = limited_packs(values, jst_now());
         let chunks = total_comparison_chunks(&limited, &constants);
         let attachment = if want_csv {
             let all_packs: Vec<KakinPack> = limited.iter().chain(constants.iter()).cloned().collect();
@@ -245,7 +255,7 @@ mod tests {
 
         // Discord側: コマンドと同じ関数で本文を組み立てる
         let values = engine.snapshot(Server::Global).await.values;
-        let chunks = total_comparison_chunks(&limited_packs(&values), &constant_packs(&values));
+        let chunks = total_comparison_chunks(&limited_packs(&values, jst_now()), &constant_packs(&values));
         let (constant_chunk, pack_chunks) = chunks.split_last().unwrap();
 
         // API側: curlと同じくHTTPで叩く
