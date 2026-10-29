@@ -22,7 +22,7 @@ const KAKIN_TARGET_COLUMNS: [&str; 7] =
 const TOTAL_TARGETS: [&str; 2] = ["全体比較(グローバル)", "Total_Global"];
 
 /// riseikakin の target 引数のオートコンプリート相当。
-/// まず販売中の期間限定パック名(+全体比較)を部分一致で探し、何も無ければ恒常パック名にフォールバックする。
+/// まず販売中・販売前の期間限定パック名(+全体比較)を部分一致で探し、何も無ければ恒常パック名にフォールバックする。
 async fn autocomplete_kakin_target(
     _ctx: Context<'_>,
     partial: &str,
@@ -31,7 +31,7 @@ async fn autocomplete_kakin_target(
     let limited: Vec<(String, String)> =
         std::iter::once((TOTAL_OPTION.0.to_string(), TOTAL_OPTION.1.to_string()))
             .chain(
-                limited_pack_defs(jst_now())
+                limited_pack_defs(jst_now(), true)
                     .map(|(name, _)| (name.clone(), name.clone())),
             )
             .filter(|(name, _)| name.contains(partial))
@@ -72,12 +72,14 @@ fn contents_block(contents: &[(String, f64)]) -> String {
 }
 
 /// 販売期間の表示(`2026/10/28 16:00〜2026/11/25 03:59`)。期間が書かれていないパックは`None`。
+/// まだ始まっていないパックには「(販売前)」を付ける。
 fn sale_period(pack: &KakinPack) -> Option<String> {
     if pack.start.is_none() && pack.end.is_none() {
         return None;
     }
     let fmt = |t: Option<chrono::NaiveDateTime>| t.map(|t| t.format("%Y/%m/%d %H:%M").to_string()).unwrap_or_default();
-    Some(format!("{}〜{}", fmt(pack.start), fmt(pack.end)))
+    let upcoming = if pack.start.is_some_and(|start| jst_now() < start) { "(販売前)" } else { "" };
+    Some(format!("{}〜{}{upcoming}", fmt(pack.start), fmt(pack.end)))
 }
 
 /// パック1件分の効率表示ブロック。
@@ -165,6 +167,8 @@ pub async fn riseikakin(
     target: String,
     #[description = "true:パック内容をxlsxで添付"]
     csv_file: Option<bool>,
+    #[description = "true:全体比較にまだ販売前のパックも含める"]
+    upcoming: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let state = ctx.data().state.clone();
@@ -178,7 +182,7 @@ pub async fn riseikakin(
     let constants = constant_packs(values);
 
     let (reply, attachment) = if TOTAL_TARGETS.contains(&target.as_str()) {
-        let limited = limited_packs(values, jst_now());
+        let limited = limited_packs(values, jst_now(), upcoming.unwrap_or(false));
         let chunks = total_comparison_chunks(&limited, &constants);
         let attachment = if want_csv {
             let all_packs: Vec<KakinPack> = limited.iter().chain(constants.iter()).cloned().collect();
@@ -255,7 +259,7 @@ mod tests {
 
         // Discord側: コマンドと同じ関数で本文を組み立てる
         let values = engine.snapshot(Server::Global).await.values;
-        let chunks = total_comparison_chunks(&limited_packs(&values, jst_now()), &constant_packs(&values));
+        let chunks = total_comparison_chunks(&limited_packs(&values, jst_now(), false), &constant_packs(&values));
         let (constant_chunk, pack_chunks) = chunks.split_last().unwrap();
 
         // API側: curlと同じくHTTPで叩く
