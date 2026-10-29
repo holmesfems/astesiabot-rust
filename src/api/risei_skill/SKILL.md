@@ -86,7 +86,9 @@ curl -s "https://astesiabot.com/api/risei/materials?target=$q&limit=5"
 Discord の /riseikakin「全体比較(グローバル)」と同じ値。**グローバル版のみ**（`server=mainland` は400）。
 他の効率表と違い `items` ではなく `baselines` と `packs` を返す。
 
-- `packs`: 現在 bot に登録中の期間限定パック。総合効率の降順
+- `packs`: 現在 bot に登録中の期間限定パック。総合効率の降順。`upcoming=true` を付けると、
+  先に登録してあるまだ販売前のパックも含める（課金効率の動画を販売前に作るときなど）
+  - `upcoming`: まだ販売が始まっていないパックなら `true`
   - `sale_start` / `sale_end`: 販売期間（日本時間、`2026-10-28T16:00:00+09:00` の形）。登録されていないパックは `null`。
     `sale_end` は公式表記の「〜3:59」そのままで、その分の終わりまで販売中
   - `total_efficiency`: 総合効率。10000円恒常パック（=1.0）と比べて理性価値が何倍お得か

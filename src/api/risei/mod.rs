@@ -128,7 +128,14 @@ const LISTS: EndpointSpec = EndpointSpec {
     path: "/api/risei/lists/{kind}",
     description: "各種効率表(/riseilists)。kindは list_kinds 参照。効率表は効率の降順。\
                   kind=kakin は課金パック効率(/riseikakin の全体比較)で、server=global のみ対応",
-    params: &[SERVER_PARAM],
+    params: &[
+        SERVER_PARAM,
+        ParamSpec {
+            name: "upcoming",
+            required: false,
+            description: "kind=kakin のみ。true でまだ販売前のパックも含める(既定 false=販売中だけ)",
+        },
+    ],
 };
 
 const ENDPOINTS: &[&EndpointSpec] = &[
@@ -412,9 +419,14 @@ async fn lists(
     };
     check_params(&params, &LISTS)?;
     let server = parse_server(&params, &LISTS)?;
+    let upcoming = parse_upcoming(&params)?;
 
     if let ListKind::Kakin = kind {
-        return kakin(&engine, server).await;
+        return kakin(&engine, server, upcoming).await;
+    }
+    if params.contains_key("upcoming") {
+        return Err(ApiError::new(StatusCode::BAD_REQUEST, "upcoming は kind=kakin のみの引数です")
+            .with("usage", endpoint_usage(&LISTS)));
     }
     let items = match kind {
         ListKind::BaseMaps => {
@@ -448,7 +460,7 @@ async fn lists(
 
 /// `lists/kakin`。他の効率表と違い`items`ではなく`baselines`/`packs`を返す
 /// （`/riseikakin`の全体比較が「期間限定パック一覧＋参考用の恒常パック」の2部構成のため）。
-async fn kakin(engine: &RiseiCalculatorEngine, server: Server) -> ApiResult {
+async fn kakin(engine: &RiseiCalculatorEngine, server: Server, upcoming: bool) -> ApiResult {
     if server != Server::Global {
         return Err(ApiError::new(
             StatusCode::BAD_REQUEST,
@@ -460,7 +472,7 @@ async fn kakin(engine: &RiseiCalculatorEngine, server: Server) -> ApiResult {
     // updated_atは計算に使った理性価値表そのものの時刻を出す(別途last_updatedを読むと、
     // 間に再計算が挟まったときに値と時刻がずれ得るため)。
     let snapshot = engine.snapshot(server).await;
-    let comparison = kakin_comparison(&snapshot.values, jst_now());
+    let comparison = kakin_comparison(&snapshot.values, jst_now(), upcoming);
     let kind = ListKind::Kakin;
     Ok(Json(envelope(
         server,
@@ -570,6 +582,15 @@ fn parse_server(params: &HashMap<String, String>, endpoint: &EndpointSpec) -> Re
         Some(other) => Err(ApiError::new(StatusCode::BAD_REQUEST, format!("server は global か mainland です: {other}"))
             .with("did_you_mean", suggest(other, ["global", "mainland"]))
             .with("usage", endpoint_usage(endpoint))),
+    }
+}
+
+fn parse_upcoming(params: &HashMap<String, String>) -> Result<bool, ApiError> {
+    match params.get("upcoming").map(|v| v.trim().to_ascii_lowercase()).as_deref() {
+        None | Some("") | Some("false") => Ok(false),
+        Some("true") => Ok(true),
+        Some(other) => Err(ApiError::new(StatusCode::BAD_REQUEST, format!("upcoming は true か false です: {other}"))
+            .with("usage", endpoint_usage(&LISTS))),
     }
 }
 
@@ -829,6 +850,15 @@ mod tests {
         assert!(efficiencies.windows(2).all(|w| w[0] >= w[1]), "総合効率の降順");
         assert!(packs.iter().all(|p| p["contents"].as_array().is_some_and(|c| !c.is_empty())));
         assert!(packs.iter().all(|p| p.get("note").is_none()));
+        assert!(packs.iter().all(|p| p["upcoming"] == false), "既定では販売前のパックを出さない");
+
+        let (status, body) = get(&uri("/api/risei/lists/kakin", "upcoming=true")).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert!(body["packs"].as_array().unwrap().len() >= packs.len());
+        let (status, _) = get(&uri("/api/risei/lists/kakin", "upcoming=yes")).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        let (status, _) = get(&uri("/api/risei/lists/values", "upcoming=true")).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "kakin 以外では受け付けない");
 
         let (status, body) = get(&uri("/api/risei/lists/kakin", "server=mainland")).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");

@@ -54,6 +54,11 @@ impl KakinPackDef {
         self.start.is_none_or(|start| start <= now)
             && self.end.is_none_or(|end| now < end + Duration::minutes(1))
     }
+
+    /// `now`(日本時間)にはまだ販売が始まっていないか（先に登録した予告のパック）。
+    pub fn is_upcoming(&self, now: NaiveDateTime) -> bool {
+        self.start.is_some_and(|start| now < start)
+    }
 }
 
 /// 販売期間の判定に使う今の日本時間。
@@ -162,14 +167,20 @@ pub fn constant_packs(values: &RiseiValues) -> Vec<KakinPack> {
         .collect()
 }
 
-/// `now`(日本時間)に販売中の期間限定パック。YAML記載順。
-pub fn limited_pack_defs(now: NaiveDateTime) -> impl Iterator<Item = (&'static String, &'static KakinPackDef)> {
-    kakin_list().iter().filter(move |(_, def)| !def.is_constant && def.is_on_sale(now))
+/// `now`(日本時間)に販売中の期間限定パック。`include_upcoming`なら、まだ始まっていないパックも
+/// 含める（課金効率の動画を先に作るため）。YAML記載順。
+pub fn limited_pack_defs(
+    now: NaiveDateTime,
+    include_upcoming: bool,
+) -> impl Iterator<Item = (&'static String, &'static KakinPackDef)> {
+    kakin_list().iter().filter(move |(_, def)| {
+        !def.is_constant && (def.is_on_sale(now) || (include_upcoming && def.is_upcoming(now)))
+    })
 }
 
-/// 販売中の期間限定パック（`/riseikakin`の全体比較）。総合効率の降順。
-pub fn limited_packs(values: &RiseiValues, now: NaiveDateTime) -> Vec<KakinPack> {
-    let mut packs: Vec<KakinPack> = limited_pack_defs(now)
+/// 期間限定パック（`/riseikakin`の全体比較）。総合効率の降順。
+pub fn limited_packs(values: &RiseiValues, now: NaiveDateTime, include_upcoming: bool) -> Vec<KakinPack> {
+    let mut packs: Vec<KakinPack> = limited_pack_defs(now, include_upcoming)
         .map(|(name, def)| build_kakin_pack(name, def, values))
         .collect();
     packs.sort_by(|a, b| b.total_efficiency.total_cmp(&a.total_efficiency));
@@ -199,6 +210,8 @@ pub struct KakinPackView {
     /// `sale_end`は公式表記の「〜3:59」そのままで、その分の終わりまで販売中。
     pub sale_start: Option<String>,
     pub sale_end: Option<String>,
+    /// まだ販売が始まっていない(`upcoming=true`で頼んだときだけ`true`になり得る)。
+    pub upcoming: bool,
     /// マネー換算（10000円恒常パックと同じレートで買ったら何円か）。
     pub value_jpy: f64,
     pub total_efficiency: f64,
@@ -221,14 +234,15 @@ fn to_iso_jst(t: NaiveDateTime) -> String {
     t.format("%Y-%m-%dT%H:%M:%S+09:00").to_string()
 }
 
-pub fn kakin_comparison(values: &RiseiValues, now: NaiveDateTime) -> KakinComparison {
+pub fn kakin_comparison(values: &RiseiValues, now: NaiveDateTime, include_upcoming: bool) -> KakinComparison {
     let baselines = constant_packs(values)
         .into_iter()
         .map(|pack| KakinBaseline { name: pack.name, total_efficiency: pack.total_efficiency })
         .collect();
-    let packs = limited_packs(values, now)
+    let packs = limited_packs(values, now, include_upcoming)
         .into_iter()
         .map(|pack| KakinPackView {
+            upcoming: pack.start.is_some_and(|start| now < start),
             sale_start: pack.start.map(to_iso_jst),
             sale_end: pack.end.map(to_iso_jst),
             contents: pack
@@ -277,6 +291,9 @@ mod tests {
         assert!(def.is_on_sale(jst("2026-10-28 16:00")));
         assert!(def.is_on_sale(jst("2026-11-25 03:59") + Duration::seconds(59)));
         assert!(!def.is_on_sale(jst("2026-11-25 04:00")));
+        assert!(def.is_upcoming(jst("2026-10-28 15:59")));
+        assert!(!def.is_upcoming(jst("2026-10-28 16:00")));
+        assert!(!def.is_upcoming(jst("2026-11-25 04:00")), "終わったパックは予告ではない");
     }
 
     /// 書き間違い(開始と終了の取り違え、恒常パックへの期限)で黙って消えないように。
