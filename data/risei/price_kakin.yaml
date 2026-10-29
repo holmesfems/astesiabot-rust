@@ -110,6 +110,8 @@
 ダック卿の小銭入れ:
   price: 1000
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 13
     龍門幣1000: 300
@@ -117,6 +119,8 @@
 ケルシーの鞄:
   price: 1200
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 16
     龍門幣1000: 700
@@ -124,6 +128,8 @@
 特別訓練パック:
   price: 1200
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 11
     ★5特訓装置: 1
@@ -131,6 +137,8 @@
 指南集総合パック:
   price: 1500
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 12
     ★6スキル指南集: 1
@@ -140,6 +148,8 @@
 昇進特訓パック:
   price: 1500
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 24
     ★5特訓招待状: 1
@@ -147,6 +157,8 @@
 総合素材パック:
   price: 1500
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     T5素材交換券: 10
     T4素材交換券: 15
@@ -155,6 +167,8 @@
 上級特別訓練パック:
   price: 2000
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 19
     ★6特訓装置: 1
@@ -162,19 +176,17 @@
 上級昇進特訓パック:
   price: 2600
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 36
     ★6特訓招待状: 1
 
-特別スカウトパック:
-  price: 2600
-  isConstant: false
-  contents:
-    特別10回スカウト券: 1
-
 招聘指名パック:
   price: 3000
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     感謝祭記念★6招聘指名券: 1
     10回スカウト券: 1
@@ -182,6 +194,8 @@
 中堅招聘指名パック:
   price: 3000
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     中堅★6招聘指名券: 1
     10回スカウト券: 1
@@ -190,6 +204,8 @@
 感謝祭支援パック:
   price: 3000
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 24
     10回スカウト券: 2
@@ -203,6 +219,8 @@
 感謝祭物資パック:
   price: 4900
   isConstant: false
+  start: 2026-10-14 16:00
+  end: 2026-11-11 03:59
   contents:
     純正源石: 90
     コーデ交換券: 1
