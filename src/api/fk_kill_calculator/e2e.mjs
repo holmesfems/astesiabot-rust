@@ -1,5 +1,5 @@
 // フレームキル計算機の表現層（ブラウザ実機）を Playwright で検証するスクリプト。
-// verify.mjs（計算層。DOM非依存）と対になる。test_runner/e2e.mjs と同じ枠組み。
+// verify.mjs（計算層。DOM非依存）と対になる。ef_recipe_calculator/e2e.mjs などと同じ枠組み。
 //
 // 実行方法（node は PATH に無いが実体は存在する。絶対パスで呼ぶこと）:
 //   "C:\Program Files\nodejs\node.exe" src/api/fk_kill_calculator/e2e.mjs

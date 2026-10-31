@@ -12,7 +12,7 @@
 | `static/engine.js` | 計算層。`document` / `window` を参照しない。単位の約束はファイル冒頭コメント |
 | `static/ui.js` | 表現層。カタログ fetch・状態管理・DOM 描画 |
 | `static/style.css` | 420px 想定の縦長1カラム、ダーク固定（配色トークンは `home_index.html` の `:root`） |
-| `static/lz-string.min.js` | 1.5.0, MIT。test_runner と同じものを独立して置く（ツール間を疎結合にするため、test_runner の URL は参照しない） |
+| `static/lz-string.min.js` | 1.5.0, MIT |
 | `verify.mjs` / `e2e.mjs` | 計算層の検証 / Playwright での実機テスト。実行方法はルートの CLAUDE.md |
 
 ## catalog.json だけ web_ui_router() に入れない

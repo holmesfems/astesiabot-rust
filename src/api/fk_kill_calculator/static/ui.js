@@ -4,7 +4,7 @@
    計算そのものは ./engine.js（DOM非依存）に任せ、ここでは
    カタログ取得(fetch)・状態管理(localStorage保存)・DOM描画・共有URL(#state=...)の
    組み立て/読み込みだけを担当する。日本語専用ページなので文言はここに直書きする
-   （lod_chest_solver/test_runnerのような多言語ページではないため、
+   （lod_chest_solverのような多言語ページではないため、
    strings引数を受け取る設計にはしていない）。
 
    再描画方針: 構造が変わる操作(行の追加/削除/展開、select/checkbox、
@@ -200,7 +200,7 @@ function setSourceCfg(sourceId, patch) {
 // 状態の保存先。普段はlocalStorageに自動保存し、アドレスバーのURLは書き換えない
 // （開いた直後から#state=付きURLになると、ページ自体を共有したいときにそのまま
 // 貼れないため）。#state=付きURLは「共有URLをコピー」を押したときだけ組み立てて
-// クリップボードへ渡す。test_runnerの「ローカル保存+共有URLコピー」と同じ考え方。
+// クリップボードへ渡す。「ローカル保存+共有URLコピー」の考え方。
 const STORAGE_KEY = "fkc-state-v1";
 
 function parseStoredState(json) {

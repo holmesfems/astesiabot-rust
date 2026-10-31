@@ -4,7 +4,7 @@
 本番は Heroku（https://astesiabot.com）。
 
 **詳しいことは各フォルダの CLAUDE.md にある**（そのフォルダのファイルを触ると読み込まれる）:
-`src/bot/` / `src/api/` / `src/api/fk_kill_calculator/` / `src/api/test_runner/` /
+`src/bot/` / `src/api/` / `src/api/fk_kill_calculator/` /
 `src/engine/external_source/` / `src/engine/fk_kill_calc/` / `src/engine/recruit/` /
 `src/engine/operator_cost_calc/`。ここには全体に効くことだけを書く。
 
@@ -21,8 +21,6 @@ cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を
 
 # フロントエンドの検証（node は PATH に無いので絶対パスで）
 & "C:\Program Files\nodejs\node.exe" src/api/lod_chest_solver/verify.mjs
-& "C:\Program Files\nodejs\node.exe" src/api/test_runner/verify.mjs
-& "C:\Program Files\nodejs\node.exe" src/api/test_runner/e2e.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/fk_kill_calculator/verify.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/fk_kill_calculator/e2e.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/ef_recipe_calculator/verify.mjs
@@ -49,7 +47,7 @@ cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を
 - 環境変数は `.env` に一覧がある（DISCORD_TOKEN、CLOUDVISION_API_KEY、CHANNEL_ID_*、FK_SHEETS_*、
   YouTube 関係など）。足りないと起動時に panic する（YouTube のお知らせだけは任意で、無ければ起動しない）。
 - 動作確認の URL: `/recruitment/`（POST）、`/WLBatterySimulator`、`/EFRecipeCalculator`、
-  `/LodChestSolver`（`/en`）、`/TestRunner`（`/en`、`/skill.zip`）、`/FrameKillCalculator`（`/catalog.json`）、
+  `/LodChestSolver`（`/en`）、`/FrameKillCalculator`（`/catalog.json`）、
   `/api/risei`、`/robots.txt`、`/sitemap.xml`。
 
 ## Windows での注意

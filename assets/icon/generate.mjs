@@ -24,7 +24,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..', '..');
 const OUT_DIR = path.join(REPO_ROOT, 'src', 'api', 'site_icons', 'static');
 
-// test_runner/e2e.mjs と同じ解決方法（npx キャッシュのハッシュ名は決め打ちしない）。
+// src/api/e2e_playwright.mjs と同じ解決方法（npx キャッシュのハッシュ名は決め打ちしない）。
 function resolvePlaywright() {
   try {
     return require('playwright');

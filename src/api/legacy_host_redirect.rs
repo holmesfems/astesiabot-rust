@@ -108,7 +108,7 @@ mod tests {
             .route("/", get(|| async { "top" }))
             .route("/health", get(|| async { "ok" }))
             .route("/recruitment/", post(|| async { "api" }))
-            .route("/TestRunner/en", get(|| async { "tr" }))
+            .route("/LodChestSolver/en", get(|| async { "lod" }))
             .layer(axum::middleware::from_fn_with_state(
                 canonical,
                 redirect_legacy_host,
@@ -131,9 +131,9 @@ mod tests {
 
     #[tokio::test]
     async fn herokuapp_get_redirects_with_path_and_query() {
-        let res = send(Method::GET, "foo-123.herokuapp.com", "/TestRunner/en?a=1&b=2").await;
+        let res = send(Method::GET, "foo-123.herokuapp.com", "/LodChestSolver/en?a=1&b=2").await;
         assert_eq!(res.status(), StatusCode::MOVED_PERMANENTLY);
-        assert_eq!(location(&res), "https://astesiabot.com/TestRunner/en?a=1&b=2");
+        assert_eq!(location(&res), "https://astesiabot.com/LodChestSolver/en?a=1&b=2");
     }
 
     #[tokio::test]
@@ -145,9 +145,9 @@ mod tests {
 
     #[tokio::test]
     async fn www_redirects_to_bare_domain() {
-        let res = send(Method::GET, "WWW.astesiabot.com", "/TestRunner/en?x=1").await;
+        let res = send(Method::GET, "WWW.astesiabot.com", "/LodChestSolver/en?x=1").await;
         assert_eq!(res.status(), StatusCode::MOVED_PERMANENTLY);
-        assert_eq!(location(&res), "https://astesiabot.com/TestRunner/en?x=1");
+        assert_eq!(location(&res), "https://astesiabot.com/LodChestSolver/en?x=1");
     }
 
     #[tokio::test]
@@ -164,7 +164,7 @@ mod tests {
 
     #[tokio::test]
     async fn canonical_host_is_not_redirected() {
-        let res = send(Method::GET, "astesiabot.com", "/TestRunner/en").await;
+        let res = send(Method::GET, "astesiabot.com", "/LodChestSolver/en").await;
         assert_eq!(res.status(), StatusCode::OK);
     }
 

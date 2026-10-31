@@ -258,8 +258,8 @@ where
     Router::new().route(SKILL_ZIP_PATH, get(skill_zip))
 }
 
-/// skillのzipをリクエストごとにディスクから組み立てる(test_runnerのskill.zipと同じ方式。
-/// SKILL.mdを直しても再ビルド不要で、配布物が古くなることも無い)。
+/// skillのzipをリクエストごとにディスクから組み立てる。
+/// SKILL.mdを直しても再ビルド不要で、配布物が古くなることも無い。
 fn build_skill_zip() -> std::io::Result<Vec<u8>> {
     use std::io::{Cursor, Write};
     use zip::write::SimpleFileOptions;
