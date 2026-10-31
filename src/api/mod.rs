@@ -6,7 +6,6 @@ mod lod_chest_solver;
 mod recruitment;
 pub mod risei;
 mod site_icons;
-mod test_runner;
 mod wl_battery_simulator;
 
 use crate::bot::services::moderation::ModerationState;
@@ -115,7 +114,7 @@ async fn robots(headers: HeaderMap) -> impl IntoResponse {
 
 async fn sitemap(headers: HeaderMap) -> impl IntoResponse {
     let base = base_url(&headers);
-    // LodChestSolver / TestRunner は言語ごとに別URLなので、各URLから相互に hreflang を張る。
+    // LodChestSolver は言語ごとに別URLなので、各URLから相互に hreflang を張る。
     let body = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
@@ -134,18 +133,6 @@ async fn sitemap(headers: HeaderMap) -> impl IntoResponse {
     <xhtml:link rel="alternate" hreflang="ja" href="{base}/LodChestSolver"/>
     <xhtml:link rel="alternate" hreflang="en" href="{base}/LodChestSolver/en"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="{base}/LodChestSolver"/>
-  </url>
-  <url>
-    <loc>{base}/TestRunner</loc>
-    <xhtml:link rel="alternate" hreflang="ja" href="{base}/TestRunner"/>
-    <xhtml:link rel="alternate" hreflang="en" href="{base}/TestRunner/en"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="{base}/TestRunner"/>
-  </url>
-  <url>
-    <loc>{base}/TestRunner/en</loc>
-    <xhtml:link rel="alternate" hreflang="ja" href="{base}/TestRunner"/>
-    <xhtml:link rel="alternate" hreflang="en" href="{base}/TestRunner/en"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="{base}/TestRunner"/>
   </url>
   <url>
     <loc>{base}/WLBatterySimulator</loc>
@@ -197,11 +184,6 @@ where
             get(|| async { Redirect::permanent("/LodChestSolver") }),
         )
         .nest("/LodChestSolver", lod_chest_solver::router())
-        .route(
-            "/TestRunner/",
-            get(|| async { Redirect::permanent("/TestRunner") }),
-        )
-        .nest("/TestRunner", test_runner::router())
         .route(
             "/FrameKillCalculator/",
             get(|| async { Redirect::permanent("/FrameKillCalculator") }),
@@ -313,8 +295,6 @@ mod tests {
             "/EFRecipeCalculator",
             "/LodChestSolver",
             "/LodChestSolver/en",
-            "/TestRunner",
-            "/TestRunner/en",
             "/FrameKillCalculator",
         ] {
             let html = get_html(path).await;
@@ -364,8 +344,6 @@ mod tests {
             "/EFRecipeCalculator",
             "/LodChestSolver",
             "/LodChestSolver/en",
-            "/TestRunner",
-            "/TestRunner/en",
             "/FrameKillCalculator",
         ] {
             let html = get_html(path).await;

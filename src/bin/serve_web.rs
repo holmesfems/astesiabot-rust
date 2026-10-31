@@ -1,9 +1,9 @@
-//! Web UI（WLBatterySimulator / EFRecipeCalculator / LodChestSolver / TestRunner）だけを
+//! Web UI（WLBatterySimulator / EFRecipeCalculator / LodChestSolver / FrameKillCalculator）だけを
 //! 配信する dev 用サーバー。
 //!
 //! bot（Discord接続）は起動せず、ExternalSourceRegistry も読まない。`.env` も要求しない
 //! （`PUBLIC_BASE_URL` だけ任意で見る。canonical/hreflang/sitemap の絶対URLに使われる）。
-//! Web UI のブラウザ実機テスト（`src/api/test_runner/e2e.mjs`）が spawn して使う想定。
+//! Web UI のブラウザ実機テスト（各ツールの `e2e.mjs`）が spawn して使う想定。
 //!
 //! ルート定義は持たない。`astesiabot_rust::api::web_ui_router()` を使うことで、
 //! 本番の `run_api`（src/api/mod.rs）とルート集合を必ず一致させる。
@@ -72,7 +72,6 @@ async fn main() {
     println!("  http://127.0.0.1:{port}/WLBatterySimulator");
     println!("  http://127.0.0.1:{port}/EFRecipeCalculator");
     println!("  http://127.0.0.1:{port}/LodChestSolver  /  /LodChestSolver/en");
-    println!("  http://127.0.0.1:{port}/TestRunner  /  /TestRunner/en");
     println!("  http://127.0.0.1:{port}/FrameKillCalculator/catalog.json");
 
     axum::serve(listener, app).await.unwrap();

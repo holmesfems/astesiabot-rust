@@ -1,6 +1,6 @@
 # api（axum の web API と Web UI）
 
-ツールごとの詳細は各フォルダの CLAUDE.md（`fk_kill_calculator/`・`test_runner/`）。
+ツールごとの詳細は各フォルダの CLAUDE.md（`fk_kill_calculator/`）。
 
 ## ルーティング
 
@@ -42,12 +42,12 @@
   ＝全ページの `<head>` に必須 / `og_square_image.html` ＝ home 以外が使う正方形 og:image。
   include 先の struct に `base` が要る）。
 - **askama の `dirs` はフラットに解決される**ので、テンプレート名はモジュールごとに前置する
-  （`ef_*` / `wl_*` / `lod_*` / `tr_*` / `fkc_*` / `home_*`）。素の `index.html` などは他と衝突する。
-- **lod_chest_solver / test_runner は言語ごとに別 URL・別 HTML**（1URL=1言語）。クローラに両言語の
+  （`ef_*` / `wl_*` / `lod_*` / `fkc_*` / `home_*`）。素の `index.html` などは他と衝突する。
+- **lod_chest_solver は言語ごとに別 URL・別 HTML**（1URL=1言語）。クローラに両言語の
   中身を見せるため、静的ラベルは各言語テンプレートに直書きし、JS で差し替えない
   （localStorage / navigator.language / Accept-Language での振り分けもしない。重複扱いされ得る）。
   計算層・表現層・CSS は言語間で共有し、差は文言データだけにする
-  （lod は `engine.js` ＋ `initUi(strings)`、test_runner は `constants/*.{ja,en}.js`）。
+  （`engine.js` ＋ `initUi(strings)`）。
 - **サイトアイコンは生成物**: 元画像は `assets/icon/`（通常版 PNG と simple 版 SVG）。差し替えたら
   `& "C:\Program Files\nodejs\node.exe" assets/icon/generate.mjs` で `site_icons/static/` を作り直す
   （手で編集しない）。48px 以下と maskable は simple 版、180px 以上は通常版。simple 版の星は

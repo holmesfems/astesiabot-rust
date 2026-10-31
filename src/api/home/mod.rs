@@ -1,7 +1,7 @@
 //! サイトのトップページ。F鯖（アークナイツDiscordサーバー）とアステシアちゃんbotの
 //! 紹介、各ツールへの入口をまとめる。
 //!
-//! 日本語のみ・1URL（`/`）。LodChestSolver/TestRunnerのような言語別URL分割はしない。
+//! 日本語のみ・1URL（`/`）。LodChestSolverのような言語別URL分割はしない。
 //! F鯖向けの案内が主目的で、汎用ツールのようにクローラへ多言語を見せる必要が薄いため。
 //! CSSは分量が小さいので `templates_shared/toolnav.html` と同様にページ内に直書きしている。
 //! `static/` は OGP画像(ogp.png)、星座早見盤の背景を描くスクリプト(planisphere.js)とその星データ
@@ -73,7 +73,7 @@ mod tests {
         assert!(html.contains("href=\"/WLBatterySimulator\""));
         assert!(html.contains("href=\"/EFRecipeCalculator\""));
         assert!(html.contains("href=\"/LodChestSolver\""));
-        assert!(html.contains("href=\"/TestRunner\""));
+        assert!(html.contains("href=\"https://github.com/holmesfems/ai-kaisetsu-studio\""));
         assert!(html.contains("href=\"https://github.com/holmesfems/clawd-parade\""));
         assert!(html.contains(r#"href="/api/risei/skill.zip" download"#));
         assert!(html.contains("<h2>エンドフィールド</h2>"));
