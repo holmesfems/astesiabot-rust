@@ -15,6 +15,11 @@
   `www.` → `PUBLIC_BASE_URL` へ 301。未設定なら無効。run_api のみ）。POST をリダイレクトすると
   クライアントが GET に変えて本文を捨てる。`/recruitment/` と `/health` はパスでも除外。
   axum の `Redirect::permanent` は 308 なので 301 は自前で組んでいる。
+- **Cloudflare 経由かを `X-Origin-Secret` で確かめる**（`origin_secret.rs`。run_api の一番外側）。
+  Cloudflare の Transform Rules が付けるヘッダを環境変数 `ORIGIN_SECRET` と比べる（未設定なら無効）。
+  `ORIGIN_SECRET_ENFORCE=1` のときだけ 403、それ以外は不一致をログに出すだけ（設定ずれで全体が
+  403 にならないよう、ログで確かめてから Heroku の config で切り替える。戻すのも config だけ）。
+  `*.herokuapp.com` 宛てと `/health` は対象外（旧ホストは無効化まで今の動き）。
 
 ## エンドポイント
 
