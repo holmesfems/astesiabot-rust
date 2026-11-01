@@ -2815,6 +2815,119 @@
       "is_ammo_skill": false,
       "name": "ウルトラジャッキ"
     },
+    "skchr_alga_1": {
+      "blackboard": {
+        "atk_scale": 1.75
+      },
+      "blackboard_by_level": [
+        {
+          "atk_scale": 1.1
+        },
+        {
+          "atk_scale": 1.15
+        },
+        {
+          "atk_scale": 1.2
+        },
+        {
+          "atk_scale": 1.25
+        },
+        {
+          "atk_scale": 1.3
+        },
+        {
+          "atk_scale": 1.35
+        },
+        {
+          "atk_scale": 1.45
+        },
+        {
+          "atk_scale": 1.55
+        },
+        {
+          "atk_scale": 1.65
+        },
+        {
+          "atk_scale": 1.75
+        }
+      ],
+      "description": "攻撃回復/自動発動\n▶0 ⚡3\n下次攻击造成相当于攻击力175%的物理伤害，并连续攻击两次",
+      "is_ammo_skill": false,
+      "name": "交叉施压"
+    },
+    "skchr_alga_2": {
+      "blackboard": {
+        "atk": 0.8,
+        "attack@debuff_duration": 2.0,
+        "attack@taunt_level": 1.0,
+        "talent_scale": 2.0
+      },
+      "blackboard_by_level": [
+        {
+          "atk": 0.3,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.1
+        },
+        {
+          "atk": 0.3,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.2
+        },
+        {
+          "atk": 0.3,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.3
+        },
+        {
+          "atk": 0.4,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.4
+        },
+        {
+          "atk": 0.4,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.5
+        },
+        {
+          "atk": 0.4,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.6
+        },
+        {
+          "atk": 0.5,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.7
+        },
+        {
+          "atk": 0.6,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.8
+        },
+        {
+          "atk": 0.7,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 1.9
+        },
+        {
+          "atk": 0.8,
+          "attack@debuff_duration": 2.0,
+          "attack@taunt_level": 1.0,
+          "talent_scale": 2.0
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚15.0秒\n▶20 ⚡30\n攻击力+80%，攻击距离延长，天赋效果提升至2倍，每次攻击使目标更容易受到友方攻击且使其受到停顿效果，持续2秒",
+      "is_ammo_skill": false,
+      "name": "只为我的答案"
+    },
     "skchr_almond_1": {
       "blackboard": {
         "atk_scale": 1.7,
@@ -9954,6 +10067,141 @@
       "is_ammo_skill": false,
       "name": "メガホン式ガイド"
     },
+    "skchr_caledo_1": {
+      "blackboard": {
+        "atk_scale": 2.9,
+        "ep_damage_ratio": 0.5
+      },
+      "blackboard_by_level": [
+        {
+          "atk_scale": 1.9,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.0,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.1,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.2,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.3,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.35,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.5,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.7,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.8,
+          "ep_damage_ratio": 0.5
+        },
+        {
+          "atk_scale": 2.9,
+          "ep_damage_ratio": 0.5
+        }
+      ],
+      "description": "被撃回復/自動発動\n▶0 ⚡3\n下次攻击对阻挡的所有敌人造成相当于攻击力290%的物理伤害，并造成相当于攻击力50%的狂躁损伤",
+      "is_ammo_skill": false,
+      "name": "无公差切割"
+    },
+    "skchr_caledo_2": {
+      "blackboard": {
+        "atk": 1.2,
+        "attack@ep_damage_ratio": 0.25,
+        "damage_resistance": 0.3,
+        "ep_damage_ratio": 0.15,
+        "max_hp": 1.0
+      },
+      "blackboard_by_level": [
+        {
+          "atk": 0.5,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.5
+        },
+        {
+          "atk": 0.6,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.5
+        },
+        {
+          "atk": 0.65,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.5
+        },
+        {
+          "atk": 0.7,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.6
+        },
+        {
+          "atk": 0.75,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.6
+        },
+        {
+          "atk": 0.8,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.6
+        },
+        {
+          "atk": 0.9,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.7
+        },
+        {
+          "atk": 1.0,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.8
+        },
+        {
+          "atk": 1.1,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 0.9
+        },
+        {
+          "atk": 1.2,
+          "attack@ep_damage_ratio": 0.25,
+          "damage_resistance": 0.3,
+          "ep_damage_ratio": 0.15,
+          "max_hp": 1.0
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚35.0秒\n▶35 ⚡50\n攻击力+120%，生命上限+100%，将受到的物理与法术伤害的30%转化为一半的狂躁损伤，同时攻击阻挡的所有敌人，每次攻击额外造成相当于攻击力25%的狂躁损伤",
+      "is_ammo_skill": false,
+      "name": "“多面镜”"
+    },
     "skchr_cammou_2": {
       "blackboard": {
         "atk": 0.7,
@@ -15344,6 +15592,181 @@
       "description": "自然回復/手動発動 ⌚30.0秒\n▶70 ⚡80\n近くにいる味方全員のHPを1秒ごとにサリアの攻撃力35%分回復\n近くにいる敵全員の受ける術ダメージ+55%、移動速度-60%",
       "is_ammo_skill": false,
       "name": "硬質化"
+    },
+    "skchr_dminon_1": {
+      "blackboard": {
+        "attack_speed": 80.0,
+        "sluggish": 5.0
+      },
+      "blackboard_by_level": [
+        {
+          "attack_speed": 46.0,
+          "sluggish": 3.0
+        },
+        {
+          "attack_speed": 50.0,
+          "sluggish": 3.0
+        },
+        {
+          "attack_speed": 54.0,
+          "sluggish": 3.0
+        },
+        {
+          "attack_speed": 58.0,
+          "sluggish": 3.0
+        },
+        {
+          "attack_speed": 62.0,
+          "sluggish": 4.0
+        },
+        {
+          "attack_speed": 66.0,
+          "sluggish": 4.0
+        },
+        {
+          "attack_speed": 70.0,
+          "sluggish": 4.0
+        },
+        {
+          "attack_speed": 72.0,
+          "sluggish": 5.0
+        },
+        {
+          "attack_speed": 75.0,
+          "sluggish": 5.0
+        },
+        {
+          "attack_speed": 80.0,
+          "sluggish": 5.0
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚20.0秒\n▶22 ⚡30\n攻击速度+80，每个敌人首次踏上“国度”时会停顿5秒",
+      "is_ammo_skill": false,
+      "name": "停步"
+    },
+    "skchr_dminon_2": {
+      "blackboard": {
+        "atk": 0.75,
+        "attack_speed": 30.0
+      },
+      "blackboard_by_level": [
+        {
+          "atk": 0.2,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.25,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.3,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.4,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.45,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.5,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.55,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.66,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.71,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.75,
+          "attack_speed": 30.0
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚20.0秒\n▶35 ⚡45\n攻击范围扩大，攻击力+75%，使“国度”上的敌人无法闪避物理和法术攻击\n第二次及以后使用时额外使攻击速度+30，且持续时间无限",
+      "is_ammo_skill": false,
+      "name": "受戮"
+    },
+    "skchr_dminon_3": {
+      "blackboard": {
+        "atk": 1.0,
+        "attack@aoe_atk_scale": 0.8,
+        "attack@cd": 0.5,
+        "attack_speed": 40.0
+      },
+      "blackboard_by_level": [
+        {
+          "atk": 0.3,
+          "attack@aoe_atk_scale": 0.4,
+          "attack@cd": 0.5,
+          "attack_speed": 10.0
+        },
+        {
+          "atk": 0.4,
+          "attack@aoe_atk_scale": 0.4,
+          "attack@cd": 0.5,
+          "attack_speed": 10.0
+        },
+        {
+          "atk": 0.5,
+          "attack@aoe_atk_scale": 0.5,
+          "attack@cd": 0.5,
+          "attack_speed": 10.0
+        },
+        {
+          "atk": 0.55,
+          "attack@aoe_atk_scale": 0.5,
+          "attack@cd": 0.5,
+          "attack_speed": 20.0
+        },
+        {
+          "atk": 0.6,
+          "attack@aoe_atk_scale": 0.6,
+          "attack@cd": 0.5,
+          "attack_speed": 20.0
+        },
+        {
+          "atk": 0.65,
+          "attack@aoe_atk_scale": 0.6,
+          "attack@cd": 0.5,
+          "attack_speed": 20.0
+        },
+        {
+          "atk": 0.7,
+          "attack@aoe_atk_scale": 0.6,
+          "attack@cd": 0.5,
+          "attack_speed": 30.0
+        },
+        {
+          "atk": 0.8,
+          "attack@aoe_atk_scale": 0.7,
+          "attack@cd": 0.5,
+          "attack_speed": 35.0
+        },
+        {
+          "atk": 0.9,
+          "attack@aoe_atk_scale": 0.75,
+          "attack@cd": 0.5,
+          "attack_speed": 37.0
+        },
+        {
+          "atk": 1.0,
+          "attack@aoe_atk_scale": 0.8,
+          "attack@cd": 0.5,
+          "attack_speed": 40.0
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚36.0秒\n▶30 ⚡45\n攻击范围扩大，攻击力+100%，攻击速度+40，同时攻击“国度”上的所有敌人，“国度”上的单位被地面敌人攻击时，在伤害来源周围四格扩散“国度”，并造成相当于攻击力80%的物理伤害（每0.5秒最多触发1次）\n技能结束后，重置场上的“国度”状态",
+      "is_ammo_skill": false,
+      "name": "无人的国度"
     },
     "skchr_doberm_1": {
       "blackboard": {
@@ -23055,6 +23478,152 @@
       "description": "自然回復/手動発動\n▶32 ⚡50\n投掷一个炼金单元，在35秒内使落点周围的地面敌人每秒受到相当于攻击力20%的法术伤害；重量大于等于3的敌人移动速度-70%，每秒额外受到相当于攻击力180%的法术伤害",
       "is_ammo_skill": false,
       "name": "座浅"
+    },
+    "skchr_hdbell_1": {
+      "blackboard": {
+        "atk_scale": 2.4,
+        "force": 1.0,
+        "projectile_range": 0.5
+      },
+      "blackboard_by_level": [
+        {
+          "atk_scale": 1.5,
+          "force": 0.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 1.6,
+          "force": 0.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 1.7,
+          "force": 0.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 1.8,
+          "force": 1.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 1.9,
+          "force": 1.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 2.0,
+          "force": 1.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 2.1,
+          "force": 1.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 2.2,
+          "force": 1.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 2.3,
+          "force": 1.0,
+          "projectile_range": 0.5
+        },
+        {
+          "atk_scale": 2.4,
+          "force": 1.0,
+          "projectile_range": 0.5
+        }
+      ],
+      "description": "自然回復/自動発動\n▶0 ⚡9\n下次攻击改为驱使驮兽，中等力度地推开碰触的目标并造成相当于攻击力240%的物理伤害",
+      "is_ammo_skill": false,
+      "name": "花椰菜冲击"
+    },
+    "skchr_hdbell_2": {
+      "blackboard": {
+        "atk": 0.6,
+        "attack@delta_atk_scale": 0.12,
+        "attack@max_atk_scale": 1.48,
+        "attack@projectile_range": 0.5,
+        "base_attack_time": -0.5
+      },
+      "blackboard_by_level": [
+        {
+          "atk": 0.15,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.2,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.25,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.3,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.35,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.4,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.45,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.5,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.55,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        },
+        {
+          "atk": 0.6,
+          "attack@delta_atk_scale": 0.12,
+          "attack@max_atk_scale": 1.48,
+          "attack@projectile_range": 0.5,
+          "base_attack_time": -0.5
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚36.0秒\n▶27 ⚡40\n攻击间隔小幅缩短，攻击力+60%，攻击改为驱使驮兽，驮兽每经过一格对敌人造成的伤害额外提高12%（最高额外提高48%）",
+      "is_ammo_skill": false,
+      "name": "蔬菜大拼盘"
     },
     "skchr_headb2_1": {
       "blackboard": {
@@ -38683,6 +39252,379 @@
       "is_ammo_skill": false,
       "name": "ミーボ起爆"
     },
+    "skchr_oxi_1": {
+      "blackboard": {
+        "atk_scale": 6.0,
+        "fear": 3.0
+      },
+      "blackboard_by_level": [
+        {
+          "atk_scale": 3.4,
+          "fear": 1.5
+        },
+        {
+          "atk_scale": 3.6,
+          "fear": 1.5
+        },
+        {
+          "atk_scale": 3.8,
+          "fear": 1.5
+        },
+        {
+          "atk_scale": 4.0,
+          "fear": 2.0
+        },
+        {
+          "atk_scale": 4.3,
+          "fear": 2.0
+        },
+        {
+          "atk_scale": 4.6,
+          "fear": 2.0
+        },
+        {
+          "atk_scale": 4.9,
+          "fear": 2.5
+        },
+        {
+          "atk_scale": 5.2,
+          "fear": 2.5
+        },
+        {
+          "atk_scale": 5.5,
+          "fear": 2.5
+        },
+        {
+          "atk_scale": 6.0,
+          "fear": 3.0
+        }
+      ],
+      "description": "自然回復/自動発動\n▶0 ⚡8\n对目标所在地块上的所有地面敌人造成攻击力600%的法术伤害，并造成3.0秒恐惧",
+      "is_ammo_skill": false,
+      "name": "照霎白夜"
+    },
+    "skchr_oxi_2": {
+      "blackboard": {
+        "ability_range_radius": 1.0,
+        "atk": 0.6,
+        "attack@buffed_attack_atk_scale": 1.0,
+        "damage_remaining_scale": 0.1,
+        "damage_resistance": 0.9,
+        "def": 0.6,
+        "heal_ratio": 0.05,
+        "max_stack_cnt": 5.0,
+        "retaliate_atk_scale": 3.0,
+        "shelter_hold_duration": 0.2,
+        "skill_duration": 1.3,
+        "stack_duration": 5.0
+      },
+      "blackboard_by_level": [
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.3,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.3,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 1.4,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.32,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.32,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 1.5,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.35,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.35,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 1.6,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.37,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.37,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 1.7,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.4,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.4,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 1.9,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.43,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.43,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 2.1,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.47,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.47,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 2.3,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.5,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.5,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 2.5,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.55,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.55,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 2.7,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        },
+        {
+          "ability_range_radius": 1.0,
+          "atk": 0.6,
+          "attack@buffed_attack_atk_scale": 1.0,
+          "damage_remaining_scale": 0.1,
+          "damage_resistance": 0.9,
+          "def": 0.6,
+          "heal_ratio": 0.05,
+          "max_stack_cnt": 5.0,
+          "retaliate_atk_scale": 3.0,
+          "shelter_hold_duration": 0.2,
+          "skill_duration": 1.3,
+          "stack_duration": 5.0
+        }
+      ],
+      "description": "自然回復/自動発動\n▶21 ⚡7\n获得90%的庇护（持续0.2秒后逐渐降低），对攻击来源造成塔露拉攻击力300%的范围法术伤害，并治疗塔露拉相当于伤害量5%的生命值；之后5.0秒内攻击所有阻挡的敌人，攻击力+60%和防御力+60%（可叠加5层）\n受到攻击后触发，可充能5次",
+      "is_ammo_skill": false,
+      "name": "阂断骤雪"
+    },
+    "skchr_oxi_3": {
+      "blackboard": {
+        "atk": 1.4,
+        "heatwave_atk_scale": 2.5,
+        "normal_half_width": 2.0,
+        "normal_interval": 2.67,
+        "overload_half_width": 6.0,
+        "overload_interval": 2.0,
+        "projectile_range": 0.5,
+        "random_birth_delay": 0.0,
+        "range_radius": 1.5,
+        "same_wave_repeat_damage_scale": 0.15,
+        "wave_exit_distance": 5.0,
+        "wave_speed": 2.3
+      },
+      "blackboard_by_level": [
+        {
+          "atk": 1.0,
+          "heatwave_atk_scale": 1.0,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.02,
+          "heatwave_atk_scale": 1.075,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.04,
+          "heatwave_atk_scale": 1.15,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.08,
+          "heatwave_atk_scale": 1.3,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.12,
+          "heatwave_atk_scale": 1.45,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.16,
+          "heatwave_atk_scale": 1.6,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.2,
+          "heatwave_atk_scale": 1.75,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.24,
+          "heatwave_atk_scale": 1.9,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.32,
+          "heatwave_atk_scale": 2.2,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        },
+        {
+          "atk": 1.4,
+          "heatwave_atk_scale": 2.5,
+          "normal_half_width": 2.0,
+          "normal_interval": 2.67,
+          "overload_half_width": 6.0,
+          "overload_interval": 2.0,
+          "projectile_range": 0.5,
+          "random_birth_delay": 0.0,
+          "range_radius": 1.5,
+          "same_wave_repeat_damage_scale": 0.15,
+          "wave_exit_distance": 5.0,
+          "wave_speed": 2.3
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚36.0秒\n▶38 ⚡45\n攻击力+140%；停止攻击以持续引导场地进入以下状态：每{normal_interval:0.00}秒在5行范围内，朝部署方向召唤“簇火”，“簇火”碰到敌人时爆炸造成攻击力250.0%的范围法术伤害；若目标处于灼燃损伤爆发期间则改为造成元素伤害\n过载：“簇火”生成间隔缩短至2秒，范围扩展最多13行\n被同波次的多个“簇火”命中时，后续“簇火”造成的伤害降低至15%\n该技能可随时主动关闭",
+      "is_ammo_skill": false,
+      "name": "日冕重烈"
+    },
     "skchr_pallas_1": {
       "blackboard": {
         "atk_scale": 1.75
@@ -53212,6 +54154,258 @@
       "is_ammo_skill": false,
       "name": "科技与传统仪式"
     },
+    "skchr_tocka_1": {
+      "blackboard": {
+        "max_target": 3.0,
+        "shield_atk_scale": 2.5,
+        "shield_time": 10.0,
+        "stun": 3.0
+      },
+      "blackboard_by_level": [
+        {
+          "max_target": 2.0,
+          "shield_atk_scale": 1.2,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 2.0,
+          "shield_atk_scale": 1.3,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 2.0,
+          "shield_atk_scale": 1.4,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 2.0,
+          "shield_atk_scale": 1.6,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 2.0,
+          "shield_atk_scale": 1.7,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 2.0,
+          "shield_atk_scale": 1.8,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 2.0,
+          "shield_atk_scale": 1.9,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 3.0,
+          "shield_atk_scale": 2.1,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 3.0,
+          "shield_atk_scale": 2.3,
+          "shield_time": 10.0,
+          "stun": 3.0
+        },
+        {
+          "max_target": 3.0,
+          "shield_atk_scale": 2.5,
+          "shield_time": 10.0,
+          "stun": 3.0
+        }
+      ],
+      "description": "自然回復/自動発動\n▶8 ⚡12\n对范围内3名干员施加触发型效果（只选择未持有该效果的目标）：\n受到攻击时，获得相当于冻河250%攻击力的屏障（在10秒内衰减），并使攻击者晕眩3秒",
+      "is_ammo_skill": false,
+      "name": "一无所有之人"
+    },
+    "skchr_tocka_2": {
+      "blackboard": {
+        "attack_speed": 50.0,
+        "buff_duration": 15.0,
+        "max_target": 1.0
+      },
+      "blackboard_by_level": [
+        {
+          "attack_speed": 20.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 20.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 25.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 25.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 30.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 30.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 35.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 40.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 45.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        },
+        {
+          "attack_speed": 50.0,
+          "buff_duration": 15.0,
+          "max_target": 1.0
+        }
+      ],
+      "description": "自然回復/自動発動\n▶0 ⚡5\n对全场1名干员施加触发型效果（只选择未持有该效果的目标）：\n技能可开启时，在15秒内攻击速度+50，期间技能变为自动开启",
+      "is_ammo_skill": false,
+      "name": "意欲呼啸之心"
+    },
+    "skchr_tocka_3": {
+      "blackboard": {
+        "attack@atk_scale": 2.2,
+        "attack@max_target": 4.0,
+        "attack@stun": 0.5,
+        "attack_speed": 80.0,
+        "bonus_atk_dec_per_sec": 0.08,
+        "bonus_duration": 15.0,
+        "bonus_init_atk": 1.2,
+        "bonus_sp": 1.0
+      },
+      "blackboard_by_level": [
+        {
+          "attack@atk_scale": 1.6,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 50.0,
+          "bonus_atk_dec_per_sec": 0.033,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 0.5,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 1.65,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 50.0,
+          "bonus_atk_dec_per_sec": 0.033,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 0.5,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 1.7,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 50.0,
+          "bonus_atk_dec_per_sec": 0.04,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 0.6,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 1.75,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 60.0,
+          "bonus_atk_dec_per_sec": 0.047,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 0.7,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 1.8,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 60.0,
+          "bonus_atk_dec_per_sec": 0.047,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 0.7,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 1.85,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 60.0,
+          "bonus_atk_dec_per_sec": 0.053,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 0.8,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 1.9,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 70.0,
+          "bonus_atk_dec_per_sec": 0.06,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 0.9,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 2.0,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 70.0,
+          "bonus_atk_dec_per_sec": 0.067,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 1.0,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 2.1,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 70.0,
+          "bonus_atk_dec_per_sec": 0.073,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 1.1,
+          "bonus_sp": 1.0
+        },
+        {
+          "attack@atk_scale": 2.2,
+          "attack@max_target": 4.0,
+          "attack@stun": 0.5,
+          "attack_speed": 80.0,
+          "bonus_atk_dec_per_sec": 0.08,
+          "bonus_duration": 15.0,
+          "bonus_init_atk": 1.2,
+          "bonus_sp": 1.0
+        }
+      ],
+      "description": "自然回復/手動発動 ⌚20.0秒\n▶13 ⚡20\n攻击速度+80，攻击对4个敌人造成攻击力220%的物理伤害并使目标晕眩0.5秒，立刻对范围内另一名干员施加触发型效果（已存在时改为将其触发）：\n开启技能时自身和冻河攻击力+120%（在15秒内衰减），并将该触发型效果转移给冻河攻击范围内技力比例最高的另一名干员；冻河技能期间拥有该效果的干员每秒获得1点技力",
+      "is_ammo_skill": false,
+      "name": "踽踽独行之春"
+    },
     "skchr_toddi_1": {
       "blackboard": {
         "attack@atk_scale": 1.8,
@@ -65054,6 +66248,15 @@
       "is_ammo_skill": false,
       "name": "弱体化"
     },
+    "sktok_msos_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "自然回復/手動発動\n▶0 ⚡5\n立即在关卡特定位置部署有丰富作战经验的干员协助作战",
+      "is_ammo_skill": false,
+      "name": "紧急部署"
+    },
     "sktok_mufrprn_1": {
       "blackboard": {
         "attack@cnt": 1.0,
@@ -67817,6 +69020,15 @@
       "is_ammo_skill": false,
       "name": "消杀程序"
     },
+    "sktok_tempturn": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n使路过的<“再吃一口”源石虫>向部署朝向的方向移动",
+      "is_ammo_skill": false,
+      "name": "好痛！"
+    },
     "sktok_tfalco": {
       "blackboard": {
         "cnt": 1.0,
@@ -69130,9 +70342,9 @@
           "atk_scale": 1.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡5\n向前方射出一支弩箭，对碰到的第一名我方干员造成物理伤害",
+      "description": "自然回復/自動発動\n▶0 ⚡5\n前方に向けて矢を射出し、一番最初に命中した味方にダメージを与える",
       "is_ammo_skill": false,
-      "name": "射箭"
+      "name": "射出"
     },
     "sktok_xb2bas_1": {
       "blackboard": {
@@ -69161,9 +70373,9 @@
           "res_max_count": 2.0
         }
       ],
-      "description": "自然回復/自動発動\n▶35 ⚡35\n生产<采集专员>来采集<杂木林>、<巨大岩石>、<奇异矿脉>等资源；最多生产4台",
+      "description": "自然回復/自動発動\n▶35 ⚡35\n<採取ロボ>を生産し、<雑木林>・<巨大岩石>・<稀少鉱脈>などの資源を採取する。<採取ロボ>は最大4台まで生産できる",
       "is_ammo_skill": false,
-      "name": "采集"
+      "name": "採取"
     },
     "sktok_xb2bbq2_1": {
       "blackboard": {
@@ -69182,7 +70394,7 @@
           "sp": 0.5
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡45\n可加工：\n[lv2]木板+布匹→整箱的医疗用品\n[lv1]皮毛→工业纤维\n[lv1]营养浓缩液+水→整箱的能量剂",
+      "description": "自然回復/自動発動\n▶0 ⚡45\n加工可能：\n[Lv.2]木の板材+布地→箱詰めの医療用品\n[Lv.1]毛皮→工業繊維\n[Lv.1]栄養濃縮液+水→箱詰めのエナジードリンク",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69201,7 +70413,7 @@
           "recipe.id3": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡45\n可加工：\n[lv2]大米+木板→整箱的口粮\n[lv1]稻谷+水→整箱的饮料\n[lv1]羽兽蛋→营养浓缩液",
+      "description": "自然回復/自動発動\n▶0 ⚡45\n加工可能：\n[Lv.2]米+木の板材→箱詰めのレーション\n[Lv.1]稲+水→箱詰めのドリンク\n[Lv.1]羽獣の卵→栄養濃縮液",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69216,9 +70428,9 @@
           "item_id": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡30\n技能释放时，产出3份粗制赤金",
+      "description": "自然回復/自動発動\n▶0 ⚡30\nスキル発動時、粗悪な地金を3個産出",
       "is_ammo_skill": false,
-      "name": "矗立"
+      "name": "人気施設"
     },
     "sktok_xb2brd": {
       "blackboard": {
@@ -69229,9 +70441,9 @@
           "dialogue_config_signal_key": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡10\n攻击范围内存在我方单位时开始恢复技力（不叠加），技能可以开启对话",
+      "description": "自然回復/手動発動\n▶0 ⚡10\n攻撃範囲内に味方ユニットがいるとSPが回復する（重複不可）。スキル発動で会話ができる",
       "is_ammo_skill": false,
-      "name": "供奉"
+      "name": "奉納"
     },
     "sktok_xb2brh_1": {
       "blackboard": {
@@ -69260,9 +70472,9 @@
           "res_max_count": 3.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡20\n生产<采集专员>来采集<杂木林>、<巨大岩石>、<奇异矿脉>等资源；最多生产3台",
+      "description": "自然回復/自動発動\n▶0 ⚡20\n<採取ロボ>を生産し、<雑木林>・<巨大岩石>・<稀少鉱脈>などの資源を採取する。<採取ロボ>は最大3台まで生産できる",
       "is_ammo_skill": false,
-      "name": "采集"
+      "name": "採取"
     },
     "sktok_xb2cage_1": {
       "blackboard": {
@@ -69279,9 +70491,9 @@
           "max_cnt": 1.0
         }
       ],
-      "description": "自然回復/自動発動\n▶5 ⚡5\n捕获攻击范围内一只常见狩猎物",
+      "description": "自然回復/自動発動\n▶5 ⚡5\n攻撃範囲内の通常の獲物を1匹捕獲",
       "is_ammo_skill": false,
-      "name": "捕获"
+      "name": "捕獲"
     },
     "sktok_xb2cbp_1": {
       "blackboard": {
@@ -69298,9 +70510,9 @@
           "weight@enemy_7015_xbcrab2": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡10\n技能释放时，在自身所在位置生成一只随机岩壳蟹",
+      "description": "自然回復/自動発動\n▶0 ⚡10\nスキル発動時、自身のいる位置にランダムな<ガンセキガニ>を1体生成",
       "is_ammo_skill": false,
-      "name": "产蟹"
+      "name": "蟹産出"
     },
     "sktok_xb2chm2_1": {
       "blackboard": {
@@ -69319,7 +70531,7 @@
           "recipe.id4": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡45\n可加工：\n[lv1]干亚麻+木板→整箱的外勤用品\n[lv1]木板+布匹→整箱的医疗用品\n[lv1]大米+木板→整箱的口粮\n[lv1]木材→木板",
+      "description": "自然回復/自動発動\n▶0 ⚡45\n加工可能：\n[Lv.1]乾燥亜麻+木の板材→箱詰めの外勤用品\n[Lv.1]木の板材+布地→箱詰めの医療用品\n[Lv.1]米+木の板材→箱詰めのレーション\n[Lv.1]木材→木の板材",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69338,18 +70550,9 @@
           "recipe.id3": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡45\n可加工：\n[lv2]石板+防水革→整箱的装备\n[lv1]石板+金属板→整箱的工具\n[lv1]石材→石板",
+      "description": "自然回復/自動発動\n▶0 ⚡45\n加工可能：\n[Lv.2]石の板材+防水革→箱詰めの装備\n[Lv.1]石の板材+金属の板材→箱詰めの工具\n[Lv.1]石材→石の板材",
       "is_ammo_skill": false,
       "name": "加工"
-    },
-    "sktok_xb2clr": {
-      "blackboard": {},
-      "blackboard_by_level": [
-        {}
-      ],
-      "description": "パッシブ\n部署在<待清理地块>上将其清理",
-      "is_ammo_skill": false,
-      "name": "清理"
     },
     "sktok_xb2cmp": {
       "blackboard": {
@@ -69364,9 +70567,9 @@
           "hp_ratio": 0.2
         }
       ],
-      "description": "自然回復/自動発動\n▶5 ⚡5\n每隔一段时间，生成敌人朝着基地位置移动；每次生成敌人后扣除一定比例的生命值，死亡后不再生成敌人",
+      "description": "自然回復/自動発動\n▶5 ⚡5\n一定時間ごとに、ロドス採取ステーションへ向かって進攻する敵を生成する。敵の生成時に一定割合のHPを失い、HPが0になると生成を停止する",
       "is_ammo_skill": false,
-      "name": "触发对话"
+      "name": "会話発生"
     },
     "sktok_xb2cmp_2": {
       "blackboard": {
@@ -69377,9 +70580,9 @@
           "dialogue_config_signal_key": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡5\n已经废弃的装置，总会将一些游荡在荒地上的东西运来此处，似乎摧毁后就能中止这一切。",
+      "description": "自然回復/手動発動\n▶0 ⚡5\n廃棄された戦術塔。荒地を徘徊するものたちを呼び寄せているようだが、破壊すれば食い止められるだろう。",
       "is_ammo_skill": false,
-      "name": "触发对话"
+      "name": "会話発生"
     },
     "sktok_xb2cve": {
       "blackboard": {
@@ -69390,7 +70593,7 @@
           "branch_id": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶25 ⚡30\n每隔一段时间，在攻击范围内随机生成一只野生动物；同时存在的数量上限为4",
+      "description": "自然回復/自動発動\n▶25 ⚡30\n一定時間ごとに、攻撃範囲内にランダムに野生動物を1体生成する。野生動物は最大で同時に4体まで存在可能",
       "is_ammo_skill": false,
       "name": "生成"
     },
@@ -69407,7 +70610,7 @@
           "recipe.id2": 0.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡50\n累计受击次数，可加工：\n[lv2]营养浓缩液+水→整箱的能量剂\n[lv2]稻谷+水→整箱的饮料",
+      "description": "被撃回復/自動発動\n▶0 ⚡50\n累計被撃回数。加工可能：\n[Lv.2]栄養濃縮液+水→箱詰めのエナジードリンク\n[Lv.2]稲+水→箱詰めのドリンク",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69424,9 +70627,9 @@
           "room_offset_y": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡1\n触发对话",
+      "description": "自然回復/手動発動\n▶0 ⚡1\n会話発生",
       "is_ammo_skill": false,
-      "name": "触发对话"
+      "name": "会話発生"
     },
     "sktok_xb2dstr_1": {
       "blackboard": {
@@ -69447,9 +70650,9 @@
           "recipe.id2": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡5\n技能持续期间远程干员攻速+20，且持续消耗整箱的能量剂或整箱的饮料维持繁荣度，库存不足时停止技能。\n持续时间无限，可主动关闭技能（期间可随时停止技能）",
+      "description": "自然回復/手動発動\n▶0 ⚡5\nスキル発動中、遠距離オペレーターの攻撃速度+20。箱詰めのエナジードリンクまたは箱詰めのドリンクを継続的に消費し、一定の繁栄度を提供する\n破壊されるか、在庫が不足するまで効果継続、手動でスキルを停止可能（発動期間中いつでも停止可能）",
       "is_ammo_skill": false,
-      "name": "供给"
+      "name": "供給"
     },
     "sktok_xb2eqstr_1": {
       "blackboard": {
@@ -69468,9 +70671,9 @@
           "recipe.id2": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡5\n技能持续期间场上所有干员阻挡数+2且持续消耗整箱的武器或整箱的装备维持高额繁荣度，库存不足时自动关闭技能。\n持续时间无限，可主动关闭技能（期间可随时停止技能）",
+      "description": "自然回復/手動発動\n▶0 ⚡5\nスキル発動中、配置中のオペレーター全員のブロック数+2。箱詰めの武器または箱詰めの装備を継続的に消費し、高い繁栄度を提供する\n破壊されるか、在庫が不足するまで効果継続、手動でスキルを停止可能（発動期間中いつでも停止可能）",
       "is_ammo_skill": false,
-      "name": "供给"
+      "name": "供給"
     },
     "sktok_xb2fbi2_1": {
       "blackboard": {
@@ -69487,7 +70690,7 @@
           "sp": 1.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡10\n累计受到的伤害，每次清空累计槽获得1点技力；可加工：\n[lv2]皮毛→防水革\n[lv1]皮毛→工业纤维",
+      "description": "被撃回復/自動発動\n▶0 ⚡10\n累計被ダメージ。ダメージの累計ゲージがリセットされるたびにSPを1獲得。加工可能：\n[Lv.2]毛皮→防水革\n[Lv.1]毛皮→工業繊維",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69506,7 +70709,7 @@
           "sp_magical": 1.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡40\n受到法术伤害时额外回复1点技力；可加工：\n[lv2]羽兽蛋→营养浓缩液\n[lv1]羽兽蛋→粘合剂",
+      "description": "被撃回復/自動発動\n▶0 ⚡40\n術ダメージを受けたとき、追加でSPを1回復。加工可能：\n[Lv.2]羽獣の卵→栄養濃縮液\n[Lv.1]羽獣の卵→接着剤",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69523,7 +70726,7 @@
           "recipe.id2": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡45\n可加工：\n[lv2]稻谷→大米\n[lv1]稻谷→粘合剂",
+      "description": "自然回復/自動発動\n▶0 ⚡45\n加工可能：\n[Lv.2]稲→米\n[Lv.1]稲→接着剤",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69540,7 +70743,7 @@
           "recipe.id2": 0.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡10\n累计受到的伤害，每次清空累计槽获得1点技力；可加工：\n[lv2]干亚麻→布匹\n[lv1]干亚麻→营养浓缩液",
+      "description": "被撃回復/自動発動\n▶0 ⚡10\n累計被ダメージ。ダメージの累計ゲージがリセットされるたびにSPを1獲得。加工可能：\n[Lv.2]乾燥亜麻→布地\n[Lv.1]乾燥亜麻→栄養濃縮液",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69557,7 +70760,7 @@
           "recipe.id2": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡40\n处于干员或召唤物攻击范围内时恢复技力，不可叠加；可加工：\n[lv2]毛线→工业纤维\n[lv1]毛线→布匹",
+      "description": "自然回復/自動発動\n▶0 ⚡40\nオペレーターまたは召喚物の攻撃範囲内にいる場合SPを回復（重複不可）。加工可能：\n[Lv.2]毛糸→工業繊維\n[Lv.1]毛糸→布地",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69576,7 +70779,7 @@
           "recipe.id3": 0.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡40\n累计受击次数；可加工：\n[lv1]木材→木板\n[lv1]石材→石板\n[lv1]铁矿石→金属板",
+      "description": "被撃回復/自動発動\n▶0 ⚡40\n累計被撃回数。加工可能：\n[Lv.1]木材→木の板材\n[Lv.1]石材→石の板材\n[Lv.1]鉄鉱石→金属の板材",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69591,7 +70794,7 @@
       ],
       "description": "",
       "is_ammo_skill": false,
-      "name": "偷袭"
+      "name": "奇襲"
     },
     "sktok_xb2fnt_1": {
       "blackboard": {
@@ -69604,9 +70807,9 @@
           "item_id": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡50\n技能释放时，产出5份赤金",
+      "description": "自然回復/自動発動\n▶0 ⚡50\nスキル発動時、粗悪な地金を5個産出",
       "is_ammo_skill": false,
-      "name": "喷涌"
+      "name": "湧出"
     },
     "sktok_xb2fostr": {
       "blackboard": {
@@ -69623,9 +70826,9 @@
           "score": 160.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n部署后增加160建造评分\n基地效果：和<道路>相邻时额外增加建造评分\n关卡增益：基地内每部署1个<食品供给站>，关卡内获得1个<安眠迷香>，最多2个",
+      "description": "パッシブ\n<生活>系建築物\n配置後、建造スコア+160\n新本部効果：<道>と隣接時、建造スコアがさらに増加\nステージ効果：新本部に<食品供給所>を1つ配置するごとに、ステージ開始時に<安眠のお香>を1個獲得、最大2個まで",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2fstr_1": {
       "blackboard": {
@@ -69646,9 +70849,9 @@
           "recipe.id3": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡5\n技能持续期间近战干员攻击力+20%，且持续消耗整箱的饮料或整箱的能量剂或整箱的口粮维持高额繁荣度，库存不足时自动关闭技能。\n持续时间无限，可主动关闭技能（期间可随时停止技能）",
+      "description": "自然回復/手動発動\n▶0 ⚡5\nスキル発動中、近距離オペレーターの攻撃力+20%。箱詰めのドリンク、箱詰めのエナジードリンクまたは箱詰めのレーションを継続的に消費し、高い繁栄度を提供する\n破壊されるか、在庫が不足するまで効果継続、手動でスキルを停止可能（発動期間中いつでも停止可能）",
       "is_ammo_skill": false,
-      "name": "供给"
+      "name": "供給"
     },
     "sktok_xb2hwstr_1": {
       "blackboard": {
@@ -69669,9 +70872,9 @@
           "recipe.id3": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡5\n技能持续期间场上我方单位受到的物理与法术伤害-30%，且持续消耗整箱的武器或整箱的工具维持高额繁荣度，库存不足时自动关闭技能。\n持续时间无限，可主动关闭技能（期间可随时停止技能）",
+      "description": "自然回復/手動発動\n▶0 ⚡5\nスキル発動中、味方全員の受ける物理・術ダメージ-30%。箱詰めの武器または箱詰めの工具を継続的に消費し、高い繁栄度を提供する\n破壊されるか、在庫が不足するまで効果継続、手動でスキルを停止可能（発動期間中いつでも停止可能）",
       "is_ammo_skill": false,
-      "name": "供给"
+      "name": "供給"
     },
     "sktok_xb2kln_1": {
       "blackboard": {
@@ -69686,7 +70889,7 @@
           "recipe.id2": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡45\n可加工：\n[lv3]干亚麻+木板→整箱的外勤用品\n[lv1]防水革+粘合剂→整箱的防护器具",
+      "description": "自然回復/自動発動\n▶0 ⚡45\n加工可能：\n[Lv.3]乾燥亜麻+木の板材→箱詰めの外勤用品\n[Lv.1]防水革+接着剤→箱詰めの防護器具",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69705,7 +70908,7 @@
           "recipe.id3": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡45\n可加工：\n[lv2]防水革+粘合剂→整箱的防护器具\n[lv1]石板+防水革→整箱的装备\n[lv1]毛线→布匹",
+      "description": "自然回復/自動発動\n▶0 ⚡45\n加工可能：\n[Lv.2]防水革+接着剤→箱詰めの防護器具\n[Lv.1]石の板材+防水革→箱詰めの装備\n[Lv.1]毛糸→布地",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69724,7 +70927,7 @@
           "sp": 1.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡10\n累计受到的伤害，每次清空累计槽获得1点技力；可加工：\n[lv2]蟹壳碎片→粘合剂\n[lv1]蟹壳碎片→防水革",
+      "description": "被撃回復/自動発動\n▶0 ⚡10\n累計被ダメージ。ダメージの累計ゲージがリセットされるたびにSPを1獲得。加工可能：\n[Lv.2]カニ殻の欠片→接着剤\n[Lv.1]カニ殻の欠片→防水革",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -69745,9 +70948,9 @@
           "recipe.id2": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡5\n技能持续期间场上我方单位受到的治疗效果提升至120%，且持续消耗整箱的医疗用品或整箱的能量剂维持高额繁荣度，库存不足时自动关闭技能。\n持续时间无限，可主动关闭技能（期间可随时停止技能）",
+      "description": "自然回復/手動発動\n▶0 ⚡5\nスキル発動中、味方全員の受ける治療効果が120%まで上昇。箱詰めの医療用品または箱詰めのエナジードリンクを継続的に消費し、高い繁栄度を提供する\n破壊されるか、在庫が不足するまで効果継続、手動でスキルを停止可能（発動期間中いつでも停止可能）",
       "is_ammo_skill": false,
-      "name": "供给"
+      "name": "供給"
     },
     "sktok_xb2oafkp": {
       "blackboard": {
@@ -69798,9 +71001,9 @@
           "score": 200.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n基地部署有<核心能源基站>时，才能将能源转化为建设元件；升级后可额外转化为建设装置\n当前等级部署后增加200建造评分，产出1000能源，并以18%的效率产出建设元件，以3%的效率产出建设装置\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n新本部に<コアエネルギー基地>が配置されている場合のみ、エネルギーを建設パーツに変換できる。一定レベルに到達すると、追加で建設装置にも変換可能となる\n現在のレベルでは、配置後、建造スコア+200。エネルギーを1000産出、18%の効率で建設パーツを産出し、さらに3%の効率で建設装置を産出\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2obch": {
       "blackboard": {
@@ -69817,9 +71020,9 @@
           "score": 160.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑\n当前等级部署后增加160建造评分\n基地效果：和其他任意类型的建筑相邻时额外增加建造评分",
+      "description": "パッシブ\n<装飾>系建築物\n現在のレベルでは、配置後、建造スコア+160\n新本部効果：任意の建築物と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2obdg": {
       "blackboard": {
@@ -69832,9 +71035,9 @@
           "score": 35.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n部署后建造得分35\n和<道路>相邻时自身额外获得建造得分",
+      "description": "パッシブ\n<生活>系建築物\n配置後、建造スコア35\n<道>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2obds": {
       "blackboard": {
@@ -69847,9 +71050,9 @@
           "score": 70.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n部署后建造得分70\n和<道路>相邻时自身额外获得建造得分",
+      "description": "パッシブ\n<生活>系建築物\n配置後、建造スコア70\n<道>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ocnl": {
       "blackboard": {
@@ -69862,9 +71065,9 @@
           "score": 10.0
         }
       ],
-      "description": "パッシブ\n<通路>类建筑\n渠道相邻部署时会进行拼接\n部署后增加10建造评分\n基地效果：使相邻的<渠道>、<生活>建筑额外增加建造评分",
+      "description": "パッシブ\n<通路>系建築物\n水路が隣接して配置されると連結される\n配置後、建造スコア+10\n新本部効果：隣接する<水路>、<生活>系建築物による建造スコアを追加で増加させる",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ocrv": {
       "blackboard": {
@@ -69877,9 +71080,9 @@
           "score": 60.0
         }
       ],
-      "description": "パッシブ\n<通路>类建筑\n可连接<补给车出发站台>、<补给车中转站台>和<补给车终点站台>\n部署后增加60建造评分\n基地效果：使相邻的<产线>类建筑额外增加建造评分，<补给车>运转时额外增加建造评分",
+      "description": "パッシブ\n<通路>系建築物\n<補給車出発ホーム>、<補給車中継ホーム>、<補給車終着ホーム>に接続可能\n配置後、建造スコア+60\n新本部効果：隣接する<生産>系建築物の建造スコアを追加で増加させ、<補給車>稼働中はさらに建造スコアを増加させる",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2oeqstr": {
       "blackboard": {
@@ -69896,9 +71099,9 @@
           "score": 320.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n部署后增加320建造评分\n基地效果：和<道路>相邻时额外增加建造评分\n关卡增益：基地内每部署1个<装备供给站>，关卡内获得1个<支援起重机>，最多2个",
+      "description": "パッシブ\n<生活>系建築物\n配置後、建造スコア+320\n新本部効果：<道>と隣接時、建造スコアがさらに増加\nステージ効果：新本部に<装備供給所>を1つ配置するごとに、ステージ開始時に<支援クレーン>を1個獲得、最大2個まで",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofb2": {
       "blackboard": {
@@ -69957,9 +71160,9 @@
           "wood_worker_cnt": 1.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n范围内存在<木材处理中心>时，可以激活并生产能源\n当前等级部署后增加80建造评分，激活后产出30能源值\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n範囲内に<木材処理センター>が存在する場合、起動してエネルギーを生産\n現在のレベルでは、配置後、建造スコア+80。起動後、エネルギー値を30産出\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofb3": {
       "blackboard": {
@@ -70018,9 +71221,9 @@
           "wood_worker_cnt": 0.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n范围内存在<石材处理中心>时，可以激活并生产能源\n当前等级部署后增加80建造评分，激活后产出45能源值\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n範囲内に<石材処理センター>が存在する場合、起動してエネルギーを生産\n現在のレベルでは、配置後、建造スコア+80。起動後、エネルギー値を45産出\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofb4": {
       "blackboard": {
@@ -70079,9 +71282,9 @@
           "wood_worker_cnt": 0.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n范围内存在<铁矿石处理中心>时，可以激活并生产能源\n当前等级部署后增加80建造评分，激活后产出60能源值\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n範囲内に<鉄鉱石処理センター>が存在する場合、起動してエネルギーを生産\n現在のレベルでは、配置後、建造スコア+80。起動後、エネルギー値を60産出\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2oflr": {
       "blackboard": {
@@ -70098,9 +71301,9 @@
           "score": 160.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑\n部署后增加建造评分160\n基地效果：和其他任意类型的建筑相邻时额外获得建造得分",
+      "description": "パッシブ\n<装飾>系建築物\n配置後、建造スコア+160\n新本部効果：任意の建築物と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2oflr2": {
       "blackboard": {
@@ -70117,9 +71320,9 @@
           "score": 160.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑\n部署后增加建造评分160\n基地效果：和其他任意类型的建筑相邻时额外获得建造得分",
+      "description": "パッシブ\n<装飾>系建築物\n配置後、建造スコア+160\n新本部効果：任意の建築物と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2oflr3": {
       "blackboard": {
@@ -70136,9 +71339,9 @@
           "score": 160.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑\n部署后增加建造评分160\n基地效果：和其他任意类型的建筑相邻时额外获得建造得分",
+      "description": "パッシブ\n<装飾>系建築物\n配置後、建造スコア+160\n新本部効果：任意の建築物と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofmf": {
       "blackboard": {
@@ -70151,9 +71354,9 @@
           "score": 20.0
         }
       ],
-      "description": "パッシブ\n<农牧>类建筑\n部署后增加20建造评分\n基地效果：和<渠道>相邻时额外增加建造评分。\n关卡增益：基地内每部署1个<亚麻幼苗>，关卡内所有<亚麻幼苗>每秒额外回复5点生命值，最多25点/秒",
+      "description": "パッシブ\n<農業>系建築物\n配置後、建造スコア+20\n新本部効果：<水路>と隣接時、追加で建造スコアを獲得\nステージ効果：新本部に<亜麻の苗>を1つ配置するごとに、ステージ内の各<亜麻の苗>が1秒ごとにHPを追加で5回復、最大25hp/秒",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofmf2": {
       "blackboard": {
@@ -70166,9 +71369,9 @@
           "score": 20.0
         }
       ],
-      "description": "パッシブ\n<农牧>类建筑\n部署后增加20建造评分\n基地效果：和<渠道>相邻时额外增加建造评分。\n关卡增益：基地内每部署1个<稻谷种植槽>，关卡内所有<稻谷幼苗>每秒额外回复5点生命值，最多25点/秒",
+      "description": "パッシブ\n<農業>系建築物\n配置後、建造スコア+20\n新本部効果：<水路>と隣接時、追加で建造スコアを獲得\nステージ効果：新本部に<稲栽培槽>を1つ配置するごとに、ステージ内の各<稲の苗>が1秒ごとにHPを追加で5回復、最大25hp/秒",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofmr": {
       "blackboard": {
@@ -70181,9 +71384,9 @@
           "score": 20.0
         }
       ],
-      "description": "パッシブ\n<农牧>类建筑\n部署后增加20建造评分\n基地效果：和<渠道>相邻时额外增加建造评分。\n关卡增益：基地内每部署1个<稻谷幼苗>，关卡内所有<稻谷幼苗>每秒额外回复5点生命值，最多25点/秒",
+      "description": "パッシブ\n<農業>系建築物\n配置後、建造スコア+20\n新本部効果：<水路>と隣接時、追加で建造スコアを獲得\nステージ効果：新本部に<稲の苗>を1つ配置するごとに、ステージ内の各<稲の苗>が1秒ごとにHPを追加で5回復、最大25hp/秒",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofmr2": {
       "blackboard": {
@@ -70196,9 +71399,9 @@
           "score": 20.0
         }
       ],
-      "description": "パッシブ\n<农牧>类建筑\n部署后增加20建造评分\n基地效果：和<渠道>相邻时额外增加建造评分。\n关卡增益：基地内每部署1个<亚麻种植槽>，关卡内所有<亚麻幼苗>每秒额外回复5点生命值，最多25点/秒",
+      "description": "パッシブ\n<農業>系建築物\n配置後、建造スコア+20\n新本部効果：<水路>と隣接時、追加で建造スコアを獲得\nステージ効果：新本部に<亜麻栽培槽>を1つ配置するごとに、ステージ内の各<亜麻の苗>が1秒ごとにHPを追加で5回復、最大25hp/秒",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofnc": {
       "blackboard": {
@@ -70211,9 +71414,9 @@
           "score": 20.0
         }
       ],
-      "description": "パッシブ\n<农牧>类建筑\n部署后增加20建造评分\n基地效果：和<渠道>相邻时额外增加建造评分\n关卡增益：基地内每部署9个<小型兽栏>，关卡内获得1个<高级捕猎笼>，最多2个",
+      "description": "パッシブ\n<農業>系建築物\n配置後、建造スコア+20\n新本部効果：<水路>と隣接時、建造スコアがさらに増加\nステージ効果：新本部に<小型畜舎>を9つ配置するごとに、ステージ開始時に<上級捕獲カゴ>を1個獲得、最大2個まで",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofnc2": {
       "blackboard": {
@@ -70226,9 +71429,9 @@
           "score": 240.0
         }
       ],
-      "description": "パッシブ\n<农牧>类建筑\n部署后增加240建造评分\n基地效果：和<渠道>相邻时额外增加建造评分\n关卡增益：基地内每部署1个<大型兽栏>，关卡内获得1个<高级捕猎笼>，最多2个",
+      "description": "パッシブ\n<農業>系建築物\n配置後、建造スコア+240\n新本部効果：<水路>と隣接時、建造スコアがさらに増加\nステージ効果：新本部に<大型畜舎>を1つ配置するごとに、ステージ開始時に<上級捕獲カゴ>を1個獲得、最大2個まで",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ofnt": {
       "blackboard": {
@@ -70245,9 +71448,9 @@
           "score": 320.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑\n当前等级部署后增加320建造评分\n基地效果：和其他任意类型的建筑相邻时额外增加建造评分",
+      "description": "パッシブ\n<装飾>系建築物\n現在のレベルでは、配置後、建造スコア+320\n新本部効果：任意の建築物と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ohfct": {
       "blackboard": {
@@ -70306,9 +71509,9 @@
           "wood_worker_cnt": 1.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n范围内存在<木材处理中心>，<石材处理中心>和<铁矿石处理中心>时，可以激活并生产能源\n当前等级部署后增加600建造评分，激活后产出150能源值\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n範囲内に<木材処理センター>、<石材処理センター>、<鉄鉱石処理センター>が同時に存在する場合、起動してエネルギーを生産\n現在のレベルでは、配置後、建造スコア+600。起動後、エネルギー値を150産出\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ohwstr": {
       "blackboard": {
@@ -70325,9 +71528,9 @@
           "score": 320.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n部署后增加320建造评分\n基地效果：和<道路>相邻时额外增加建造评分\n关卡增益：基地内每部署1个<工具供给站>，关卡内获得1个<高台工事>，最多2个",
+      "description": "パッシブ\n<生活>系建築物\n配置後、建造スコア+320\n新本部効果：<道>と隣接時、建造スコアがさらに増加\nステージ効果：新本部に<工具供給所>を1つ配置するごとに、ステージ開始時に<臨時高台>を1個獲得、最大2個まで",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2oirnp": {
       "blackboard": {
@@ -70340,9 +71543,9 @@
           "score": 10.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n可用于激活<铁矿石能源转化装置>、<石铁能源转化装置>、<高效能源转化装置>\n部署后增加10建造评分",
+      "description": "パッシブ\n<生産>系建築物\n<鉄鉱石エネルギー変換装置>、<石鉄エネルギー変換装置>、<高出力エネルギー変換装置>の起動に使用可能\n配置後、建造スコア+10",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2oltr": {
       "blackboard": {
@@ -70357,9 +71560,9 @@
           "score": 80.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n部署后增加80建造评分\n和<道路>相邻时自身额外获得建造得分",
+      "description": "パッシブ\n<生活>系建築物\n配置後、建造スコア+80\n<道>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2omkstr": {
       "blackboard": {
@@ -70376,9 +71579,9 @@
           "score": 320.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n部署后增加320建造评分\n基地效果：和<道路>相邻时额外增加建造评分\n关卡增益：基地内每部署1个<药品供给站>，关卡内获得1个<激励剂>，最多2个",
+      "description": "パッシブ\n<生活>系建築物\n配置後、建造スコア+320\n新本部効果：<道>と隣接時、建造スコアがさらに増加\nステージ効果：新本部に<薬品供給所>を1つ配置するごとに、ステージ開始時に<激励剤>を1個獲得、最大2個まで",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2onf_1": {
       "blackboard": {
@@ -70389,9 +71592,9 @@
           "dialogue_config_signal_key": 0.0
         }
       ],
-      "description": "自然回復/手動発動\n▶0 ⚡5\n外勤部干员之前安置在此处的资源前哨站，不知遇到了什么问题变成了现在这样。需要快点将它修好！",
+      "description": "自然回復/手動発動\n▶0 ⚡5\n外勤部のオペレーターが以前ここに設置した資源前哨基地が、何らかの問題により破損してしまったようだ。早く修理しよう！",
       "is_ammo_skill": false,
-      "name": "触发对话"
+      "name": "会話発生"
     },
     "sktok_xb2onf_2": {
       "blackboard": {
@@ -70404,9 +71607,9 @@
           "value": 50.0
         }
       ],
-      "description": "パッシブ\n我方单位每秒恢复50点生命",
+      "description": "パッシブ\n味方全員が1秒につきHPを50回復",
       "is_ammo_skill": false,
-      "name": "强化"
+      "name": "強化"
     },
     "sktok_xb2onf_3": {
       "blackboard": {
@@ -70419,9 +71622,9 @@
           "sp_recovery_per_sec": 0.1
         }
       ],
-      "description": "パッシブ\n我方单位的技力自然恢复速度+0.1/秒",
+      "description": "パッシブ\n味方全員のSPの自然回復速度+0.1sp/秒",
       "is_ammo_skill": false,
-      "name": "强化"
+      "name": "強化"
     },
     "sktok_xb2onf_4": {
       "blackboard": {
@@ -70434,9 +71637,9 @@
           "interval": 1.0
         }
       ],
-      "description": "パッシブ\n我方单位攻击速度+15",
+      "description": "パッシブ\n味方全員の攻撃速度+15",
       "is_ammo_skill": false,
-      "name": "强化"
+      "name": "強化"
     },
     "sktok_xb2oppt": {
       "blackboard": {
@@ -70453,9 +71656,9 @@
           "score": 320.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑\n当前等级部署后增加320建造评分\n基地效果：和其他任意类型的建筑相邻时额外增加建造评分",
+      "description": "パッシブ\n<装飾>系建築物\n現在のレベルでは、配置後、建造スコア+320\n新本部効果：任意の建築物と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2opwr": {
       "blackboard": {
@@ -70496,9 +71699,9 @@
           "score": 165.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n使范围内已激活的能源转化装置转化效率提升\n当前等级部署后增加165建造评分，提升倍率为1.5\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n範囲内の起動しているエネルギー変換装置の変換効率を上昇させる\n現在のレベルでは、配置後、建造スコア+165。変換効率を1.5倍まで上昇させる\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2opwr2": {
       "blackboard": {
@@ -70539,9 +71742,9 @@
           "score": 325.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n使范围内已激活的能源转化装置转化效率大幅提升\n当前等级部署后增加325建造评分，提升倍率为1.5\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n範囲内の起動しているエネルギー変換装置の変換効率を大幅に上昇させる\n現在のレベルでは、配置後、建造スコア+325。変換効率を1.5倍まで上昇させる\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ord": {
       "blackboard": {
@@ -70554,9 +71757,9 @@
           "score": 5.0
         }
       ],
-      "description": "パッシブ\n<通路>类建筑\n道路相邻部署时会进行拼接\n部署后增加5建造评分\n基地效果：使相邻的<道路>、<生活>建筑额外增加建造评分",
+      "description": "パッシブ\n<通路>系建築物\n道が隣接して配置されると連結される\n配置後、建造スコア+5\n新本部効果：隣接する<道>、<生活>系建築物による建造スコアを追加で増加させる",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2org2": {
       "blackboard": {
@@ -70615,9 +71818,9 @@
           "wood_worker_cnt": 1.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n范围内存在<木材处理中心>和<石材处理中心>时，可以激活并生产能源\n当前等级部署后增加165建造评分，激活后产出85能源值\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n範囲内に<木材処理センター>と<石材処理センター>が同時に存在する場合、起動してエネルギーを生産\n現在のレベルでは、配置後、建造スコア+165。起動後、エネルギー値を85産出\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2org3": {
       "blackboard": {
@@ -70676,9 +71879,9 @@
           "wood_worker_cnt": 0.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n范围内存在<石材处理中心>和<铁矿石处理中心>时，可以激活并生产能源\n当前等级部署后增加325建造评分，激活后产出120能源值\n基地效果：和任何<补给车轨道>或<补给车站台>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生産>系建築物\n範囲内に<石材処理センター>と<鉄鉱石処理センター>が同時に存在する場合、起動してエネルギーを生産\n現在のレベルでは、配置後、建造スコア+325。起動後、エネルギー値を120産出\n新本部効果：任意の<補給車レール>や<補給車ホーム>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2orm": {
       "blackboard": {
@@ -70695,9 +71898,9 @@
           "score": 80.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n和<基地建筑>或<基地设施>同一行或同一列的3格内时生成<基地通道>，<基地通道>重叠时生成<基地通道中转枢纽>\n部署后增加建造评分80\n基地效果：和<道路>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生活>系建築物\n<建設ベース>または<設備ベース>の縦横直線上の3マス内にある場合、<本部内通路>を生成し、<本部内通路>が重なった場合は<本部内交差路>を生成する\n配置後、建造スコア+80\n新本部効果：<道路>と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2orm2": {
       "blackboard": {
@@ -70714,9 +71917,9 @@
           "score": 160.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n和<基地建筑>或<基地设施>同一行或同一列的3格内时生成<基地通道>，<基地通道>重叠时生成<基地通道中转枢纽>\n部署后增加建造评分160\n基地效果：和<道路>相邻时额外增加建造评分",
+      "description": "パッシブ\n<生活>系建築物\n<建設ベース>または<設備ベース>の縦横直線上の3マス内にある場合、<本部内通路>を生成し、<本部内通路>が重なった場合は<本部内交差路>を生成する\n配置後、建造スコア+160\n新本部効果：<道路>と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2osit": {
       "blackboard": {
@@ -70729,9 +71932,9 @@
           "score": 60.0
         }
       ],
-      "description": "パッシブ\n<通路>类建筑\n可与任何<补给车轨道>相连\n部署后增加60建造评分\n基地效果：使相邻的<产线>类建筑额外增加建造评分，<补给车>运转时额外增加建造评分",
+      "description": "パッシブ\n<通路>系建築物\n任意の<補給車レール>と接続可能\n配置後、建造スコア+60\n新本部効果：隣接する<生産>系建築物の建造スコアを追加で増加させ、<補給車>稼働中はさらに建造スコアを増加させる",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ospk": {
       "blackboard": {
@@ -70744,9 +71947,9 @@
           "score": 40.0
         }
       ],
-      "description": "パッシブ\n<农牧>类建筑\n部署后增加40建造评分\n基地效果：和<渠道>相邻时额外增加建造评分",
+      "description": "パッシブ\n<農業>系建築物\n配置後、建造スコア+40\n新本部効果：<水路>と隣接時、追加で建造スコアを獲得",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2osqr": {
       "blackboard": {
@@ -70763,9 +71966,9 @@
           "score": 160.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑\n当前等级部署后增加160建造评分\n基地效果：和其他任意类型的建筑相邻时额外增加建造评分",
+      "description": "パッシブ\n<装飾>系建築物\n現在のレベルでは、配置後、建造スコア+160\n新本部効果：任意の建築物と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2osta_1": {
       "blackboard": {
@@ -70778,9 +71981,9 @@
           "score": 60.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡15\n<通路>类建筑\n通过任何<补给车轨道>与<补给车终点站台>相连时发出<补给车>\n部署后增加60建造评分\n基地效果：使相邻的<产线>类建筑额外增加建造评分，<补给车>运转时额外增加建造评分",
+      "description": "自然回復/自動発動\n▶0 ⚡15\n<通路>系建築物\n任意の<補給車レール>で<補給車終着ホーム>まで接続されている場合、<補給車>を発車させる\n配置後、建造スコア+60\n新本部効果：隣接する<生産>系建築物の建造スコアを追加で増加させ、<補給車>稼働中はさらに建造スコアを増加させる",
       "is_ammo_skill": false,
-      "name": "发车"
+      "name": "発車"
     },
     "sktok_xb2ostnp": {
       "blackboard": {
@@ -70793,9 +71996,9 @@
           "score": 10.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n可用于激活<石材能源转化装置>、<木石能源转化装置>、<高效能源转化装置>\n部署后增加10建造评分",
+      "description": "パッシブ\n<生産>系建築物\n<石材エネルギー変換装置>、<木石エネルギー変換装置>、<高出力エネルギー変換装置>の起動に使用可能\n配置後、建造スコア+10",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ostr": {
       "blackboard": {
@@ -70812,9 +72015,9 @@
           "score": 160.0
         }
       ],
-      "description": "パッシブ\n<生活>类建筑\n部署后增加160建造评分\n基地效果：和<道路>相邻时额外增加建造评分\n关卡增益：基地内每部署1个<饮品供给站>，关卡内获得1个<特制水上平台>，最多2个",
+      "description": "パッシブ\n<生活>系建築物\n配置後、建造スコア+160\n新本部効果：<道>と隣接時、建造スコアがさらに増加\nステージ効果：新本部に<ドリンク供給所>を1つ配置するごとに、ステージ開始時に<特設ボート>を1個獲得、最大2個まで",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2otml": {
       "blackboard": {
@@ -70827,9 +72030,9 @@
           "score": 60.0
         }
       ],
-      "description": "パッシブ\n<通路>类建筑\n通过任何<补给车轨道>与<补给车出发站台>相连时，<补给车出发站台>发出<补给车>\n部署后增加60建造评分\n基地效果：使相邻的<产线>类建筑额外增加建造评分，<补给车>运转时额外增加建造评分",
+      "description": "パッシブ\n<通路>系建築物\n任意の<補給車レール>で<補給車出発ホーム>まで接続されている場合、<補給車出発ホーム>から<補給車>が発車する\n配置後、建造スコア+60\n新本部効果：隣接する<生産>系建築物の建造スコアを追加で増加させ、<補給車>稼働中はさらに建造スコアを増加させる",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2otph": {
       "blackboard": {
@@ -70846,9 +72049,9 @@
           "score": 600.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑，完成成就获得\n当前等级部署后增加600建造评分\n基地效果：和其他任意类型的建筑相邻时额外增加建造评分",
+      "description": "パッシブ\n<装飾>系建築物、実績達成で獲得可能\n現在のレベルでは、配置後、建造スコア+600\n新本部効果：任意の建築物と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2otph2": {
       "blackboard": {
@@ -70865,9 +72068,9 @@
           "score": 600.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑，完成成就获得\n当前等级部署后增加600建造评分\n基地效果：和其他任意类型的建筑相邻时额外增加建造评分",
+      "description": "パッシブ\n<装飾>系建築物、実績達成で獲得可能\n現在のレベルでは、配置後、建造スコア+600\n新本部効果：任意の建築物と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2otph3": {
       "blackboard": {
@@ -70884,9 +72087,9 @@
           "score": 600.0
         }
       ],
-      "description": "パッシブ\n<装饰>类建筑，完成成就获得\n当前等级部署后增加600建造评分\n基地效果：和其他任意类型的建筑相邻时额外增加建造评分",
+      "description": "パッシブ\n<装飾>系建築物、実績達成で獲得可能\n現在のレベルでは、配置後、建造スコア+600\n新本部効果：任意の建築物と隣接時、追加で建造スコアが増加",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2otrk": {
       "blackboard": {
@@ -70899,9 +72102,9 @@
           "score": 60.0
         }
       ],
-      "description": "パッシブ\n<通路>类建筑\n可连接<补给车出发站台>、<补给车中转站台>和<补给车终点站台>\n部署后增加60建造评分\n基地效果：使相邻的<产线>类建筑额外增加建造评分，<补给车>运转时额外增加建造评分",
+      "description": "パッシブ\n<通路>系建築物\n<補給車出発ホーム>、<補給車中継ホーム>、<補給車終着ホーム>に接続可能\n配置後、建造スコア+60\n新本部効果：隣接する<生産>系建築物の建造スコアを追加で増加させ、<補給車>稼働中はさらに建造スコアを増加させる",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2owdp": {
       "blackboard": {
@@ -70914,9 +72117,9 @@
           "score": 10.0
         }
       ],
-      "description": "パッシブ\n<产线>类建筑\n可用于激活<木材能源转化装置>、<木石能源转化装置>、<高效能源转化装置>\n部署后增加10建造评分",
+      "description": "パッシブ\n<生産>系建築物\n<木材エネルギー変換装置>、<木石エネルギー変換装置>、<高出力エネルギー変換装置>の起動に使用可能\n配置後、建造スコア+10",
       "is_ammo_skill": false,
-      "name": "建设"
+      "name": "建設"
     },
     "sktok_xb2ppt_1": {
       "blackboard": {
@@ -70931,9 +72134,9 @@
           "item_id": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡50\n技能释放时，产出2～12份粗制赤金",
+      "description": "自然回復/自動発動\n▶0 ⚡50\nスキル発動時、粗悪な地金を2～12個産出",
       "is_ammo_skill": false,
-      "name": "摇摆"
+      "name": "ゆらゆら"
     },
     "sktok_xb2pwr_1": {
       "blackboard": {
@@ -70944,9 +72147,9 @@
           "sp": 1.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡10\n技能释放时，使攻击范围内的加工类建筑获得1点技力，被放入的野生动物攻击时自身获得1点技力",
+      "description": "自然回復/自動発動\n▶0 ⚡10\nスキル発動時、攻撃範囲内の加工系建築物のSPを1回復し、入っている野生動物に攻撃されると、自身のSPを1回復",
       "is_ammo_skill": false,
-      "name": "供能"
+      "name": "動力供給"
     },
     "sktok_xb2rgi_1": {
       "blackboard": {
@@ -70957,7 +72160,7 @@
           "prob": 0.2
         }
       ],
-      "description": "自然回復/自動発動\n▶40 ⚡50\n技能释放时，攻击范围内的每个地块有20%概率生成1块<奇异矿脉>，至少生成1块<奇异矿脉>",
+      "description": "自然回復/自動発動\n▶40 ⚡50\nスキル発動時、攻撃範囲内のマスごとに20%の確率で<稀少鉱脈>を1個生成（少なくとも<稀少鉱脈>を1個生成）",
       "is_ammo_skill": false,
       "name": "再生"
     },
@@ -70970,7 +72173,7 @@
           "prob": 0.2
         }
       ],
-      "description": "自然回復/自動発動\n▶40 ⚡50\n技能释放时，攻击范围内的每个地块有20%概率生成1块<巨大岩石>，至少生成1块<巨大岩石>",
+      "description": "自然回復/自動発動\n▶40 ⚡50\nスキル発動時、攻撃範囲内のマスごとに20%の確率で<巨大岩石>を1個生成（少なくとも<巨大岩石>を1個生成）",
       "is_ammo_skill": false,
       "name": "再生"
     },
@@ -70983,7 +72186,7 @@
           "prob": 0.2
         }
       ],
-      "description": "自然回復/自動発動\n▶40 ⚡50\n技能释放时，攻击范围内的每个地块有20%概率生成1棵<杂木林>，至少生成1棵<杂木林>",
+      "description": "自然回復/自動発動\n▶40 ⚡50\nスキル発動時、攻撃範囲内のマスごとに20%の確率で<雑木林>を1本生成（少なくとも<雑木林>を1本生成）",
       "is_ammo_skill": false,
       "name": "再生"
     },
@@ -70998,9 +72201,9 @@
           "every_grid_cnt": 2.0
         }
       ],
-      "description": "8/自動発動\n▶0 ⚡0\n维护补给车经过时，使范围内建筑获得技力:维护补给车每前进过2格回复1点技力",
+      "description": "8/自動発動\n▶0 ⚡0\nメンテナンス用補給車通過時、範囲内の建築物のSPを回復：補給車が2マス進むごとに、SPを1回復",
       "is_ammo_skill": false,
-      "name": "路过"
+      "name": "通過"
     },
     "sktok_xb2sqr_1": {
       "blackboard": {
@@ -71013,18 +72216,9 @@
           "item_id": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡70\n技能释放时，产出24份粗制赤金",
+      "description": "自然回復/自動発動\n▶0 ⚡70\nスキル発動時、粗悪な地金を24個産出",
       "is_ammo_skill": false,
-      "name": "飘扬"
-    },
-    "sktok_xb2sta_1": {
-      "blackboard": {},
-      "blackboard_by_level": [
-        {}
-      ],
-      "description": "自然回復/自動発動\n▶20 ⚡25\n与补给车终点站台通过轨道相连时回复技力；技能释放时生成一个综合维护补给车，沿补给车轨道前往补给车终点站台",
-      "is_ammo_skill": false,
-      "name": "发车"
+      "name": "はためく"
     },
     "sktok_xb2tml_1": {
       "blackboard": {
@@ -71037,9 +72231,9 @@
           "every_grid_cnt": 2.0
         }
       ],
-      "description": "8/自動発動\n▶0 ⚡0\n维护补给车经过时，使范围内建筑获得技力:维护补给车每前进过2格回复1点技力",
+      "description": "8/自動発動\n▶0 ⚡0\nメンテナンス用補給車通過時、範囲内の建築物のSPを回復：補給車が2マス進むごとに、SPを1回復",
       "is_ammo_skill": false,
-      "name": "路过"
+      "name": "通過"
     },
     "sktok_xb2txtl_1": {
       "blackboard": {
@@ -71058,7 +72252,7 @@
           "sp": 1.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡50\n累计受击次数，受到元素伤害时额外回复1点技力；可加工：\n[lv2]工业纤维+金属板→整箱的武器\n[lv1]粘合剂+金属板→整箱的器械\n[lv1]铁矿石→金属板",
+      "description": "被撃回復/自動発動\n▶0 ⚡50\n累計被撃回数。元素ダメージを受けると、追加でSPを1回復。加工可能：\n[Lv.2]工業繊維+金属の板材→箱詰めの武器\n[Lv.1]接着剤+金属の板材→箱詰めの器械\n[Lv.1]鉄鉱石→金属の板材",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -71079,7 +72273,7 @@
           "sp": 1.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡50\n累计受击次数，受到来自近战干员的攻击时额外回复1点技力；可加工：\n[lv2]石板+金属板→整箱的工具\n[lv1]稻谷→大米\n[lv1]蟹壳碎片→防水革",
+      "description": "被撃回復/自動発動\n▶0 ⚡50\n累計被撃回数。近距離オペレーターから攻撃を受けたとき、追加でSPを1回復。加工可能：\n[Lv.2]石の板材+金属の板材→箱詰めの工具\n[Lv.1]稲→米\n[Lv.1]カニ殻の欠片→防水革",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -71098,7 +72292,7 @@
           "sp": 1.0
         }
       ],
-      "description": "被撃回復/自動発動\n▶0 ⚡5\n累计受到的伤害，每次清空累计槽获得1点技力；可加工：\n[lv3]粘合剂+金属板→整箱的器械\n[lv1]工业纤维+金属板→整箱的武器",
+      "description": "被撃回復/自動発動\n▶0 ⚡5\n累計被ダメージ。ダメージの累計ゲージがリセットされるたびにSPを1獲得。加工可能：\n[Lv.3]接着剤+金属の板材→箱詰めの器械\n[Lv.1]工業繊維+金属の板材→箱詰めの武器",
       "is_ammo_skill": false,
       "name": "加工"
     },
@@ -71115,7 +72309,7 @@
       ],
       "description": "",
       "is_ammo_skill": false,
-      "name": "变化"
+      "name": "変化"
     },
     "sktok_xb2wfty_1": {
       "blackboard": {
@@ -71128,9 +72322,9 @@
           "item_id": 0.0
         }
       ],
-      "description": "自然回復/自動発動\n▶0 ⚡30\n技能释放时，获取1份清水",
+      "description": "自然回復/自動発動\n▶0 ⚡30\nスキル発動時、水を1個獲得",
       "is_ammo_skill": false,
-      "name": "采水"
+      "name": "採水"
     },
     "sktok_xbaaro": {
       "blackboard": {
@@ -71584,9 +72778,9 @@
           "score": 1800.0
         }
       ],
-      "description": "8/手動発動\n▶0 ⚡0\n圈养在大型兽栏时提供1800建造评分",
+      "description": "8/手動発動\n▶0 ⚡0\n大型畜舎で飼育中、建設値+1800",
       "is_ammo_skill": false,
-      "name": "灵绒兽"
+      "name": "霊絨獣"
     },
     "sktok_xbcp": {
       "blackboard": {

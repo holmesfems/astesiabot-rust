@@ -64,6 +64,13 @@
       "name": "ディアマンテ"
     },
     {
+      "char_id": "char_4247_oxi",
+      "cn_name": "塔露拉",
+      "day": 9,
+      "month": 1,
+      "name": "塔露拉"
+    },
+    {
       "char_id": "char_302_glaze",
       "cn_name": "安比尔",
       "day": 13,
@@ -1653,6 +1660,13 @@
       "name": "ベッローネ"
     },
     {
+      "char_id": "char_4169_caledo",
+      "cn_name": "镜匠",
+      "day": 6,
+      "month": 8,
+      "name": "镜匠"
+    },
+    {
       "char_id": "char_4222_taraxa",
       "cn_name": "风絮",
       "day": 7,
@@ -2458,6 +2472,13 @@
       "name": "パズル"
     },
     {
+      "char_id": "char_4245_alga",
+      "cn_name": "奥尔佳",
+      "day": 5,
+      "month": 12,
+      "name": "奥尔佳"
+    },
+    {
       "char_id": "char_4019_ncdeer",
       "cn_name": "九色鹿",
       "day": 8,
@@ -2638,6 +2659,13 @@
       "day": 26,
       "month": 12,
       "name": "サンクタ・ミキサー"
+    },
+    {
+      "char_id": "char_4244_tocka",
+      "cn_name": "冻河",
+      "day": 27,
+      "month": 12,
+      "name": "冻河"
     },
     {
       "char_id": "char_4016_kazema",

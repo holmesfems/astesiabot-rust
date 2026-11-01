@@ -397,8 +397,12 @@
     "九色鹿": "char_4019_ncdeer",
     "予願アンジェリーナ": "char_1015_aglna2",
     "八幡海鈴": "char_4186_tmoris",
+    "冻河": "char_4244_tocka",
     "凛御シルバーアッシュ": "char_1045_svash2",
     "司霆レイズ": "char_1043_leizi2",
+    "国度": "char_4246_dminon",
+    "塔露拉": "char_4247_oxi",
+    "奥尔佳": "char_4245_alga",
     "寒芒クルース": "char_1021_kroos2",
     "岳羽ゆかり": "char_4219_yukari",
     "帰溟スペクター": "char_1023_ghost2",
@@ -430,9 +434,11 @@
     "荒蕪ラップランド": "char_1038_whitw2",
     "萃香パフューマー": "char_1022_flwr2",
     "血掟テキサス": "char_1028_texas2",
+    "行铃": "char_4170_hdbell",
     "豊川祥子": "char_4182_oblvns",
     "赤刃明霄チェン": "char_1050_chen3",
     "遊龍チェン": "char_1013_chen2",
+    "镜匠": "char_4169_caledo",
     "雷狼竜Sカタパルト": "char_1049_catap2"
   },
   "operators": {
@@ -7719,7 +7725,46 @@
       "atk_trust_max": 35.0,
       "cn_name": "凛御银灰",
       "id": "char_1045_svash2",
-      "modules": [],
+      "modules": [
+        {
+          "atk_by_level": [
+            40.0,
+            50.0,
+            65.0
+          ],
+          "eq_id": "uniequip_002_svash2",
+          "eq_type": "X",
+          "name": "邀约",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "atk": 0.07,
+                  "respawn_time": 0.75,
+                  "sp": 4.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "atk": 0.1,
+                  "multiplier_max_offset": -0.25,
+                  "respawn_time": 0.75,
+                  "sp": 4.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 60,
+          "unlock_phase": 2
+        }
+      ],
       "name": "凛御シルバーアッシュ",
       "nation_id": "kjerag",
       "phases": [
@@ -8094,6 +8139,65 @@
       "cn_name": "溯光星源",
       "id": "char_1047_halo2",
       "modules": [
+        {
+          "atk_by_level": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "eq_id": "uniequip_003_halo2",
+          "eq_type": "X",
+          "name": "远方问候",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "halo2_t_1[weak].damage_scale": 1.1,
+                  "halo2_t_1[weak].damage_scale_add": 0.08,
+                  "halo2_t_1[weak].damage_scale_max": 1.18,
+                  "halo2_t_1[weak].interval": 6.0
+                },
+                "potential_rank": 0,
+                "talent_index": 1
+              },
+              {
+                "blackboard": {
+                  "halo2_t_1[weak].damage_scale": 1.12,
+                  "halo2_t_1[weak].damage_scale_add": 0.08,
+                  "halo2_t_1[weak].damage_scale_max": 1.2,
+                  "halo2_t_1[weak].interval": 6.0
+                },
+                "potential_rank": 4,
+                "talent_index": 1
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "halo2_t_1[weak].damage_scale": 1.1,
+                  "halo2_t_1[weak].damage_scale_add": 0.09,
+                  "halo2_t_1[weak].damage_scale_max": 1.19,
+                  "halo2_t_1[weak].interval": 5.0
+                },
+                "potential_rank": 0,
+                "talent_index": 1
+              },
+              {
+                "blackboard": {
+                  "halo2_t_1[weak].damage_scale": 1.12,
+                  "halo2_t_1[weak].damage_scale_add": 0.09,
+                  "halo2_t_1[weak].damage_scale_max": 1.21,
+                  "halo2_t_1[weak].interval": 5.0
+                },
+                "potential_rank": 4,
+                "talent_index": 1
+              }
+            ]
+          ],
+          "unlock_level": 60,
+          "unlock_phase": 2
+        },
         {
           "atk_by_level": [
             35.0,
@@ -23298,6 +23402,48 @@
       "modules": [
         {
           "atk_by_level": [
+            56.0,
+            76.0,
+            90.0
+          ],
+          "eq_id": "uniequip_004_mlyss",
+          "eq_type": "D",
+          "name": "“缪尔赛思和朋友们”",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "cnt": 1.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "cnt": 1.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "block_cnt": 1.0,
+                  "interval": 25.0,
+                  "scale": 1.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 60,
+          "unlock_phase": 2
+        },
+        {
+          "atk_by_level": [
             15.0,
             20.0,
             25.0
@@ -37579,6 +37725,45 @@
       "modules": [
         {
           "atk_by_level": [
+            56.0,
+            69.0,
+            77.0
+          ],
+          "eq_id": "uniequip_004_horn",
+          "eq_type": "A",
+          "name": "号角特限证章",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {},
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {},
+                "potential_rank": 2,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {},
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {},
+                "potential_rank": 2,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 60,
+          "unlock_phase": 2
+        },
+        {
+          "atk_by_level": [
             65.0,
             85.0,
             100.0
@@ -50277,6 +50462,151 @@
         }
       ]
     },
+    "char_4169_caledo": {
+      "atk_base": 625.0,
+      "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
+      "atk_trust_max": 30.0,
+      "cn_name": "镜匠",
+      "id": "char_4169_caledo",
+      "modules": [
+        {
+          "atk_by_level": [
+            25.0,
+            38.0,
+            60.0
+          ],
+          "eq_id": "uniequip_002_caledo",
+          "eq_type": "X",
+          "name": "“啊哈！”",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "hp_ratio_1": 0.02,
+                  "hp_ratio_2": 0.06,
+                  "max_hp": 0.05
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "hp_ratio_1": 0.02,
+                  "hp_ratio_2": 0.08,
+                  "max_hp": 0.05
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "hp_ratio_1": 0.02,
+                  "hp_ratio_2": 0.06,
+                  "max_hp": 0.1
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "hp_ratio_1": 0.02,
+                  "hp_ratio_2": 0.08,
+                  "max_hp": 0.1
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 50,
+          "unlock_phase": 2
+        }
+      ],
+      "name": "镜匠",
+      "nation_id": "rhodes",
+      "phases": [
+        {
+          "atk_max": 357.0,
+          "atk_min": 249.0,
+          "max_level": 50
+        },
+        {
+          "atk_max": 476.0,
+          "atk_min": 357.0,
+          "max_level": 70
+        },
+        {
+          "atk_max": 595.0,
+          "atk_min": 476.0,
+          "max_level": 80
+        }
+      ],
+      "position": "MELEE",
+      "profession": "TANK",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "hp_ratio_1": 0.02,
+                "hp_ratio_2": 0.03,
+                "max_hp": 0.0
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "hp_ratio_1": 0.02,
+                "hp_ratio_2": 0.05,
+                "max_hp": 0.0
+              },
+              "phase": 1,
+              "potential_rank": 4
+            },
+            {
+              "blackboard": {
+                "hp_ratio_1": 0.02,
+                "hp_ratio_2": 0.06,
+                "max_hp": 0.0
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "hp_ratio_1": 0.02,
+                "hp_ratio_2": 0.08,
+                "max_hp": 0.0
+              },
+              "phase": 2,
+              "potential_rank": 4
+            }
+          ]
+        }
+      ]
+    },
     "char_416_zumama": {
       "atk_base": 1077.0,
       "atk_potential": 0.0,
@@ -50508,6 +50838,87 @@
               },
               "phase": 2,
               "potential_rank": 0
+            }
+          ]
+        }
+      ]
+    },
+    "char_4170_hdbell": {
+      "atk_base": 1500.0,
+      "atk_potential": 25.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        25.0,
+        25.0
+      ],
+      "atk_trust_max": 50.0,
+      "cn_name": "行铃",
+      "id": "char_4170_hdbell",
+      "modules": [],
+      "name": "行铃",
+      "nation_id": "minos",
+      "phases": [
+        {
+          "atk_max": 893.0,
+          "atk_min": 625.0,
+          "max_level": 45
+        },
+        {
+          "atk_max": 1160.0,
+          "atk_min": 893.0,
+          "max_level": 60
+        },
+        {
+          "atk_max": 1450.0,
+          "atk_min": 1160.0,
+          "max_level": 70
+        }
+      ],
+      "position": "MELEE",
+      "profession": "SPECIAL",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "atk": 0.08
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "atk": 0.1
+              },
+              "phase": 1,
+              "potential_rank": 4
+            },
+            {
+              "blackboard": {
+                "atk": 0.1
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "atk": 0.12
+              },
+              "phase": 2,
+              "potential_rank": 4
             }
           ]
         }
@@ -53407,7 +53818,63 @@
       "atk_trust_max": 50.0,
       "cn_name": "松桐",
       "id": "char_4199_makiri",
-      "modules": [],
+      "modules": [
+        {
+          "atk_by_level": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "eq_id": "uniequip_002_makiri",
+          "eq_type": "X",
+          "name": "神明的惦念",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "atk": 0.1,
+                  "interval": 30.0,
+                  "max_hp": 0.1
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "atk": 0.12,
+                  "interval": 30.0,
+                  "max_hp": 0.1
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "atk": 0.13,
+                  "interval": 30.0,
+                  "max_hp": 0.13
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "atk": 0.15,
+                  "interval": 30.0,
+                  "max_hp": 0.13
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 50,
+          "unlock_phase": 2
+        }
+      ],
       "name": "マツキリ",
       "nation_id": "higashi",
       "phases": [
@@ -58132,6 +58599,556 @@
               },
               "phase": 2,
               "potential_rank": 4
+            }
+          ]
+        }
+      ]
+    },
+    "char_4244_tocka": {
+      "atk_base": 851.0,
+      "atk_potential": 40.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        40.0,
+        40.0,
+        40.0
+      ],
+      "atk_trust_max": 50.0,
+      "cn_name": "冻河",
+      "id": "char_4244_tocka",
+      "modules": [],
+      "name": "冻河",
+      "nation_id": "ursus",
+      "phases": [
+        {
+          "atk_max": 517.0,
+          "atk_min": 361.0,
+          "max_level": 50
+        },
+        {
+          "atk_max": 664.0,
+          "atk_min": 517.0,
+          "max_level": 80
+        },
+        {
+          "atk_max": 801.0,
+          "atk_min": 664.0,
+          "max_level": 90
+        }
+      ],
+      "position": "RANGED",
+      "profession": "SUPPORT",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ],
+        [
+          "3",
+          2
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "heal_scale": 0.4,
+                "sp": 1.0
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "heal_scale": 0.6,
+                "sp": 1.0
+              },
+              "phase": 1,
+              "potential_rank": 2
+            },
+            {
+              "blackboard": {
+                "heal_scale": 0.8,
+                "sp": 2.0
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "heal_scale": 1.0,
+                "sp": 2.0
+              },
+              "phase": 2,
+              "potential_rank": 2
+            }
+          ]
+        },
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "attack@projectile_range": 1.5,
+                "attack@t2_atk": -0.2,
+                "attack@t2_buff_duration": 6.0,
+                "attack@t2_magic_atk_scale": 0.8
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "attack@projectile_range": 1.5,
+                "attack@t2_atk": -0.2,
+                "attack@t2_buff_duration": 8.0,
+                "attack@t2_magic_atk_scale": 0.8
+              },
+              "phase": 2,
+              "potential_rank": 4
+            }
+          ]
+        }
+      ]
+    },
+    "char_4245_alga": {
+      "atk_base": 680.0,
+      "atk_potential": 26.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        26.0,
+        26.0,
+        26.0
+      ],
+      "atk_trust_max": 40.0,
+      "cn_name": "奥尔佳",
+      "id": "char_4245_alga",
+      "modules": [
+        {
+          "atk_by_level": [
+            20.0,
+            28.0,
+            32.0
+          ],
+          "eq_id": "uniequip_002_alga",
+          "eq_type": "X",
+          "name": "来自昨天",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "alga[atk_up].atk": 0.05,
+                  "alga[check_enemy].atk": 0.08
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "alga[atk_up].atk": 0.05,
+                  "alga[check_enemy].atk": 0.1
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "alga[atk_up].atk": 0.05,
+                  "alga[check_enemy].atk": 0.1
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              },
+              {
+                "blackboard": {
+                  "alga[atk_up].atk": 0.05,
+                  "alga[check_enemy].atk": 0.12
+                },
+                "potential_rank": 4,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 50,
+          "unlock_phase": 2
+        }
+      ],
+      "name": "奥尔佳",
+      "nation_id": "ursus",
+      "phases": [
+        {
+          "atk_max": 402.0,
+          "atk_min": 281.0,
+          "max_level": 50
+        },
+        {
+          "atk_max": 537.0,
+          "atk_min": 402.0,
+          "max_level": 70
+        },
+        {
+          "atk_max": 640.0,
+          "atk_min": 537.0,
+          "max_level": 80
+        }
+      ],
+      "position": "MELEE",
+      "profession": "WARRIOR",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "alga[atk_up].atk": 0.02,
+                "alga[check_enemy].atk": 0.02
+              },
+              "phase": 0,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "alga[atk_up].atk": 0.02,
+                "alga[check_enemy].atk": 0.04
+              },
+              "phase": 0,
+              "potential_rank": 4
+            },
+            {
+              "blackboard": {
+                "alga[atk_up].atk": 0.05,
+                "alga[check_enemy].atk": 0.02
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "alga[atk_up].atk": 0.05,
+                "alga[check_enemy].atk": 0.04
+              },
+              "phase": 1,
+              "potential_rank": 4
+            },
+            {
+              "blackboard": {
+                "alga[atk_up].atk": 0.05,
+                "alga[check_enemy].atk": 0.05
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "alga[atk_up].atk": 0.05,
+                "alga[check_enemy].atk": 0.07
+              },
+              "phase": 2,
+              "potential_rank": 4
+            }
+          ]
+        }
+      ]
+    },
+    "char_4246_dminon": {
+      "atk_base": 967.0,
+      "atk_potential": 0.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "atk_trust_max": 40.0,
+      "cn_name": "国度",
+      "id": "char_4246_dminon",
+      "modules": [
+        {
+          "atk_by_level": [
+            60.0,
+            72.0,
+            80.0
+          ],
+          "eq_id": "uniequip_002_dminon",
+          "eq_type": "X",
+          "name": "空瓶罐们",
+          "talent_overrides_by_level": [
+            [],
+            [
+              {
+                "blackboard": {
+                  "atk_scale": 0.17,
+                  "attack_speed": -18.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              }
+            ],
+            [
+              {
+                "blackboard": {
+                  "atk_scale": 0.2,
+                  "attack_speed": -20.0
+                },
+                "potential_rank": 0,
+                "talent_index": 0
+              }
+            ]
+          ],
+          "unlock_level": 60,
+          "unlock_phase": 2
+        }
+      ],
+      "name": "国度",
+      "nation_id": "ursus",
+      "phases": [
+        {
+          "atk_max": 570.0,
+          "atk_min": 399.0,
+          "max_level": 50
+        },
+        {
+          "atk_max": 741.0,
+          "atk_min": 570.0,
+          "max_level": 80
+        },
+        {
+          "atk_max": 927.0,
+          "atk_min": 741.0,
+          "max_level": 90
+        }
+      ],
+      "position": "MELEE",
+      "profession": "SPECIAL",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ],
+        [
+          "3",
+          2
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "atk_scale": 0.1,
+                "attack_speed": -5.0
+              },
+              "phase": 0,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "atk_scale": 0.1,
+                "attack_speed": -10.0
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "atk_scale": 0.13,
+                "attack_speed": -15.0
+              },
+              "phase": 2,
+              "potential_rank": 0
+            }
+          ]
+        },
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "atk_scale": 5.0,
+                "stun": 5.0
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "atk_scale": 6.0,
+                "stun": 5.0
+              },
+              "phase": 2,
+              "potential_rank": 4
+            }
+          ]
+        }
+      ]
+    },
+    "char_4247_oxi": {
+      "atk_base": 965.0,
+      "atk_potential": 35.0,
+      "atk_potential_by_rank": [
+        0.0,
+        0.0,
+        0.0,
+        35.0,
+        35.0,
+        35.0
+      ],
+      "atk_trust_max": 90.0,
+      "cn_name": "塔露拉",
+      "id": "char_4247_oxi",
+      "modules": [],
+      "name": "塔露拉",
+      "nation_id": "ursus",
+      "phases": [
+        {
+          "atk_max": 572.0,
+          "atk_min": 400.0,
+          "max_level": 50
+        },
+        {
+          "atk_max": 743.0,
+          "atk_min": 572.0,
+          "max_level": 80
+        },
+        {
+          "atk_max": 875.0,
+          "atk_min": 743.0,
+          "max_level": 90
+        }
+      ],
+      "position": "MELEE",
+      "profession": "WARRIOR",
+      "skill_unlock_phase": [
+        [
+          "1",
+          0
+        ],
+        [
+          "2",
+          1
+        ],
+        [
+          "3",
+          2
+        ]
+      ],
+      "talents": [
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "arcane_idle_delay": 3.0,
+                "arcane_max": 0.0,
+                "arcane_step": 0.0,
+                "arcane_step_interval": 0.5,
+                "ep_damage_ratio": 0.03
+              },
+              "phase": 0,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "arcane_idle_delay": 3.0,
+                "arcane_max": 0.0,
+                "arcane_step": 0.0,
+                "arcane_step_interval": 0.5,
+                "ep_damage_ratio": 0.05
+              },
+              "phase": 0,
+              "potential_rank": 4
+            },
+            {
+              "blackboard": {
+                "arcane_idle_delay": 3.0,
+                "arcane_max": 0.09,
+                "arcane_step": 0.015,
+                "arcane_step_interval": 0.5,
+                "ep_damage_ratio": 0.06
+              },
+              "phase": 1,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "arcane_idle_delay": 3.0,
+                "arcane_max": 0.12,
+                "arcane_step": 0.02,
+                "arcane_step_interval": 0.5,
+                "ep_damage_ratio": 0.08
+              },
+              "phase": 1,
+              "potential_rank": 4
+            },
+            {
+              "blackboard": {
+                "arcane_idle_delay": 3.0,
+                "arcane_max": 0.15,
+                "arcane_step": 0.025,
+                "arcane_step_interval": 0.5,
+                "ep_damage_ratio": 0.11
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "arcane_idle_delay": 3.0,
+                "arcane_max": 0.18,
+                "arcane_step": 0.03,
+                "arcane_step_interval": 0.5,
+                "ep_damage_ratio": 0.13
+              },
+              "phase": 2,
+              "potential_rank": 4
+            }
+          ]
+        },
+        {
+          "candidates": [
+            {
+              "blackboard": {
+                "field_atk_scale": 0.12,
+                "field_duration": 3.0,
+                "field_interval": 0.3,
+                "max_count": 25.0
+              },
+              "phase": 2,
+              "potential_rank": 0
+            },
+            {
+              "blackboard": {
+                "field_atk_scale": 0.15,
+                "field_duration": 4.0,
+                "field_interval": 0.3,
+                "max_count": 25.0
+              },
+              "phase": 2,
+              "potential_rank": 2
             }
           ]
         }
