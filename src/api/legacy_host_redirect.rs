@@ -47,6 +47,11 @@ fn strip_port(host: &str) -> &str {
     host.split(':').next().unwrap_or(host)
 }
 
+/// Host ヘッダの値が旧ホスト `*.herokuapp.com` か。
+pub(crate) fn is_herokuapp_host(host: &str) -> bool {
+    strip_port(host).to_ascii_lowercase().ends_with(".herokuapp.com")
+}
+
 /// リダイレクトすべきなら飛び先の絶対URLを返す。
 fn redirect_target(
     canonical: &CanonicalBase,
@@ -61,9 +66,9 @@ fn redirect_target(
     if EXCLUDED_PATHS.contains(&path) {
         return None;
     }
-    let host = strip_port(host?).to_ascii_lowercase();
-    let is_legacy = host.ends_with(".herokuapp.com")
-        || host.strip_prefix("www.") == Some(canonical.host.as_str());
+    let host = host?;
+    let is_legacy = is_herokuapp_host(host)
+        || strip_port(host).to_ascii_lowercase().strip_prefix("www.") == Some(canonical.host.as_str());
     is_legacy.then(|| format!("{}{}", canonical.base, path_and_query))
 }
 
