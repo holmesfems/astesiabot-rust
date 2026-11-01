@@ -3,6 +3,7 @@ pub mod fk_kill_calculator;
 mod home;
 mod legacy_host_redirect;
 mod lod_chest_solver;
+mod origin_secret;
 mod recruitment;
 pub mod risei;
 mod site_icons;
@@ -233,6 +234,13 @@ pub async fn run_api(state: Arc<AppState>) {
         app = app.layer(axum::middleware::from_fn_with_state(
             Arc::new(canonical),
             legacy_host_redirect::redirect_legacy_host,
+        ));
+    }
+    // Cloudflare を通ったかを X-Origin-Secret で確かめる（一番外側）。ORIGIN_SECRET 未設定なら何もしない。
+    if let Some(origin_secret) = origin_secret::OriginSecret::from_env() {
+        app = app.layer(axum::middleware::from_fn_with_state(
+            Arc::new(origin_secret),
+            origin_secret::check_origin_secret,
         ));
     }
     let port = std::env::var("PORT")
