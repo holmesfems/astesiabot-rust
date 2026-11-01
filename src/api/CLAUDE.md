@@ -21,7 +21,9 @@
 - `recruitment.rs` … `POST /recruitment/`（iOS ショートカット等から叩く公開求人 API）。
   応答に `tagCount` と、`shortcutVersion` が `data/recruitment/shortcut.yaml` の最新より古い時だけ
   更新通知 `update` を付ける（版を送らない旧ショートカットには `reply` 末尾にも通知文。
-  `latest_version` が0の間は出さない）。`pickupOperators` は入力しづらい別名を正式表記へ寄せる
+  `latest_version` が0の間は出さない）。旧ホスト（`*.herokuapp.com`）宛てなら版に関係なく
+  `reply` の**冒頭**に「送信先が間もなく使えなくなる・新しい版に入れ替えて」を入れ、末尾の更新通知はそれで代える
+  （旧ホスト無効化に向けた移行のお願い）。`pickupOperators` は入力しづらい別名を正式表記へ寄せる
   （`PICKUP_ALIASES`。例: `GALLUS2` → `GALLUS²`）。認証なしなので入口で量を絞る:
   `text` は `MAX_TEXT_CHARS`（2000文字。超えたら400＋通常形のエラー）、本文は `MAX_BODY_BYTES`
   （64KiB。このルートだけ DefaultBodyLimit、超えたら413）。入手用固定 URL
