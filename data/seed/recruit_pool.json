@@ -1,6 +1,18 @@
 {
   "cn_only": [
     {
+      "char_id": "char_484_robrta",
+      "cn_name": "罗比菈塔",
+      "job": "補助",
+      "name": "ロベルタ",
+      "stars": 4,
+      "tags": [
+        "近距離",
+        "防御",
+        "支援"
+      ]
+    },
+    {
       "char_id": "char_421_crow",
       "cn_name": "羽毛笔",
       "job": "前衛",
@@ -9,6 +21,17 @@
       "tags": [
         "近距離",
         "火力"
+      ]
+    },
+    {
+      "char_id": "char_473_mberry",
+      "cn_name": "桑葚",
+      "job": "医療",
+      "name": "マルベリー",
+      "stars": 5,
+      "tags": [
+        "遠距離",
+        "治療"
       ]
     },
     {
@@ -21,6 +44,18 @@
         "近距離",
         "火力",
         "牽制"
+      ]
+    },
+    {
+      "char_id": "char_479_sleach",
+      "cn_name": "琴柳",
+      "job": "先鋒",
+      "name": "サイラッハ",
+      "stars": 6,
+      "tags": [
+        "近距離",
+        "COST回復",
+        "支援"
       ]
     }
   ],
