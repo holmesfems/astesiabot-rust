@@ -161,6 +161,34 @@ pub fn validate_special_mul_multiplier(overrides: &Overrides, combat: &OperatorC
     bad
 }
 
+/// overrides.yamlの`stone_board`が実データに解決でき、どのキーも最大成長で0より大きいこと、
+/// `combined`と併用していないことを検証する(キー名のスペルミスは`build_talent_source`が
+/// 0にフォールバックするだけで`None`にならないので、値で見る)。
+pub fn validate_stone_board(overrides: &Overrides, combat: &OperatorCombat) -> Vec<String> {
+    let mut bad = Vec::new();
+    for (op_id, skill_num) in overrides.all_keys() {
+        let Some(variants) = overrides.variants_for(op_id, skill_num) else { continue };
+        for variant in variants {
+            let Some(board) = &variant.stone_board else { continue };
+            if variant.combined {
+                bad.push(format!("{op_id}/{skill_num} (stone_boardはcombinedと併用できない)"));
+            }
+            let Some(op) = combat.operators.get(op_id) else {
+                bad.push(format!("{op_id}/{skill_num} (operator idがoperator_combatに無い)"));
+                continue;
+            };
+            for key in [&board.damage_per_stack_key, &board.res_pen_per_stack_key, &board.max_stacks_key] {
+                match conditional_source::build_talent_source(op, board.talent, key) {
+                    Some(table) if table.values_by_elite_and_potential[2][5] > 0.0 => {}
+                    Some(_) => bad.push(format!("{op_id}/{skill_num} (stone_boardのtalent[{}]/key'{key}'が最大成長でも値0以下)", board.talent)),
+                    None => bad.push(format!("{op_id}/{skill_num} (stone_boardのtalent[{}]が無い)", board.talent)),
+                }
+            }
+        }
+    }
+    bad
+}
+
 /// overrides.yamlの`multiplier_key`/`self_atk_pct_factor`(P7)が実データと整合しているかを
 /// 検証する。固定値との同時指定・存在しないキー参照の一覧を返す(空ならOK)。ゲームデータ
 /// 更新でblackboardのキー名が変わった際のドリフト検知用(`cargo test`で実行する)。

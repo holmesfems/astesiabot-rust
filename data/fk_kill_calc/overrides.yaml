@@ -168,3 +168,18 @@ char_400_weedy:
         },
         note: "通常時(蓄水砲が周囲に無い/モジュールX未装備)はself_atk_pct=0(Auto)。特殊強化ON時はモジュールX(uniequip_002_weedy)をLv2以上で装備している時だけ+15%(Lv2)/+20%(Lv3)を加算する(置き換えでなく加算。出典: battle_equip_table.jsonのuniequip_002_weedy、素質「蓄水炮強化」のblackboardキー`atk`。Lv1は素質強化自体が付かないので0)。",
       }
+
+# ウァン(char_2027_wang) S3「天下劫」: 碁石の置き方でスタックが変わるので、Hit数欄の代わりに
+# 碁石盤を出す(`stone_board`)。値は第二素質(talent[1])から引く。倍率は blackboard の atk_scale。
+# 自動判定だと術にならない場合があるのでダメージ種別は術に固定する。
+char_2027_wang:
+  "3":
+    - {
+        damage_type: arts,
+        stone_board: {
+          talent: 1,
+          damage_per_stack_key: "attack@per_atk_scale",
+          res_pen_per_stack_key: "attack@per_magic_resist_penetrate_fixed",
+          max_stacks_key: "attack@max_trigger_cnt",
+        },
+      }

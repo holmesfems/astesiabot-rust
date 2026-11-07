@@ -87,6 +87,10 @@ function rowPlainSummary(row) {
     const partsText = entry.parts.map((p, i) => `${p.label} ${fmtInt(r.parts[i].rowDamage)}`).join(" + ");
     return `${op.name} ${eliteLevelLabel(row)} ${shortSkillRef(entry)}: ${partsText} → 実ダメ ${fmtInt(r.rowDamage)}`;
   }
+  if (entry && entry.stoneBoard) {
+    const fired = r.parts.reduce((sum, d) => sum + d.count, 0);
+    return `${op.name} ${eliteLevelLabel(row)} ${shortSkillRef(entry)}: 碁石${fired}個発動 → 実ダメ ${fmtInt(r.rowDamage)}`;
+  }
   return `${op.name} ${eliteLevelLabel(row)} ${shortSkillRef(entry)}: ${fmtInt(r.perHit)}×${row.hits}Hit → 実ダメ ${fmtInt(r.rowDamage)}`;
 }
 

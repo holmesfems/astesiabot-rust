@@ -1,16 +1,21 @@
 // フレームキル計算機 — オペレーター行の展開ビュー。
 
 import {
+  ENEMY_CELL,
+  STONE_BOARD_SIZE,
+  analyzeStoneBoard,
   computeTotal,
   findEntry,
   findModule,
   findOperator,
   maxEliteFor,
   maxLevelForElite,
+  isStoneInRange,
   moduleUsable,
   resolveConditionalValue,
   resolveEntryValues,
   resolveSpecialCurrentValue,
+  resolveStoneBoardValues,
   skillLevelWarning,
   skillUnlockWarning,
   specialAddCanApply,
@@ -329,15 +334,49 @@ export function renderModuleUnusableHint(op, row) {
   return `<p class="special-hint">モジュール${escapeHtml(module.typeName)}は昇進${module.unlockPhase} Lv${module.unlockLevel}以上で装備可能（現在は加算されません）</p>`;
 }
 
+// 碁石盤(ウァン S3): Hit数の代わりに出す5x5の盤面。中央は敵のマスで置けない。
+// 碁石の数字はスタック数。発動する/線の数にだけ入る/孤立で未起動、を色で分ける。
+function renderStoneBoard(op, entry, row, idx) {
+  const values = resolveStoneBoardValues(op, entry, row);
+  const stones = new Map(analyzeStoneBoard(row.stones, values.maxStacks).map((s) => [s.cell, s]));
+  const cells = Array.from({ length: STONE_BOARD_SIZE ** 2 }, (_, cell) => {
+    if (cell === ENEMY_CELL) return `<div class="stone-cell stone-enemy" role="img" aria-label="敵のマス">敵</div>`;
+    const stone = stones.get(cell);
+    const rangeClass = isStoneInRange(cell) ? "" : " stone-out";
+    const stateClass = !stone ? "" : !stone.active ? "stone-idle" : stone.fires ? "stone-fire" : "stone-line";
+    const mark = stone ? `<span class="stone ${stateClass}">${stone.active ? stone.stacks : ""}</span>` : "";
+    return `<button type="button" class="stone-cell${rangeClass}" data-action="toggle-stone" data-role="stone" data-field="stone-${cell}" data-idx="${idx}" data-cell="${cell}" aria-pressed="${!!stone}" aria-label="${Math.floor(cell / STONE_BOARD_SIZE) + 1}行${(cell % STONE_BOARD_SIZE) + 1}列">${mark}</button>`;
+  }).join("");
+  const talentNote =
+    values.maxStacks > 0
+      ? `第二素質: 1スタックごとにダメージ+${fmtPct(values.damagePerStack)}%・術耐性-${trimNum(values.resPenPerStack)}（最大${trimNum(values.maxStacks)}）`
+      : "第二素質は昇進2で解放（今は線のボーナスなし）";
+  return `
+    <div class="stone-board-block">
+      <div class="stone-board-label">碁石の配置</div>
+      <div class="stone-board">${cells}</div>
+      <p class="stone-board-legend">緑=発動 / 灰=範囲外（線の数にだけ入る） / 点線=孤立で未起動。数字はスタック数</p>
+      <p class="stone-board-legend">${talentNote}</p>
+      <button type="button" class="stone-clear" data-action="clear-stones" data-idx="${idx}">盤面を空にする</button>
+    </div>`;
+}
+
 // P10(混合スキル): ダメージ種別/倍率/[倍率候補。パーツ無し限定]/Hit数/ダメージ倍率%を
 // まとめて描く。`entry.parts`が無い/1件以下(=混合スキルではない通常エントリ)なら
 // 従来通りの単一ブロック(data-partは付けない=パーツ0扱いのまま)、2件以上あれば
 // 共通のHit数欄1つ + パーツごとの小ブロック(見出し=パーツラベル。例: "物理"/"術"。
 // 中身は倍率/ダメージ倍率%だけ)を並べる。ダメージ種別は見出しで自明なので選ばせず、
 // 倍率候補セレクトも出さない(overrideでキーが指定済みのため)。
-function renderDamagePartsSection(entry, row, idx) {
+function renderDamagePartsSection(op, entry, row, idx) {
   const parts = (entry && entry.parts) || [];
   if (parts.length < 2) {
+    const hasBoard = !!(entry && entry.stoneBoard);
+    const hitsField = hasBoard
+      ? ""
+      : `<label>Hit数
+        <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
+        ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
+      </label>`;
     return `
     <div class="row-grid2">
       <label>ダメージ種別
@@ -359,11 +398,9 @@ function renderDamagePartsSection(entry, row, idx) {
         <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}" value="${trimNum(row.multiplier)}">
         ${fieldBadges(entry, "multiplier", row.multiplier, idx, row.skillLevel)}
       </label>
-      <label>Hit数
-        <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
-        ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
-      </label>
+      ${hitsField}
     </div>
+    ${hasBoard ? renderStoneBoard(op, entry, row, idx) : ""}
     <div class="row-grid2">
       <label>ダメージ倍率%
         <input type="number" step="any" data-role="row" data-field="dmgMult" data-idx="${idx}" value="${fmtPct(row.dmgMult, 3)}">
@@ -467,7 +504,7 @@ export function renderRowExpanded(row, idx, singleConflicts) {
       </label>
     </div>
     <div class="module-hint-wrap" data-role="module-hint" data-idx="${idx}">${renderModuleUnusableHint(op, row)}</div>
-    ${renderDamagePartsSection(entry, row, idx)}
+    ${renderDamagePartsSection(op, entry, row, idx)}
     <div class="row-grid2">
       <label>セルフ%
         <input type="number" step="any" data-role="row" data-field="selfPct" data-idx="${idx}" value="${fmtPct(row.selfPct, 3)}">

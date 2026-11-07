@@ -10,6 +10,7 @@ import {
 } from "./entry.js";
 import { computeInspireForRow } from "./inspire.js";
 import { resolveAtk, resolveDefEff, resolveResEff } from "./stats.js";
+import { expandStoneBoardParts } from "./stone_board.js";
 
 /**
  * 1行分のダメージを計算する。`inspireFlat`はP1/P2の鼓舞合計(flat種バフのΣ)を足すための
@@ -77,11 +78,18 @@ export function computeTotal(catalog, rows, enemy, globalBuffIds = [], inspireSo
     const extraPct = breakdown.extraPct + specialAddPct;
     // P10(混合スキル): 行をパーツ(`entry.parts`が無ければ`[row]`自身のみ)に展開し、
     // バフ内訳/鼓舞/特殊強化(上で1回だけ計算した値)を全パーツ共通に適用してから合算する。
-    const partRows = expandRowParts(row);
-    const parts = partRows.map((partRow) => ({
-      dmgType: partRow.dmgType,
-      ...computeRowDamage(op, partRow, enemy, inspireFlat, extraPct, specialMulFactor),
-    }));
+    // 碁石盤の行は、同じスタック数の碁石を1パーツにまとめる(`stacks`/`count`を持つ)。
+    const parts = entry && entry.stoneBoard
+      ? expandStoneBoardParts(op, entry, row, enemy).map(({ partRow, partEnemy, stacks, count }) => ({
+          dmgType: partRow.dmgType,
+          stacks,
+          count,
+          ...computeRowDamage(op, partRow, partEnemy, inspireFlat, extraPct, specialMulFactor),
+        }))
+      : expandRowParts(row).map((partRow) => ({
+          dmgType: partRow.dmgType,
+          ...computeRowDamage(op, partRow, enemy, inspireFlat, extraPct, specialMulFactor),
+        }));
     const rowDamage = parts.reduce((sum, d) => sum + d.rowDamage, 0);
     const head = parts[0];
     return { row, op, breakdown, specialAddPct, specialMulFactor, inspireApplied, ...head, rowDamage, parts };

@@ -21,7 +21,7 @@ mod validate;
 mod tests;
 
 pub use dto::Catalog;
-pub use overrides::{OverrideSpecial, OverrideVariant, Overrides, OverridesMap};
+pub use overrides::{OverrideSpecial, OverrideStoneBoard, OverrideVariant, Overrides, OverridesMap};
 
 use crate::engine::external_source::fk_data::FkSheetData;
 use crate::engine::external_source::operator_combat::OperatorCombat;
@@ -38,12 +38,14 @@ pub use validate::{
     validate_overrides,
     validate_special_requires_module,
     validate_special_mul_multiplier,
+    validate_stone_board,
     validate_override_level_fields,
     validate_combined_variants,
 };
 use inspire::build_inspire_sources;
 use entry::{
     to_special_dto,
+    to_stone_board_dto,
     build_entry,
     build_combined_entry,
     values_by_level_for_key,
@@ -223,6 +225,13 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                             variant.note.clone(),
                         );
                         entry.default_module = variant.default_module.clone();
+                        entry.stone_board = variant.stone_board.as_ref().and_then(|b| match to_stone_board_dto(b, combat_op) {
+                            Some(dto) => Some(dto),
+                            None => {
+                                skipped.push(format!("stone_board:{op_id}/{}", row.skill_num));
+                                None
+                            }
+                        });
                         fk_entries.push(entry);
                     }
                 }

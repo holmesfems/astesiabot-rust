@@ -175,6 +175,14 @@ export {
   computeTotal,
 } from "./engine/damage.js";
 export {
+  STONE_BOARD_SIZE,
+  ENEMY_CELL,
+  isStoneInRange,
+  normalizeStones,
+  resolveStoneBoardValues,
+  analyzeStoneBoard,
+} from "./engine/stone_board.js";
+export {
   dropStaleRows,
 } from "./engine/sanitize.js";
 export {

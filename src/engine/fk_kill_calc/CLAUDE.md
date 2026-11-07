@@ -126,6 +126,12 @@ bot にも api にも依存しない。画面側（engine.js / ui.js）は
 - `variant_label` はパーツラベルを `+` で連結（例: `物理+術`）。`FkEntry.parts` は先頭も含む
   全パーツ（`{label, multiplier, multiplierByLevel, multiplierFixed, damageType}`）。通常エントリは空で JSON にも出さない。
 
+## 碁石盤（overrides.yaml の `stone_board`。ウァン S3）
+
+`talent` と3つのキー（`damage_per_stack_key` / `res_pen_per_stack_key` / `max_stacks_key`）を
+`build_talent_source` で値テーブルにして `FkEntry.stoneBoard` に載せる。Rust は値だけ渡し、
+数え方は画面側（`engine/stone_board.js`）が持つ。`combined` とは併用しない。
+
 ## ドリフト検知（`cargo test`）
 
 ゲームデータ更新で落ちたら YAML を見直す。
@@ -134,6 +140,7 @@ bot にも api にも依存しない。画面側（engine.js / ui.js）は
 - `validate_override_level_fields` / `validate_combined_variants`
 - `validate_special_requires_module`（モジュールが実在）/ `validate_special_mul_multiplier`
   （talent/key が実在し、最大成長で0より大きい）
+- `validate_stone_board`（talent/key が実在し、最大成長で0より大きい）
 - `validate_conditional_sources` / `validate_individual_sources`（参照の実在、最大成長で0以下にならない）
 - `every_inspire_source_points_to_existing_operator_skill_and_modules`、
   `every_inspire_source_with_potential_bonus_has_talent_potential_rank`、

@@ -1583,6 +1583,69 @@ async function runSkillLevelScenario(browser, baseUrl) {
   }
 }
 
+// ウァン S3: Hit数欄の代わりに碁石盤が出て、置き方から総ダメージを出す。
+// 盤面はオーナー確認のもの(術耐性50で41,012)。中央の敵マスは赤で、押しても置けない。
+async function runStoneBoardScenario(browser, baseUrl) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#add-row-btn', { timeout: 5000 });
+    await page.locator('#enemy-res').fill('50');
+    await addOperator(page, 'ウァン', 'S3');
+
+    const cell = (n) => page.locator(`.row-expanded [data-action="toggle-stone"][data-cell="${n}"]`);
+    const formula = () => page.locator('.row-expanded .row-formula').innerText();
+    ok('stone board has 24 buttons and the enemy cell', (await page.locator('.row-expanded [data-action="toggle-stone"]').count()) === 24
+      && (await page.locator('.row-expanded .stone-enemy').count()) === 1);
+    ok('hits input is replaced by the board', (await page.locator('.row-expanded [data-field="hits"]').count()) === 0);
+    const enemyBg = await page.locator('.row-expanded .stone-enemy').evaluate((el) => getComputedStyle(el).backgroundColor);
+    ok('enemy cell is filled red', enemyBg === 'rgb(217, 58, 58)', enemyBg);
+    ok('enemy cell is not a button', (await page.locator('.row-expanded button.stone-enemy').count()) === 0);
+    const clearBg = await page.locator('.row-expanded .stone-clear').evaluate((el) => getComputedStyle(el).backgroundColor);
+    ok('clear button follows the dark theme', clearBg === 'rgba(0, 0, 0, 0)', clearBg);
+    ok('empty board explains why there is no damage', (await formula()).includes('発動する碁石がありません'));
+
+    for (const n of [2, 6, 7, 8, 10, 11, 13, 14, 16, 17, 18, 22]) await cell(n).click();
+    const text = await formula();
+    ok('owner board total is 41,012', text.includes('41,012'), text);
+    ok('formula shows both stack groups', text.includes('2スタック') && text.includes('3スタック') && text.includes('実効術耐性11'), text);
+    ok('stacks are drawn on the stones', (await cell(7).innerText()).trim() === '3' && (await cell(2).innerText()).trim() === '2');
+
+    // 向かい合う2個は敵のマスで切れるので未起動
+    await page.locator('.row-expanded [data-action="clear-stones"]').click();
+    await cell(11).click();
+    await cell(13).click();
+    ok('stones split by the enemy cell stay inactive', (await page.locator('.row-expanded .stone-idle').count()) === 2
+      && (await formula()).includes('発動する碁石がありません'));
+
+    // 角の碁石は線の数にだけ入る
+    await page.locator('.row-expanded [data-action="clear-stones"]').click();
+    for (const n of [0, 1, 2]) await cell(n).click();
+    ok('out-of-range stones only count for the line', (await page.locator('.row-expanded .stone-line').count()) === 2
+      && (await page.locator('.row-expanded .stone-fire').count()) === 1);
+
+    // リロードしても盤面が残る
+    await page.waitForTimeout(600);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('.row-collapsed, .row-expanded, [data-action="edit-row"]', { timeout: 5000 });
+    if ((await page.locator('.row-expanded').count()) === 0) await page.locator('[data-action="edit-row"]').first().click();
+    ok('board survives reload', (await page.locator('.row-expanded .stone-fire').count()) === 1);
+
+    // S2には盤面が出ない
+    await selectEntryByLabel(page, 'S2');
+    await page.waitForTimeout(100);
+    ok('other skills keep the hits input', (await page.locator('.row-expanded .stone-board').count()) === 0
+      && (await page.locator('.row-expanded [data-field="hits"]').count()) === 1);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  stone board scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+  } finally {
+    await context.close();
+  }
+}
+
 // P9: 「ホルン」を行に追加すると、そのオペレーターをsourceに持つ条件付きバフ「ホルン」
 // (素質「軍事要塞」)が自動でONになり、育成設定(昇進/潜在/モジュール)はカード自身の
 // セレクトではなく行の設定にリンクされることを検証する。手動でOFFにした後は行の他
@@ -1872,6 +1935,7 @@ try {
   await runLinkedBuffScenario(browser, baseUrl);
   await runDatalistPickScenario(browser, baseUrl);
   await runMixedSkillPartsScenario(browser, baseUrl);
+  await runStoneBoardScenario(browser, baseUrl);
 } catch (e) {
   fail++;
   console.log('FAIL  fatal -> ' + (e && e.stack ? e.stack : e));
