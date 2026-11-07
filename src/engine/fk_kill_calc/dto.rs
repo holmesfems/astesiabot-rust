@@ -201,6 +201,19 @@ pub struct FkEntry {
     /// (`build_catalog`が組み立てる。詳細はそちらのコメント参照)。
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub parts: Vec<FkPart>,
+    /// 碁石盤。あるエントリは画面でHit数欄の代わりに盤面を出す。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stone_board: Option<StoneBoard>,
+}
+
+/// 碁石盤(ウァン S3)の素質値テーブル。スタック数の数え方は画面側
+/// (`engine/stone_board.js`)が持ち、ここは昇進×潜在×モジュールごとの値だけを渡す。
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct StoneBoard {
+    pub damage_per_stack: ConditionalTalentSource,
+    pub res_pen_per_stack: ConditionalTalentSource,
+    pub max_stacks: ConditionalTalentSource,
 }
 
 /// モジュール1種分(カタログ表示用。素材コストは持たない)。

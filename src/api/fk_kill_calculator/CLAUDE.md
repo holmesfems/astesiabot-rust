@@ -10,7 +10,7 @@
 | `mod.rs` | `page_router()`（ページ本体＋`/static`）と `catalog_router(provider)`（`GET .../catalog.json`） |
 | `templates/fkc_index.html` | toolnav / head_icons / og_square_image を include。SEO タグは `base_url()` から |
 | `static/engine.js` | 計算層の入口。公開する名前の一覧と、単位の約束（冒頭コメント）だけを持つ |
-| `static/engine/` | 計算層の実体。`document` / `window` を参照しない（verify.mjs が確かめる）。`entry`（カタログの引き方・スキルLv別の値・特殊強化・行の初期値）/ `stats`（ATK・昇進・モジュール）/ `buffs` / `inspire` / `damage` / `sanitize`（`dropStaleRows`）/ `suggest` |
+| `static/engine/` | 計算層の実体。`document` / `window` を参照しない（verify.mjs が確かめる）。`entry`（カタログの引き方・スキルLv別の値・特殊強化・行の初期値）/ `stats`（ATK・昇進・モジュール）/ `buffs` / `inspire` / `damage` / `stone_board` / `sanitize`（`dropStaleRows`）/ `suggest` |
 | `static/ui.js` | 表現層の入口。`initUi` だけを持つ |
 | `static/ui/` | 表現層の実体。`store`（状態・保存・共有 URL）/ `dom`（小道具）/ `page_view`（敵欄・折りたたみ行・全体バフ・判定欄・`render`）/ `row_view`（行の展開ビュー）/ `formula_view` / `inspire_view` / `buff_view` / `events`。engine は入口の `../engine.js` から import する |
 | `static/style.css` | 420px 想定の縦長1カラム、ダーク固定（配色トークンは `home_index.html` の `:root`） |
@@ -69,6 +69,12 @@ final = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × ...
   `expandRowParts(row)` が疑似行の配列を返し、`computeTotal` はパーツごとに `computeRowDamage` して
   合算する（バフ・鼓舞・特殊強化は行で1回だけ計算）。結果は従来フィールド＋`parts`。
   `suggest` の Hit 数提案は行単位で1件。
+
+- **碁石盤（ウァン S3）**: `entry.stoneBoard` があるエントリは Hit 数欄の代わりに5x5の盤面を出す
+  （`row.stones` はマス番号の配列、中央12は敵のマスで置けない）。ルールは `engine/stone_board.js` の冒頭コメント
+  （スタックは縦横の線の個数の合算で自分も数える。オーナー確認済み）。`computeTotal` は同じスタック数の碁石を
+  1パーツにまとめ、倍率に `1 + n×増加率`、敵の `resFlat` に `n×貫通` を足した疑似行で計算する（`parts` に
+  `stacks` / `count`）。全碁石が同時に1回ずつ発動する扱いで、命中タイミングのずれは見ない。5x5 の外に伸びる線も数えない。
 
 ## 状態と互換（ui.js / dropStaleRows）
 

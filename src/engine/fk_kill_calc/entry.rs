@@ -4,11 +4,11 @@ use crate::engine::external_source::fk_data::FkSheetRow;
 use crate::engine::external_source::operator_combat::RawOperatorCombat;
 use super::dto::{
     DamageType, FkEntry, FkPart,
-    MultiplierCandidate, Special, Valued,
+    MultiplierCandidate, Special, StoneBoard, Valued,
 };
 use indexmap::IndexMap;
 use super::conditional_source;
-use super::{OverrideSpecial, OverrideVariant};
+use super::{OverrideSpecial, OverrideStoneBoard, OverrideVariant};
 
 /// `overrides.yaml`の`special`(手動データ)をDTO(`dto::Special`)へ変換する。
 /// `mul_multiplier`(P8 follow-upで素質値テーブル参照になった)が実データ(`op.talents`)に
@@ -24,6 +24,17 @@ pub(super) fn to_special_dto(special: &OverrideSpecial, op: &RawOperatorCombat) 
         requires_module: special.requires_module.clone(),
         add_self_atk_pct_by_module_level: special.add_self_atk_pct_by_module_level,
         mul_multiplier,
+    })
+}
+
+/// `overrides.yaml`の`stone_board`をDTOへ変換する。`talent`が範囲外なら`None`
+/// (呼び出し側が`skipped`に記録する。`to_special_dto`と同じ方針)。
+pub(super) fn to_stone_board_dto(board: &OverrideStoneBoard, op: &RawOperatorCombat) -> Option<StoneBoard> {
+    let table = |key: &str| conditional_source::build_talent_source(op, board.talent, key);
+    Some(StoneBoard {
+        damage_per_stack: table(&board.damage_per_stack_key)?,
+        res_pen_per_stack: table(&board.res_pen_per_stack_key)?,
+        max_stacks: table(&board.max_stacks_key)?,
     })
 }
 
@@ -65,6 +76,7 @@ pub(super) fn build_entry(
         tags,
         special,
         default_module: None,
+        stone_board: None,
         note,
         parts: Vec::new(),
     }

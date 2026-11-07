@@ -111,6 +111,20 @@ pub struct OverrideMulMultiplier {
     pub key: String,
 }
 
+/// 碁石盤(`stone_board`)。ウァン S3 のように「配置によってスタックが変わる」スキル用で、
+/// Hit数欄の代わりに5x5の盤面を出す。各キーは`talent`のblackboardキー名。
+#[derive(Deserialize, Clone, Debug, PartialEq)]
+pub struct OverrideStoneBoard {
+    /// `RawOperatorCombat.talents`のインデックス(0始まり)。
+    pub talent: usize,
+    /// 1スタックあたりのダメージ増加率のキー。
+    pub damage_per_stack_key: String,
+    /// 1スタックあたりの術耐性無視(固定値)のキー。
+    pub res_pen_per_stack_key: String,
+    /// スタック上限のキー。
+    pub max_stacks_key: String,
+}
+
 /// 「特殊強化」トグル1件分(P2)。`label`以外は全て省略可能。
 /// フィールドの意味の詳細はファイル冒頭コメント参照。
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -148,6 +162,8 @@ pub struct OverrideVariant {
     #[serde(default)]
     pub tags: Option<Vec<String>>,
     pub special: Option<OverrideSpecial>,
+    /// 碁石盤。`combined`とは併用しない(`validate_stone_board`が検知する)。
+    pub stone_board: Option<OverrideStoneBoard>,
     /// このエントリでオペレーターを追加した時の初期モジュール(uniEquipId)。省略時は
     /// フロントの既定(Lv3のATK加算が最大のモジュール)。ATKだけでなく素質強化の有無で
     /// FK向きのモジュールが変わるオペレーター用(例: ホルンはYの方がATKは高いが、

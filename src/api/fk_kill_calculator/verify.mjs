@@ -10,6 +10,9 @@ import path from "node:path";
 import {
   computeRowDamage,
   computeTotal,
+  analyzeStoneBoard,
+  normalizeStones,
+  resolveStoneBoardValues,
   dropStaleRows,
   suggest,
   describeSuggestion,
@@ -2286,6 +2289,96 @@ console.log("\n=== P10: 混合スキル(物理+術。例: ホルンS2)の複数�
     const foundOp = findOperator(comboCatalog, "combo");
     const foundEntry = findEntry(foundOp, 0);
     check("findOperator/findEntry経由でもentry.partsが2件見える", !!foundEntry && foundEntry.parts.length === 2);
+  }
+}
+
+console.log("\n=== 碁石盤(ウァン S3) ===\n");
+{
+  const talentTable = (e1, e2, x) => ({
+    valuesByEliteAndPotential: [[0, 0, 0, 0, 0, 0], e1, e2],
+    modules: [{ moduleId: "m", valuesByLevelAndPotential: x }],
+  });
+  const fill = (a, b) => [a, a, a, a, b, b];
+  const stoneBoard = {
+    damagePerStack: talentTable(fill(0, 0), fill(0.1, 0.12), [fill(0.1, 0.12), fill(0.12, 0.14), fill(0.13, 0.15)]),
+    resPenPerStack: talentTable(fill(0, 0), fill(9, 10), [fill(9, 10), fill(11, 12), fill(12, 13)]),
+    maxStacks: talentTable(fill(0, 0), fill(3, 3), [fill(3, 3), fill(3, 3), fill(3, 3)]),
+  };
+  const wan = {
+    id: "wan",
+    name: "ウァン",
+    tags: [],
+    atkBase: 669,
+    atkPotential: 27,
+    modules: [{ id: "m", typeName: "X", name: "m", atkByLevel: [36, 50, 60] }],
+    fkEntries: [{ tags: [], stoneBoard }],
+  };
+  const wanCatalog = { operators: [wan], buffers: [], inspireSources: [] };
+  const stonesRow = (stones, overrides = {}) =>
+    row({ opId: "wan", elite: 2, dmgType: "arts", multiplier: 3.8, stones, ...overrides });
+  const enemy = { ...enemyNeutral, res: 50 };
+  const byCell = (stones, maxStacks = 3) => new Map(analyzeStoneBoard(stones, maxStacks).map((s) => [s.cell, s]));
+
+  // 横2個: 自分も数えるので2スタック
+  {
+    const m = byCell([11, 10]);
+    check("横2個はどちらも2スタックで発動", m.get(10).stacks === 2 && m.get(11).stacks === 2 && m.get(10).fires && m.get(11).fires);
+  }
+  // 横3個+縦3個の交点は合算して上限3、線の端は3
+  {
+    const m = byCell([6, 7, 8, 11, 16]);
+    check("縦横の交点(6)は3+3を上限3に丸める", m.get(6).stacks === 3);
+    check("横だけの碁石(7)は3スタック", m.get(7).stacks === 3);
+    check("上限0(素質未解放)なら起動していても0スタック", byCell([6, 7], 0).get(6).stacks === 0);
+  }
+  // 孤立・範囲外
+  {
+    const m = byCell([0, 7, 22]);
+    check("孤立した碁石は未起動で発動しない", !m.get(7).active && !m.get(7).fires);
+    const out = byCell([0, 1, 2]);
+    check("角(距離4)は起動しても発動しない", out.get(0).active && !out.get(0).fires);
+    check("範囲外の碁石も線の数に入る(2は3スタックで発動)", out.get(2).stacks === 3 && out.get(2).fires);
+  }
+  // 敵のマスは線を切り、置けない
+  {
+    const m = byCell([11, 13]);
+    check("敵のマスを挟んだ2個は線にならない", !m.get(11).active && !m.get(13).active);
+    check("normalizeStonesは敵のマス・範囲外・非整数・重複を落とす", normalizeStones([12, -1, 25, 1.5, "3", 3, 3]).join() === "3");
+    check("normalizeStonesは配列以外を空にする", normalizeStones("x").length === 0);
+  }
+  // オーナー確認の盤面(ATK756・モジュールX Lv3・潜在6・術耐性50)で 41,012
+  const ownerBoard = [2, 6, 7, 8, 10, 11, 13, 14, 16, 17, 18, 22];
+  {
+    const { results, total } = computeTotal(wanCatalog, [stonesRow(ownerBoard)], enemy);
+    approxEqual(total, 41012, 1, "オーナー確認の盤面の総ダメージ");
+    const parts = results[0].parts;
+    check("スタック数ごとにまとまる(2×4個 / 3×8個)", parts.length === 2 && parts[0].stacks === 2 && parts[0].count === 4 && parts[1].stacks === 3 && parts[1].count === 8);
+    check("実効術耐性は貫通後の値(24 / 11)", parts[0].resEff === 24 && parts[1].resEff === 11);
+  }
+  // 貫通は耐性を0未満にしない
+  {
+    const { results } = computeTotal(wanCatalog, [stonesRow([7, 6, 8])], { ...enemy, res: 10 });
+    check("貫通で実効術耐性は0で止まる", results[0].parts[0].resEff === 0);
+  }
+  // 盤面が空ならダメージ0で、row.hitsは使わない
+  {
+    const { results, total } = computeTotal(wanCatalog, [stonesRow([], { hits: 5 })], enemy);
+    check("発動する碁石が無ければ0(row.hitsは使わない)", total === 0 && results[0].parts[0].count === 0);
+  }
+  // 素質の値は育成設定に追従する
+  {
+    const values = (overrides) => resolveStoneBoardValues(wan, wan.fkEntries[0], stonesRow([], overrides));
+    check("モジュールX Lv3・潜在6は15% / 13", values({}).damagePerStack === 0.15 && values({}).resPenPerStack === 13);
+    check("潜在1は13% / 12", values({ potential: 0 }).damagePerStack === 0.13);
+    check("モジュールなしは12% / 10", values({ moduleId: null }).resPenPerStack === 10);
+  }
+  // 共有URL等の状態の掃除
+  {
+    const { state: cleaned } = dropStaleRows(
+      { rows: [{ ...stonesRow([12, 7, 7, 99]), entryIdx: 0 }], enemy, globalBuffIds: [], inspire: { sources: {} } },
+      wanCatalog,
+    );
+    check("dropStaleRowsがstonesを掃除する", cleaned.rows[0].stones.join() === "7", cleaned.rows[0].stones);
   }
 }
 

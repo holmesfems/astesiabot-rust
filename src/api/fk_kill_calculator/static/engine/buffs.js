@@ -71,6 +71,16 @@ export function atkPotentialGroups(op, entry, row) {
     const rowVec = talentTableRowFor(mulTable, elite, moduleId, row.moduleLv);
     if (rowVec) tables.push(rowVec);
   }
+  // 碁石盤も素質の値で結果が変わるので、増加率と貫通の境目を合成する(ウァンは潜在5で変わる)。
+  const board = entry && entry.stoneBoard;
+  if (board && row) {
+    const elite = effectiveElite(op, row);
+    const moduleId = effectiveModuleId(op, row);
+    for (const talent of [board.damagePerStack, board.resPenPerStack]) {
+      const rowVec = talentTableRowFor(talent, elite, moduleId, row.moduleLv);
+      if (rowVec) tables.push(rowVec);
+    }
+  }
   if (!tables.length) return [{ from: 0, to: 5 }];
   return potentialGroups(tables);
 }

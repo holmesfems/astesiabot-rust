@@ -8,6 +8,7 @@ use super::validate::{
     validate_overrides,
     validate_special_requires_module,
     validate_special_mul_multiplier,
+    validate_stone_board,
     validate_override_level_fields,
     validate_combined_variants,
 };
@@ -89,6 +90,49 @@ fn every_special_mul_multiplier_points_to_an_existing_talent_and_key() {
     let combat: OperatorCombat = load_seed(operator_combat::SEED_PATH);
     let bad = validate_special_mul_multiplier(Overrides::global(), &combat);
     assert!(bad.is_empty(), "overrides.yamlのspecial.mul_multiplierが実データと不一致:\n{}", bad.join("\n"));
+}
+
+#[test]
+fn every_stone_board_points_to_an_existing_talent_and_keys() {
+    let combat: OperatorCombat = load_seed(operator_combat::SEED_PATH);
+    let bad = validate_stone_board(Overrides::global(), &combat);
+    assert!(bad.is_empty(), "overrides.yamlのstone_boardが実データと不一致:\n{}", bad.join("\n"));
+}
+
+/// ウァン S3 の碁石盤: 第二素質(昇進2で解放)の値が昇進・潜在・モジュールX(Lv1は素質強化なし)で
+/// 正しく引けること。値は operator_combat の Seed と Wiki の表で確認済み。
+#[test]
+fn wan_s3_stone_board_uses_second_talent_tables() {
+    let result = build_from_seeds();
+    let wan = result.catalog.operators.iter().find(|op| op.name == "ウァン").expect("ウァンがカタログに存在すること");
+    let s3 = wan.fk_entries.iter().find(|e| e.skill_num == "3").expect("ウァンのS3が存在すること");
+    assert_eq!(s3.damage_type.value, dto::DamageType::Arts);
+    assert!((s3.multiplier.value - 3.8).abs() < 1e-9, "倍率={}", s3.multiplier.value);
+    let board = s3.stone_board.as_ref().expect("S3に碁石盤があるはず");
+    assert!(wan.fk_entries.iter().filter(|e| e.skill_num != "3").all(|e| e.stone_board.is_none()), "S3以外に碁石盤は無い");
+
+    let approx_eq = |a: f64, b: f64| (a - b).abs() < 1e-9;
+    let module_id = "uniequip_002_wang";
+    let damage = &board.damage_per_stack;
+    assert!(approx_eq(damage.values_by_elite_and_potential[1][5], 0.0), "昇進1では未解放");
+    assert!(approx_eq(damage.values_by_elite_and_potential[2][0], 0.10));
+    assert!(approx_eq(damage.values_by_elite_and_potential[2][5], 0.12));
+    let x = damage.modules.iter().find(|m| m.module_id == module_id).expect("モジュールXで増加率が変わる");
+    assert!(approx_eq(x.values_by_level_and_potential[0][0], 0.10), "Lv1は素質強化なし");
+    assert!(approx_eq(x.values_by_level_and_potential[1][0], 0.12));
+    assert!(approx_eq(x.values_by_level_and_potential[2][0], 0.13));
+    assert!(approx_eq(x.values_by_level_and_potential[2][5], 0.15));
+
+    let res_pen = &board.res_pen_per_stack;
+    assert!(approx_eq(res_pen.values_by_elite_and_potential[2][0], 9.0));
+    assert!(approx_eq(res_pen.values_by_elite_and_potential[2][5], 10.0));
+    let x = res_pen.modules.iter().find(|m| m.module_id == module_id).expect("モジュールXで貫通が変わる");
+    assert!(approx_eq(x.values_by_level_and_potential[1][0], 11.0));
+    assert!(approx_eq(x.values_by_level_and_potential[2][0], 12.0));
+    assert!(approx_eq(x.values_by_level_and_potential[2][5], 13.0));
+
+    assert!(approx_eq(board.max_stacks.values_by_elite_and_potential[1][5], 0.0));
+    assert!(approx_eq(board.max_stacks.values_by_elite_and_potential[2][5], 3.0));
 }
 
 /// ブレイズ(char_017_huang) S3: self_atk_pctは特殊強化の有無に関わらず常に0.712

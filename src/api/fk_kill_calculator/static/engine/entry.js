@@ -279,5 +279,6 @@ export function makeDefaultRow(op, entryIdx) {
     specialOn: true, // P2: 特殊強化トグル(デフォルトON。entry.specialが無ければ意味を持たない)
     inspireOn: true, // P3: 鼓舞トグル(デフォルトON。鼓舞ソースが無ければ意味を持たない)
     extraParts: makeDefaultExtraParts(entry, skillLevel), // P10: 混合スキルのパーツ1以降(通常エントリは空)
+    stones: [], // 碁石盤のマス番号(entry.stoneBoardが無ければ意味を持たない)
   };
 }

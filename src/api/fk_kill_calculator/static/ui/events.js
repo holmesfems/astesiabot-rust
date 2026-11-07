@@ -7,6 +7,7 @@ import {
   makeDefaultExtraParts,
   makeDefaultRow,
   maxLevelForElite,
+  normalizeStones,
   resolveEntryValues,
 } from "../engine.js";
 import { ENEMY_PERCENT_FIELDS, ROW_PERCENT_FIELDS, showToast } from "./dom.js";
@@ -211,6 +212,23 @@ function toggleRowBuff(idx, buffId) {
   if (set.has(buffId)) set.delete(buffId);
   else set.add(buffId);
   row.buffIds = Array.from(set);
+  render();
+}
+
+function toggleStone(idx, cell) {
+  const row = state.rows[idx];
+  if (!row) return;
+  const stones = new Set(row.stones || []);
+  if (stones.has(cell)) stones.delete(cell);
+  else stones.add(cell);
+  row.stones = normalizeStones([...stones]);
+  render();
+}
+
+function clearStones(idx) {
+  const row = state.rows[idx];
+  if (!row) return;
+  row.stones = [];
   render();
 }
 
@@ -440,6 +458,12 @@ export function onAppClick(ev) {
       break;
     case "toggle-row-buff":
       toggleRowBuff(idx, btn.dataset.buffId);
+      break;
+    case "toggle-stone":
+      toggleStone(idx, Number(btn.dataset.cell));
+      break;
+    case "clear-stones":
+      clearStones(idx);
       break;
     case "toggle-global-buff":
       toggleGlobalBuff(btn.dataset.buffId);

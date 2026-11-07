@@ -1,5 +1,6 @@
 // フレームキル計算機 — 保存/共有された状態の検証と補完(dropStaleRows)。
 
+import { normalizeStones } from "./stone_board.js";
 import { makeDefaultExtraParts } from "./entry.js";
 import { maxEliteFor, maxLevelForElite, normalizePotentialRank } from "./stats.js";
 
@@ -119,6 +120,7 @@ export function dropStaleRows(state, catalog) {
         specialOn: row.specialOn !== false,
         inspireOn: row.inspireOn !== false,
         extraParts,
+        stones: normalizeStones(row.stones),
       };
     });
 
