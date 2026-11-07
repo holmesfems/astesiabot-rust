@@ -4,7 +4,7 @@
 // 実行方法:
 //   & "C:\Program Files\nodejs\node.exe" src/api/fk_kill_calculator/verify.mjs
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
@@ -2292,9 +2292,14 @@ console.log("\n=== P10: 混合スキル(物理+術。例: ホルンS2)の複数�
 console.log("\n=== engine.js が document を参照していないこと ===\n");
 {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const src = readFileSync(path.join(here, "static", "engine.js"), "utf8");
-  check("engine.js に 'document' という文字列が出現しない", !src.includes("document"));
-  check("engine.js に 'window' という文字列が出現しない", !src.includes("window"));
+  const staticDir = path.join(here, "static");
+  const engineFiles = ["engine.js", ...readdirSync(path.join(staticDir, "engine")).map((f) => path.join("engine", f))];
+  check("engine/ にモジュールがある", engineFiles.length > 1);
+  for (const file of engineFiles) {
+    const src = readFileSync(path.join(staticDir, file), "utf8");
+    check(`${file} に 'document' という文字列が出現しない`, !src.includes("document"));
+    check(`${file} に 'window' という文字列が出現しない`, !src.includes("window"));
+  }
 }
 
 console.log(`\n${allOk ? "=== すべて合格 ===" : "=== 不合格の項目あり ==="}`);
