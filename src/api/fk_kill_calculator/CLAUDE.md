@@ -9,8 +9,10 @@
 |---|---|
 | `mod.rs` | `page_router()`（ページ本体＋`/static`）と `catalog_router(provider)`（`GET .../catalog.json`） |
 | `templates/fkc_index.html` | toolnav / head_icons / og_square_image を include。SEO タグは `base_url()` から |
-| `static/engine.js` | 計算層。`document` / `window` を参照しない。単位の約束はファイル冒頭コメント |
-| `static/ui.js` | 表現層。カタログ fetch・状態管理・DOM 描画 |
+| `static/engine.js` | 計算層の入口。公開する名前の一覧と、単位の約束（冒頭コメント）だけを持つ |
+| `static/engine/` | 計算層の実体。`document` / `window` を参照しない（verify.mjs が確かめる）。`entry`（カタログの引き方・スキルLv別の値・特殊強化・行の初期値）/ `stats`（ATK・昇進・モジュール）/ `buffs` / `inspire` / `damage` / `sanitize`（`dropStaleRows`）/ `suggest` |
+| `static/ui.js` | 表現層の入口。`initUi` だけを持つ |
+| `static/ui/` | 表現層の実体。`store`（状態・保存・共有 URL）/ `dom`（小道具）/ `page_view`（敵欄・折りたたみ行・全体バフ・判定欄・`render`）/ `row_view`（行の展開ビュー）/ `formula_view` / `inspire_view` / `buff_view` / `events`。engine は入口の `../engine.js` から import する |
 | `static/style.css` | 420px 想定の縦長1カラム、ダーク固定（配色トークンは `home_index.html` の `:root`） |
 | `static/lz-string.min.js` | 1.5.0, MIT |
 | `verify.mjs` / `e2e.mjs` | 計算層の検証 / Playwright での実機テスト。実行方法はルートの CLAUDE.md |
@@ -81,6 +83,8 @@ final = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × ...
 
 ## 再描画
 
+- 画面の状態は `ui/store.js` の `export let`（`state`・`catalog`・`expandedIdx` など）。読むのは import した名前の
+  ままでよい（値の変化は見える）が、import した名前には代入できないので、書き換えは `setState` などの setter を通す。
 - 構造が変わる操作は `render`（`#app` 丸ごと。フォーカスは `withPreservedFocus` で戻す）。
 - 数値欄の打鍵中は `renderLive`（入力欄を作り直さず導出表示だけ差し替え。type=number は
   カーソル位置を戻せないため）。チップ・チェックボックス・select は常に `render`。

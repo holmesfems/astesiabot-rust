@@ -4,7 +4,7 @@
 # P9でsource付きバフの「FK行との育成設定リンク」(その`source.operatorId`と同じ
 # オペレーターがFK行にあれば、行を選んだ瞬間に自動でON+育成軸[昇進/潜在/モジュール/
 # スキルLv]を行の設定に追従させる。トグルはユーザー操作のまま)を追加した(例: ホルン)。
-# JS側の実装は`src/api/fk_kill_calculator/static/engine.js`の
+# JS側の実装は`src/api/fk_kill_calculator/static/engine/buffs.js`の
 # `findLinkedRow`/`effectiveBuffLevels`/`autoEnableSourcedBuffs`参照。
 #
 # 読み込み方法・スキーマの詳細は`src/engine/fk_kill_calc/buffers.rs`冒頭のコメント、
