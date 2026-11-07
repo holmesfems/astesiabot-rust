@@ -176,7 +176,7 @@ export {
 } from "./engine/damage.js";
 export {
   STONE_BOARD_SIZE,
-  ENEMY_CELL,
+  RED_TILE_CELL,
   isStoneInRange,
   normalizeStones,
   resolveStoneBoardValues,

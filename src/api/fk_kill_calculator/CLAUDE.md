@@ -71,7 +71,7 @@ final = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × ...
   `suggest` の Hit 数提案は行単位で1件。
 
 - **碁石盤（ウァン S3）**: `entry.stoneBoard` があるエントリは Hit 数欄の代わりに5x5の盤面を出す
-  （`row.stones` はマス番号の配列、中央12は敵のマスで置けない）。ルールは `engine/stone_board.js` の冒頭コメント
+  （`row.stones` はマス番号の配列、中央12は赤マスで置けない）。ルールは `engine/stone_board.js` の冒頭コメント
   （スタックは縦横の線の個数の合算で自分も数える。オーナー確認済み）。`computeTotal` は同じスタック数の碁石を
   1パーツにまとめ、倍率に `1 + n×増加率`、敵の `resFlat` に `n×貫通` を足した疑似行で計算する（`parts` に
   `stacks` / `count`）。全碁石が同時に1回ずつ発動する扱いで、命中タイミングのずれは見ない。5x5 の外に伸びる線も数えない。

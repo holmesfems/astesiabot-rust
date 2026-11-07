@@ -28,7 +28,7 @@ export function renderFormulaLine(op, row) {
   const buffFlat = row.buffFlat || 0;
   const stoneValues = entry && entry.stoneBoard ? resolveStoneBoardValues(op, entry, row) : null;
   if (stoneValues && parts.every((d) => d.count === 0)) {
-    return "発動する碁石がありません（隣に碁石があり、敵から2マス以内の碁石が発動します）";
+    return "発動する碁石がありません（隣に碁石があり、赤マスから2マス以内の碁石が発動します）";
   }
   const isMulti = parts.length > 1;
 

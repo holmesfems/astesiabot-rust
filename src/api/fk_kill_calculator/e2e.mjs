@@ -1597,12 +1597,13 @@ async function runStoneBoardScenario(browser, baseUrl) {
 
     const cell = (n) => page.locator(`.row-expanded [data-action="toggle-stone"][data-cell="${n}"]`);
     const formula = () => page.locator('.row-expanded .row-formula').innerText();
-    ok('stone board has 24 buttons and the enemy cell', (await page.locator('.row-expanded [data-action="toggle-stone"]').count()) === 24
-      && (await page.locator('.row-expanded .stone-enemy').count()) === 1);
+    ok('stone board has 24 buttons and the red tile', (await page.locator('.row-expanded [data-action="toggle-stone"]').count()) === 24
+      && (await page.locator('.row-expanded .stone-red-tile').count()) === 1);
     ok('hits input is replaced by the board', (await page.locator('.row-expanded [data-field="hits"]').count()) === 0);
-    const enemyBg = await page.locator('.row-expanded .stone-enemy').evaluate((el) => getComputedStyle(el).backgroundColor);
-    ok('enemy cell is filled red', enemyBg === 'rgb(217, 58, 58)', enemyBg);
-    ok('enemy cell is not a button', (await page.locator('.row-expanded button.stone-enemy').count()) === 0);
+    const redTileBg = await page.locator('.row-expanded .stone-red-tile').evaluate((el) => getComputedStyle(el).backgroundColor);
+    ok('red tile is filled red', redTileBg === 'rgb(217, 58, 58)', redTileBg);
+    ok('red tile is labelled', (await page.locator('.row-expanded .stone-red-tile').innerText()).trim() === '赤マス');
+    ok('red tile is not a button', (await page.locator('.row-expanded button.stone-red-tile').count()) === 0);
     const clearBg = await page.locator('.row-expanded .stone-clear').evaluate((el) => getComputedStyle(el).backgroundColor);
     ok('clear button follows the dark theme', clearBg === 'rgba(0, 0, 0, 0)', clearBg);
     ok('empty board explains why there is no damage', (await formula()).includes('発動する碁石がありません'));
@@ -1613,11 +1614,11 @@ async function runStoneBoardScenario(browser, baseUrl) {
     ok('formula shows both stack groups', text.includes('2スタック') && text.includes('3スタック') && text.includes('実効術耐性11'), text);
     ok('stacks are drawn on the stones', (await cell(7).innerText()).trim() === '3' && (await cell(2).innerText()).trim() === '2');
 
-    // 向かい合う2個は敵のマスで切れるので未起動
+    // 向かい合う2個は赤マスで切れるので未起動
     await page.locator('.row-expanded [data-action="clear-stones"]').click();
     await cell(11).click();
     await cell(13).click();
-    ok('stones split by the enemy cell stay inactive', (await page.locator('.row-expanded .stone-idle').count()) === 2
+    ok('stones split by the red tile stay inactive', (await page.locator('.row-expanded .stone-idle').count()) === 2
       && (await formula()).includes('発動する碁石がありません'));
 
     // 角の碁石は線の数にだけ入る

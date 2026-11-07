@@ -1,7 +1,7 @@
 // フレームキル計算機 — オペレーター行の展開ビュー。
 
 import {
-  ENEMY_CELL,
+  RED_TILE_CELL,
   STONE_BOARD_SIZE,
   analyzeStoneBoard,
   computeTotal,
@@ -334,13 +334,13 @@ export function renderModuleUnusableHint(op, row) {
   return `<p class="special-hint">モジュール${escapeHtml(module.typeName)}は昇進${module.unlockPhase} Lv${module.unlockLevel}以上で装備可能（現在は加算されません）</p>`;
 }
 
-// 碁石盤(ウァン S3): Hit数の代わりに出す5x5の盤面。中央は敵のマスで置けない。
+// 碁石盤(ウァン S3): Hit数の代わりに出す5x5の盤面。中央は赤マスで置けない。
 // 碁石の数字はスタック数。発動する/線の数にだけ入る/孤立で未起動、を色で分ける。
 function renderStoneBoard(op, entry, row, idx) {
   const values = resolveStoneBoardValues(op, entry, row);
   const stones = new Map(analyzeStoneBoard(row.stones, values.maxStacks).map((s) => [s.cell, s]));
   const cells = Array.from({ length: STONE_BOARD_SIZE ** 2 }, (_, cell) => {
-    if (cell === ENEMY_CELL) return `<div class="stone-cell stone-enemy" role="img" aria-label="敵のマス">敵</div>`;
+    if (cell === RED_TILE_CELL) return `<div class="stone-cell stone-red-tile" role="img" aria-label="赤マス">赤マス</div>`;
     const stone = stones.get(cell);
     const rangeClass = isStoneInRange(cell) ? "" : " stone-out";
     const stateClass = !stone ? "" : !stone.active ? "stone-idle" : stone.fires ? "stone-fire" : "stone-line";
