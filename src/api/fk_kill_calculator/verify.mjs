@@ -2339,11 +2339,11 @@ console.log("\n=== 碁石盤(ウァン S3) ===\n");
     check("角(距離4)は起動しても発動しない", out.get(0).active && !out.get(0).fires);
     check("範囲外の碁石も線の数に入る(2は3スタックで発動)", out.get(2).stacks === 3 && out.get(2).fires);
   }
-  // 敵のマスは線を切り、置けない
+  // 赤マスは線を切り、置けない
   {
     const m = byCell([11, 13]);
-    check("敵のマスを挟んだ2個は線にならない", !m.get(11).active && !m.get(13).active);
-    check("normalizeStonesは敵のマス・範囲外・非整数・重複を落とす", normalizeStones([12, -1, 25, 1.5, "3", 3, 3]).join() === "3");
+    check("赤マスを挟んだ2個は線にならない", !m.get(11).active && !m.get(13).active);
+    check("normalizeStonesは赤マス・範囲外・非整数・重複を落とす", normalizeStones([12, -1, 25, 1.5, "3", 3, 3]).join() === "3");
     check("normalizeStonesは配列以外を空にする", normalizeStones("x").length === 0);
   }
   // オーナー確認の盤面(ATK756・モジュールX Lv3・潜在6・術耐性50)で 41,012

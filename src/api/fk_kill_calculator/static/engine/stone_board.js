@@ -1,8 +1,8 @@
 // フレームキル計算機 — 碁石盤(ウァン S3)。配置からスタック数を数え、計算用の疑似行に展開する。
 //
 // ルール(オーナー確認済み):
-// - 盤は5x5。中央(ENEMY_CELL)は敵のマスで、碁石は置けない。線も中央で切れる。
-// - 上下左右に隣の碁石がある碁石だけが起動する。起動していて、敵からマンハッタン距離2以内の
+// - 盤は5x5。中央(RED_TILE_CELL)は赤マスで、碁石は置けない。線も中央で切れる。
+// - 上下左右に隣の碁石がある碁石だけが起動する。起動していて、赤マスからマンハッタン距離2以内の
 //   碁石が1回ずつダメージを出す。範囲外の碁石はダメージを出さないが、線の数には入る。
 // - スタック数 = 横の線の個数 + 縦の線の個数(2個以上の線だけ。自分も数える)。上限は素質の値。
 // - 1スタックごとに倍率へ「1 + n×増加率」、術耐性から「n×貫通」(固定値)。
@@ -11,13 +11,13 @@ import { resolveTalentTableValue } from "./entry.js";
 import { effectiveElite, effectiveModuleId } from "./stats.js";
 
 export const STONE_BOARD_SIZE = 5;
-export const ENEMY_CELL = 12;
+export const RED_TILE_CELL = 12;
 const STONE_RANGE = 2;
 
 const cellX = (cell) => cell % STONE_BOARD_SIZE;
 const cellY = (cell) => Math.floor(cell / STONE_BOARD_SIZE);
 
-/** 敵のマスからのマンハッタン距離。2以下なら碁石のダメージ範囲。 */
+/** 赤マスからのマンハッタン距離。2以下なら碁石のダメージ範囲。 */
 export function stoneRangeDistance(cell) {
   const center = Math.floor(STONE_BOARD_SIZE / 2);
   return Math.abs(cellX(cell) - center) + Math.abs(cellY(cell) - center);
@@ -27,10 +27,10 @@ export function isStoneInRange(cell) {
   return stoneRangeDistance(cell) <= STONE_RANGE;
 }
 
-/** 共有URL/localStorage由来の配列を「盤上の、敵のマス以外の、重複しない整数」だけにする。 */
+/** 共有URL/localStorage由来の配列を「盤上の、赤マス以外の、重複しない整数」だけにする。 */
 export function normalizeStones(stones) {
   if (!Array.isArray(stones)) return [];
-  const valid = stones.filter((c) => Number.isInteger(c) && c >= 0 && c < STONE_BOARD_SIZE ** 2 && c !== ENEMY_CELL);
+  const valid = stones.filter((c) => Number.isInteger(c) && c >= 0 && c < STONE_BOARD_SIZE ** 2 && c !== RED_TILE_CELL);
   return [...new Set(valid)].sort((a, b) => a - b);
 }
 
