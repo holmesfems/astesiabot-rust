@@ -21,7 +21,10 @@ bot にも api にも依存しない。画面側（engine.js / ui.js）は
 
 | ファイル | 役割 |
 |---|---|
-| `mod.rs` | `build_catalog`、`resolve_multiplier_defaults`、`build_inspire_sources`、`build_combined_entry`、各種 `validate_*`（ドリフト検知） |
+| `mod.rs` | `build_catalog` |
+| `entry.rs` | `build_entry`、`build_combined_entry`、`resolve_multiplier_defaults` |
+| `inspire.rs` | `build_inspire_sources` |
+| `validate.rs` | 各種 `validate_*`（ドリフト検知） |
 | `conditional_source.rs` | バフの値をゲームデータから解決して値テーブルを作る（`build_conditional_sourced_buffers` / `build_individual_sourced_buffers` → 共通の `build_source`）。アルゴリズムはファイル冒頭コメント |
 | `dto.rs` | `Catalog` / `CatalogOperator` / `FkEntry` / `FkPart` / `Buffer` / `InspireSource` / `Conditional*Source` 等。JSON は camelCase |
 | `tags.rs` | profession/position/nationId からタグ・ダメージ種別の初期値を推測。`tag_vocabulary()`（全タグ語彙。YAML のタグのドリフト検知用）、`faction_tag_for`（今はラテラーノのみ） |

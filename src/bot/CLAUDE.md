@@ -13,7 +13,7 @@ reply.rs     … EmbedReply（embed の分割送信。reply_marker を footer �
 utils/       … env.rs（channel_id_env 等。不正値なら起動時 panic）/ xlsx.rs（riseiXXX の csv_file 添付）
 commands/    … スラッシュコマンド（1コマンド1ファイル）。fksearch.rs / risei/ / operator_cost_calc/
 services/
-  moderation.rs     … スパム検知・連投/爆撃・罠チャンネル・全体通知 BAN
+  moderation/       … スパム検知・連投/爆撃・罠チャンネル・全体通知 BAN（mod.rs が入口と状態、detect.rs が検知、action.rs が処断と通報）
   recruit/          … 公開求人チャンネル（OCR → 計算 → embed、リプライでのタグ編集）
   uranai/           … 占い館（OpenAI のチャット。functioncalling/ に bot 機能を呼ぶ関数）
   reply_dispatch.rs … コマンド応答 embed へのリプライを、footer のマーカーから由来コマンドに戻す

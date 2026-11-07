@@ -62,7 +62,7 @@
 #     `requiredPotentialRank`をそのまま写す)。「潜在セレクト」導入で旧来の攻撃凸/素質凸の
 #     個別チェックボックスを1つに統合したため、この値がその境目を決める
 #     (無ければ素質凸ボーナスは常に未適用のまま)。スキーマ・値の出典は
-#     `src/engine/fk_kill_calc/mod.rs`の`build_inspire_sources`冒頭コメント、
+#     `src/engine/fk_kill_calc/inspire.rs`の`build_inspire_sources`冒頭コメント、
 #     および本ファイル末尾の濁心スカジのコメント参照。
 #
 # targets/bonus.tagsに書けるタグ名は`tags.rs::tag_vocabulary()`の語彙のみ
