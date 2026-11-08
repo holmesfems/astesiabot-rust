@@ -2381,6 +2381,42 @@ console.log("\n=== 碁石盤(ウァン S3) ===\n");
     check("潜在1は13% / 12", values({ potential: 0 }).damagePerStack === 0.13);
     check("モジュールなしは12% / 10", values({ moduleId: null }).resPenPerStack === 10);
   }
+  // オーナーの実測値(TW-EX-2 / TW-EX-6。無凸・昇進2 Lv90・信頼度100・S3特化III)。1個あたりのダメージ。
+  {
+    const perStone = (stones, enemyOverrides, rowOverrides) => {
+      const { results } = computeTotal(wanCatalog, [stonesRow(stones, { potential: 0, ...rowOverrides })], { ...enemyNeutral, ...enemyOverrides });
+      return results[0].parts.map((d) => ({ stacks: d.stacks, perHit: d.perHit, vuln: d.perHit * (1 + (enemyOverrides.vulnPct || 0)) }));
+    };
+    const twoLine = [10, 11];
+    const threeLine = [6, 7, 8];
+    // モジュールX Lv3(ATK 729、1スタック+13%・術耐性12無視)
+    const measuredX = [
+      { res: 0, two: 3490, three: 3851 },
+      { res: 20, two: 3490, three: 3851 },
+      { res: 30, two: 3281, three: 3851 },
+      { res: 40, two: 2932, three: 3697 },
+      { res: 50, two: 2583, three: 3311 },
+    ];
+    for (const { res, two, three } of measuredX) {
+      const [d2] = perStone(twoLine, { res });
+      const [d3] = perStone(threeLine, { res });
+      check(`実測 モジュールX 術耐性${res} 2スタック ${two}`, d2.stacks === 2 && Math.round(d2.perHit) === two, d2.perHit);
+      check(`実測 モジュールX 術耐性${res} 3スタック ${three}`, d3.stacks === 3 && Math.round(d3.perHit) === three, d3.perHit);
+    }
+    // 被ダメージ増加1.55倍のデバフ
+    const [vuln] = perStone(threeLine, { res: 40, vulnPct: 0.55 });
+    check("実測 3スタック×1.55 術耐性40 5730", Math.round(vuln.vuln) === 5730, vuln.vuln);
+    const [vuln0] = perStone(threeLine, { res: 0, vulnPct: 0.55 });
+    check("実測 3スタック×1.55 術耐性0 5968", Math.round(vuln0.vuln) === 5968, vuln0.vuln);
+    // L字の角も2スタック(術耐性40の敵に1.55倍で4545。2スタックの2,932×1.55)
+    const lShape = perStone([6, 7, 11], { res: 40, vulnPct: 0.55 });
+    check("実測 L字の角も2スタック(1.55倍で4545)", lShape.length === 1 && lShape[0].stacks === 2 && Math.round(lShape[0].vuln) === 4545, lShape);
+    // モジュールなし(ATK 669、1スタック+10%・術耐性9無視)
+    const [noMod0] = perStone(threeLine, { res: 0 }, { moduleId: null });
+    const [noMod40] = perStone(threeLine, { res: 40 }, { moduleId: null });
+    check("実測 モジュールなし 3スタック 術耐性0 3305", Math.round(noMod0.perHit) === 3305, noMod0.perHit);
+    check("実測 モジュールなし 3スタック 術耐性40 2875", Math.round(noMod40.perHit) === 2875, noMod40.perHit);
+  }
   // 共有URL等の状態の掃除
   {
     const { state: cleaned } = dropStaleRows(
