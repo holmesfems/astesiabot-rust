@@ -2324,10 +2324,19 @@ console.log("\n=== 碁石盤(ウァン S3) ===\n");
     const m = byCell([11, 10]);
     check("横2個はどちらも2スタックで発動", m.get(10).stacks === 2 && m.get(11).stacks === 2 && m.get(10).fires && m.get(11).fires);
   }
-  // 横3個+縦3個の交点は合算して上限3、線の端は3
+  // 縦横の両方に線がある碁石は多い方だけを数える(オーナーの実測)
+  {
+    const m = byCell([6, 7, 11]);
+    check("L字の角(6)は縦2・横2で2スタック(合算しない)", m.get(6).stacks === 2);
+    const { total } = computeTotal(wanCatalog, [stonesRow([6, 7, 11])], enemyNeutral);
+    approxEqual(total, 11203.8, 0.5, "L字3個の総ダメージ(多い方だけ)");
+    const m2 = byCell([6, 7, 8, 11]);
+    check("縦2・横3の角(6)は3スタック", m2.get(6).stacks === 3);
+  }
+  // 横3個+縦3個の交点も多い方で3、線の端は3
   {
     const m = byCell([6, 7, 8, 11, 16]);
-    check("縦横の交点(6)は3+3を上限3に丸める", m.get(6).stacks === 3);
+    check("縦横の交点(6)は縦3・横3で3スタック", m.get(6).stacks === 3);
     check("横だけの碁石(7)は3スタック", m.get(7).stacks === 3);
     check("上限0(素質未解放)なら起動していても0スタック", byCell([6, 7], 0).get(6).stacks === 0);
   }

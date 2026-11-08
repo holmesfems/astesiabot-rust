@@ -4,7 +4,7 @@
 // - 盤は5x5。中央(RED_TILE_CELL)は赤マスで、碁石は置けない。線も中央で切れる。
 // - 上下左右に隣の碁石がある碁石だけが起動する。起動していて、赤マスからマンハッタン距離2以内の
 //   碁石が1回ずつダメージを出す。範囲外の碁石はダメージを出さないが、線の数には入る。
-// - スタック数 = 横の線の個数 + 縦の線の個数(2個以上の線だけ。自分も数える)。上限は素質の値。
+// - スタック数 = 横の線と縦の線のうち多い方の個数(2個以上の線だけ。自分も数える)。上限は素質の値。
 // - 1スタックごとに倍率へ「1 + n×増加率」、術耐性から「n×貫通」(固定値)。
 
 import { resolveTalentTableValue } from "./entry.js";
@@ -74,7 +74,7 @@ export function analyzeStoneBoard(stones, maxStacks) {
       cell,
       active,
       fires: active && isStoneInRange(cell),
-      stacks: Math.min(horizontal + vertical, maxStacks),
+      stacks: Math.min(Math.max(horizontal, vertical), maxStacks),
     };
   });
 }
