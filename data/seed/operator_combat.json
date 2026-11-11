@@ -87,6 +87,7 @@
     "エンフォーサー": "char_4036_forcer",
     "エーベンホルツ": "char_4046_ebnhlz",
     "オッダ": "char_4131_odda",
+    "オリガ": "char_4245_alga",
     "オーキッド": "char_278_orchid",
     "オーロラ": "char_422_aurora",
     "カシャ": "char_328_cammou",
@@ -95,6 +96,7 @@
     "カッター": "char_301_cutter",
     "カニパラート": "char_466_qanik",
     "カフカ": "char_214_kafka",
+    "カレイド": "char_4169_caledo",
     "カンタービレ": "char_497_ctable",
     "カーディ": "char_209_ardign",
     "カーネリアン": "char_426_billro",
@@ -196,6 +198,7 @@
     "ソーンズ": "char_293_thorns",
     "タイムスロット": "char_4236_tmslot",
     "タラクサカム": "char_4222_taraxa",
+    "タルラ": "char_4247_oxi",
     "ダグザ": "char_157_dagda",
     "チェストナット": "char_4041_chnut",
     "チェン": "char_010_chen",
@@ -211,6 +214,7 @@
     "テキーラ": "char_486_takila",
     "テクノ": "char_4164_tecno",
     "テラ大陸調査団": "char_4077_palico",
+    "テリトリー": "char_4246_dminon",
     "テンニンカ": "char_151_myrtle",
     "ディアマンテ": "char_499_kaitou",
     "ディピカ": "char_110_deepcl",
@@ -219,6 +223,7 @@
     "デーゲンブレヒャー": "char_4116_blkkgt",
     "トゥイエ": "char_402_tuye",
     "トギフォンス": "char_363_toddi",
+    "トスカ": "char_4244_tocka",
     "トター": "char_4062_totter",
     "トミミ": "char_411_tomimi",
     "トラゴーディア": "char_1042_phatm2",
@@ -243,6 +248,7 @@
     "ハニーベリー": "char_449_glider",
     "ハルカ": "char_4202_haruka",
     "ハロルド": "char_4114_harold",
+    "ハードベルズ": "char_4170_hdbell",
     "ハーモニー": "char_297_hamoni",
     "バイソン": "char_325_bison",
     "バイビーク": "char_252_bibeak",
@@ -397,12 +403,8 @@
     "九色鹿": "char_4019_ncdeer",
     "予願アンジェリーナ": "char_1015_aglna2",
     "八幡海鈴": "char_4186_tmoris",
-    "冻河": "char_4244_tocka",
     "凛御シルバーアッシュ": "char_1045_svash2",
     "司霆レイズ": "char_1043_leizi2",
-    "国度": "char_4246_dminon",
-    "塔露拉": "char_4247_oxi",
-    "奥尔佳": "char_4245_alga",
     "寒芒クルース": "char_1021_kroos2",
     "岳羽ゆかり": "char_4219_yukari",
     "帰溟スペクター": "char_1023_ghost2",
@@ -434,11 +436,9 @@
     "荒蕪ラップランド": "char_1038_whitw2",
     "萃香パフューマー": "char_1022_flwr2",
     "血掟テキサス": "char_1028_texas2",
-    "行铃": "char_4170_hdbell",
     "豊川祥子": "char_4182_oblvns",
     "赤刃明霄チェン": "char_1050_chen3",
     "遊龍チェン": "char_1013_chen2",
-    "镜匠": "char_4169_caledo",
     "雷狼竜Sカタパルト": "char_1049_catap2"
   },
   "operators": {
@@ -50533,7 +50533,7 @@
           "unlock_phase": 2
         }
       ],
-      "name": "镜匠",
+      "name": "カレイド",
       "nation_id": "rhodes",
       "phases": [
         {
@@ -50858,7 +50858,7 @@
       "cn_name": "行铃",
       "id": "char_4170_hdbell",
       "modules": [],
-      "name": "行铃",
+      "name": "ハードベルズ",
       "nation_id": "minos",
       "phases": [
         {
@@ -58619,7 +58619,7 @@
       "cn_name": "冻河",
       "id": "char_4244_tocka",
       "modules": [],
-      "name": "冻河",
+      "name": "トスカ",
       "nation_id": "ursus",
       "phases": [
         {
@@ -58784,7 +58784,7 @@
           "unlock_phase": 2
         }
       ],
-      "name": "奥尔佳",
+      "name": "オリガ",
       "nation_id": "ursus",
       "phases": [
         {
@@ -58921,7 +58921,7 @@
           "unlock_phase": 2
         }
       ],
-      "name": "国度",
+      "name": "テリトリー",
       "nation_id": "ursus",
       "phases": [
         {
@@ -59022,7 +59022,7 @@
       "cn_name": "塔露拉",
       "id": "char_4247_oxi",
       "modules": [],
-      "name": "塔露拉",
+      "name": "タルラ",
       "nation_id": "ursus",
       "phases": [
         {
