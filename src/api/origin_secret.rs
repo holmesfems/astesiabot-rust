@@ -7,7 +7,7 @@
 //! - `ORIGIN_SECRET` 未設定なら何もしない（手元・serve_web はそのまま）。
 //! - `ORIGIN_SECRET_ENFORCE=1` のときだけ 403 で拒否し、それ以外は食い違いをログに出すだけ
 //!   （Cloudflare の設定ずれでサイト全体が 403 にならないよう、ログで確かめてから切り替える）。
-//! - `*.herokuapp.com` 宛ては Cloudflare を通らないので対象外（旧ホストは無効化まで今の動きのまま）。
+//! - `*.herokuapp.com` 宛ては Cloudflare を通らないので対象外（legacy_host_redirect.rs が GET/HEAD 以外を断る）。
 //!   `/health` も死活監視用に対象外。
 
 use axum::extract::{Request, State};

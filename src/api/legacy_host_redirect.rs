@@ -1,15 +1,20 @@
-//! 旧ホスト（`*.herokuapp.com` / `www.<正規ホスト>`）から正規ドメインへの 301 リダイレクト。
+//! 旧ホスト（`*.herokuapp.com` / `www.<正規ホスト>`）から正規ドメインへの 301 リダイレクトと、
+//! 無効化した `*.herokuapp.com` 宛ての GET/HEAD 以外の拒否。
 //!
 //! 正規ドメインは `PUBLIC_BASE_URL`（例: `https://astesiabot.com`）。未設定なら何もしない。
-//! 対象は GET/HEAD のみ。POST をリダイレクトするとクライアントが GET に化けさせて
-//! 本文を捨てる（→405）か、追従せず空応答になるため、API は旧ホストのまま動かす。
-//! 念のため API（ショートカットから叩かれる `/recruitment/`）と死活監視用の `/health` は
-//! メソッドに関係なくパスでも除外する。
+//! リダイレクトは GET/HEAD のみ。POST をリダイレクトするとクライアントが GET に化けさせて
+//! 本文を捨てる（→405）か、追従せず空応答になるため。死活監視用の `/health` は除外する。
+//!
+//! `*.herokuapp.com` は Cloudflare を通らない入口なので、GET/HEAD 以外は処理しない。
+//! 旧ショートカットが叩く `POST /recruitment/` だけは、計算せずに入れ替えのお願いを
+//! 通常の応答の形で返す（403 だと旧ショートカットに理由が出ないため）。それ以外は 403。
 
+use super::recruitment::legacy_host_reply;
 use axum::extract::{Request, State};
 use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use std::sync::Arc;
 
 /// リダイレクトしないパス（旧ホストでもそのまま応答する）。
@@ -86,6 +91,13 @@ pub(crate) async fn redirect_legacy_host(
         .path_and_query()
         .map(|pq| pq.as_str())
         .unwrap_or("/");
+    let method = req.method();
+    if host.is_some_and(is_herokuapp_host) && method != Method::GET && method != Method::HEAD {
+        if method == Method::POST && req.uri().path() == "/recruitment/" {
+            return Json(legacy_host_reply(&canonical.base)).into_response();
+        }
+        return (StatusCode::FORBIDDEN, "403 Forbidden").into_response();
+    }
     match redirect_target(&canonical, req.method(), host, path_and_query)
         .and_then(|url| HeaderValue::from_str(&url).ok())
     {
@@ -156,9 +168,32 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn recruitment_api_is_not_redirected() {
+    async fn herokuapp_recruitment_returns_migration_notice_without_calculating() {
         let res = send(Method::POST, "foo-123.herokuapp.com", "/recruitment/").await;
         assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // ルートの "api" ではなく、移行のお願いが返る
+        assert_eq!(json["tagCount"], 0);
+        assert!(json["reply"].as_str().unwrap().contains("新しい版に入れ替えてください"));
+        assert!(json["reply"].as_str().unwrap().contains("https://astesiabot.com/shortcut/recruitment\n"));
+        assert!(json["reply"].as_str().unwrap().contains("https://astesiabot.com/shortcut/recruitment-lite"));
+    }
+
+    #[tokio::test]
+    async fn herokuapp_other_non_get_is_forbidden() {
+        let res = send(Method::POST, "foo-123.herokuapp.com", "/").await;
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
+        let res = send(Method::PUT, "foo-123.herokuapp.com", "/recruitment/").await;
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn canonical_recruitment_is_untouched() {
+        let res = send(Method::POST, "astesiabot.com", "/recruitment/").await;
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"api");
     }
 
     #[tokio::test]
