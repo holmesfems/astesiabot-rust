@@ -9,5 +9,9 @@
 #      - shortcutVersion 無し（版を送らない旧ショートカット）→ `update` に加えて
 #        `reply` の末尾にも通知文を足す（旧ショートカットは `reply` しか表示しないため）
 #      0 の間は通知しない（版を送るショートカットの公開前）
+# lite_url: Apple Intelligence を使わない版（非対応の旧機種向け）の iCloud 共有リンク。
+#      固定URL GET /shortcut/recruitment-lite がここへリダイレクトする。
+#      版番号は latest_version と同じものを送る（更新通知を出さないため）
 latest_version: 2
 url: https://www.icloud.com/shortcuts/512119066af44385b90094b333cc1884
+lite_url: https://www.icloud.com/shortcuts/1fa610ad213345bfbe270c411676f5b5

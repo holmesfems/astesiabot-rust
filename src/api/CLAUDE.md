@@ -34,7 +34,8 @@
   （`PICKUP_ALIASES`。例: `GALLUS2` → `GALLUS²`）。認証なしなので入口で量を絞る:
   `text` は `MAX_TEXT_CHARS`（2000文字。超えたら400＋通常形のエラー）、本文は `MAX_BODY_BYTES`
   （64KiB。このルートだけ DefaultBodyLimit、超えたら413）。入手用固定 URL
-  `GET /shortcut/recruitment`（iCloud リンクへ307。`shortcut_router()`、web_ui_router に載せる）。
+  `GET /shortcut/recruitment`（iCloud リンクへ307。`shortcut_router()`、web_ui_router に載せる）と、
+  Apple Intelligence 非対応機種向けの `GET /shortcut/recruitment-lite`（shortcut.yaml の `lite_url`。版番号は同じ）。
 - `risei/` … `GET /api/risei/*`（理性価値計算と育成コストの REST API。認証なし公開。`mod.rs` が router、`spec.rs` が `ENDPOINTS`、`handlers.rs` と `operator_cost.rs` がハンドラ、`params.rs` が引数とエラー、`suggest.rs` が候補、`skill.rs` が skill.zip。
   理性効率動画づくりで Claude が叩く）。engine の DTO をそのまま JSON で返し、エラーは常に JSON で
   `did_you_mean` / `usage` を添える。`GET /api/risei` が使い方一覧（`ENDPOINTS` 表）。

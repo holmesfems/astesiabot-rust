@@ -9,7 +9,7 @@
 //! 旧ショートカットが叩く `POST /recruitment/` だけは、計算せずに入れ替えのお願いを
 //! 通常の応答の形で返す（403 だと旧ショートカットに理由が出ないため）。それ以外は 403。
 
-use super::recruitment::{legacy_host_reply, SHORTCUT_PATH};
+use super::recruitment::legacy_host_reply;
 use axum::extract::{Request, State};
 use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::middleware::Next;
@@ -94,8 +94,7 @@ pub(crate) async fn redirect_legacy_host(
     let method = req.method();
     if host.is_some_and(is_herokuapp_host) && method != Method::GET && method != Method::HEAD {
         if method == Method::POST && req.uri().path() == "/recruitment/" {
-            let link = format!("{}{}", canonical.base, SHORTCUT_PATH);
-            return Json(legacy_host_reply(&link)).into_response();
+            return Json(legacy_host_reply(&canonical.base)).into_response();
         }
         return (StatusCode::FORBIDDEN, "403 Forbidden").into_response();
     }
@@ -177,7 +176,8 @@ mod tests {
         // ルートの "api" ではなく、移行のお願いが返る
         assert_eq!(json["tagCount"], 0);
         assert!(json["reply"].as_str().unwrap().contains("新しい版に入れ替えてください"));
-        assert!(json["reply"].as_str().unwrap().contains("https://astesiabot.com/shortcut/recruitment"));
+        assert!(json["reply"].as_str().unwrap().contains("https://astesiabot.com/shortcut/recruitment\n"));
+        assert!(json["reply"].as_str().unwrap().contains("https://astesiabot.com/shortcut/recruitment-lite"));
     }
 
     #[tokio::test]

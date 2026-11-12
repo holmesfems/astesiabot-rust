@@ -48,6 +48,7 @@ pub(super) struct ShortcutUpdate {
 struct ShortcutInfo {
     latest_version: u32,
     url: String,
+    lite_url: String,
 }
 
 const SHORTCUT_YAML: &str = include_str!("../../data/recruitment/shortcut.yaml");
@@ -55,22 +56,29 @@ const SHORTCUT_YAML: &str = include_str!("../../data/recruitment/shortcut.yaml")
 /// 公開求人ショートカットの入手用固定URL。iCloud リンクは共有し直すたびに変わるため、
 /// 通知文・トップページのカードはこちらを指し、差し替えは shortcut.yaml の1か所で済ませる。
 pub(super) const SHORTCUT_PATH: &str = "/shortcut/recruitment";
+/// Apple Intelligence を使わない版（非対応の旧機種向け）の入手用固定URL。
+pub(super) const SHORTCUT_LITE_PATH: &str = "/shortcut/recruitment-lite";
 
 fn shortcut_info() -> &'static ShortcutInfo {
     static INFO: OnceLock<ShortcutInfo> = OnceLock::new();
     INFO.get_or_init(|| serde_saphyr::from_str(SHORTCUT_YAML).expect("shortcut.yaml should parse"))
 }
 
-/// `GET /shortcut/recruitment` → shortcut.yaml の iCloud リンクへ。
+/// `GET /shortcut/recruitment`（`-lite`）→ shortcut.yaml の iCloud リンクへ。
 /// 行き先は版ごとに変わるので 301 ではなく 307（ブラウザにキャッシュさせない）。
 pub(super) fn shortcut_router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    Router::new().route(
-        SHORTCUT_PATH,
-        get(|| async { Redirect::temporary(&shortcut_info().url) }),
-    )
+    Router::new()
+        .route(
+            SHORTCUT_PATH,
+            get(|| async { Redirect::temporary(&shortcut_info().url) }),
+        )
+        .route(
+            SHORTCUT_LITE_PATH,
+            get(|| async { Redirect::temporary(&shortcut_info().lite_url) }),
+        )
 }
 
 /// `shortcutVersion` を整数として読む（数値・数値文字列どちらも受ける）。
@@ -112,9 +120,12 @@ fn attach_update_notice(
 
 /// 無効化した旧ホスト（`*.herokuapp.com`）宛ての `/recruitment/` への応答。計算はせず、
 /// 旧ショートカットが表示できる通常の形で入れ替えをお願いする（legacy_host_redirect.rs から返す）。
-pub(super) fn legacy_host_reply(link: &str) -> TagReplyData {
+/// `base` は正規ドメインの起点（例: `https://astesiabot.com`）。
+pub(super) fn legacy_host_reply(base: &str) -> TagReplyData {
+    let link = format!("{base}{SHORTCUT_PATH}");
     let message = format!(
-        "このショートカットの送信先は使えなくなりました。お手数ですが、新しい版に入れ替えてください。\n{link}"
+        "このショートカットの送信先は使えなくなりました。お手数ですが、新しい版に入れ替えてください。\n{link}\n\
+         Apple Intelligence 非対応の機種はこちら：\n{base}{SHORTCUT_LITE_PATH}"
     );
     TagReplyData {
         title: "送信先が変わりました".to_string(),
@@ -122,7 +133,7 @@ pub(super) fn legacy_host_reply(link: &str) -> TagReplyData {
         tag_count: 0,
         update: Some(ShortcutUpdate {
             latest_version: shortcut_info().latest_version,
-            url: link.to_string(),
+            url: link,
             message,
         }),
     }
@@ -322,16 +333,23 @@ mod tests {
     #[test]
     fn shortcut_yaml_has_icloud_url() {
         assert!(shortcut_info().url.starts_with("https://www.icloud.com/shortcuts/"));
+        assert!(shortcut_info().lite_url.starts_with("https://www.icloud.com/shortcuts/"));
+        assert_ne!(shortcut_info().url, shortcut_info().lite_url);
     }
 
     #[tokio::test]
     async fn shortcut_path_redirects_to_icloud() {
-        let res = shortcut_router::<()>()
-            .oneshot(Request::get(SHORTCUT_PATH).body(Body::empty()).unwrap())
-            .await
-            .unwrap();
-        assert_eq!(res.status(), StatusCode::TEMPORARY_REDIRECT);
-        assert_eq!(res.headers()[header::LOCATION], shortcut_info().url.as_str());
+        for (path, url) in [
+            (SHORTCUT_PATH, &shortcut_info().url),
+            (SHORTCUT_LITE_PATH, &shortcut_info().lite_url),
+        ] {
+            let res = shortcut_router::<()>()
+                .oneshot(Request::get(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::TEMPORARY_REDIRECT);
+            assert_eq!(res.headers()[header::LOCATION], url.as_str());
+        }
     }
 
     #[test]
@@ -392,9 +410,10 @@ mod tests {
 
     #[test]
     fn legacy_host_reply_asks_to_replace_shortcut() {
-        let r = legacy_host_reply(LINK);
+        let r = legacy_host_reply("https://astesiabot.com");
         let message = format!(
-            "このショートカットの送信先は使えなくなりました。お手数ですが、新しい版に入れ替えてください。\n{LINK}"
+            "このショートカットの送信先は使えなくなりました。お手数ですが、新しい版に入れ替えてください。\n{LINK}\n\
+             Apple Intelligence 非対応の機種はこちら：\nhttps://astesiabot.com/shortcut/recruitment-lite"
         );
         assert_eq!(r.reply, message);
         assert_eq!(r.tag_count, 0);
