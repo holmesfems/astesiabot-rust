@@ -1,6 +1,6 @@
 use super::AppState;
 use crate::engine::recruit::{format, RecruitEngine};
-use axum::http::{header, HeaderMap, StatusCode};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::Redirect;
 use axum::{extract::State, routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
@@ -85,31 +85,22 @@ fn parse_version(v: Option<&serde_json::Value>) -> Option<u32> {
 
 /// 更新通知を付ける。計算結果（title/reply/tagCount）とは独立した後処理。
 /// `latest_version` が 0 の間（版付きショートカットの公開前）は通知しない。
-/// 旧ホスト（`*.herokuapp.com`）宛てなら、版に関係なく `reply` の冒頭に送信先の移行を
-/// 頼む文を入れ、末尾の更新通知はそれで代える（旧ホストは無効化予定）。
 fn attach_update_notice(
     reply: &mut TagReplyData,
     latest_version: u32,
     version: Option<u32>,
     link: &str,
-    legacy_host: bool,
 ) {
-    let legacy_message = legacy_host.then(|| {
-        format!("このショートカットの送信先は間もなく使えなくなります。お手数ですが、新しい版に入れ替えてください。\n{link}")
-    });
-    if let Some(message) = &legacy_message {
-        reply.reply = format!("{}\n\n{}", message, reply.reply);
-    }
     if latest_version == 0 {
         return;
     }
     if version.is_some_and(|v| v >= latest_version) {
         return;
     }
-    let message = legacy_message.unwrap_or_else(|| {
-        format!("公開求人ショートカットの新しいバージョン(v{latest_version})があります。\n{link}")
-    });
-    if version.is_none() && !legacy_host {
+    let message = format!(
+        "公開求人ショートカットの新しいバージョン(v{latest_version})があります。\n{link}"
+    );
+    if version.is_none() {
         reply.reply = format!("{}\n\n{}", reply.reply, message);
     }
     reply.update = Some(ShortcutUpdate {
@@ -117,6 +108,24 @@ fn attach_update_notice(
         url: link.to_string(),
         message,
     });
+}
+
+/// 無効化した旧ホスト（`*.herokuapp.com`）宛ての `/recruitment/` への応答。計算はせず、
+/// 旧ショートカットが表示できる通常の形で入れ替えをお願いする（legacy_host_redirect.rs から返す）。
+pub(super) fn legacy_host_reply(link: &str) -> TagReplyData {
+    let message = format!(
+        "このショートカットの送信先は使えなくなりました。お手数ですが、新しい版に入れ替えてください。\n{link}"
+    );
+    TagReplyData {
+        title: "送信先が変わりました".to_string(),
+        reply: message.clone(),
+        tag_count: 0,
+        update: Some(ShortcutUpdate {
+            latest_version: shortcut_info().latest_version,
+            url: link.to_string(),
+            message,
+        }),
+    }
 }
 
 /// Web API の doRecruitment と完全一致する処理。
@@ -223,11 +232,7 @@ pub async fn do_recruitment(
     let mut reply = build_tag_reply(&state.recruit, &data.text, pickup.as_deref());
     let version = parse_version(data.shortcut_version.as_ref());
     let link = format!("{}{}", super::base_url(&headers), SHORTCUT_PATH);
-    let legacy_host = headers
-        .get(header::HOST)
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(super::legacy_host_redirect::is_herokuapp_host);
-    attach_update_notice(&mut reply, shortcut_info().latest_version, version, &link, legacy_host);
+    attach_update_notice(&mut reply, shortcut_info().latest_version, version, &link);
     (StatusCode::OK, Json(reply))
 }
 
@@ -354,14 +359,14 @@ mod tests {
         // 最新版・それより新しい版: 何も付かない
         for v in [2, 3] {
             let mut r = sample_reply();
-            attach_update_notice(&mut r, 2, Some(v), LINK, false);
+            attach_update_notice(&mut r, 2, Some(v), LINK);
             assert!(r.update.is_none());
             assert_eq!(r.reply, "r");
         }
 
         // 古い版: update だけ付き、reply は変えない（新ショートカットが自分で表示する）
         let mut r = sample_reply();
-        attach_update_notice(&mut r, 2, Some(1), LINK, false);
+        attach_update_notice(&mut r, 2, Some(1), LINK);
         let update = r.update.as_ref().unwrap();
         assert_eq!(update.latest_version, 2);
         assert_eq!(update.url, LINK);
@@ -369,7 +374,7 @@ mod tests {
 
         // 版無し（旧ショートカット）: reply 末尾にも通知文
         let mut r = sample_reply();
-        attach_update_notice(&mut r, 2, None, LINK, false);
+        attach_update_notice(&mut r, 2, None, LINK);
         assert!(r.update.is_some());
         assert_eq!(
             r.reply,
@@ -380,28 +385,22 @@ mod tests {
     #[test]
     fn update_notice_disabled_while_latest_version_is_zero() {
         let mut r = sample_reply();
-        attach_update_notice(&mut r, 0, None, LINK, false);
+        attach_update_notice(&mut r, 0, None, LINK);
         assert!(r.update.is_none());
         assert_eq!(r.reply, "r");
     }
 
     #[test]
-    fn legacy_host_puts_migration_notice_at_head() {
-        let legacy = format!(
-            "このショートカットの送信先は間もなく使えなくなります。お手数ですが、新しい版に入れ替えてください。\n{LINK}"
+    fn legacy_host_reply_asks_to_replace_shortcut() {
+        let r = legacy_host_reply(LINK);
+        let message = format!(
+            "このショートカットの送信先は使えなくなりました。お手数ですが、新しい版に入れ替えてください。\n{LINK}"
         );
-
-        // 版無し: 冒頭にだけ入り、末尾の更新通知は付けない。update の文面も同じ
-        let mut r = sample_reply();
-        attach_update_notice(&mut r, 2, None, LINK, true);
-        assert_eq!(r.reply, format!("{legacy}\n\nr"));
-        assert_eq!(r.update.as_ref().unwrap().message, legacy);
-
-        // 最新版でも旧ホスト宛てなら冒頭に入る（update は付けない）
-        let mut r = sample_reply();
-        attach_update_notice(&mut r, 2, Some(2), LINK, true);
-        assert_eq!(r.reply, format!("{legacy}\n\nr"));
-        assert!(r.update.is_none());
+        assert_eq!(r.reply, message);
+        assert_eq!(r.tag_count, 0);
+        let update = r.update.as_ref().unwrap();
+        assert_eq!(update.url, LINK);
+        assert_eq!(update.message, message);
     }
 
     #[test]

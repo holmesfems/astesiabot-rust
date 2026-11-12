@@ -15,20 +15,22 @@
   `www.` → `PUBLIC_BASE_URL` へ 301。未設定なら無効。run_api のみ）。POST をリダイレクトすると
   クライアントが GET に変えて本文を捨てる。`/recruitment/` と `/health` はパスでも除外。
   axum の `Redirect::permanent` は 308 なので 301 は自前で組んでいる。
+- **`*.herokuapp.com` は無効化済み**（Cloudflare を通らない入口のため）。同じ `legacy_host_redirect.rs` で、
+  GET/HEAD 以外は 403。ただし旧ショートカットが叩く `POST /recruitment/` だけは計算せず、
+  通常の応答の形で「送信先が変わった・新しい版に入れ替えて」を返す（`recruitment::legacy_host_reply`。
+  403 だと旧ショートカットに理由が出ない）。
 - **Cloudflare 経由かを `X-Origin-Secret` で確かめる**（`origin_secret.rs`。run_api の一番外側）。
   Cloudflare の Transform Rules が付けるヘッダを環境変数 `ORIGIN_SECRET` と比べる（未設定なら無効）。
   `ORIGIN_SECRET_ENFORCE=1` のときだけ 403、それ以外は不一致をログに出すだけ（設定ずれで全体が
   403 にならないよう、ログで確かめてから Heroku の config で切り替える。戻すのも config だけ）。
-  `*.herokuapp.com` 宛てと `/health` は対象外（旧ホストは無効化まで今の動き）。
+  `*.herokuapp.com` 宛て（上の legacy_host_redirect が扱う）と `/health` は対象外。
 
 ## エンドポイント
 
 - `recruitment.rs` … `POST /recruitment/`（iOS ショートカット等から叩く公開求人 API）。
   応答に `tagCount` と、`shortcutVersion` が `data/recruitment/shortcut.yaml` の最新より古い時だけ
   更新通知 `update` を付ける（版を送らない旧ショートカットには `reply` 末尾にも通知文。
-  `latest_version` が0の間は出さない）。旧ホスト（`*.herokuapp.com`）宛てなら版に関係なく
-  `reply` の**冒頭**に「送信先が間もなく使えなくなる・新しい版に入れ替えて」を入れ、末尾の更新通知はそれで代える
-  （旧ホスト無効化に向けた移行のお願い）。`pickupOperators` は入力しづらい別名を正式表記へ寄せる
+  `latest_version` が0の間は出さない）。`pickupOperators` は入力しづらい別名を正式表記へ寄せる
   （`PICKUP_ALIASES`。例: `GALLUS2` → `GALLUS²`）。認証なしなので入口で量を絞る:
   `text` は `MAX_TEXT_CHARS`（2000文字。超えたら400＋通常形のエラー）、本文は `MAX_BODY_BYTES`
   （64KiB。このルートだけ DefaultBodyLimit、超えたら413）。入手用固定 URL
