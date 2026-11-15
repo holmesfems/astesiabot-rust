@@ -63,10 +63,8 @@ pub async fn event_handler(
         } else if let Some(reply) = reply_dispatch::handle(ctx, msg, data).await? {
             // スラッシュコマンド応答embedへの明示リプライ（例: fksearchのスキル選び直し）。
             reply_embed_reply(ctx, msg, &reply).await?;
-        } else {
-            // どのサービスにも該当しないチャンネル。今はログのみ。
-            println!("[msg] {}: {}", msg.author.name, msg.content);
         }
+        // どのサービスにも該当しない発言は何もしない（本文をログに残さない）。
     }
     Ok(())
 }

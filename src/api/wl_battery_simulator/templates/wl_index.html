@@ -12,7 +12,10 @@
   <meta property="og:locale" content="ja_JP" />
   {% include "og_square_image.html" %}
   <link rel="stylesheet" href="/WLBatterySimulator/static/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  {# 版を固定して SRI を付ける（CDN や npm 側で中身が変わったら読み込まない）。版を上げるときは integrity も出し直す #}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"
+          integrity="sha384-Emf5ZVIUiarAdhkgtqK+5/Z5qIvM6QoVrS+qAVtfyZVuD5lIHrac0me485+Antp0"
+          crossorigin="anonymous"></script>
 </head>
 <body>
   {% include "toolnav.html" %}
