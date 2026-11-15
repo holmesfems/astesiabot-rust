@@ -77,8 +77,8 @@ bot にも api にも依存しない。画面側（engine.js / ui.js）は
 - `max_targets_by_module`（individual のみ）: 指定モジュールLv以上の間、`single_target` 警告の
   許容数を緩める（例: エクシアはモジュールX Lv2 以上で2名まで）。値の解決には関与しない。
 - 血漿（plasma）・ドリアン（durian）は「自身＋ランダムな味方1名」なので `single_target`。
-- ホルン「軍事要塞」（`horn`）は素質由来の conditional（`targets: [重装]`）。旧 overrides の
-  S2 固定 `self_atk_pct: 0.31` をここへ移した。ホルンの初期モジュールは overrides の
+- ホルン「軍事要塞」（`horn`）は素質由来の conditional（`targets: [重装]`）。S2 の +31% は
+  overrides に固定値で持たず、この conditional で表す。ホルンの初期モジュールは overrides の
   `default_module: uniequip_002_horn`（X）。汎用の既定（Lv3 の ATK 加算が最大＝Y）だと
   この素質が強化されず実効 ATK が下がるため。`default_module` はオペレーター単位なので、
   選んだエントリに無ければ同じオペレーターの他エントリの指定を使う。
@@ -118,7 +118,7 @@ bot にも api にも依存しない。画面側（engine.js / ui.js）は
 ## 混合スキル（物理＋術を同時に出す。例: ホルン S2）
 
 - overrides の `combined: true`（省略時 false）が付いた、同じ skill_num のバリアント群を
-  `build_combined_entry` が1つの `FkEntry` にまとめる。物理のみ/術のみの単独選択肢は無くした
+  `build_combined_entry` が1つの `FkEntry` にまとめる。物理のみ/術のみの単独選択肢は作らない
   （オーナー承認済み）。
 - 先頭バリアントがパーツ0（`FkEntry` のトップレベルの値）。hits / self_atk_pct / special /
   tags / note / default_module は先頭のものだけを使う。2番目以降がこれらを持たないこと、

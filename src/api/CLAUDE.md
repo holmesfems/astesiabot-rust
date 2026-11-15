@@ -82,4 +82,4 @@
 - **wl_battery_simulator も計算をブラウザでする**（issue #69）。計算層 `static/optimizer.js`（入口）と
   `static/battery_sim.js`、表示層 `static/render.js`（Chart.js は CDN のグローバル）、ページの処理 `static/app.js`
   （`?v=N` は EF と同じ）。`testdata/golden.json` は移す前の Rust 版の出力で、verify.mjs が突き合わせる
-  （計算を意図して変えたときだけ作り直す）。可変周期入力式標準制御器（CTL_2）は不安定なので外した。
+  （計算を意図して変えたときだけ作り直す）。可変周期入力式標準制御器（CTL_2）は不安定なので対象外。
