@@ -413,10 +413,7 @@ fn satisfy_tags(op: &PoolOperator, combo: &[&Tag]) -> bool {
             }
         }
     }
-    if need_elite && !has_elite {
-        return false;
-    }
-    true
+    !need_elite || has_elite
 }
 
 /// オペレーター集合の「最低星」。
