@@ -58,7 +58,7 @@ cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を
   検出に引っかかり管理者権限を求められる（os error 740）。
 - `data/` はカレントディレクトリ基準で読むので、プロジェクトルートで実行する。
 - 型エラーが出やすかった所: poise 0.6 / serenity の embed API、`event_handler` のクロージャ型と
-  `FrameworkContext`、`fancy_regex` の `find` が `Result<Option<Match>>`、`serde_yaml` のバージョン差。
+  `FrameworkContext`、`fancy_regex` の `find` が `Result<Option<Match>>`。YAML は `serde-saphyr`（`serde_yaml` ではない）。
   バージョンが原因なら Cargo.toml を調整してよい。
 
 ## 構成
