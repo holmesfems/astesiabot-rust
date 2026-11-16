@@ -116,6 +116,13 @@ async function addOperator(page, name, entrySubstring) {
   await page.waitForTimeout(100);
 }
 
+// 展開中の行の「スキルの値」(自動入力)<details>を開く。中の欄は閉じていると見えず操作できないので、
+// 倍率・ダメージ種別・セルフ・防御無視などを触る前に呼ぶ。開閉はrenderを跨いで保たれる。
+async function openAuto(page) {
+  const d = page.locator('.row-expanded details[data-role="row-auto"]');
+  if (!(await d.evaluate((el) => el.open))) await d.locator('summary').click();
+}
+
 async function runMainScenario(browser, baseUrl) {
   const consoleErrors = [];
   const pageErrors = [];
@@ -257,8 +264,9 @@ async function runMainScenario(browser, baseUrl) {
     // --- 行を展開してフィールドを変更 -> 補正バッジ/↺リセットボタンのaria-label ---
     await page.locator('[data-action="edit-row"]').first().click();
     await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    await openAuto(page);
     const multiplierInput = page.locator('[data-field="multiplier"]');
-    await multiplierInput.fill('9.99');
+    await multiplierInput.fill('999'); // 倍率は%表記(999% = 9.99)
     await page.waitForTimeout(150);
     const resetBtn = page.locator('[data-action="reset-field"][data-field="multiplier"]').first();
     ok('changed field shows a ↺ reset button', (await resetBtn.count()) === 1);
@@ -267,9 +275,63 @@ async function runMainScenario(browser, baseUrl) {
     await resetBtn.click();
     await page.waitForTimeout(100);
     const multiplierAfterReset = await page.locator('[data-field="multiplier"]').inputValue();
-    ok('clicking ↺ resets the field back to the catalog default', Number(multiplierAfterReset) !== 9.99, multiplierAfterReset);
+    ok('clicking ↺ resets the field back to the catalog default', Number(multiplierAfterReset) !== 999, multiplierAfterReset);
+
+    // --- 展開ビューの組み替え: 行の合計・スキルの値(自動入力)・倍率の%表記 ---
+    const autoDetails = page.locator('.row-expanded details[data-role="row-auto"]');
+    ok('「スキルの値」details exists, with the 自動入力 badge', (await autoDetails.count()) === 1 && (await autoDetails.locator('.badge-auto').innerText()).includes('自動入力'));
+    ok('個別バフ chips are a labelled group (not an orphan <label>)',
+      (await page.locator('.row-expanded [role="group"][aria-labelledby]').count()) === 1 && (await page.locator('.row-expanded label:text-is("個別バフ（この行だけに掛けるもの）")').count()) === 0);
+    const totalEl = page.locator('.row-expanded [data-role="row-total"]');
+    ok('row total is shown at the head of the expanded row',
+      (await totalEl.count()) === 1 && /^[0-9,]+$/.test((await totalEl.innerText()).trim()), await totalEl.innerText());
+    const totalBefore = await totalEl.innerText();
+    // 開いたまま値を打つ: 倍率230%がそのまま式に出て、行の合計・今の値・「変更あり」が打鍵で追従する
+    const multInput = page.locator('.row-expanded input[data-field="multiplier"]'); // ↺ボタンも同じdata-fieldを持つのでinputに絞る
+    await multInput.fill('');
+    await multInput.pressSequentially('230');
+    await page.waitForTimeout(150);
+    const formula230 = await page.locator('.row-formula').innerText();
+    ok('typing 230 into the multiplier computes with 230% (formula shows 230%)', formula230.includes('230%'), formula230);
+    const total230 = await totalEl.innerText();
+    ok('row total follows typing and equals the formula result',
+      total230 !== totalBefore && Number(total230.replace(/,/g, '')) === lastEqualsNumber(formula230), `${totalBefore} -> ${total230} / ${formula230}`);
+    ok('multiplier input keeps showing 230 (no float noise)', (await multInput.inputValue()) === '230');
+    ok('「変更あり」 appears in the summary when a value differs from the catalog default',
+      (await autoDetails.locator('[data-role="row-auto-changed"]').count()) === 1);
+    // render が走る操作(個別バフのチップ)をしても開いたまま
+    await page.locator('.row-expanded .chip[data-action="toggle-row-buff"]').first().click();
+    await page.waitForTimeout(100);
+    ok('「スキルの値」stays open after a render-triggering action (chip)', await page.locator('.row-expanded details[data-role="row-auto"]').evaluate((el) => el.open));
+    await page.locator('.row-expanded .chip[data-action="toggle-row-buff"]').first().click(); // 元に戻す
+    await page.waitForTimeout(100);
+    // 閉じると今の値が1行で見える(打鍵に追従している)
+    await page.locator('.row-expanded details[data-role="row-auto"] summary').click();
+    await page.waitForTimeout(100);
+    const nowEl = page.locator('.row-expanded [data-role="row-auto-now"]');
+    ok('closing shows the current values in one line (倍率 230%)', (await nowEl.isVisible()) && (await nowEl.innerText()).includes('倍率 230%'), await nowEl.innerText());
+    ok('「変更あり」 stays visible while closed', await page.locator('.row-expanded [data-role="row-auto-changed"]').isVisible());
+    await page.locator('.row-expanded details[data-role="row-auto"] summary').click();
+    await page.waitForTimeout(100);
+    await page.locator('[data-action="reset-field"][data-field="multiplier"]').first().click();
+    await page.waitForTimeout(100);
+    ok('「変更あり」 disappears after resetting to the catalog default', (await page.locator('.row-expanded [data-role="row-auto-changed"]').count()) === 0);
     await page.click('[data-action="collapse-row"]');
     await page.waitForTimeout(100);
+
+    // --- 未選択の行は名前欄だけ。展開ビューの「× この行を削除」で行が消える ---
+    const rowsBeforeBlank = await page.locator('.row-card').count();
+    await page.click('#add-row-btn');
+    await page.waitForSelector('.row-expanded', { timeout: 5000 });
+    ok('blank row shows only the name field (no other inputs/selects)',
+      (await page.locator('.row-expanded input, .row-expanded select').count()) === 1
+        && (await page.locator('.row-expanded input[data-field="opName"]').count()) === 1);
+    ok('blank row shows the empty hint', (await page.locator('.row-expanded .empty-hint').innerText()).includes('オペレーターを選ぶと'));
+    ok('blank row has no total and no 「スキルの値」', (await page.locator('.row-expanded [data-role="row-total"], .row-expanded details[data-role="row-auto"]').count()) === 0);
+    await page.locator('.row-expanded .rowfoot [data-action="del-row"]').click();
+    await page.waitForTimeout(100);
+    ok('「× この行を削除」 in the expanded view removes the row',
+      (await page.locator('.row-card').count()) === rowsBeforeBlank && (await page.locator('.row-expanded').count()) === 0);
 
     // --- 撃破提案の現実性キャップ: 非現実的な提案の代わりに諦めメッセージが出る ---
     await page.fill('#enemy-hp', '99999999');
@@ -1495,9 +1557,10 @@ async function runSkillLevelScenario(browser, baseUrl) {
     // --- スキルLvを下げると倍率(400%バリアントのnot_hitwall_scale)が下がり、合計も下がる ---
     await skillLevelSelect.selectOption('1');
     await page.waitForTimeout(100);
+    await openAuto(page);
     const multiplierInput = page.locator('.row-expanded input[data-field="multiplier"]');
-    ok('lowering skill level to SLv1 re-snaps the multiplier input to 3 (400% variant at L1)',
-      (await multiplierInput.inputValue()) === '3', await multiplierInput.inputValue());
+    ok('lowering skill level to SLv1 re-snaps the multiplier input to 300% (400% variant at L1)',
+      (await multiplierInput.inputValue()) === '300', await multiplierInput.inputValue());
     const formulaAtLv1 = await page.locator('.row-formula').innerText();
     const totalAtLv1 = lastEqualsNumber(formulaAtLv1);
     ok('total damage decreases when skill level is lowered (lower multiplier)', totalAtLv1 < totalAtLv10, `${totalAtLv10} -> ${totalAtLv1}`);
@@ -1508,8 +1571,8 @@ async function runSkillLevelScenario(browser, baseUrl) {
     await page.waitForTimeout(100);
     ok('switching to another variant of the same skill keeps the skill level (SLv1)',
       (await skillLevelSelect.inputValue()) === '1', await skillLevelSelect.inputValue());
-    ok('the 800% variant at SLv1 re-snaps the multiplier to 6 (hitwall_scale L1)',
-      (await multiplierInput.inputValue()) === '6', await multiplierInput.inputValue());
+    ok('the 800% variant at SLv1 re-snaps the multiplier to 600% (hitwall_scale L1)',
+      (await multiplierInput.inputValue()) === '600', await multiplierInput.inputValue());
     await selectEntryByLabel(page, '400%');
     await page.waitForTimeout(100);
 
@@ -1848,6 +1911,7 @@ async function runMixedSkillPartsScenario(browser, baseUrl) {
     await page.waitForTimeout(150);
 
     // --- パーツ欄が2ブロック(見出し=物理/術)出る。倍率候補セレクトは出ない ---
+    await openAuto(page);
     const partBlocks = page.locator('.row-expanded .row-part-block');
     ok('two damage-part blocks are rendered', (await partBlocks.count()) === 2);
     const headings = await page.locator('.row-expanded .row-part-heading').allInnerTexts();

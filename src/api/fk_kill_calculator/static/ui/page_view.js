@@ -20,6 +20,7 @@ import { renderInspireResultBlock, renderInspireSourceCard } from "./inspire_vie
 import {
   fieldBadges,
   operatorDatalist,
+  renderAutoSummaryDynamic,
   renderModuleUnusableHint,
   renderRowExpanded,
 } from "./row_view.js";
@@ -327,6 +328,18 @@ export function renderLive() {
       const entry = op ? findEntry(op, row.entryIdx) : null;
       const formula = card.querySelector(".row-formula");
       if (formula) formula.innerHTML = op && entry ? renderFormulaLine(op, row) : "";
+      // 行の頭の合計と「スキルの値」summaryの今の値/「変更あり」も打鍵のたびに追従させる
+      // (開いたまま値を打って閉じたとき、古い値が見えないように)。
+      const total = card.querySelector('[data-role="row-total"]');
+      if (total && op) {
+        const r = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState()).results[0];
+        total.textContent = fmtInt(r.rowDamage);
+      }
+      const autoNow = card.querySelector('[data-role="row-auto-now"]');
+      if (autoNow) {
+        card.querySelector('[data-role="row-auto-changed"]')?.remove();
+        autoNow.outerHTML = renderAutoSummaryDynamic(entry, row, idx);
+      }
       card.querySelectorAll(".field-badges").forEach((badges) => {
         const field = badges.dataset.badgesFor;
         // P10(混合スキル): data-part(1以上)が付いていればrow.extraParts[part-1]から

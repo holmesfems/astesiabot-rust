@@ -22,7 +22,7 @@ export function renderFormulaLine(op, row) {
   const selfPart = specialAddPct > 0 ? `セルフ${fmtPct(row.selfPct)}%+${specialLabel}${fmtPct(specialAddPct)}%` : `セルフ${fmtPct(row.selfPct)}%`;
   const individualPart = `個別${fmtPct(breakdown.individualPct)}%`;
   const conditionalPart = `条件${fmtPct(breakdown.conditionalPct)}%`;
-  const manualPart = `手入力${fmtPct(row.buffPct)}%`;
+  const manualPart = `その他${fmtPct(row.buffPct)}%`;
   const flatTotal = breakdown.individualFlat + breakdown.conditionalFlat + (inspireApplied ? inspireApplied.amount : 0);
   const inspirePart = flatTotal !== 0 ? ` + 鼓舞${fmtInt(flatTotal)}` : "";
   const buffFlat = row.buffFlat || 0;

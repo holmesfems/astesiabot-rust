@@ -1,7 +1,8 @@
 // フレームキル計算機 — DOM と表示の小道具（整形・トースト・フォーカス保持）と定数。
 
 export const ENEMY_PERCENT_FIELDS = new Set(["defPct", "vulnPct"]);
-export const ROW_PERCENT_FIELDS = new Set(["selfPct", "buffPct", "dmgMult"]);
+// 入力欄の表示・読み取りだけ%にする欄(状態は小数のまま。multiplierは0.5↔「50」)。
+export const ROW_PERCENT_FIELDS = new Set(["selfPct", "buffPct", "dmgMult", "multiplier"]);
 
 export const BAR_COLORS = ["#4f7cff", "#e8dcb0", "#79e2d0", "#d4794a", "#b48ef0", "#f0748a", "#7bd67b", "#f0a94e"];
 

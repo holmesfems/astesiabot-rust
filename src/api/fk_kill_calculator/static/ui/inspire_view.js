@@ -82,7 +82,7 @@ function describeInspireBreakdown(result) {
   const partsText = result.selfParts.applied.map((p) => `${p.shortLabel}${fmtPct(p.value)}%`).join(" + ") || "素質0%";
   const individualText = `個別${fmtPct(result.breakdown.individualPct)}%`;
   const conditionalText = `条件付き${fmtPct(result.breakdown.conditionalPct)}%`;
-  const manualText = `手入力${fmtPct(result.manualPct)}%`;
+  const manualText = `その他${fmtPct(result.manualPct)}%`;
   const ratioText = `${fmtPct(result.ratio)}%`;
   return `${fmtInt(result.atk)} ×(1 + ${partsText} + ${individualText} + ${conditionalText} + ${manualText}) × ${ratioText} = ${fmtInt(result.amount)}`;
 }
@@ -162,7 +162,7 @@ export function renderInspireSourceCard(source, singleConflicts) {
     ${renderInspireSelfPartsControls(source, cfg)}
     ${renderSourceIndividualBuffChips(source, cfg, singleConflicts)}
     <div class="row-field">
-      <label>手入力バフ+%
+      <label>その他のバフ +%
         <input type="number" step="any" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="buffPct" value="${fmtPct(cfg.buffPct, 3)}">
       </label>
     </div>

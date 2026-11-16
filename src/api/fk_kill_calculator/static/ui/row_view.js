@@ -31,6 +31,7 @@ import {
   catalog,
   inspireStates,
   specialDescOpenIdx,
+  autoOpenIdx,
   state,
 } from "./store.js";
 
@@ -56,12 +57,12 @@ export function moduleOptions(op, row) {
 }
 
 // P7: entry.multiplierCandidatesは{key, valuesByLevel}の配列(valuesByLevelはスキルLv別)。
-// 現在のスキルLvでの値をvalueAtLevelで引いて表示する。
+// 現在のスキルLvでの値をvalueAtLevelで引いて%で表示する(value属性は状態と同じ小数のまま)。
 function multiplierCandidateOptions(entry, skillLevel) {
   let html = `<option value="">候補から選ぶ…</option>`;
   for (const { key, valuesByLevel } of entry.multiplierCandidates) {
     const value = valueAtLevel(valuesByLevel, skillLevel);
-    html += `<option value="${value}">${escapeHtml(key)} (${trimNum(value)})</option>`;
+    html += `<option value="${value}">${escapeHtml(key)} (${fmtPct(value, 3)}%)</option>`;
   }
   return html;
 }
@@ -145,7 +146,9 @@ function renderIndividualBuffChips(row, idx, singleConflicts) {
       return `<button type="button" class="chip" data-action="toggle-row-buff" data-idx="${idx}" data-buff-id="${escapeHtml(b.id)}" aria-pressed="${on}">${warn}${escapeHtml(b.name)} ${pctLabel}</button>`;
     })
     .join("");
-  return `<div class="row-field"><label>個別バフ</label><div class="chip-row">${chips}</div></div>`;
+  // どの入力にも結び付かない見出しなので<label>にせず、チップ群をgroupにして見出しを名前に結ぶ。
+  const labelId = `row-${idx}-individual-buffs-label`;
+  return `<div class="row-field"><span class="group-label" id="${labelId}">個別バフ（この行だけに掛けるもの）</span><div class="chip-row" role="group" aria-labelledby="${labelId}">${chips}</div></div>`;
 }
 
 // 全体でONの条件付きバフが、このエントリに適用されるか(✓)/されないか(–)の一覧(P2)。
@@ -361,22 +364,39 @@ function renderStoneBoard(op, entry, row, idx) {
     </div>`;
 }
 
-// P10(混合スキル): ダメージ種別/倍率/[倍率候補。パーツ無し限定]/Hit数/ダメージ倍率%を
-// まとめて描く。`entry.parts`が無い/1件以下(=混合スキルではない通常エントリ)なら
-// 従来通りの単一ブロック(data-partは付けない=パーツ0扱いのまま)、2件以上あれば
-// 共通のHit数欄1つ + パーツごとの小ブロック(見出し=パーツラベル。例: "物理"/"術"。
-// 中身は倍率/ダメージ倍率%だけ)を並べる。ダメージ種別は見出しで自明なので選ばせず、
-// 倍率候補セレクトも出さない(overrideでキーが指定済みのため)。
-function renderDamagePartsSection(op, entry, row, idx) {
+// Hit数(スキルの組に置く狭い欄)。碁石盤のエントリはHit数の代わりに盤面、混合スキル
+// (`entry.parts`が2件以上)は全パーツ共通のHit数1つ(1回の攻撃で全パーツが同時に出るため)。
+function renderHitsSection(op, entry, row, idx) {
   const parts = (entry && entry.parts) || [];
+  if (entry && entry.stoneBoard) return renderStoneBoard(op, entry, row, idx);
+  const mixed = parts.length >= 2;
+  const label = mixed ? `Hit数（${escapeHtml(parts.map((p) => p.label).join("・"))}共通）` : "Hit数";
+  return `
+    <label class="row-field row-narrow-field${mixed ? " wide" : ""}">${label}
+      <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
+      ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
+    </label>`;
+}
+
+// 「スキルの値」の中身。P10(混合スキル): `entry.parts`が無い/1件以下(=通常エントリ)なら
+// ダメージ種別・倍率候補・倍率%・ダメージ倍率%の単一ブロック(data-partは付けない=パーツ0扱い)、
+// 2件以上ならパーツごとの小ブロック(見出し=パーツラベル。例: "物理"/"術"。倍率%/ダメージ倍率%だけ)。
+// ダメージ種別は見出しで自明なので選ばせず、倍率候補セレクトも出さない(overrideでキーが指定済みのため)。
+// どちらもその後にセルフ +%と防御無視。倍率は状態が小数(0.5)、入力欄は%(50)で見せる。
+function renderDamagePartsSection(entry, row, idx) {
+  const parts = (entry && entry.parts) || [];
+  const selfAndIgnore = `
+    <div class="row-grid2">
+      <label>セルフ +%
+        <input type="number" step="any" data-role="row" data-field="selfPct" data-idx="${idx}" value="${fmtPct(row.selfPct, 3)}">
+        ${fieldBadges(entry, "selfPct", row.selfPct, idx, row.skillLevel)}
+        <span class="field-hint">スキル自身の攻撃力上昇</span>
+      </label>
+      <label>防御無視（固定値）
+        <input type="number" step="any" data-role="row" data-field="ignoreDef" data-idx="${idx}" value="${row.ignoreDef}">
+      </label>
+    </div>`;
   if (parts.length < 2) {
-    const hasBoard = !!(entry && entry.stoneBoard);
-    const hitsField = hasBoard
-      ? ""
-      : `<label>Hit数
-        <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
-        ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
-      </label>`;
     return `
     <div class="row-grid2">
       <label>ダメージ種別
@@ -394,29 +414,19 @@ function renderDamagePartsSection(op, entry, row, idx) {
       </label>
     </div>
     <div class="row-grid2">
-      <label>倍率
-        <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}" value="${trimNum(row.multiplier)}">
+      <label>倍率 %
+        <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}" value="${fmtPct(row.multiplier, 3)}">
         ${fieldBadges(entry, "multiplier", row.multiplier, idx, row.skillLevel)}
+        <span class="field-hint">スキルの攻撃力倍率</span>
       </label>
-      ${hitsField}
-    </div>
-    ${hasBoard ? renderStoneBoard(op, entry, row, idx) : ""}
-    <div class="row-grid2">
-      <label>ダメージ倍率%
+      <label>ダメージ倍率 %
         <input type="number" step="any" data-role="row" data-field="dmgMult" data-idx="${idx}" value="${fmtPct(row.dmgMult, 3)}">
+        <span class="field-hint">最終ダメージに掛かる倍率</span>
       </label>
-    </div>`;
+    </div>${selfAndIgnore}`;
   }
 
-  // Hit数は全パーツ共通(1回の攻撃で全パーツが同時に出るため)。row.hitsだけを持つ。
-  const sharedHits = `
-    <div class="row-grid2">
-      <label>Hit数（${escapeHtml(parts.map((p) => p.label).join("・"))}共通）
-        <input type="number" step="1" min="0" data-role="row" data-field="hits" data-idx="${idx}" value="${row.hits}">
-        ${fieldBadges(entry, "hits", row.hits, idx, row.skillLevel)}
-      </label>
-    </div>`;
-  return sharedHits + parts
+  return parts
     .map((part, partIndex) => {
       const target = partIndex === 0 ? row : (row.extraParts && row.extraParts[partIndex - 1]) || {};
       // ダメージ種別はパーツ見出し(ラベル。例: "物理"/"術")で自明なので選ばせない
@@ -428,17 +438,75 @@ function renderDamagePartsSection(op, entry, row, idx) {
       <div class="row-part-block">
         <h4 class="row-part-heading">${escapeHtml(part.label)}</h4>
         <div class="row-grid2">
-          <label>倍率
-            <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}"${partAttr} value="${trimNum(multiplier)}">
+          <label>倍率 %
+            <input type="number" step="any" data-role="row" data-field="multiplier" data-idx="${idx}"${partAttr} value="${fmtPct(multiplier, 3)}">
             ${fieldBadges(entry, "multiplier", multiplier, idx, row.skillLevel, partIndex)}
           </label>
-          <label>ダメージ倍率%
+          <label>ダメージ倍率 %
             <input type="number" step="any" data-role="row" data-field="dmgMult" data-idx="${idx}"${partAttr} value="${fmtPct(dmgMult, 3)}">
           </label>
         </div>
       </div>`;
     })
-    .join("");
+    .join("") + selfAndIgnore;
+}
+
+const DMG_TYPE_LABEL = { physical: "物理", arts: "術", true: "真" };
+
+// 閉じている間にsummaryへ出す「今の値」1行。通常: 術 ／ 倍率 50% ／ ダメージ倍率 100% ／ セルフ +0%。
+// 混合: 物理 倍率120% ／ 術 倍率80% ／ セルフ +0%(パーツごとの倍率)。
+function autoNowText(entry, row) {
+  const parts = (entry && entry.parts) || [];
+  const self = `セルフ +${fmtPct(row.selfPct, 3)}%`;
+  if (parts.length >= 2) {
+    const per = parts.map((p, i) => {
+      const target = i === 0 ? row : (row.extraParts && row.extraParts[i - 1]) || {};
+      const m = target.multiplier ?? valueAtLevel(p.multiplierByLevel, row.skillLevel);
+      return `${p.label} 倍率${fmtPct(m, 3)}%`;
+    });
+    return [...per, self].join(" ／ ");
+  }
+  return [DMG_TYPE_LABEL[row.dmgType] || row.dmgType, `倍率 ${fmtPct(row.multiplier, 3)}%`, `ダメージ倍率 ${fmtPct(row.dmgMult, 3)}%`, self].join(" ／ ");
+}
+
+// 「スキルの値」の中に、カタログ既定値と違う値(=fieldBadgesが↺を出す欄)があるか。
+// Hit数は「スキルの値」の外にあるので数えない。
+function autoHasChanges(entry, row) {
+  if (!entry) return false;
+  const differs = (def, cur) => def !== null && def !== undefined && !valuesEqual(def, cur);
+  const parts = entry.parts || [];
+  const base = catalogDefaults(entry, row.skillLevel);
+  if (differs(base.selfPct, row.selfPct)) return true;
+  if (parts.length >= 2) {
+    return parts.some((part, i) => {
+      const target = i === 0 ? row : (row.extraParts && row.extraParts[i - 1]) || {};
+      const cur = target.multiplier ?? valueAtLevel(part.multiplierByLevel, row.skillLevel);
+      const def = i === 0 ? base.multiplier : partCatalogDefaults(part, row.skillLevel).multiplier;
+      return differs(def, cur);
+    });
+  }
+  return differs(base.multiplier, row.multiplier) || differs(base.dmgType, row.dmgType);
+}
+
+// summaryの動的部分(「変更あり」+今の値1行)。renderLiveが打鍵のたびに差し替える。
+export function renderAutoSummaryDynamic(entry, row, idx) {
+  const changed = autoHasChanges(entry, row)
+    ? `<span class="badge-changed" data-role="row-auto-changed" title="カタログ既定値と違う値が入っています">変更あり</span>`
+    : "";
+  return `${changed}<span class="auto-now" data-role="row-auto-now" data-idx="${idx}">${escapeHtml(autoNowText(entry, row))}</span>`;
+}
+
+// 自動で埋まる値をまとめた<details>。開閉はautoOpenIdxで覚えてrender()後も保つ。
+function renderAutoValues(entry, row, idx) {
+  const open = autoOpenIdx.has(idx) ? " open" : "";
+  return `
+    <details class="auto" data-role="row-auto" data-idx="${idx}"${open}>
+      <summary>スキルの値 <span class="badge-auto">自動入力</span>${renderAutoSummaryDynamic(entry, row, idx)}</summary>
+      <div class="auto-body">
+        <p class="field-hint">FK対象とスキルLvから自動で入ります。実測と違うときだけ直してください。</p>
+        ${renderDamagePartsSection(entry, row, idx)}
+      </div>
+    </details>`;
 }
 
 export function renderRowExpanded(row, idx, singleConflicts) {
@@ -470,16 +538,32 @@ export function renderRowExpanded(row, idx, singleConflicts) {
       </details>`
     : "";
 
-  return `
-    <div class="row-actions-top">
-      <button type="button" data-action="collapse-row" data-idx="${idx}">▲ 折りたたむ</button>
-    </div>
-    <div class="row-field">
-      <label>オペレーター
+  const head = `
+    <div class="rowhead">
+      <label class="rowhead-name">オペレーター
         <input type="text" list="operator-datalist" data-role="row" data-field="opName" data-idx="${idx}"
                value="${escapeHtml(op ? op.name : "")}" placeholder="名前を入力…">
       </label>
-    </div>
+      ${op && r ? `<div class="rowhead-total"><small>この行のダメージ</small><b data-role="row-total" data-idx="${idx}">${fmtInt(r.rowDamage)}</b></div>` : ""}
+    </div>`;
+  const topActions = `
+    <div class="row-actions-top">
+      <button type="button" data-action="collapse-row" data-idx="${idx}">▲ 折りたたむ</button>
+    </div>`;
+  const foot = `
+    <div class="rowfoot">
+      <button type="button" class="rowfoot-del" data-action="del-row" data-idx="${idx}">× この行を削除</button>
+      <button type="button" data-action="collapse-row" data-idx="${idx}">折りたたむ</button>
+    </div>`;
+
+  // オペレーター未選択の間は名前欄だけ(他の欄は意味を持たない)。
+  if (!op) {
+    return `${topActions}${head}
+    <p class="empty-hint">オペレーターを選ぶと、スキル・育成・バフの欄が出ます。</p>
+    ${foot}`;
+  }
+
+  return `${topActions}${head}
     <div class="row-field">
       <div class="entry-with-skill-level">
         <label class="entry-field">FK対象 ${entrySelectHtml}</label>
@@ -488,48 +572,46 @@ export function renderRowExpanded(row, idx, singleConflicts) {
       ${renderSkillUnlockWarning(op, entry, row)}
       ${entry ? renderSkillLevelWarning(row) : ""}
     </div>
-    ${op ? renderEliteLevelTrustControls(op, row, idx) : ""}
-    ${potentialHtml ? `<div class="row-grid2">${potentialHtml}</div>` : ""}
     ${renderTagsChips(entry)}
-    <div class="row-grid2">
-      <label>モジュール
-        <select data-role="row" data-field="moduleId" data-idx="${idx}" ${moduleDisabled}>${op ? moduleOptions(op, row) : '<option value="">なし</option>'}</select>
-      </label>
-      <label>Lv
-        <select data-role="row" data-field="moduleLv" data-idx="${idx}" ${row.moduleId ? "" : "disabled"}>
-          <option value="1"${row.moduleLv === 1 ? " selected" : ""}>1</option>
-          <option value="2"${row.moduleLv === 2 ? " selected" : ""}>2</option>
-          <option value="3"${row.moduleLv === 3 ? " selected" : ""}>3</option>
-        </select>
-      </label>
+    ${renderHitsSection(op, entry, row, idx)}
+    <div class="group">
+      <p class="group-title">育成</p>
+      ${renderEliteLevelTrustControls(op, row, idx)}
+      <div class="${potentialHtml ? "row-grid3" : "row-grid2"}">
+        ${potentialHtml}
+        <label>モジュール
+          <select data-role="row" data-field="moduleId" data-idx="${idx}" ${moduleDisabled}>${moduleOptions(op, row)}</select>
+        </label>
+        <label>モジュールLv
+          <select data-role="row" data-field="moduleLv" data-idx="${idx}" ${row.moduleId ? "" : "disabled"}>
+            <option value="1"${row.moduleLv === 1 ? " selected" : ""}>1</option>
+            <option value="2"${row.moduleLv === 2 ? " selected" : ""}>2</option>
+            <option value="3"${row.moduleLv === 3 ? " selected" : ""}>3</option>
+          </select>
+        </label>
+      </div>
+      <div class="module-hint-wrap" data-role="module-hint" data-idx="${idx}">${renderModuleUnusableHint(op, row)}</div>
     </div>
-    <div class="module-hint-wrap" data-role="module-hint" data-idx="${idx}">${renderModuleUnusableHint(op, row)}</div>
-    ${renderDamagePartsSection(op, entry, row, idx)}
-    <div class="row-grid2">
-      <label>セルフ%
-        <input type="number" step="any" data-role="row" data-field="selfPct" data-idx="${idx}" value="${fmtPct(row.selfPct, 3)}">
-        ${fieldBadges(entry, "selfPct", row.selfPct, idx, row.skillLevel)}
-      </label>
-      <label>手入力バフ+%
-        <input type="number" step="any" data-role="row" data-field="buffPct" data-idx="${idx}" value="${fmtPct(row.buffPct, 3)}">
-      </label>
+    <div class="group">
+      <p class="group-title">バフ <span class="group-sub">攻撃力に足すもの</span></p>
+      ${renderIndividualBuffChips(row, idx, singleConflicts)}
+      ${renderConditionalStatusLine(r)}
+      ${renderSpecialCheckbox(op, entry, row, idx)}
+      ${renderRowInspireToggle(r, row, idx)}
+      <div class="row-grid2">
+        <label>その他のバフ +%
+          <input type="number" step="any" data-role="row" data-field="buffPct" data-idx="${idx}" value="${fmtPct(row.buffPct, 3)}">
+          <span class="field-hint">一覧に無いバフを自分で足す</span>
+        </label>
+        <label>基礎攻撃力 +
+          <input type="number" step="any" data-role="row" data-field="buffFlat" data-idx="${idx}" value="${trimNum(row.buffFlat || 0)}">
+          <span class="field-hint">%バフの前に足す固定値</span>
+        </label>
+      </div>
     </div>
-    ${renderIndividualBuffChips(row, idx, singleConflicts)}
-    ${renderConditionalStatusLine(r)}
-    ${renderSpecialCheckbox(op, entry, row, idx)}
-    ${renderRowInspireToggle(r, row, idx)}
-    <div class="row-grid2">
-      <label>手入力 基礎攻撃力+
-        <input type="number" step="any" data-role="row" data-field="buffFlat" data-idx="${idx}" value="${trimNum(row.buffFlat || 0)}">
-      </label>
-      <label>防御無視（固定値）
-        <input type="number" step="any" data-role="row" data-field="ignoreDef" data-idx="${idx}" value="${row.ignoreDef}">
-      </label>
-    </div>
+    ${renderAutoValues(entry, row, idx)}
     <p class="row-formula" data-role="row-formula" data-idx="${idx}">${formula}</p>
     ${fkInfo}
-    <div class="row-actions-expanded">
-      <button type="button" data-action="collapse-row" data-idx="${idx}">折りたたむ</button>
-    </div>
+    ${foot}
   `;
 }

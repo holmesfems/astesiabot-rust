@@ -14,14 +14,21 @@
 use crate::engine::external_source::BoxFuture;
 use crate::engine::fk_kill_calc::Catalog;
 use askama::Template;
-use axum::http::{header, HeaderMap};
+use axum::http::{header, HeaderMap, HeaderValue};
 use axum::response::{Html, IntoResponse};
 use axum::routing::get;
 use axum::Router;
 use std::sync::Arc;
 use tower_http::services::ServeDir;
+use tower_http::set_header::SetResponseHeaderLayer;
 
 const STATIC_DIR: &str = "src/api/fk_kill_calculator/static";
+
+/// ページが読む static の版つきパス（`/static/<STATIC_VERSION>/…`）。モジュール間で意味が変わる変更
+/// （例: 入力欄の単位）をしたら上げる。templates/fkc_index.html の参照も同じ値にそろえること。
+/// モジュールは相対 import なので、入口(ui.js)の URL が変われば配下も全部新しい URL になり、
+/// 古いキャッシュの JS と新しい JS が混ざらない。
+const STATIC_VERSION: &str = "v2";
 
 #[derive(Template)]
 #[template(path = "fkc_index.html")]
@@ -52,7 +59,14 @@ pub fn page_router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    Router::new().route("/", get(index)).nest_service("/static", ServeDir::new(STATIC_DIR))
+    // 版つき(/static/v2)と従来(/static。外部参照・既存テスト用)の両方に載せ、毎回サーバーに確かめさせる
+    // (no-cache。変わっていなければ 304 なので軽い)。
+    let versioned = format!("/static/{STATIC_VERSION}");
+    let statics = Router::new()
+        .nest_service("/static", ServeDir::new(STATIC_DIR))
+        .nest_service(&versioned, ServeDir::new(STATIC_DIR))
+        .layer(SetResponseHeaderLayer::overriding(header::CACHE_CONTROL, HeaderValue::from_static("no-cache")));
+    Router::new().route("/", get(index)).merge(statics)
 }
 
 /// 呼び出し毎に最新のカタログを返すプロバイダ。`run_api`は`ExternalSourceRegistry`の
@@ -103,6 +117,22 @@ mod tests {
         assert!(html.contains("<title>フレームキル計算機"));
         assert!(html.contains("toolnav-bar"));
         assert!(html.contains(r#"href="/FrameKillCalculator" aria-current="page""#));
+        // 古いキャッシュの JS/CSS が混ざらないよう、版つきの URL を読む。
+        assert!(html.contains("/FrameKillCalculator/static/v2/style.css"));
+        assert!(html.contains("/FrameKillCalculator/static/v2/lz-string.min.js"));
+        assert!(html.contains("/FrameKillCalculator/static/v2/ui.js"));
+        assert!(!html.contains("/FrameKillCalculator/static/ui.js"));
+    }
+
+    #[tokio::test]
+    async fn static_files_are_served_with_no_cache_on_both_paths() {
+        for uri in ["/static/v2/ui.js", "/static/ui.js", "/static/v2/ui/row_view.js", "/static/v2/style.css"] {
+            let app = page_router::<()>();
+            let response = app.oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap()).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{uri}");
+            let cache_control = response.headers().get(header::CACHE_CONTROL).unwrap().to_str().unwrap();
+            assert_eq!(cache_control, "no-cache", "{uri}");
+        }
     }
 
     fn empty_provider() -> CatalogProvider {

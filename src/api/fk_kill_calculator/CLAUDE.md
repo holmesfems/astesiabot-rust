@@ -7,7 +7,7 @@
 
 | ファイル | 役割 |
 |---|---|
-| `mod.rs` | `page_router()`（ページ本体＋`/static`）と `catalog_router(provider)`（`GET .../catalog.json`） |
+| `mod.rs` | `page_router()`（ページ本体＋`/static` と版つきの `/static/v2`。どちらも `Cache-Control: no-cache`）と `catalog_router(provider)`（`GET .../catalog.json`） |
 | `templates/fkc_index.html` | toolnav / head_icons / og_square_image を include。SEO タグは `base_url()` から |
 | `static/engine.js` | 計算層の入口。公開する名前の一覧と、単位の約束（冒頭コメント）だけを持つ |
 | `static/engine/` | 計算層の実体。`document` / `window` を参照しない（verify.mjs が確かめる）。`entry`（カタログの引き方・スキルLv別の値・特殊強化・行の初期値）/ `stats`（ATK・昇進・モジュール）/ `buffs` / `inspire` / `damage` / `stone_board` / `sanitize`（`dropStaleRows`）/ `suggest` |
@@ -16,6 +16,13 @@
 | `static/style.css` | 420px 想定の縦長1カラム、ダーク固定（配色トークンは `home_index.html` の `:root`） |
 | `static/lz-string.min.js` | 1.5.0, MIT |
 | `verify.mjs` / `e2e.mjs` | 計算層の検証 / Playwright での実機テスト。実行方法はルートの CLAUDE.md |
+
+## static の版つき URL と no-cache
+
+テンプレートは `/FrameKillCalculator/static/v2/…`（`mod.rs` の `STATIC_VERSION`）を読み、従来の `/static` も残す。
+モジュールは相対 import なので入口（`ui.js`）の URL が変われば配下も全部新しい URL になり、古いキャッシュの JS と
+新しい JS が混ざらない。**モジュール間で意味が変わる変更（例: 倍率の入力欄を % にした）をしたら `STATIC_VERSION` と
+`fkc_index.html` の参照を上げる**。加えて static 応答は `no-cache`（毎回サーバーに確かめ、変わっていなければ 304）。
 
 ## catalog.json だけ web_ui_router() に入れない
 
@@ -96,10 +103,12 @@ final = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × ...
 - 構造が変わる操作は `render`（`#app` 丸ごと。フォーカスは `withPreservedFocus` で戻す）。
 - 数値欄の打鍵中は `renderLive`（入力欄を作り直さず導出表示だけ差し替え。type=number は
   カーソル位置を戻せないため）。チップ・チェックボックス・select は常に `render`。
-- `ROW_PERCENT_FIELDS` は%換算する欄。`buffFlat` は入れない。
+- `ROW_PERCENT_FIELDS` は%換算する欄（`selfPct` / `buffPct` / `dmgMult` / `multiplier`）。`buffFlat` は入れない。
+  `multiplier` は状態が小数（0.5）のまま、入力欄の表示・読み取りだけ % （50）。倍率候補セレクトの value も小数で、
+  ラベルだけ %。バッジ判定（`fieldBadges`）に渡す現在値は小数。
 - 混合スキルの入力要素は `data-part="<n>"`（0は省略）を持ち、`onRowFieldChange` / `renderLive` /
   reset-field は `partTarget` で row 自身か `row.extraParts[n-1]` かを決める。
-  `renderDamagePartsSection` がパーツごとのブロックを描く（パーツ有りでは倍率候補セレクトを出さない）。
+  `renderDamagePartsSection` が「スキルの値」の中身（パーツごとのブロック。パーツ有りでは倍率候補セレクトを出さない）を描く。
   式表示（`renderFormulaLine`）はパーツごとに1行＋合計行。
 - 行のオペレーターが確定した瞬間（`onOperatorNameChange`）だけ、そのオペレーター由来の条件付きバフを
   `autoEnableSourcedBuffs` で ON にする。ユーザーが OFF にしたら他の操作で再 ON しない。
@@ -114,6 +123,14 @@ final = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × ...
 - 判定は `#app` ごと差し替わって読み上げに載らないので、`renderVerdict` が作る平文を `#verdict-live`
   （`#app` の外・`visually-hidden`・`role=status`）へ 600ms デバウンスで反映する（前回と同文なら何もしない）。
 - `updateVerdictGlow` が body に `verdict-glow-ok` / `-ng` を付け、`body::after` で縁を光らせる（HP 未入力は無し）。
+- 行の展開ビューの組の順番（`renderRowExpanded`）: 折りたたむ → 行の頭（名前＋「この行のダメージ」`row-total`）→
+  スキル（FK対象・スキルLv・警告・タグ・Hit数/碁石盤）→ 育成 → バフ → 「スキルの値」（`details.auto`）→ 式 → FK情報 →
+  行フッター（`× この行を削除` / 折りたたむ）。オペレーター未選択の間は名前欄と一言とフッターだけ。
+- 「スキルの値」は倍率・ダメージ種別・セルフ・防御無視など自動で埋まる欄。開閉は `store.js` の `autoOpenIdx`
+  （`ui.js` の toggle リスナーが更新、描画時に `open`。`specialDescOpenIdx` と同じく行の削除・複製による idx のずれは追わない）。
+  e2e で中の欄を触るときは先に開く（`openAuto`）。
+- `renderLive` は開いている行の式・バッジ・モジュールヒントに加え、行の合計（`[data-role="row-total"]`）と
+  summary の「今の値」（`row-auto-now`）・「変更あり」（`renderAutoSummaryDynamic`）も差し替える。
 - 展開ビューの先頭にも `collapse-row` ボタン。撃破提案は折りたたみ、共有ボタン・注記はページ末尾。
 - 折りたたみ行のサマリーは `E2 Lv90`（信頼度100%は省略）、特化3以外ならスキルLv（`SLv7`）を足す。
   混合スキルはパーツ内訳を tooltip に入れる。
