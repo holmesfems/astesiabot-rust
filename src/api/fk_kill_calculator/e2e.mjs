@@ -154,6 +154,13 @@ async function runMainScenario(browser, baseUrl) {
     const verdict1 = await page.locator('#verdict-text').innerText();
     ok('verdict updates after enemy hp/def input', verdict1.includes('撃破できる') || verdict1.includes('足りない'), verdict1);
 
+    // --- 判定の読み上げ用 #verdict-live は、デバウンス(600ms)後に判定と同じ内容の平文になる ---
+    await page.waitForTimeout(900);
+    const live1 = await page.locator('#verdict-live').textContent();
+    ok('verdict-live mirrors the verdict as plain text (no emoji) after debounce',
+      (verdict1.includes('撃破できる') ? live1.startsWith('撃破できる') : live1.startsWith('あと'))
+        && !/[✅❌]/.test(live1) && live1.includes('%'), live1);
+
     // --- 実キー入力: 1打鍵ずつ打っても桁順が保たれ、途中の0も打てる ---
     // （fill()は値を一括で流し込むため、打鍵ごとの再描画でカーソルが先頭へ戻る不具合を
     // 検出できない。ここは必ず実キー入力で確認する）
@@ -168,6 +175,11 @@ async function runMainScenario(browser, baseUrl) {
     await page.waitForTimeout(100);
     ok('verdict reflects key-by-key typed hp', (await page.locator('#verdict-text').innerText()).includes('/ 100'),
       await page.locator('#verdict-text').innerText());
+    // 打鍵中は読み上げ文を更新せず（デバウンス）、止まって600ms後に最新の判定(HP 100)になる
+    await page.waitForTimeout(900);
+    ok('verdict-live follows the final typed hp after debounce',
+      (await page.locator('#verdict-live').textContent()).includes('HP 100'),
+      await page.locator('#verdict-live').textContent());
     await page.locator('input[data-field="hits"]').fill('');
     await page.locator('input[data-field="hits"]').pressSequentially('10');
     ok('typing "10" key by key into an expanded row field yields 10', (await page.locator('input[data-field="hits"]').inputValue()) === '10',

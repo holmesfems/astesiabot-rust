@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>アステシアちゃんbot | アークナイツ便利ツール</title>
 {% include "head_icons.html" %}
 <meta name="description" content="アークナイツ Discordサーバー「フレーム鯖(F鯖)」のbot「アステシアちゃん」の紹介ページ。公開求人のiOSショートカットや、エンドフィールドの武陵発電・レシピ計算機など、無料で使える便利ツールをまとめています。">
@@ -62,6 +63,7 @@
     --ivory:#F1E9D2;     /* h1・ボタンの文字 */
     --text:#e4e7f0;
     --faint:#b0b7ca;     /* 補足の文字。薄くしたいときも opacity は使わずこの色にする */
+    color-scheme:dark;   /* ダーク固定。スクロールバー等の標準部品をダーク扱いに（root を見る） */
 
     /* 共通のツールナビ(toolnav.html)をこのページだけ紺と金にする。選択中のチップは
        「Discordに参加する」ボタンと同じ、金の細枠＋アイボリーの文字 */
@@ -102,7 +104,7 @@
      重ね順(奥→手前)は、全幅で次の1通り。どこにも z-index つきの重ね合わせ文脈(stacking context)を作らず、
      ルート文脈の中で並べる(.wrap と .plate に z-index を付けない。付けるとダイヤルをその間に挟めなくなる):
        星空 #sky(z -1) → .plate の背景と弓・目盛り(位置指定で z-index 無し=z 0 の段) → #dial(z 1)
-       → 文字とリンク(ヒーロー・.plate > section・footer。position:relative; z-index:2) → #dial-index(3) → ツールナビ(1000)
+       → 文字とリンク(ヒーロー・.plate > main > section・footer。position:relative; z-index:2) → #dial-index(3) → ツールナビ(1000)
      (z-index 無しの位置指定要素は z 0 の段で木の順に塗られ、その中身はまとめて #dial より下になる。
       文字側を z 2 で持ち上げるので、パネルの面ごとダイヤルの手前に出る。)
      #dial は pointer-events:none なので、下の文字やリンクはそのまま触れる。ダイヤルは掴めない(ページを普通にスクロールすると回る)。
@@ -172,10 +174,10 @@
   .hero p{margin:0;color:var(--faint);letter-spacing:.08em}
 
   section{margin-top:72px}
-  .plate > section{position:relative;z-index:2}  /* ダイヤル(z 1)より手前 */
+  .plate > main > section{position:relative;z-index:2}  /* ダイヤル(z 1)より手前。<main> 自体には重ね合わせ文脈を作るものを付けない */
   /* 環の下側は文字が無く、そのまま 72px 空けると間延びするので最初のセクションだけ詰める
      (上の余白は .plate の padding-top が受け持つ) */
-  .plate > .plate-arc + section{margin-top:24px}
+  .plate > main > section:first-child{margin-top:24px}
   /* 早見盤のカバー。本文はこの半透明の面の上に載せる。上辺は窓の縁のような弓なり(.plate-arc)、
      両脇には時刻目盛り(長い目盛り60px・短い目盛り12px)。.wrap のオープニング用 opacity と干渉しない。 */
   .plate{
@@ -374,14 +376,15 @@
 {% include "toolnav.html" %}
 <div class="wrap">
 
-  <div class="hero">
+  <header class="hero">
     <h1>アステシアちゃんbot</h1>
     <p>F鯖を支えるbotと、便利ツールのご案内</p>
-  </div>
+  </header>
 
-  <main class="plate">
+  <div class="plate">
   <div class="plate-arc" aria-hidden="true"></div>
 
+  <main>
   <section>
     <h2>F鯖(フレーム鯖)について</h2>
     <div class="panel">
@@ -484,6 +487,7 @@
       </a>
     </div>
   </section>
+  </main>
 
   <footer>
     <a href="https://github.com/holmesfems/astesiaBot-rust" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -499,7 +503,7 @@
       　星の位置: Yale Bright Star Catalog, 5th ed.（Hoffleit &amp; Warren 1991, <a href="https://cdsarc.cds.unistra.fr/viz-bin/cat/V/50" target="_blank" rel="noopener noreferrer">CDS/VizieR V/50</a>）</p>
   </footer>
 
-  </main>
+  </div>
 </div>
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();

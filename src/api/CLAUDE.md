@@ -72,7 +72,7 @@
   非対応なら JS が scroll で `style.rotate` を入れる。どちらも角度は scrollY×0.06deg（時計回り）。
   ダイヤルはカバーの背景と文字の間に敷き（`pointer-events:none`・掴めない）、下へスクロールすると時計回りに回って内容と同じ向きに動く。
   重ね順は `home_index.html` の CSS コメント。
-  ダイヤルの中心は本文カバー（`main.plate`）の右辺に固定（スマホは全幅なので画面の右端）で、位置と直径は JS（`layout()`）が入れる。
+  ダイヤルの中心は本文カバー（`.plate`）の右辺に固定（スマホは全幅なので画面の右端）で、位置と直径は JS（`layout()`）が入れる。
   オープニング（`opening.js`）の再生中は、ダイヤルと北極をエンブレム（`.opening-stage`）に重ねて置く（`--open-tx/ty/s` の FLIP）。
   自然に終わると `html.opening-done` で CSS がダイヤルと空を本来の位置へ滑らせ、スキップ（クリック・キー）はクラスを外すだけでその場で最終状態になる。
   両 JS は `window` の `home-opening-end` イベントで緩く連携する。

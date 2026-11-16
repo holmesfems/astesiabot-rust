@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>フレームキル計算機 | アステシアちゃんbot</title>
 {% include "head_icons.html" %}
 <meta name="description" content="アークナイツのフレームキル(FK)情報をもとに、オペレーターのスキルダメージが敵を撃破できるか計算するツール。攻撃力・防御/術耐性・モジュール・潜在を入力すると、撃破可否と不足分の目安をその場で表示します。">
@@ -31,10 +32,14 @@
 <body>
 {% include "toolnav.html" %}
 <div id="toast-container" aria-live="polite"></div>
+<!-- 判定欄は #app ごと差し替わって読み上げに載らないので、判定の平文はここ（差し替えない場所）に出す -->
+<div id="verdict-live" class="visually-hidden" role="status"></div>
 <div class="wrap">
-  <h1>フレームキル計算機</h1>
-  <p class="sub">敵のHP/防御/術耐性と、FKするオペレーターのスキルを入力すると撃破可否をその場で計算します。</p>
-  <div id="app">読み込み中…</div>
+  <main>
+    <h1>フレームキル計算機</h1>
+    <p class="sub">敵のHP/防御/術耐性と、FKするオペレーターのスキルを入力すると撃破可否をその場で計算します。</p>
+    <div id="app">読み込み中…</div>
+  </main>
   <footer>
     <a href="https://github.com/holmesfems/astesiaBot-rust" target="_blank" rel="noopener noreferrer">GitHub</a>
     ｜ © <span id="year"></span> holmesfems. Licensed under the
