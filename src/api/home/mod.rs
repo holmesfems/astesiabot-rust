@@ -78,7 +78,7 @@ mod tests {
         assert!(html.contains(r#"href="/api/risei/skill.zip" download"#));
         assert!(html.contains("<h2>エンドフィールド</h2>"));
         assert!(html.contains("<h2>他の趣味ツール</h2>"));
-        assert!(html.contains(r#"<script src="/static/planisphere.js" defer></script>"#));
+        assert!(html.contains(r#"<script src="/static/planisphere.js?v=2" defer></script>"#));
         assert!(html.contains(r#"<script src="/static/opening.js" defer></script>"#));
         assert!(html.contains(r#"<div id="opening" aria-hidden="true">"#));
         assert!(html.contains(r#"<svg id="emblem""#));

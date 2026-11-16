@@ -508,7 +508,9 @@
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
 </script>
-<script src="/static/planisphere.js" defer></script>
+<!-- ?v= はブラウザに残った旧版を読ませないため(旧版は main.plate を探すので、今の HTML ではダイヤルの位置が決まらない)。
+     planisphere.js が頼る HTML の構造を変えたら上げる。 -->
+<script src="/static/planisphere.js?v=2" defer></script>
 <script src="/static/opening.js" defer></script>
 </body>
 </html>
