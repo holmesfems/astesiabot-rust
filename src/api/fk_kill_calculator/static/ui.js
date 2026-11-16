@@ -25,6 +25,7 @@ import { $, showToast } from "./ui/dom.js";
 import { onAppChange, onAppClick, onAppInput } from "./ui/events.js";
 import { render } from "./ui/page_view.js";
 import {
+  autoOpenIdx,
   defaultEnemy,
   fetchCatalog,
   loadSavedState,
@@ -66,6 +67,12 @@ export async function initUi() {
     (ev) => {
       if (ev.target && ev.target.id === "global-buffs-details") setGlobalBuffsOpen(ev.target.open);
       if (ev.target && ev.target.id === "verdict-suggestions") setVerdictSuggestOpen(ev.target.open);
+      // 行の「スキルの値」(<details data-role="row-auto">)の開閉もrender()を跨いで覚えておく。
+      if (ev.target && ev.target.dataset && ev.target.dataset.role === "row-auto") {
+        const idx = Number(ev.target.dataset.idx);
+        if (ev.target.open) autoOpenIdx.add(idx);
+        else autoOpenIdx.delete(idx);
+      }
     },
     true,
   );

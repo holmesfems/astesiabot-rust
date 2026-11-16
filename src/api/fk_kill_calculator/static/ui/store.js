@@ -22,6 +22,9 @@ export let verdictSuggestOpen = false;
 // P2 follow-up: 特殊強化のⓘ説明文が展開されている行のインデックス集合。
 // render()は#app丸ごと作り直すため、ここに覚えておいて復元する(globalBuffsOpenと同じ考え方)。
 export const specialDescOpenIdx = new Set();
+// 行の「スキルの値(自動入力)」<details>を開いている行のインデックス集合(render()を跨いで保持。
+// specialDescOpenIdxと同じ考え方で、行の削除・複製によるidxのずれは追従しない)。
+export const autoOpenIdx = new Set();
 // P3: 鼓舞ソースのⓘ内訳が展開されているソースid集合(specialDescOpenIdxと同じ考え方)。
 export const inspireDescOpenIds = new Set();
 let saveTimer = null;
