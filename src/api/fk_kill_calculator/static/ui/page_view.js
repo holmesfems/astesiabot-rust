@@ -207,6 +207,24 @@ function renderRows() {
 
 /* ---------------- 描画: 判定セクション ---------------- */
 
+// 直近の renderVerdict が作った読み上げ用の平文（computeTotal を増やさないため持ち回る）。
+let verdictPlain = "";
+let announcedVerdict = "";
+let announceTimer = null;
+const ANNOUNCE_DEBOUNCE_MS = 600;
+
+// 判定の平文を #verdict-live（#app の外＝差し替わらない）へ反映する。
+// 数値欄の打鍵中に1文字ごとに読み上げないよう、最後の変更から 600ms 後に1回だけ。前回と同文なら何もしない。
+function scheduleVerdictAnnounce() {
+  clearTimeout(announceTimer);
+  announceTimer = setTimeout(() => {
+    const live = document.getElementById("verdict-live");
+    if (!live || verdictPlain === announcedVerdict) return;
+    announcedVerdict = verdictPlain;
+    live.textContent = verdictPlain;
+  }, ANNOUNCE_DEBOUNCE_MS);
+}
+
 function renderVerdict() {
   const { results, total, killed } = computeTotal(catalog, state.rows, state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
   const hp = state.enemy.hp;
@@ -222,18 +240,22 @@ function renderVerdict() {
     .join("");
   const hpLinePct = Math.min((hp / scale) * 100, 100);
 
+  // 画面用の HTML と、読み上げ用の平文（絵文字・タグ無し。#verdict-live に出す）を同じ分岐で作る。
   let verdictHtml;
   if (hp <= 0) {
     // HP未入力(0)で「撃破できる」と出すと誤解を招くので、入力を促すだけにする。
     verdictHtml = `<span class="verdict-pending">敵のHPを入力してください</span> (与ダメ合計 ${fmtInt(total)})`;
+    verdictPlain = "敵のHPを入力してください";
   } else if (killed) {
     const pct = hp > 0 ? Math.round((total / hp) * 100) : 100;
     const margin = fmtInt(total - hp);
     verdictHtml = `<span class="verdict-ok">✅ 撃破できる</span> (${fmtInt(total)} / ${fmtInt(hp)}, ${pct}%, 余裕 +${margin})`;
+    verdictPlain = `撃破できる。与ダメ合計 ${fmtInt(total)}、HP ${fmtInt(hp)}、${pct}%、余裕 +${margin}`;
   } else {
     const deficit = fmtInt(hp - total);
     const pct = hp > 0 ? Math.round((total / hp) * 100) : 0;
     verdictHtml = `<span class="verdict-ng">❌ あと ${deficit} 足りない</span> (${pct}%)`;
+    verdictPlain = `あと ${deficit} 足りない。${pct}%`;
   }
 
   let suggestionsHtml = "";
@@ -290,6 +312,7 @@ export function render() {
       renderVerdict() + renderEnemy() + renderGlobalBuffs() + renderIndividualBuffLevelsSection() + renderRows() + renderPageFooter();
   });
   updateVerdictGlow();
+  scheduleVerdictAnnounce();
   saveState();
 }
 
@@ -335,5 +358,6 @@ export function renderLive() {
   });
   $("verdict-section").outerHTML = renderVerdict();
   updateVerdictGlow();
+  scheduleVerdictAnnounce();
   saveState();
 }

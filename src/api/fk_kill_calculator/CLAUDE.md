@@ -111,6 +111,8 @@ final = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × ...
 
 - 判定欄（`#verdict-section`）は上部 sticky。ツール切り替えバーも上端 sticky なので、その高さ
   （ui.js が実測して `--toolnav-h` に入れる）だけ下に貼る。
+- 判定は `#app` ごと差し替わって読み上げに載らないので、`renderVerdict` が作る平文を `#verdict-live`
+  （`#app` の外・`visually-hidden`・`role=status`）へ 600ms デバウンスで反映する（前回と同文なら何もしない）。
 - `updateVerdictGlow` が body に `verdict-glow-ok` / `-ng` を付け、`body::after` で縁を光らせる（HP 未入力は無し）。
 - 展開ビューの先頭にも `collapse-row` ボタン。撃破提案は折りたたみ、共有ボタン・注記はページ末尾。
 - 折りたたみ行のサマリーは `E2 Lv90`（信頼度100%は省略）、特化3以外ならスキルLv（`SLv7`）を足す。

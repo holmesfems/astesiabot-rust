@@ -14,6 +14,9 @@
   --gold:#e8dcb0;
   --input-bg:rgba(7,10,20,.55);
   --input-border:rgba(154,162,184,.35);
+  /* ダーク固定。スクロールバー・select・スピナー等の標準部品をダーク扱いにする
+     （ビューポートのスクロールバーと初期キャンバス色は root を見るので body でなく :root） */
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -256,3 +259,15 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:1000;o
 body.verdict-glow-ok::after{opacity:1;box-shadow:inset 0 0 40px 6px rgba(121,226,208,.55)}
 body.verdict-glow-ng::after{opacity:1;box-shadow:inset 0 0 40px 6px rgba(232,116,138,.55)}
 @media (prefers-reduced-motion: reduce){body::after{transition:none}}
+
+/* iOS は 16px 未満の入力欄にフォーカスすると画面を勝手に拡大する。PC の高密度レイアウト(13px)は
+   そのままに、タッチ端末だけ 16px にする。.cond-source-controls select は詳細度が高いので明示する。 */
+@media (pointer:coarse){
+  input,select,.cond-source-controls select{font-size:16px}
+}
+
+/* 画面には出さず読み上げにだけ載せる（判定の通知用 #verdict-live） */
+.visually-hidden{
+  position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;
+  overflow:hidden;clip-path:inset(50%);white-space:nowrap;
+}

@@ -4,7 +4,7 @@
 // 天の北極を中心にした正距方位図法で描く。早見盤を地上から見上げる向き(天球を内側から見る)なので、
 // 赤経は画面上で時計回りに増える(オリオンを北極の下に置くと、肩のベテルギウスが足のリゲルより左)。
 // 北極の位置はダイヤル(#dial。金の環と星座記号 #dial-ring を描く)の中心に合わせる。ダイヤルの中心は
-// 本文カラム(早見盤のカバー。main.plate)の右辺に固定する: 本物の早見盤のように、カバーが回る盤の
+// 本文カラム(早見盤のカバー。.plate)の右辺に固定する: 本物の早見盤のように、カバーが回る盤の
 // 半分を隠し、盤はカバーの縁を軸に回る。位置と大きさは layout() が JS で決めて #dial に入れる
 // (x = カバーの右辺、y = ツールナビの下の領域の縦の真ん中、直径 = min(78vh, カバーの幅×1.6))。
 // その同じ値を北極にも使う(回転中の要素を測り直さない)。ダイヤルは全幅で同じ配置で、スマホは
@@ -164,7 +164,7 @@
     // 中心の置き方は margin(負の半径)。オープニングの姿を個別の transform プロパティ translate / scale で作るので、
     // transform: translate(-50%,-50%) で中心に合わせると、その -50% まで scale で拡縮されて中心がずれる。
     function layout(){
-      var plate = document.querySelector("main.plate");
+      var plate = document.querySelector(".plate");
       if(!dial || !plate){ return }
       var pr = plate.getBoundingClientRect();
       if(pr.width <= 0){ return }
@@ -347,7 +347,7 @@
     if(useCss && window.ResizeObserver){
       var ro = new ResizeObserver(updateRange);
       ro.observe(document.body);
-      var plateEl = document.querySelector("main.plate");
+      var plateEl = document.querySelector(".plate");
       if(plateEl){ ro.observe(plateEl) }
     }
     // オープニングが終わった(opening.js が dispatch)。スライドは html.opening-done が付いた時点で CSS の
