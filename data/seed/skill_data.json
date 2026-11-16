@@ -1360,6 +1360,68 @@
       "is_ammo_skill": false,
       "name": "残り香"
     },
+    "skchr_acrbot_1": {
+      "blackboard": {
+        "atk": 2.2,
+        "base_attack_time": -0.6,
+        "max_hp": 1.0
+      },
+      "blackboard_by_level": [
+        {
+          "atk": 1.3,
+          "base_attack_time": -0.6,
+          "max_hp": 0.45
+        },
+        {
+          "atk": 1.4,
+          "base_attack_time": -0.6,
+          "max_hp": 0.5
+        },
+        {
+          "atk": 1.5,
+          "base_attack_time": -0.6,
+          "max_hp": 0.55
+        },
+        {
+          "atk": 1.6,
+          "base_attack_time": -0.6,
+          "max_hp": 0.6
+        },
+        {
+          "atk": 1.7,
+          "base_attack_time": -0.6,
+          "max_hp": 0.65
+        },
+        {
+          "atk": 1.8,
+          "base_attack_time": -0.6,
+          "max_hp": 0.7
+        },
+        {
+          "atk": 1.9,
+          "base_attack_time": -0.6,
+          "max_hp": 0.75
+        },
+        {
+          "atk": 2.0,
+          "base_attack_time": -0.6,
+          "max_hp": 0.8
+        },
+        {
+          "atk": 2.1,
+          "base_attack_time": -0.6,
+          "max_hp": 0.9
+        },
+        {
+          "atk": 2.2,
+          "base_attack_time": -0.6,
+          "max_hp": 1.0
+        }
+      ],
+      "description": "攻撃回復/手動発動 ⌚20.0秒\n▶10 ⚡15\n攻击间隔缩短，攻击力+220%，生命力+100%，技能期间免疫异常状态并同时攻击敌方与我方",
+      "is_ammo_skill": false,
+      "name": "大丑的愤怒"
+    },
     "skchr_acspec_1": {
       "blackboard": {
         "attack@normal_prob": 0.5,
@@ -39621,7 +39683,7 @@
           "wave_speed": 2.3
         }
       ],
-      "description": "自然回復/手動発動 ⌚36.0秒\n▶38 ⚡45\n攻击力+140%；停止攻击以持续引导场地进入以下状态：每{normal_interval:0.00}秒在5行范围内，朝部署方向召唤“簇火”，“簇火”碰到敌人时爆炸造成攻击力250.0%的范围法术伤害；若目标处于灼燃损伤爆发期间则改为造成元素伤害\n过载：“簇火”生成间隔缩短至2秒，范围扩展最多13行\n被同波次的多个“簇火”命中时，后续“簇火”造成的伤害降低至15%\n该技能可随时主动关闭",
+      "description": "自然回復/手動発動 ⌚36.0秒\n▶38 ⚡45\n攻击力+140%；停止攻击以持续引导场地进入以下状态：每{normal_interval:0.00}秒在5行范围内，朝部署方向召唤“簇火”，“簇火”碰到敌人时爆炸造成攻击力250%的范围法术伤害；若目标处于灼燃损伤爆发期间则改为造成元素伤害\n过载：“簇火”生成间隔缩短至2秒，范围扩展最多13行\n被同波次的多个“簇火”命中时，后续“簇火”造成的伤害降低至15%\n该技能可随时主动关闭",
       "is_ammo_skill": false,
       "name": "日冕重烈"
     },
@@ -61768,6 +61830,582 @@
       "description": "パッシブ\n等級1~4のオペレーターが装備した場合、次のラウンド開始時に破棄され、装備者を精鋭に昇進させる",
       "is_ammo_skill": false,
       "name": "予備隊員昇進許可"
+    },
+    "sktok_acarm126_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者无法被治疗，每秒回复75点生命值",
+      "is_ammo_skill": false,
+      "name": "虹彩活血饮料"
+    },
+    "sktok_acarm126_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者无法被治疗，每秒回复150点生命值",
+      "is_ammo_skill": false,
+      "name": "虹彩活血饮料"
+    },
+    "sktok_acarm127_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n生命上限+15%，使携带者更不容易受到攻击且阻挡数-1",
+      "is_ammo_skill": false,
+      "name": "雪祀之衣"
+    },
+    "sktok_acarm127_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n生命上限+25%，使携带者更不容易受到攻击且阻挡数-1",
+      "is_ammo_skill": false,
+      "name": "雪祀之衣"
+    },
+    "sktok_acarm128_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n休整期结束时，使携带者所属的已激活盟约层数+1",
+      "is_ammo_skill": false,
+      "name": "卫戍推荐信"
+    },
+    "sktok_acarm128_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n休整期结束时，使携带者所属的已激活盟约层数+2",
+      "is_ammo_skill": false,
+      "name": "卫戍推荐信"
+    },
+    "sktok_acarm129_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，获得0资金（持有时每回合+1）",
+      "is_ammo_skill": false,
+      "name": "定期存折"
+    },
+    "sktok_acarm129_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，获得0资金（持有时每回合+1）",
+      "is_ammo_skill": false,
+      "name": "定期存折"
+    },
+    "sktok_acarm130_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，在调度中心出现3件装备，免费获取其中1件（不高于当前调度中心等级）",
+      "is_ammo_skill": false,
+      "name": "一次性促销券"
+    },
+    "sktok_acarm130_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，在调度中心出现6件装备，免费获取其中2件（不高于当前调度中心等级）",
+      "is_ammo_skill": false,
+      "name": "一次性促销券"
+    },
+    "sktok_acarm131_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者每次造成伤害时，自身所属已激活盟约临时层数+1（每场战斗最多叠加12层）",
+      "is_ammo_skill": false,
+      "name": "多功能补剂"
+    },
+    "sktok_acarm131_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者每次造成伤害时，自身所属已激活盟约临时层数+2（每场战斗最多叠加24层）",
+      "is_ammo_skill": false,
+      "name": "多功能补剂"
+    },
+    "sktok_acarm132_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n部署后每秒攻击速度+2（最多叠加20次），受到伤害时失去该效果",
+      "is_ammo_skill": false,
+      "name": "灵巧涡轮手套"
+    },
+    "sktok_acarm132_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n部署后每秒攻击速度+3（最多叠加20次），受到伤害时失去该效果",
+      "is_ammo_skill": false,
+      "name": "灵巧涡轮手套"
+    },
+    "sktok_acarm133_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者每次造成伤害时，额外造成1次相当于自身攻击力25%的法术伤害",
+      "is_ammo_skill": false,
+      "name": "伊比利亚骨刺刀"
+    },
+    "sktok_acarm133_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者每次造成伤害时，额外造成2次相当于自身攻击力25%的法术伤害",
+      "is_ammo_skill": false,
+      "name": "伊比利亚骨刺刀"
+    },
+    "sktok_acarm134_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者攻击范围内每次有单位被击倒时回复2技力",
+      "is_ammo_skill": false,
+      "name": "莱塔尼亚小鼓"
+    },
+    "sktok_acarm134_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者攻击范围内每次有单位被击倒时回复4技力",
+      "is_ammo_skill": false,
+      "name": "莱塔尼亚小鼓"
+    },
+    "sktok_acarm136_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n攻击范围内每个友方干员首次生命值低于50%时，立刻治疗其35%最大生命值",
+      "is_ammo_skill": false,
+      "name": "聚合急救箱"
+    },
+    "sktok_acarm136_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n攻击范围内每个友方干员首次生命值低于50%时，立刻治疗其50%最大生命值",
+      "is_ammo_skill": false,
+      "name": "聚合急救箱"
+    },
+    "sktok_acarm137_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者技能开启所需技力-20%，但技能期间攻击速度-25%",
+      "is_ammo_skill": false,
+      "name": "可靠怀表"
+    },
+    "sktok_acarm137_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者技能开启所需技力-40%，但技能期间攻击速度-25%",
+      "is_ammo_skill": false,
+      "name": "可靠怀表"
+    },
+    "sktok_acarm138_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n阻挡数+1，攻击力+20%，每次再部署时上述加成效果叠加（最多叠加2次）",
+      "is_ammo_skill": false,
+      "name": "乌萨斯呼吸器"
+    },
+    "sktok_acarm138_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n阻挡数+1，攻击力+30%，每次再部署时上述加成效果叠加（最多叠加3次）",
+      "is_ammo_skill": false,
+      "name": "乌萨斯呼吸器"
+    },
+    "sktok_acarm139_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，从3个指令中选择1个替换当前指令",
+      "is_ammo_skill": false,
+      "name": "投机骰子"
+    },
+    "sktok_acarm139_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，从3个指令中选择1个替换当前指令",
+      "is_ammo_skill": false,
+      "name": "投机骰子"
+    },
+    "sktok_acarm140_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n攻击力+30%；造成伤害时有5%概率使目标获得1层麻痹，且对麻痹的敌人造成伤害时无视其30%防御和法术抗性",
+      "is_ammo_skill": false,
+      "name": "电流维式重锤"
+    },
+    "sktok_acarm140_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n攻击力+50%；造成伤害时有5%概率使目标获得1层麻痹，且对麻痹的敌人造成伤害时无视其30%防御和法术抗性",
+      "is_ammo_skill": false,
+      "name": "电流维式重锤"
+    },
+    "sktok_acarm141_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n每有一种激活的盟约，使携带者攻击力+6%、生命上限+6%（最多叠加8次）",
+      "is_ammo_skill": false,
+      "name": "佣兵名牌"
+    },
+    "sktok_acarm141_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n每有一种激活的盟约，使携带者攻击力+12%、生命上限+12%（最多叠加8次）",
+      "is_ammo_skill": false,
+      "name": "佣兵名牌"
+    },
+    "sktok_acarm142_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，立刻特殊刷新1次调度中心，优先出现拥有该干员第一盟约的干员（不高于当前调度中心等级）",
+      "is_ammo_skill": false,
+      "name": "人事部记录"
+    },
+    "sktok_acarm142_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，立刻特殊刷新1次调度中心，优先出现拥有该干员第一盟约的干员（不高于当前调度中心等级）",
+      "is_ammo_skill": false,
+      "name": "人事部记录"
+    },
+    "sktok_acarm143_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者攻击范围内的敌人受到的晕眩、冻结、恐惧等异常状态影响时间提高100%，若与“驱逐者警棍”同时持有则组合为“驱逐者防暴装备”",
+      "is_ammo_skill": false,
+      "name": "驱逐者瓦斯"
+    },
+    "sktok_acarm143_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者攻击范围内的敌人受到的晕眩、冻结、恐惧等异常状态影响时间提高100%，若与“驱逐者警棍”同时持有则组合为“驱逐者防暴装备”",
+      "is_ammo_skill": false,
+      "name": "驱逐者瓦斯"
+    },
+    "sktok_acarm144_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者对受到晕眩、冻结、恐惧等异常效果影响的敌人造成的伤害提升30%，若与“驱逐者瓦斯”同时持有则组合为“驱逐者防暴装备”",
+      "is_ammo_skill": false,
+      "name": "驱逐者警棍"
+    },
+    "sktok_acarm144_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者对受到晕眩、冻结、恐惧等异常效果影响的敌人造成的伤害提升30%，若与“驱逐者瓦斯”同时持有则组合为“驱逐者防暴装备”",
+      "is_ammo_skill": false,
+      "name": "驱逐者警棍"
+    },
+    "sktok_acarm145_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者攻击范围内的敌人受到的晕眩、冻结、恐惧等异常状态影响时间提高100%，且对受这类异常状态影响的敌人造成伤害提升30%；携带者处于技能期间时，每次施加这类异常状态时有50%概率将其传递给附近另一名敌人",
+      "is_ammo_skill": false,
+      "name": "驱逐者防暴装备"
+    },
+    "sktok_acarm145_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者攻击范围内的敌人受到的晕眩、冻结、恐惧等异常状态影响时间提高100%，且对受这类异常状态影响的敌人造成伤害提升30%；携带者处于技能期间时，每次施加这类异常状态时有50%概率将其传递给附近另一名敌人",
+      "is_ammo_skill": false,
+      "name": "驱逐者防暴装备"
+    },
+    "sktok_acarm146_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n免疫晕眩、冻结等特殊状态，若与“不退者力场”同时持有则组合为“不退者卫护系统”",
+      "is_ammo_skill": false,
+      "name": "不退者之盾"
+    },
+    "sktok_acarm146_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n免疫晕眩、冻结等特殊状态，若与“不退者力场”同时持有则组合为“不退者卫护系统”",
+      "is_ammo_skill": false,
+      "name": "不退者之盾"
+    },
+    "sktok_acarm147_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n阻挡数+2，每阻挡一个单位自身生命上限和防御力提升20%，若与“不退者之盾”同时持有则组合为“不退者卫护系统”",
+      "is_ammo_skill": false,
+      "name": "不退者力场"
+    },
+    "sktok_acarm147_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n阻挡数+2，每阻挡一个单位自身生命上限和防御力提升20%，若与“不退者之盾”同时持有则组合为“不退者卫护系统”",
+      "is_ammo_skill": false,
+      "name": "不退者力场"
+    },
+    "sktok_acarm148_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n免疫晕眩、冻结等特殊状态，阻挡数+2，每阻挡一个单位自身生命上限和防御力提升20%；携带者开启技能时对自身周围范围内敌人产生一次诱导，持续3秒",
+      "is_ammo_skill": false,
+      "name": "不退者卫护系统"
+    },
+    "sktok_acarm148_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n免疫晕眩、冻结等特殊状态，阻挡数+2，每阻挡一个单位自身生命上限和防御力提升20%；携带者开启技能时对自身周围范围内敌人产生一次诱导，持续3秒",
+      "is_ammo_skill": false,
+      "name": "不退者卫护系统"
+    },
+    "sktok_acarm149_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n每次攻击或治疗时攻击速度+2（最高60层）；若与“动能单手弩”同时持有则组合为“动能轰击弩”",
+      "is_ammo_skill": false,
+      "name": "动能加速器"
+    },
+    "sktok_acarm149_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n每次攻击或治疗时攻击速度+2（最高60层）；若与“动能单手弩”同时持有则组合为“动能轰击弩”",
+      "is_ammo_skill": false,
+      "name": "动能加速器"
+    },
+    "sktok_acarm150_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n造成伤害时有30%概率使该次攻击力提升至130%；若与“动能加速器”同时持有则组合为“动能轰击弩”",
+      "is_ammo_skill": false,
+      "name": "动能单手弩"
+    },
+    "sktok_acarm150_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n造成伤害时有30%概率使该次攻击力提升至130%；若与“动能加速器”同时持有则组合为“动能轰击弩”",
+      "is_ammo_skill": false,
+      "name": "动能单手弩"
+    },
+    "sktok_acarm151_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n造成伤害时有30%概率使攻击力提升至130%；每次攻击后攻击速度+2（最高60层），攻击速度叠加达到上限后每次攻击时有30%概率对攻击范围内随机敌人造成自身攻击力100%的范围物理伤害",
+      "is_ammo_skill": false,
+      "name": "动能轰击弩"
+    },
+    "sktok_acarm151_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n造成伤害时有30%概率使攻击力提升至130%；每次攻击后攻击速度+2（最高60层），攻击速度叠加达到上限后每次攻击时有30%概率对攻击范围内随机敌人造成自身攻击力100%的范围物理伤害",
+      "is_ammo_skill": false,
+      "name": "动能轰击弩"
+    },
+    "sktok_acarm152_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n每次造成伤害时回复相当于造成伤害5%的生命值；若与“汲取者之心”同时持有则组合为“汲取者之镰”",
+      "is_ammo_skill": false,
+      "name": "汲取者之喙"
+    },
+    "sktok_acarm152_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n每次造成伤害时回复相当于造成伤害5%的生命值；若与“汲取者之心”同时持有则组合为“汲取者之镰”",
+      "is_ammo_skill": false,
+      "name": "汲取者之喙"
+    },
+    "sktok_acarm153_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n攻击力+30%，攻击速度+30，每秒流失1%最大生命值（不会降至0）；若与“汲取者之喙”同时持有则组合为“汲取者之镰”",
+      "is_ammo_skill": false,
+      "name": "汲取者之心"
+    },
+    "sktok_acarm153_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n攻击力+30%，攻击速度+30，每秒流失1%最大生命值（不会降至0）；若与“汲取者之喙”同时持有则组合为“汲取者之镰”",
+      "is_ammo_skill": false,
+      "name": "汲取者之心"
+    },
+    "sktok_acarm154_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n攻击力+30%，攻击速度+30，每秒流失1%最大生命值（不会降至0），每次造成伤害时回复相当于造成伤害5%的生命值；携带者处于技能期间时上述效果翻倍且自身无法被治疗",
+      "is_ammo_skill": false,
+      "name": "汲取者之镰"
+    },
+    "sktok_acarm154_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n攻击力+30%，攻击速度+30，每秒流失1%最大生命值（不会降至0），每次造成伤害时回复相当于造成伤害5%的生命值；携带者处于技能期间时上述效果翻倍且自身无法被治疗",
+      "is_ammo_skill": false,
+      "name": "汲取者之镰"
+    },
+    "sktok_acarm155_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者获得当前场上所有维式重锤特殊效果，且每有一种带有特殊效果的维式重锤自身攻击力额外+20%",
+      "is_ammo_skill": false,
+      "name": "终极维式重锤"
+    },
+    "sktok_acarm155_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者获得当前场上所有维式重锤特殊效果，且每有一种带有特殊效果的维式重锤自身攻击力额外+20%",
+      "is_ammo_skill": false,
+      "name": "终极维式重锤"
+    },
+    "sktok_acarm156_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n生命上限+60%，每秒恢复8%最大生命值；攻击力+50%，造成伤害时额外造成攻击力30%真实伤害",
+      "is_ammo_skill": false,
+      "name": "天马之耀"
+    },
+    "sktok_acarm156_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n生命上限+60%，每秒恢复8%最大生命值；攻击力+50%，造成伤害时额外造成攻击力30%真实伤害",
+      "is_ammo_skill": false,
+      "name": "天马之耀"
+    },
+    "sktok_acarm157_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，并随机获得1~6资金",
+      "is_ammo_skill": false,
+      "name": "驮兽储蓄罐"
+    },
+    "sktok_acarm157_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n装备时销毁，并随机获得2~12资金",
+      "is_ammo_skill": false,
+      "name": "驮兽储蓄罐"
+    },
+    "sktok_acarm158_1": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者对处于元素爆发状态的敌人造成的伤害额外增加30%",
+      "is_ammo_skill": false,
+      "name": "瓶装烈性反应"
+    },
+    "sktok_acarm158_2": {
+      "blackboard": {},
+      "blackboard_by_level": [
+        {}
+      ],
+      "description": "パッシブ\n携带者对处于元素爆发状态的敌人造成的伤害额外增加50%",
+      "is_ammo_skill": false,
+      "name": "瓶装烈性反应"
     },
     "sktok_aclasert": {
       "blackboard": {
