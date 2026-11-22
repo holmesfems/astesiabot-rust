@@ -18,7 +18,13 @@ use super::detect::{
     detect,
     detect_rate_spam,
 };
-use super::action::neutralize_backticks;
+use super::action::{
+    neutralize_backticks,
+    build_report_content,
+    ReportSubject,
+    REPORT_EXCERPT_CHARS,
+    DISCORD_MESSAGE_MAX_CHARS,
+};
 
 fn re() -> Regex {
     Regex::new(URL_PATTERN).unwrap()
@@ -196,4 +202,50 @@ fn neutralize_backticks_prevents_code_block_breakout() {
     let echoed = neutralize_backticks("x```\n@everyone <@&1> `y`");
     assert!(!echoed.contains('`'));
     assert_eq!(echoed, "x\u{02CB}\u{02CB}\u{02CB}\n@everyone <@&1> \u{02CB}y\u{02CB}");
+}
+
+fn subject(content: &str) -> ReportSubject<'_> {
+    ReportSubject { author: "spammer", via_bot: None, content }
+}
+
+#[test]
+fn report_keeps_short_content_whole() {
+    let content = build_report_content("連投を検知", Some(subject("buy now")), &[]);
+    assert_eq!(content, "連投を検知\nauthor:spammer\ncontent:```buy now```\n");
+}
+
+#[test]
+fn report_shows_only_excerpt_and_total_length_of_long_spam() {
+    // 日本語（マルチバイト）でも文字の途中で切らない
+    let spam = "あ".repeat(3812);
+    let content = build_report_content("連投を検知", Some(subject(&spam)), &[]);
+    let excerpt = "あ".repeat(REPORT_EXCERPT_CHARS);
+    assert!(content.contains(&format!("content:```{excerpt}```…（全3812文字）")));
+    assert!(!content.contains(&"あ".repeat(REPORT_EXCERPT_CHARS + 1)));
+}
+
+#[test]
+fn report_never_exceeds_discord_limit() {
+    // Nitro の 4000 文字の本文に、長い理由と大量のチャンネルが付いても 2000 文字に収まる
+    let spam = "x".repeat(4000);
+    let report = "理".repeat(1500);
+    let channels: Vec<serenity::ChannelId> =
+        (1..=100u64).map(|i| serenity::ChannelId::new(100_000_000_000_000_000 + i)).collect();
+    let content = build_report_content(&report, Some(subject(&spam)), &channels);
+    assert_eq!(content.chars().count(), DISCORD_MESSAGE_MAX_CHARS);
+    assert!(content.ends_with('…'));
+}
+
+#[test]
+fn report_excerpt_still_neutralizes_backticks_and_links() {
+    let spam = format!("```@everyone http://evil.example {}", "y".repeat(500));
+    let content = build_report_content(
+        "連投を検知",
+        Some(ReportSubject { author: "a`b", via_bot: Some("Other`Bot"), content: &spam }),
+        &[],
+    );
+    assert!(content.starts_with("連投を検知\nauthor:a\u{02CB}b（Other\u{02CB}Botのスラッシュコマンド経由）\n"));
+    // 本文の ` はすべて置き換わり、通報文が自分で付けた ``` の開きと閉じの2組だけが残る
+    assert_eq!(content.matches("```").count(), 2);
+    assert!(content.contains("ht tp://evil_example"));
 }
