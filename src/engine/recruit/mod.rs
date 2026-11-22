@@ -4,6 +4,7 @@ pub mod format;
 pub mod jp_release;
 pub mod matcher;
 pub mod model;
+pub mod tag_ocr;
 
 use crate::engine::external_source::recruit_pool::RecruitPool;
 use std::sync::{Arc, RwLock};

@@ -1,0 +1,481 @@
+{
+  "format_version": 1,
+  "feature_width": 192,
+  "feature_height": 64,
+  "center": true,
+  "threshold_t": 0.66,
+  "threshold_m": 0.03,
+  "shift_x": 4,
+  "shift_y": 2,
+  "min_area": 20,
+  "abs_min_diff": 40.0,
+  "p99_ratio": 0.5,
+  "pair_sim": 0.85,
+  "diff_threshold": 0.25,
+  "diff_dilate": 2,
+  "note": "T, M chosen by the validation rule on the train-only fit (see fit_tag_templates); templates refit on all usable non-English images",
+  "tags": [
+    {
+      "name": "上級エリート",
+      "prototypes": [
+        {
+          "file": "上級エリート_1.png",
+          "count": 414
+        },
+        {
+          "file": "上級エリート_2.png",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "name": "エリート",
+      "prototypes": [
+        {
+          "file": "エリート_1.png",
+          "count": 226
+        },
+        {
+          "file": "エリート_2.png",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "name": "前衛",
+      "prototypes": [
+        {
+          "file": "前衛_1.png",
+          "count": 734
+        },
+        {
+          "file": "前衛_2.png",
+          "count": 13
+        }
+      ]
+    },
+    {
+      "name": "狙撃",
+      "prototypes": [
+        {
+          "file": "狙撃_1.png",
+          "count": 539
+        },
+        {
+          "file": "狙撃_2.png",
+          "count": 79
+        }
+      ]
+    },
+    {
+      "name": "重装",
+      "prototypes": [
+        {
+          "file": "重装_1.png",
+          "count": 389
+        },
+        {
+          "file": "重装_2.png",
+          "count": 208
+        },
+        {
+          "file": "重装_3.png",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "name": "医療",
+      "prototypes": [
+        {
+          "file": "医療_1.png",
+          "count": 799
+        },
+        {
+          "file": "医療_2.png",
+          "count": 149
+        }
+      ]
+    },
+    {
+      "name": "補助",
+      "prototypes": [
+        {
+          "file": "補助_1.png",
+          "count": 360
+        },
+        {
+          "file": "補助_2.png",
+          "count": 13
+        }
+      ]
+    },
+    {
+      "name": "術師",
+      "prototypes": [
+        {
+          "file": "術師_1.png",
+          "count": 412
+        },
+        {
+          "file": "術師_2.png",
+          "count": 120
+        },
+        {
+          "file": "術師_3.png",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "name": "特殊",
+      "prototypes": [
+        {
+          "file": "特殊_1.png",
+          "count": 235
+        }
+      ]
+    },
+    {
+      "name": "先鋒",
+      "prototypes": [
+        {
+          "file": "先鋒_1.png",
+          "count": 597
+        },
+        {
+          "file": "先鋒_2.png",
+          "count": 92
+        },
+        {
+          "file": "先鋒_3.png",
+          "count": 15
+        }
+      ]
+    },
+    {
+      "name": "近距離",
+      "prototypes": [
+        {
+          "file": "近距離_1.png",
+          "count": 612
+        },
+        {
+          "file": "近距離_2.png",
+          "count": 173
+        },
+        {
+          "file": "近距離_3.png",
+          "count": 22
+        }
+      ]
+    },
+    {
+      "name": "遠距離",
+      "prototypes": [
+        {
+          "file": "遠距離_1.png",
+          "count": 435
+        },
+        {
+          "file": "遠距離_2.png",
+          "count": 13
+        }
+      ]
+    },
+    {
+      "name": "牽制",
+      "prototypes": [
+        {
+          "file": "牽制_1.png",
+          "count": 287
+        }
+      ]
+    },
+    {
+      "name": "爆発力",
+      "prototypes": [
+        {
+          "file": "爆発力_1.png",
+          "count": 373
+        },
+        {
+          "file": "爆発力_2.png",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "name": "治療",
+      "prototypes": [
+        {
+          "file": "治療_1.png",
+          "count": 524
+        },
+        {
+          "file": "治療_2.png",
+          "count": 59
+        }
+      ]
+    },
+    {
+      "name": "支援",
+      "prototypes": [
+        {
+          "file": "支援_1.png",
+          "count": 364
+        }
+      ]
+    },
+    {
+      "name": "初期",
+      "prototypes": [
+        {
+          "file": "初期_1.png",
+          "count": 885
+        },
+        {
+          "file": "初期_2.png",
+          "count": 91
+        }
+      ]
+    },
+    {
+      "name": "COST回復",
+      "prototypes": [
+        {
+          "file": "COST回復_1.png",
+          "count": 547
+        },
+        {
+          "file": "COST回復_2.png",
+          "count": 173
+        },
+        {
+          "file": "COST回復_3.png",
+          "count": 19
+        }
+      ]
+    },
+    {
+      "name": "火力",
+      "prototypes": [
+        {
+          "file": "火力_1.png",
+          "count": 546
+        }
+      ]
+    },
+    {
+      "name": "生存",
+      "prototypes": [
+        {
+          "file": "生存_1.png",
+          "count": 710
+        }
+      ]
+    },
+    {
+      "name": "範囲攻撃",
+      "prototypes": [
+        {
+          "file": "範囲攻撃_1.png",
+          "count": 551
+        }
+      ]
+    },
+    {
+      "name": "防御",
+      "prototypes": [
+        {
+          "file": "防御_1.png",
+          "count": 491
+        }
+      ]
+    },
+    {
+      "name": "減速",
+      "prototypes": [
+        {
+          "file": "減速_1.png",
+          "count": 571
+        }
+      ]
+    },
+    {
+      "name": "弱化",
+      "prototypes": [
+        {
+          "file": "弱化_1.png",
+          "count": 459
+        }
+      ]
+    },
+    {
+      "name": "高速再配置",
+      "prototypes": [
+        {
+          "file": "高速再配置_1.png",
+          "count": 381
+        },
+        {
+          "file": "高速再配置_2.png",
+          "count": 17
+        }
+      ]
+    },
+    {
+      "name": "強制移動",
+      "prototypes": [
+        {
+          "file": "強制移動_1.png",
+          "count": 297
+        }
+      ]
+    },
+    {
+      "name": "召喚",
+      "prototypes": [
+        {
+          "file": "召喚_1.png",
+          "count": 546
+        }
+      ]
+    },
+    {
+      "name": "ロボット",
+      "prototypes": [
+        {
+          "file": "ロボット_1.png",
+          "count": 128
+        }
+      ]
+    },
+    {
+      "name": "元素",
+      "prototypes": [
+        {
+          "file": "元素_1.png",
+          "count": 155
+        }
+      ]
+    }
+  ],
+  "confusable_pairs": [
+    [
+      "前衛",
+      "狙撃",
+      0.861
+    ],
+    [
+      "前衛",
+      "重装",
+      0.919
+    ],
+    [
+      "前衛",
+      "医療",
+      0.852
+    ],
+    [
+      "前衛",
+      "補助",
+      0.903
+    ],
+    [
+      "前衛",
+      "術師",
+      0.895
+    ],
+    [
+      "前衛",
+      "先鋒",
+      0.874
+    ],
+    [
+      "狙撃",
+      "重装",
+      0.893
+    ],
+    [
+      "狙撃",
+      "医療",
+      0.905
+    ],
+    [
+      "狙撃",
+      "補助",
+      0.867
+    ],
+    [
+      "狙撃",
+      "術師",
+      0.886
+    ],
+    [
+      "狙撃",
+      "特殊",
+      0.877
+    ],
+    [
+      "狙撃",
+      "先鋒",
+      0.869
+    ],
+    [
+      "重装",
+      "医療",
+      0.871
+    ],
+    [
+      "重装",
+      "補助",
+      0.865
+    ],
+    [
+      "重装",
+      "術師",
+      0.902
+    ],
+    [
+      "重装",
+      "先鋒",
+      0.892
+    ],
+    [
+      "医療",
+      "術師",
+      0.875
+    ],
+    [
+      "医療",
+      "先鋒",
+      0.88
+    ],
+    [
+      "補助",
+      "術師",
+      0.911
+    ],
+    [
+      "補助",
+      "特殊",
+      0.854
+    ],
+    [
+      "補助",
+      "先鋒",
+      0.861
+    ],
+    [
+      "術師",
+      "先鋒",
+      0.918
+    ],
+    [
+      "近距離",
+      "遠距離",
+      0.951
+    ]
+  ]
+}

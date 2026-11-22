@@ -18,9 +18,13 @@ cargo run --bin serve_web        # Web UI だけ（bot・外部取得なし、.e
 cargo run --bin regen_seeds      # data/seed/*.json を作り直す（週1で自動 PR が来るので、手で回すのは急ぐときだけ）
 $env:UPDATE_GOLDEN=1; cargo test risei_golden; Remove-Item Env:UPDATE_GOLDEN  # Seed を作り直したら理性価値表の golden も出し直す
 cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を作り直す
+# 公開求人のローカル OCR のテンプレート作り直し（手元のスクショが要る。詳しくは src/engine/recruit/CLAUDE.md）
+cargo run --release --bin cut_tag_boxes; cargo run --release --bin fit_tag_templates -- --export data/recruitment/tag_templates
 # 本番の求人スクショ＋botのタグ返信を集める（手元専用。環境変数 COLLECT_DISCORD_TOKEN に本番トークン、.env は読まない。出力は gitignore 済みの local/ へ）
 $env:COLLECT_DISCORD_TOKEN = heroku config:get DISCORD_TOKEN -a discordbot-riseicalculator  # 値を画面に出さずに渡す
 cargo run --bin collect_recruit_samples -- --channel (heroku config:get CHANNEL_ID_KOUKAI_KYUJIN -a discordbot-riseicalculator) [--limit 500] [--max-pages 50] [--before <メッセージID>] [--out local/recruit_samples]
+cargo run --release --bin cut_tag_boxes -- [--debug-dir local/recruit_samples/debug]  # 集めた画像からタグの箱を検出して切り抜く（手元専用）
+cargo run --release --bin fit_tag_templates  # 箱とタグの対応を決めてテンプレートを作り、新しい20%で取り違え・全部読めた率を測る（手元専用）
 
 # フロントエンドの検証（node は PATH に無いので絶対パスで）
 & "C:\Program Files\nodejs\node.exe" src/api/lod_chest_solver/verify.mjs
@@ -75,7 +79,7 @@ src/
 │   ├── external_source/      … 外部データ（ゲームデータ・penguin-stats・FK シート）の取得とキャッシュ
 │   ├── risei_calculator_engine/ … 理性価値表の計算・ステージ検索・課金パック効率
 │   ├── operator_cost_calc/   … 育成コスト（昇進・特化・モジュール）とランキング
-│   ├── recruit/              … 公開求人のタグ抽出・計算・整形
+│   ├── recruit/              … 公開求人のタグ抽出・計算・整形（tag_ocr/ はローカルのタグ枠 OCR）
 │   ├── fk_data_search/       … FK 情報の検索
 │   └── fk_kill_calc/         … フレームキル計算機のカタログ組み立て
 ├── api/               … axum。/recruitment/、/api/risei/*、各 Web UI ツール

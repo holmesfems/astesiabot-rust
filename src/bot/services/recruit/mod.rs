@@ -1,5 +1,6 @@
 pub mod edit_flow;
 pub mod embed;
+pub mod local_ocr;
 pub mod ocr;
 pub mod ocr_flow;
 pub mod reply_target;
@@ -47,7 +48,7 @@ pub async fn handle(ctx: &serenity::Context, msg: &serenity::Message, data: &Dat
         return Ok(());
     }
     if has_image(msg) {
-        for outcome in ocr_flow::build(msg, data).await? {
+        for outcome in ocr_flow::build(ctx, msg, data).await? {
             reply_embed_reply(ctx, msg, &outcome.reply).await?;
             if outcome.needs_guidance {
                 reply_plain_text(ctx, msg, TAG_COUNT_GUIDANCE).await?;

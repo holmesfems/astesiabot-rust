@@ -178,6 +178,7 @@ mod tests {
             risei_calculator: std::sync::Arc::new(risei_calculator),
             fk_data_search,
             uranai,
+            local_ocr: crate::bot::services::recruit::local_ocr::LocalOcr::from_env(),
         }
     }
 

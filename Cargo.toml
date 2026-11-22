@@ -2,6 +2,8 @@
 name = "astesiabot-rust"
 version = "0.1.0"
 edition = "2021"
+# bin が複数あるので、素の `cargo run` は本体（bot + API）を起動する
+default-run = "astesiabot-rust"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -27,6 +29,7 @@ utoipa = { version = "6", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "10", features = ["axum", "vendored"] }
 rust_xlsxwriter = "0.101.0"
 zip = { version = "9", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
 [dev-dependencies]
 calamine = "0.38"
