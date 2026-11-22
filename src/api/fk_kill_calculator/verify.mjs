@@ -7,6 +7,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { minimalIntegerSatisfying } from "./static/engine/suggest.js";
 import {
   computeRowDamage,
   computeTotal,
@@ -2425,6 +2426,80 @@ console.log("\n=== 碁石盤(ウァン S3) ===\n");
     );
     check("dropStaleRowsがstonesを掃除する", cleaned.rows[0].stones.join() === "7", cleaned.rows[0].stones);
   }
+}
+
+console.log("\n=== 信頼できない状態の検証(extraParts・型の強制・巨大値) ===\n");
+{
+  const o = { ...op(1000, 0, null), id: "op", fkEntries: [{ tags: [] }] };
+  const cat = { operators: [o], buffers: [] };
+  const base = row({ moduleId: null });
+  const run = (patch, enemy = enemyNeutral) =>
+    dropStaleRows({ v: 1, enemy, rows: [{ ...base, opId: "op", entryIdx: 0, ...patch }] }, cat).state;
+
+  // extraParts: 配列もどきは捨てて配列で作り直す
+  const s1 = run({ extraParts: { length: 0 } });
+  check("extraParts {length:0} は配列に直される", Array.isArray(s1.rows[0].extraParts) && s1.rows[0].extraParts.length === 0, s1.rows[0].extraParts);
+  check("expandRowParts が配列もどきでも落ちない", expandRowParts({ ...base, extraParts: { length: 0 } }).length === 1);
+  check("extraParts 文字列も配列に直される", Array.isArray(run({ extraParts: "ab" }).rows[0].extraParts));
+
+  // 混合スキル: 形が合えば既知フィールドだけ・型を揃えて作り直す
+  const mixedOp = {
+    ...o,
+    fkEntries: [{ tags: [], parts: [{ damageType: { value: "physical" }, multiplier: { value: 1 } }, { damageType: { value: "arts" }, multiplier: { value: 2 } }] }],
+  };
+  const s2 = dropStaleRows(
+    { v: 1, enemy: enemyNeutral, rows: [{ ...base, opId: "op", entryIdx: 0, extraParts: [{ multiplier: 3, dmgType: "<x>", dmgMult: 2, junk: 1 }] }] },
+    { operators: [mixedOp], buffers: [] },
+  ).state;
+  const p2 = s2.rows[0].extraParts;
+  check(
+    "extraPartsの要素は既知フィールドだけ・既知のdmgTypeへ",
+    p2.length === 1 && JSON.stringify(Object.keys(p2[0])) === JSON.stringify(["multiplier", "dmgType", "dmgMult"]) && p2[0].dmgType === "physical" && p2[0].junk === undefined,
+    p2,
+  );
+
+  // 各フィールドの強制
+  const r3 = run({ skillLevel: "<b>", dmgType: "<img>", moduleId: { a: 1 }, moduleLv: 99, multiplier: "x", selfPct: {}, buffPct: "<i>", dmgMult: [] }).rows[0];
+  check("skillLevel は 1〜10 の整数", Number.isInteger(r3.skillLevel) && r3.skillLevel >= 1 && r3.skillLevel <= 10, r3.skillLevel);
+  check("dmgType は既知の値へ", r3.dmgType === "physical", r3.dmgType);
+  check("moduleId は文字列かnull", r3.moduleId === null, r3.moduleId);
+  check("moduleLv は 1〜3", r3.moduleLv === 3, r3.moduleLv);
+  check("multiplier/selfPct/buffPct/dmgMult は有限数へ", [r3.multiplier, r3.selfPct, r3.buffPct, r3.dmgMult].every(Number.isFinite), [r3.multiplier, r3.selfPct, r3.buffPct, r3.dmgMult]);
+
+  // globalBuffLevels
+  const srcBuff = { id: "b1", name: "b", kind: "pct", value: 0.1, scope: { type: "individual" }, source: { defaults: {} } };
+  const l4 = dropStaleRows(
+    { v: 1, enemy: enemyNeutral, rows: [], globalBuffLevels: { b1: { elite: "<s>", potential: {}, moduleId: 5, moduleLevel: 77, skillLevel: "z", stageIndex: 1e30, toggleOn: "yes", evil: 1 } } },
+    { operators: [], buffers: [srcBuff] },
+  ).state.globalBuffLevels.b1;
+  check(
+    "globalBuffLevels は既知キーだけ・型を揃える",
+    l4.evil === undefined && l4.toggleOn === false && l4.moduleId === null && l4.moduleLevel === 3 && l4.skillLevel === 1 && l4.elite === 2 && l4.potential === 5 && l4.stageIndex <= 99,
+    l4,
+  );
+
+  // 巨大値は頭打ち
+  const s5 = run({ buffFlat: 1e18, hits: 1e300, multiplier: 1e200 }, { ...enemyNeutral, hp: 5e17, def: 9e17 });
+  check("敵の巨大値は 1e9 以下へ", s5.enemy.def <= 1e9 && s5.enemy.hp <= 1e9, s5.enemy);
+  check("行の巨大値は 1e9 以下へ", s5.rows[0].buffFlat <= 1e9 && s5.rows[0].hits <= 1e9 && s5.rows[0].multiplier <= 1e9, s5.rows[0]);
+
+  // 悪用例: 巨大なdef・buffFlatでもsuggestが戻ってくる(クランプ後・クランプ前どちらでも)
+  const exploitState = {
+    v: 1,
+    rows: [{ ...base, opId: "op", entryIdx: 0, buffFlat: 1e18, multiplier: 1, hits: 1 }],
+    enemy: { ...enemyNeutral, hp: 5e17, def: 9e17 },
+  };
+  const t0 = Date.now();
+  suggest(dropStaleRows(exploitState, cat).state, cat);
+  check("巨大値の状態でもsuggestが終わる(クランプ後)", Date.now() - t0 < 2000);
+  const t1 = Date.now();
+  suggest(exploitState, cat);
+  check("巨大値の状態でもsuggestが終わる(クランプ無し)", Date.now() - t1 < 2000);
+
+  // 二分探索そのもの
+  check("minimalIntegerSatisfying は通常の区間で最小値を返す", minimalIntegerSatisfying(1, 100, (x) => x >= 37) === 37);
+  check("minimalIntegerSatisfying は安全整数を超える区間でも終了する(null)", minimalIntegerSatisfying(1, 1e18, (x) => x >= 5e17) === null);
+  check("minimalIntegerSatisfying は非有限の区間でも終了する(null)", minimalIntegerSatisfying(1, Infinity, () => true) === null);
 }
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");

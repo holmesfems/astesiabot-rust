@@ -87,7 +87,8 @@ export function makeDefaultExtraParts(entry, skillLevel = 10) {
  * パーツ単位でダメージを計算する入口。`row.extraParts`が無ければ`[row]`(通常行と完全互換)。
  */
 export function expandRowParts(row) {
-  const extra = (row && row.extraParts) || [];
+  // 配列以外(信頼できない状態の`{"length":0}`等)は無いものとして扱い、.mapで落とさない。
+  const extra = row && Array.isArray(row.extraParts) ? row.extraParts : [];
   return [row, ...extra.map((p) => ({ ...row, multiplier: p.multiplier, dmgType: p.dmgType, dmgMult: p.dmgMult }))];
 }
 
