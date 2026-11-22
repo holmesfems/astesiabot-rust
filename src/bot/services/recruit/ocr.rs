@@ -28,8 +28,24 @@ struct TextAnnotation {
     description: String,
 }
 
+/// Vision API 1回の待ち時間の上限。Vision は画像を Discord の CDN から取りに行くので、
+/// 外部データ取得（7秒）より長めにする。無いと応答しないエンドポイントでその画像の処理が止まったままになる。
+const VISION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
+
+/// 応答の全文テキスト。テキストが無い（空も含む）なら None。
+fn full_text(parsed: &VisionResponse) -> Option<String> {
+    parsed
+        .responses
+        .first()
+        .and_then(|r| r.text_annotations.first())
+        .map(|t| t.description.clone())
+        .filter(|t| !t.is_empty())
+}
+
 /// 1つのエンドポイントにリクエストを投げ、全文テキストを返す。
-/// テキストが無ければ None。
+/// 応答が成功で画像に文字が無いなら Ok(None)。エンドポイント側の失敗（通信・HTTP エラー・
+/// 応答が読めない）だけを Err にする。文字の無い画像はどのエンドポイントでも結果が同じなので、
+/// 呼び出し側は Err のときだけ次のエンドポイントを試す（有料の呼び出しを無駄に増やさない）。
 async fn try_endpoint(
     client: &reqwest::Client,
     endpoint: &str,
@@ -51,23 +67,18 @@ async fn try_endpoint(
         .send()
         .await?;
     if !resp.status().is_success() {
-        return Ok(None);
+        return Err(format!("Vision API returned {}", resp.status()).into());
     }
     let parsed: VisionResponse = resp.json().await?;
-    let text = parsed
-        .responses
-        .first()
-        .and_then(|r| r.text_annotations.first())
-        .map(|t| t.description.clone());
-    Ok(text)
+    Ok(full_text(&parsed))
 }
 
-/// 全エンドポイントを試す。
-/// 前回成功→ランダム順で残りを試す→成功を記憶。
+/// 応答が返るまでエンドポイントを順に試す。
+/// 前回成功→ランダム順で残りを試す→成功を記憶。文字が無い画像も「成功」なので、そこで止める。
 pub async fn get_text(image_uri: &str) -> Result<Option<String>, Error> {
     let api_key =
         std::env::var("CLOUDVISION_API_KEY").map_err(|_| "CLOUDVISION_API_KEY not set")?;
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder().timeout(VISION_TIMEOUT).build()?;
 
     // 試す順番を作る：前回成功したものを先頭に、残りを軽くシャッフル
     let mut order: Vec<usize> = (0..ENDPOINTS.len()).collect();
@@ -90,13 +101,41 @@ pub async fn get_text(image_uri: &str) -> Result<Option<String>, Error> {
 
     for idx in order {
         match try_endpoint(&client, ENDPOINTS[idx], &api_key, image_uri).await {
-            Ok(Some(text)) if !text.is_empty() => {
+            Ok(text) => {
                 *LAST_OK.lock().unwrap() = Some(idx);
-                return Ok(Some(text));
+                return Ok(text);
             }
-            _ => continue,
+            Err(_) => continue,
         }
     }
     *LAST_OK.lock().unwrap() = None;
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(json: &str) -> VisionResponse {
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn full_text_takes_first_annotation() {
+        let r = parse(
+            r#"{"responses":[{"textAnnotations":[{"description":"上級エリート\n先鋒"},{"description":"上級エリート"}]}]}"#,
+        );
+        assert_eq!(full_text(&r).as_deref(), Some("上級エリート\n先鋒"));
+    }
+
+    #[test]
+    fn full_text_is_none_for_image_without_text() {
+        // 文字の無い画像では Vision は textAnnotations を返さない（成功応答）
+        assert_eq!(full_text(&parse(r#"{"responses":[{}]}"#)), None);
+        assert_eq!(full_text(&parse(r#"{"responses":[]}"#)), None);
+        assert_eq!(
+            full_text(&parse(r#"{"responses":[{"textAnnotations":[{"description":""}]}]}"#)),
+            None
+        );
+    }
 }
