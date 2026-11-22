@@ -58,6 +58,20 @@ impl RiseiCalculatorEngine {
         })
     }
 
+    /// 起動用。ライブ取得したデータで計算に失敗したら、Seedだけで作り直す。
+    /// Seedは取得失敗時にしか使われないので、壊れたライブデータのまま落とすと再起動のたびに
+    /// 落ち続ける。Seedでも失敗したらErrを返す（呼び出し側がpanicする）。
+    /// 以後の定期更新（[`Self::refresh`]）が成功すればライブのデータに入れ替わる。
+    pub async fn load_or_seed(live: &ExternalSourceRegistry) -> Result<Self, Error> {
+        match Self::load(live).await {
+            Ok(engine) => Ok(engine),
+            Err(e) => {
+                eprintln!("[risei_calculator_engine] ライブデータからの初期計算に失敗、Seedで作り直します: {e}");
+                Self::load(&ExternalSourceRegistry::load(true).await).await
+            }
+        }
+    }
+
     fn lock_for(&self, server: Server) -> &RwLock<Calculator> {
         match server {
             Server::Global => &self.global,

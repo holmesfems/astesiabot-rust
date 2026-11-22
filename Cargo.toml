@@ -24,7 +24,7 @@ rand = "0.10"
 indexmap = { version = "2", features = ["serde"] }
 base64 = "0.22"
 utoipa = { version = "6", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "10", features = ["axum"] }
+utoipa-swagger-ui = { version = "10", features = ["axum", "vendored"] }
 rust_xlsxwriter = "0.101.0"
 zip = { version = "9", default-features = false }
 
