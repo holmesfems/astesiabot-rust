@@ -21,6 +21,8 @@ cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を
 # 本番の求人スクショ＋botのタグ返信を集める（手元専用。環境変数 COLLECT_DISCORD_TOKEN に本番トークン、.env は読まない。出力は gitignore 済みの local/ へ）
 $env:COLLECT_DISCORD_TOKEN = heroku config:get DISCORD_TOKEN -a discordbot-riseicalculator  # 値を画面に出さずに渡す
 cargo run --bin collect_recruit_samples -- --channel (heroku config:get CHANNEL_ID_KOUKAI_KYUJIN -a discordbot-riseicalculator) [--limit 500] [--max-pages 50] [--before <メッセージID>] [--out local/recruit_samples]
+cargo run --release --bin cut_tag_boxes -- [--debug-dir local/recruit_samples/debug]  # 集めた画像からタグの箱を検出して切り抜く（手元専用）
+cargo run --release --bin fit_tag_templates  # 箱とタグの対応を決めてテンプレートを作り、新しい20%で取り違え・全部読めた率を測る（手元専用）
 
 # フロントエンドの検証（node は PATH に無いので絶対パスで）
 & "C:\Program Files\nodejs\node.exe" src/api/lod_chest_solver/verify.mjs

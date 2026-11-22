@@ -27,6 +27,7 @@ utoipa = { version = "6", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "10", features = ["axum", "vendored"] }
 rust_xlsxwriter = "0.101.0"
 zip = { version = "9", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
 [dev-dependencies]
 calamine = "0.38"
