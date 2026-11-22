@@ -414,7 +414,7 @@
     "雪猎": "スノーハンター",
     "雪绒": "カニパラート",
     "雪雉": "スノーズント",
-    "雷狼龙S空爆": "雷狼竜Sカタパルト",
+    "雷狼龙S空爆": "ジンオウSカタパルト",
     "雷蛇": "リスカム",
     "霍尔海雅": "ホルハイヤ",
     "霜华": "Frost",
@@ -612,6 +612,7 @@
     "ジャッキー": "char_347_jaksel",
     "ジュナー": "char_260_durnar",
     "ジュー": "char_4221_ju",
+    "ジンオウSカタパルト": "char_1049_catap2",
     "スカイフレア": "char_166_skfire",
     "スカイボックス": "char_4213_skybx",
     "スカジ": "char_263_skadi",
@@ -878,8 +879,7 @@
     "血掟テキサス": "char_1028_texas2",
     "豊川祥子": "char_4182_oblvns",
     "赤刃明霄チェン": "char_1050_chen3",
-    "遊龍チェン": "char_1013_chen2",
-    "雷狼竜Sカタパルト": "char_1049_catap2"
+    "遊龍チェン": "char_1013_chen2"
   },
   "operators": {
     "char_002_amiya": {
@@ -7810,7 +7810,7 @@
           ]
         },
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "Y",
           "phase_costs": [
             [
@@ -14490,12 +14490,12 @@
         ]
       ],
       "cn_name": "焰狐龙梓兰",
-      "cn_only": true,
+      "cn_only": false,
       "id": "char_1048_orchd2",
       "is_patch": false,
       "modules": [
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "X",
           "phase_costs": [
             [
@@ -14791,12 +14791,12 @@
         ]
       ],
       "cn_name": "雷狼龙S空爆",
-      "cn_only": true,
+      "cn_only": false,
       "id": "char_1049_catap2",
       "is_patch": false,
       "modules": [
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "X",
           "phase_costs": [
             [
@@ -14852,7 +14852,7 @@
           ]
         }
       ],
-      "name": "雷狼竜Sカタパルト",
+      "name": "ジンオウSカタパルト",
       "phases": [
         [
           {
@@ -66746,7 +66746,7 @@
           ]
         },
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "Y",
           "phase_costs": [
             [
@@ -85783,7 +85783,7 @@
           ]
         },
         {
-          "cn_only": true,
+          "cn_only": false,
           "eq_type": "Y",
           "phase_costs": [
             [
@@ -99209,7 +99209,7 @@
     "char_4215_buddy": {
       "all_skill_lvlup": [],
       "cn_name": "罗德岛隐秘队",
-      "cn_only": true,
+      "cn_only": false,
       "id": "char_4215_buddy",
       "is_patch": false,
       "modules": [],

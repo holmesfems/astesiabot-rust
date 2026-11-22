@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-10-14T04:48:56Z",
-  "checked_commit": "c03d5f1bc2e87b32c978e74ba5955dca67975660",
+  "checked_at": "2026-11-16T08:38:38Z",
+  "checked_commit": "270115d3ef5dc0e97530bedc168eb3ddb3d14bc6",
   "first_seen": {
     "char_002_amiya": "2023-12-24",
     "char_003_kalts": "2023-12-24",
@@ -42,6 +42,8 @@
     "char_1045_svash2": "2026-04-14",
     "char_1046_sbell2": "2026-04-14",
     "char_1047_halo2": "2026-04-14",
+    "char_1048_orchd2": "2026-11-16",
+    "char_1049_catap2": "2026-11-16",
     "char_1050_chen3": "2026-07-16",
     "char_1051_headb2": "2026-09-16",
     "char_1052_kalts2": "2026-10-14",
@@ -359,6 +361,7 @@
     "char_4212_nasti": "2026-05-21",
     "char_4213_skybx": "2026-05-21",
     "char_4214_cairn": "2026-05-21",
+    "char_4215_buddy": "2026-11-16",
     "char_421_crow": "2023-12-24",
     "char_4221_ju": "2026-07-16",
     "char_4222_taraxa": "2026-07-16",
