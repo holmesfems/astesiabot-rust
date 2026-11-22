@@ -13,6 +13,7 @@ use super::detect::{
     SpamKind,
     Actor,
     command_invoker,
+    countable_command_age,
     first_sight_of_interaction,
     is_welcome_wave,
     detect,
@@ -21,6 +22,7 @@ use super::detect::{
 use super::action::{
     neutralize_backticks,
     build_report_content,
+    ban_failed_report,
     ReportSubject,
     REPORT_EXCERPT_CHARS,
     DISCORD_MESSAGE_MAX_CHARS,
@@ -137,6 +139,24 @@ fn one_slash_command_is_counted_once() {
 }
 
 #[test]
+fn command_age_counts_fresh_and_ignores_stale_interactions() {
+    let now = 1_700_000_000_000_i64;
+    // 打ったばかり・窓の内側は経過時間つきで数える
+    assert_eq!(countable_command_age(now - 300, now), Some(Duration::from_millis(300)));
+    let window = MULTI_CH_WINDOW.max(SAME_CH_WINDOW).as_millis() as i64;
+    assert!(countable_command_age(now - window, now).is_some());
+    // 窓を過ぎたもの（20秒前・15分前）は数えない
+    assert_eq!(countable_command_age(now - 20_000, now), None);
+    assert_eq!(countable_command_age(now - 15 * 60 * 1000, now), None);
+}
+
+#[test]
+fn command_age_treats_clock_skew_as_just_now() {
+    let now = 1_700_000_000_000_i64;
+    assert_eq!(countable_command_age(now + 5_000, now), Some(Duration::ZERO));
+}
+
+#[test]
 fn commands_in_three_channels_trip_multi_channel_for_the_invoker() {
     let state = test_state();
     let invoker = serenity::UserId::new(42);
@@ -248,4 +268,15 @@ fn report_excerpt_still_neutralizes_backticks_and_links() {
     // 本文の ` はすべて置き換わり、通報文が自分で付けた ``` の開きと閉じの2組だけが残る
     assert_eq!(content.matches("```").count(), 2);
     assert!(content.contains("ht tp://evil_example"));
+}
+
+#[test]
+fn ban_failure_report_mentions_failure_and_truncates_error() {
+    let text = ban_failed_report("連投を検知", "Missing Permissions `x`");
+    assert!(text.contains("連投を検知"));
+    assert!(text.contains("BANに失敗"));
+    assert!(text.contains("Missing Permissions"));
+    assert!(!text.contains('`'));
+    let long = ban_failed_report("r", &"e".repeat(5000));
+    assert!(long.chars().count() < DISCORD_MESSAGE_MAX_CHARS);
 }

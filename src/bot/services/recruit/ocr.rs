@@ -11,6 +11,23 @@ const ENDPOINTS: &[&str] = &[
     "https://vision.googleapis.com/v1p4beta1/images:annotate",
 ];
 
+/// OCR の結果。「文字が無い画像」と「Vision が使えない」を区別する
+/// （前者は他の画像の処理を続けてよく、後者は広域障害の可能性があり打ち切る）。
+#[derive(Debug, PartialEq, Eq)]
+pub enum OcrText {
+    Text(String),
+    /// Vision は成功したが、画像に文字が無い
+    NoText,
+    /// 全エンドポイントが失敗した
+    Unavailable,
+}
+
+impl From<Option<String>> for OcrText {
+    fn from(text: Option<String>) -> Self {
+        text.map_or(OcrText::NoText, OcrText::Text)
+    }
+}
+
 /// 前回成功したエンドポイントのインデックスを記憶
 static LAST_OK: Mutex<Option<usize>> = Mutex::new(None);
 
@@ -75,7 +92,7 @@ async fn try_endpoint(
 
 /// 応答が返るまでエンドポイントを順に試す。
 /// 前回成功→ランダム順で残りを試す→成功を記憶。文字が無い画像も「成功」なので、そこで止める。
-pub async fn get_text(image_uri: &str) -> Result<Option<String>, Error> {
+pub async fn get_text(image_uri: &str) -> Result<OcrText, Error> {
     let api_key =
         std::env::var("CLOUDVISION_API_KEY").map_err(|_| "CLOUDVISION_API_KEY not set")?;
     let client = reqwest::Client::builder().timeout(VISION_TIMEOUT).build()?;
@@ -103,13 +120,13 @@ pub async fn get_text(image_uri: &str) -> Result<Option<String>, Error> {
         match try_endpoint(&client, ENDPOINTS[idx], &api_key, image_uri).await {
             Ok(text) => {
                 *LAST_OK.lock().unwrap() = Some(idx);
-                return Ok(text);
+                return Ok(text.into());
             }
             Err(_) => continue,
         }
     }
     *LAST_OK.lock().unwrap() = None;
-    Ok(None)
+    Ok(OcrText::Unavailable)
 }
 
 #[cfg(test)]
@@ -118,6 +135,12 @@ mod tests {
 
     fn parse(json: &str) -> VisionResponse {
         serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn ocr_text_distinguishes_no_text_from_text() {
+        assert_eq!(OcrText::from(None), OcrText::NoText);
+        assert_eq!(OcrText::from(Some("a".to_string())), OcrText::Text("a".to_string()));
     }
 
     #[test]

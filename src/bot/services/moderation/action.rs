@@ -170,9 +170,22 @@ async fn ban_and_report(
     channels: &[serenity::ChannelId],
 ) -> Result<(), Error> {
     if let Some(guild_id) = msg.guild_id {
-        guild_id
+        if let Err(e) = guild_id
             .ban_with_reason(&ctx.http, actor.user.id, 7, &format!("Astesia bot: {reason}"))
+            .await
+        {
+            // BAN に失敗しても通報は出す（権限不足などで止まったことに管理者が気付けるように）。
+            // 通報の送信に失敗したときもここで失敗が分かるよう、BAN の失敗は呼び出し側へ返す。
+            create_report(
+                ctx,
+                state,
+                &ban_failed_report(reason, &e.to_string()),
+                Some((msg, actor)),
+                channels,
+            )
             .await?;
+            return Err(e.into());
+        }
     }
     create_report(
         ctx,
@@ -183,6 +196,15 @@ async fn ban_and_report(
     )
     .await?;
     Ok(())
+}
+
+/// BAN 失敗時の通報文。エラー文は長くなり得るので冒頭だけ載せる。
+pub(super) fn ban_failed_report(reason: &str, error: &str) -> String {
+    let brief: String = error.chars().take(BAN_ERROR_CHARS).collect();
+    format!(
+        "{reason}が、自動BANに失敗しました（権限・ロール順位を確認してください）: {}",
+        neutralize_backticks(&brief)
+    )
 }
 
 /// 該当ユーザーが直近 PURGE_LOOKBACK_SECS 秒に撒いたメッセージを一括削除する。
@@ -304,6 +326,8 @@ pub(super) fn neutralize_backticks(text: &str) -> String {
 
 /// 通報に載せるスパム本文の文字数。中身は判断にほとんど要らない（何の投稿かが分かれば足りる）。
 pub(super) const REPORT_EXCERPT_CHARS: usize = 100;
+/// BAN 失敗の通報に載せるエラー文の文字数。
+const BAN_ERROR_CHARS: usize = 150;
 /// Discord のメッセージ本文の上限（文字数）。超えると送信が弾かれ、通報ごと届かなくなる。
 pub(super) const DISCORD_MESSAGE_MAX_CHARS: usize = 2000;
 

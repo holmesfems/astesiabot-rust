@@ -28,7 +28,9 @@ services/
   出せるので、author で連投検知すると他 bot を BAN させられる。代わりにスラッシュコマンドへの返信は
   `moderation::handle_command_reply` で interaction_metadata の「打った人」（`Actor`）の操作として数える。
   連投/爆撃検知のみ（本人の発言と同じ履歴・閾値）、1コマンド＝1回（フォローアップは数えない）、
-  ボタン/モーダル由来は数えない。遡及削除はその人が打ったコマンドへの bot の返信を消す。
+  ボタン/モーダル由来は数えない。数える時刻は返信の到着ではなく interaction の作成時刻（ID から取れる）で、
+  検知の窓より古い返信は数えない（interaction token は15分間フォローアップできるので、溜めて一斉に出されると
+  打った人が BAN される）。遡及削除はその人が打ったコマンドへの bot の返信を消す。
 - **占い館の function calling**: `data/uranai/toolList.yaml` は `build_tool_list_entries()` と一致して
   いる必要がある（`tool_list_yaml_matches_registered_functions`）。関数を足したり description /
   parameters を変えたら `cargo run --bin regen_uranai_tools` で作り直して commit する。

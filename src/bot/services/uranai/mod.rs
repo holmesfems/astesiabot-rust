@@ -81,7 +81,8 @@ pub async fn handle(
             return;
         };
 
-        if content == "reset" || content == "clear" {
+        let command = session_command(&content_raw);
+        if command == Some(SessionCommand::Reset) {
             session.reset();
             drop(session);
             if let Err(e) = channel_id.say(&ctx.http, "会話履歴をリセットしたわ。").await {
@@ -89,7 +90,7 @@ pub async fn handle(
             }
             return;
         }
-        if content == "continue" {
+        if command == Some(SessionCommand::Continue) {
             session.touch();
             drop(session);
             if let Err(e) = channel_id.say(&ctx.http, "会話を延長したわ。").await {
@@ -277,9 +278,37 @@ fn chunk_text(text: &str, limit: usize) -> Vec<String> {
     chunks
 }
 
+/// 会話履歴を操作する即時コマンド。
+#[derive(Debug, PartialEq, Eq)]
+enum SessionCommand {
+    Reset,
+    Continue,
+}
+
+/// 発言本文（trim 済み）が即時コマンドか。`from {name}:` を付けた GPT 向けの文字列ではなく、
+/// 生の本文と比べる（付けた後だと永久に一致しない）。
+fn session_command(raw: &str) -> Option<SessionCommand> {
+    match raw.trim() {
+        "reset" | "clear" => Some(SessionCommand::Reset),
+        "continue" => Some(SessionCommand::Continue),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_commands_match_raw_content_only() {
+        assert_eq!(session_command("reset"), Some(SessionCommand::Reset));
+        assert_eq!(session_command(" clear 
+"), Some(SessionCommand::Reset));
+        assert_eq!(session_command("continue"), Some(SessionCommand::Continue));
+        assert_eq!(session_command("reset please"), None);
+        assert_eq!(session_command("from bob:
+ reset"), None);
+    }
 
     #[test]
     fn no_mention_message_suppresses_every_mention_kind() {
