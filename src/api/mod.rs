@@ -230,14 +230,21 @@ pub async fn run_api(state: Arc<AppState>) {
         .with_state(state);
     // 旧ホスト（*.herokuapp.com / www.）の GET を PUBLIC_BASE_URL へ 301。未設定なら何もしない。
     // serve_web は 127.0.0.1 でしか受けないので、ここ（本番側）だけに掛ける。
-    if let Some(canonical) = legacy_host_redirect::CanonicalBase::from_env() {
+    let canonical = legacy_host_redirect::CanonicalBase::from_env();
+    let origin_secret = origin_secret::OriginSecret::from_env();
+    // origin_secret は *.herokuapp.com 宛てを対象外にして旧ホストの層に任せるので、
+    // 旧ホストの層が無いまま ORIGIN_SECRET だけ有効だと herokuapp 経由で素通りになる。起動時に止める。
+    if let Err(message) = check_origin_layers(origin_secret.is_some(), canonical.is_some()) {
+        panic!("{message}");
+    }
+    if let Some(canonical) = canonical {
         app = app.layer(axum::middleware::from_fn_with_state(
             Arc::new(canonical),
             legacy_host_redirect::redirect_legacy_host,
         ));
     }
     // Cloudflare を通ったかを X-Origin-Secret で確かめる（一番外側）。ORIGIN_SECRET 未設定なら何もしない。
-    if let Some(origin_secret) = origin_secret::OriginSecret::from_env() {
+    if let Some(origin_secret) = origin_secret {
         app = app.layer(axum::middleware::from_fn_with_state(
             Arc::new(origin_secret),
             origin_secret::check_origin_secret,
@@ -252,6 +259,16 @@ pub async fn run_api(state: Arc<AppState>) {
         .await
         .unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+/// ORIGIN_SECRET が有効なのに旧ホストの層（PUBLIC_BASE_URL）が無い構成を弾く。
+fn check_origin_layers(origin_secret_enabled: bool, canonical_base_enabled: bool) -> Result<(), &'static str> {
+    if origin_secret_enabled && !canonical_base_enabled {
+        return Err(
+            "ORIGIN_SECRET が設定されていますが PUBLIC_BASE_URL が未設定または不正です。*.herokuapp.com 宛てが Cloudflare を素通りするので、PUBLIC_BASE_URL を正しく設定してください",
+        );
+    }
+    Ok(())
 }
 
 async fn not_found() -> (StatusCode, &'static str) {
@@ -364,5 +381,22 @@ mod tests {
         let home = get_html("/").await;
         assert!(home.contains(&format!(r#"<meta property="og:image" content="{base}/static/ogp.png">"#)));
         assert!(!home.contains("icon-512.png"));
+    }
+}
+
+#[cfg(test)]
+mod origin_layer_tests {
+    use super::check_origin_layers;
+
+    #[test]
+    fn origin_secret_without_canonical_base_is_rejected() {
+        assert!(check_origin_layers(true, false).is_err());
+    }
+
+    #[test]
+    fn other_combinations_are_accepted() {
+        assert!(check_origin_layers(true, true).is_ok());
+        assert!(check_origin_layers(false, true).is_ok());
+        assert!(check_origin_layers(false, false).is_ok());
     }
 }

@@ -9,6 +9,8 @@
 //!   （Cloudflare の設定ずれでサイト全体が 403 にならないよう、ログで確かめてから切り替える）。
 //! - `*.herokuapp.com` 宛ては Cloudflare を通らないので対象外（legacy_host_redirect.rs が GET/HEAD 以外を断る）。
 //!   `/health` も死活監視用に対象外。
+//!   この対象外は旧ホストの層（`PUBLIC_BASE_URL` が要る）が受け持つ前提なので、`ORIGIN_SECRET` を
+//!   有効にして `PUBLIC_BASE_URL` が無い構成は `run_api` が起動時に panic で止める（herokuapp 経由の素通りを防ぐ）。
 
 use axum::extract::{Request, State};
 use axum::http::{header, HeaderMap, StatusCode};

@@ -26,9 +26,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      # checkout の資格情報を .git に残さない（後続の cargo 実行などに書き込み権限を渡さない）。
+      # PR を作る手順は token を明示して自前で認証する。
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # SHA 固定だとブランチ名から toolchain を決められないので、明示する。
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
       - name: Seed を作り直す
         run: cargo run --locked --bin regen_seeds
@@ -59,8 +66,9 @@ jobs:
           cat "$RUNNER_TEMP/pr_body.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: PR を作る
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
         with:
+          token: ${{ github.token }}
           branch: auto/regen-seeds
           delete-branch: true
           add-paths: |

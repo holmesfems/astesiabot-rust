@@ -57,7 +57,7 @@ async fn main() {
         .expect("求人データのロードに失敗");
     // 理性価値表もここで一括計算（グローバル版・大陸版とも）。
     let risei_calculator = Arc::new(
-        engine::risei_calculator_engine::RiseiCalculatorEngine::load(&external_source)
+        engine::risei_calculator_engine::RiseiCalculatorEngine::load_or_seed(&external_source)
             .await
             .expect("理性価値表の初期計算に失敗"),
     );
