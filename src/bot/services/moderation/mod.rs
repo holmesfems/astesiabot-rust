@@ -18,6 +18,7 @@ use detect::{
     SpamKind,
     Actor,
     command_invoker,
+    countable_command_age,
     Detection,
     first_sight_of_interaction,
     detect,
@@ -107,11 +108,19 @@ pub async fn handle_command_reply(
     if invoker.bot {
         return Ok(());
     }
+    // 数える時刻は返信の到着時刻ではなく、コマンドを打った時刻（interaction ID から取れる）。
+    // 古い interaction の遅延フォローアップは打った人の操作ではないので、数えない。
+    let created_at_ms = interaction_id.created_at().timestamp_millis();
+    let Some(age) = countable_command_age(created_at_ms, chrono::Utc::now().timestamp_millis())
+    else {
+        return Ok(());
+    };
     let now = Instant::now();
     if !first_sight_of_interaction(&state.seen_interactions, interaction_id, now) {
         return Ok(());
     }
-    let kind = detect_rate_spam(state, invoker.id, msg.channel_id, now);
+    let event_at = now.checked_sub(age).unwrap_or(now);
+    let kind = detect_rate_spam(state, invoker.id, msg.channel_id, event_at);
     if kind == SpamKind::None {
         return Ok(());
     }

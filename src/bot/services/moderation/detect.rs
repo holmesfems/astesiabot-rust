@@ -113,6 +113,17 @@ pub(super) fn command_invoker(
     }
 }
 
+/// コマンド返信を連投/爆撃検知に数えるときの「コマンドを打ってからの経過時間」を返す。
+/// interaction token は15分間フォローアップできるので、他 bot が返信を溜めておいて
+/// まとめて出すと、到着時刻で数えれば短時間の連投に見えてしまう（打った人が BAN される）。
+/// そこで interaction の作成時刻から経過時間を出し、検知の窓より古い返信は None（数えない）。
+/// 時計のずれで作成時刻が未来になっても、経過0（今打った）として扱う。
+pub(super) fn countable_command_age(created_at_ms: i64, now_ms: i64) -> Option<Duration> {
+    let age_ms = u64::try_from(now_ms.saturating_sub(created_at_ms)).unwrap_or(0);
+    let age = Duration::from_millis(age_ms);
+    (age <= MULTI_CH_WINDOW.max(SAME_CH_WINDOW)).then_some(age)
+}
+
 /// 検知層の結果。delete は kind と独立している（罠チャンネル在籍なら内容に
 /// 関わらず常に削除するが、BAN対象コンテンツが無ければ kind は別の理由
 /// （またはNone）になり得るため）。
