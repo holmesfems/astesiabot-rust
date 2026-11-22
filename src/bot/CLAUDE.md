@@ -14,7 +14,7 @@ utils/       … env.rs（channel_id_env 等。不正値なら起動時 panic）
 commands/    … スラッシュコマンド（1コマンド1ファイル）。fksearch.rs / risei/ / operator_cost_calc/
 services/
   moderation/       … スパム検知・連投/爆撃・罠チャンネル・全体通知 BAN（mod.rs が入口と状態、detect.rs が検知、action.rs が処断と通報）
-  recruit/          … 公開求人チャンネル（OCR → 計算 → embed、リプライでのタグ編集）
+  recruit/          … 公開求人チャンネル（OCR → 計算 → embed、リプライでのタグ編集）。local_ocr.rs がローカルのタグ枠 OCR の bot 側
   uranai/           … 占い館（OpenAI のチャット。functioncalling/ に bot 機能を呼ぶ関数）
   reply_dispatch.rs … コマンド応答 embed へのリプライを、footer のマーカーから由来コマンドに戻す
   birthday.rs       … 毎日 JST 0:00 にオペレーターの誕生日をお祝い
@@ -58,3 +58,28 @@ services/
 - `YOUTUBE_CHANNEL_ID`・`YOUTUBE_API_KEY`・`CHANNEL_ID_YOUTUBE_NOTIFY` のどれかが無ければ起動しない
   （他の機能と違い panic しない。環境変数より先にデプロイしても動くように）。
 - 本物の YouTube での確認: `cargo test --lib -- --ignored youtube_live`
+
+## 公開求人のローカル OCR（recruit/local_ocr.rs）
+
+画像をまずローカルのタグ枠 OCR（`engine::recruit::tag_ocr`）で読み、読み切れなければ Google Vision に回す。
+テンプレート（`data/recruitment/tag_templates/`）が無い・壊れていれば起動時に panic する。
+
+- `LOCAL_OCR_MODE`: `off`（未設定・不明な値。不明ならログに警告）/ `shadow` / `on`。起動時に一度だけ読む。
+  - `shadow`: ローカルも読むが返信は**常に Google の結果**。ローカルが読めたとき、Google のテキストから取れたタグ集合と
+    比べて agree / disagree / Google がタグ無し / ローカル不確か（理由別）を数える。
+  - `on`: ローカルが読み切れた画像は Google を呼ばない。読めなければ Google（NoText・Unavailable の扱いは従来どおり）。
+  - 導入の順番: `shadow` で本番に出す → DM とログで不一致が無い（または説明がつく）ことを確かめる → `on`。
+    戻すときは `off`（環境変数を変えて再起動するだけ）。
+- `LOCAL_OCR_REPORT_USER_ID`（任意。Discord のユーザー ID）: 設定すると、shadow で不一致が出たときにその人へ DM する
+  （local と Google のタグ・枠ごとの 1 位 / 2 位と類似度・元メッセージへのリンク。画像・投稿者の情報は入れない）。
+  あわせて毎日 JST 0:00 に shadow の集計を 1 行で DM する（前回から 1 枚も処理していなければ送らない。集計は送るたびに
+  0 に戻り、再起動でも消える）。不正な値なら起動時に panic、未設定ならログだけ。DM の失敗は警告のログだけで返信には影響しない。
+  Heroku のログは約 1500 行しか残らないので、shadow の結果はログだけに頼らない。
+- ログは全部 `[local_ocr]` で始める（1 枚ごとに、どちらの経路を取ったかと 5 枠の最小スコア）。
+- 添付はローカルでは `attachment.url` から自分でダウンロードする（10 秒・10MB まで。超えれば Google へ）。
+  デコードは `spawn_blocking` の中で、幅・高さ 8000px・2000 万画素・メモリ 256MB の上限つき（悪意ある画像でメモリを
+  溢れさせない）。同時に読むのは 2 枚まで。ローカルの失敗はすべて「読めなかった」として Google に回す。
+- DM などの文面は `local_ocr.rs` の純粋関数（`disagreement_message` / `summary_message`。2000 文字で切る）が作り、
+  ここの単体テストで確かめる。
+- 本物の Discord で DM が届くかの確認: `$env:LOCAL_OCR_REPORT_USER_ID = "<ID>"; cargo test --lib -- --ignored local_ocr_dm_live`
+  （.env の bot から送る。送り先がその bot と同じ鯖にいる必要がある）

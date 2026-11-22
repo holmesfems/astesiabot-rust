@@ -31,11 +31,23 @@ pub fn build_embed_reply(engine: &RecruitEngine, ocr_text: &str) -> OcrEmbedResu
     }
     // 切り詰め前の生の個数で判定する（8個超に切り詰めた後の個数は使わない）。
     let tag_count_illegal = matched.matches.len() != 5;
-    let mut matches: Vec<String> = matched.matches.into_iter().collect();
+    let matches: Vec<String> = matched.matches.into_iter().collect();
+    reply_from_matches(engine, matches, matched.is_global, tag_count_illegal)
+}
+
+/// ローカル OCR が読んだタグ（tagList.json の正式名）から EmbedReply を作る。
+/// ローカル OCR は日本語表示（グローバル版）の画面だけを読むので is_global = true。
+/// 5 個ちょうどなら誘導メッセージは不要（tag_count_illegal = false）。
+pub fn build_embed_reply_from_tags(engine: &RecruitEngine, tags: &[String]) -> OcrEmbedResult {
+    println!("[recruit OCR]: local tags {tags:?}");
+    reply_from_matches(engine, tags.to_vec(), true, tags.len() != 5)
+}
+
+/// タグ集合 → 計算 → EmbedReply（OCR テキスト経由でもローカル OCR 経由でも共通の後半）。
+fn reply_from_matches(engine: &RecruitEngine, mut matches: Vec<String>, is_global: bool, tag_count_illegal: bool) -> OcrEmbedResult {
     if matches.len() > MAX_TAG_COUNT {
         matches.truncate(MAX_TAG_COUNT);
     }
-    let is_global = matched.is_global;
     let data = engine.data();
     let results = data.calculate(&matches, is_global, 4, None);
     // embedの色分け用: 各組み合わせの確定レアリティ（"-> ★n"の表示に対応するmin_star）
@@ -58,5 +70,32 @@ pub fn build_embed_reply(engine: &RecruitEngine, ocr_text: &str) -> OcrEmbedResu
             reply_marker: None,
         },
         tag_count_illegal,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_tags_matches_ocr_text_path() {
+        let engine = RecruitEngine::load_from_seed();
+        let tags: Vec<String> = ["近距離", "上級エリート", "牽制", "治療", "火力"].iter().map(|s| s.to_string()).collect();
+        let from_tags = build_embed_reply_from_tags(&engine, &tags);
+        assert!(!from_tags.tag_count_illegal);
+        assert!(!from_tags.reply.chunks.is_empty());
+        // 同じタグを OCR テキストで渡した場合と同じ計算結果になる
+        let from_text = build_embed_reply(&engine, &tags.join("
+"));
+        assert_eq!(from_tags.reply.title, from_text.reply.title);
+        assert_eq!(from_tags.reply.chunks, from_text.reply.chunks);
+        assert!(!from_text.tag_count_illegal);
+    }
+
+    #[test]
+    fn from_tags_flags_illegal_count() {
+        let engine = RecruitEngine::load_from_seed();
+        let tags: Vec<String> = ["近距離", "牽制", "治療", "火力"].iter().map(|s| s.to_string()).collect();
+        assert!(build_embed_reply_from_tags(&engine, &tags).tag_count_illegal);
     }
 }

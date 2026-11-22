@@ -63,6 +63,7 @@ async fn main() {
     );
     let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
     let uranai = astesiabot_rust::bot::services::uranai::UranaiState::from_env();
+    let local_ocr = astesiabot_rust::bot::services::recruit::local_ocr::LocalOcr::from_env();
     let state = Arc::new(AppState {
         recruit: recruit_engine,
         moderation,
@@ -70,6 +71,7 @@ async fn main() {
         risei_calculator,
         fk_data_search,
         uranai,
+        local_ocr,
     });
     let bot_state = state.clone();
 

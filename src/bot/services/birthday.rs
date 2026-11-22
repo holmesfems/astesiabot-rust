@@ -62,7 +62,7 @@ fn jst() -> FixedOffset {
 }
 
 /// 次の JST 0:00 までの Duration。
-fn duration_until_next_midnight_jst() -> std::time::Duration {
+pub(crate) fn duration_until_next_midnight_jst() -> std::time::Duration {
     let offset = jst();
     let now_jst = Utc::now().with_timezone(&offset);
     let tomorrow = now_jst.date_naive() + chrono::Duration::days(1);

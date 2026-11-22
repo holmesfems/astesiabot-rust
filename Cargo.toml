@@ -2,6 +2,8 @@
 name = "astesiabot-rust"
 version = "0.1.0"
 edition = "2021"
+# bin が複数あるので、素の `cargo run` は本体（bot + API）を起動する
+default-run = "astesiabot-rust"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

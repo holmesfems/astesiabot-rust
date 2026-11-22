@@ -2,7 +2,7 @@
 //! 「全部の枠をローカルで読み切れるか」を評価するローカル専用ツール。
 //!
 //! ```text
-//! cargo run --release --bin fit_tag_templates -- [--in local/recruit_samples] [--tags data/recruitment/tagList.json] [--no-center]
+//! cargo run --release --bin fit_tag_templates -- [--in local/recruit_samples] [--tags data/recruitment/tagList.json] [--no-center] [--export data/recruitment/tag_templates]
 //! ```
 //!
 //! - ラベル（過去の bot の返信）は「5 個の集合」としてしか信用できない。画面の枠の順とタイトルの順は
@@ -11,8 +11,15 @@
 //!   同じ形で扱える。
 //! - 時系列で古い 80% を学習、新しい 20% を評価に使う。しきい値（T, M）は学習側だけで決める。
 //! - 出力は `<in>/templates/`（タグごとの PNG、templates.json、eval_report.txt、mistakes.jsonl）。
+//! - 学習側だけのテンプレートを本番の形式（量子化した PNG + meta.json）で書き出して `TagOcr::load` し、
+//!   テスト画像の元のスクショから `TagOcr::analyze` で読み直した評価も出す（本番と同じ経路の確認）。
+//! - `--export <dir>` は、英語を除く全データで学習し直したテンプレートを本番の形式で <dir> に書く
+//!   （bot が読む `data/recruitment/tag_templates/` を作る。時系列分割のときだけ）。
 
-use image::{imageops, GrayImage, Luma, RgbImage};
+use astesiabot_rust::engine::recruit::tag_ocr::feature::{dot_shift, normalize, preprocess, similarity, ABS_MIN_DIFF, FH, FW, MIN_AREA, NPIX, P99_RATIO, SHIFT_X, SHIFT_Y};
+use astesiabot_rust::engine::recruit::tag_ocr::score::{accepts, score_box, BoxResult, Model, Template, TopScore, DIFF_DILATE, DIFF_THR, PAIR_SIM};
+use astesiabot_rust::engine::recruit::tag_ocr::{store, BoxScore, TagOcr};
+use image::{GrayImage, Luma};
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -20,25 +27,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-// ---- 特徴の定数 ----
-
-/// 特徴の大きさ。枠の縦横比（約 3）に合わせる。
-const FW: usize = 192;
-const FH: usize = 64;
-const NPIX: usize = FW * FH;
-/// 類似度で許す位置ずれ（px）。
-const SHIFT_X: i32 = 4;
-const SHIFT_Y: i32 = 2;
-/// これより小さい連結成分はゴミとして捨てる（縮小後の px 数）。
-const MIN_AREA: usize = 20;
-/// この面積未満で、周り SPECK_DIST px に他の成分が無い点はほこりとして捨てる。
-const SPECK_AREA: usize = 80;
-const SPECK_DIST: i32 = 8;
-/// 文字とみなす差の下限（0..255）。文字の無い枠をノイズで 2 値化しないため。
-const ABS_MIN_DIFF: f32 = 40.0;
-/// 半階調の点（黄色の網点）を文字に入れないよう、しきい値を p99 のこの割合以上にする。
-const P99_RATIO: f32 = 0.5;
-/// 学習のテンプレートの両端の刈り込み割合。
 const TRIM: f32 = 0.1;
 const EM_MAX_ITER: usize = 10;
 /// 1 タグを分ける代表の最大数、代表として残す最小のサンプル数、新しい代表を作る類似度の上限。
@@ -94,249 +82,6 @@ struct TagList {
     other: Vec<String>,
 }
 
-// ---- 前処理（1 枠 → 特徴） ----
-
-fn median_u8(v: &mut [u8]) -> u8 {
-    v.sort_unstable();
-    v[v.len() / 2]
-}
-
-/// 大津の方法（256 ビン、値域 0..=255）。
-fn otsu(values: &[f32]) -> f32 {
-    let mut hist = [0f64; 256];
-    for &v in values {
-        hist[(v.clamp(0.0, 255.0)) as usize] += 1.0;
-    }
-    let total: f64 = hist.iter().sum();
-    let sum_all: f64 = hist.iter().enumerate().map(|(i, h)| i as f64 * h).sum();
-    let (mut w0, mut sum0, mut best, mut best_t) = (0f64, 0f64, -1f64, 0usize);
-    for (t, &h) in hist.iter().enumerate() {
-        w0 += h;
-        if w0 == 0.0 {
-            continue;
-        }
-        let w1 = total - w0;
-        if w1 == 0.0 {
-            break;
-        }
-        sum0 += t as f64 * h;
-        let (m0, m1) = (sum0 / w0, (sum_all - sum0) / w1);
-        let between = w0 * w1 * (m0 - m1) * (m0 - m1);
-        if between > best {
-            best = between;
-            best_t = t;
-        }
-    }
-    best_t as f32 + 0.5
-}
-
-/// 文字とみなす差のしきい値。大津の値を、網点を弾くために p99 の半分以上に引き上げる。
-fn text_threshold(diff: &[f32]) -> f32 {
-    let mut s = diff.to_vec();
-    s.sort_by(|a, b| a.total_cmp(b));
-    let p99 = s[((s.len() - 1) as f32 * 0.99) as usize];
-    otsu(diff).max(P99_RATIO * p99).max(ABS_MIN_DIFF)
-}
-
-struct Comp {
-    cells: Vec<usize>,
-    x0: usize,
-    y0: usize,
-    x1: usize,
-    y1: usize,
-}
-
-/// 8 近傍の連結成分に分ける。
-fn components(mask: &[bool]) -> Vec<Comp> {
-    let mut seen = vec![false; NPIX];
-    let mut stack = Vec::new();
-    let mut out = Vec::new();
-    for s in 0..NPIX {
-        if !mask[s] || seen[s] {
-            continue;
-        }
-        seen[s] = true;
-        stack.push(s);
-        let mut c = Comp { cells: Vec::new(), x0: FW, y0: FH, x1: 0, y1: 0 };
-        while let Some(i) = stack.pop() {
-            c.cells.push(i);
-            let (x, y) = (i % FW, i / FW);
-            c.x0 = c.x0.min(x);
-            c.x1 = c.x1.max(x);
-            c.y0 = c.y0.min(y);
-            c.y1 = c.y1.max(y);
-            for dy in -1i32..=1 {
-                for dx in -1i32..=1 {
-                    let (nx, ny) = (x as i32 + dx, y as i32 + dy);
-                    if nx < 0 || ny < 0 || nx >= FW as i32 || ny >= FH as i32 {
-                        continue;
-                    }
-                    let ni = ny as usize * FW + nx as usize;
-                    if mask[ni] && !seen[ni] {
-                        seen[ni] = true;
-                        stack.push(ni);
-                    }
-                }
-            }
-        }
-        out.push(c);
-    }
-    out
-}
-
-/// ゴミの連結成分を消す: 小さすぎるもの、離れて孤立した小さな点（ほこり）、
-/// 上下の縁に触れるもの（文字は枠の縦中央にあるので、枠線の残りやバッジ）、縁に張り付いた細長いもの。
-fn remove_junk(mask: &mut [bool]) {
-    let comps = components(mask);
-    let mut label = vec![usize::MAX; NPIX];
-    for (k, c) in comps.iter().enumerate() {
-        for &i in &c.cells {
-            label[i] = k;
-        }
-    }
-    for (k, c) in comps.iter().enumerate() {
-        let touches_tb = c.y0 == 0 || c.y1 == FH - 1;
-        let touches = touches_tb || c.x0 == 0 || c.x1 == FW - 1;
-        let spans = (c.x1 - c.x0 + 1) >= FW * 9 / 10 || (c.y1 - c.y0 + 1) >= FH * 9 / 10;
-        let isolated = c.cells.len() < SPECK_AREA
-            && c.cells.iter().all(|&i| {
-                let (x, y) = ((i % FW) as i32, (i / FW) as i32);
-                (-SPECK_DIST..=SPECK_DIST).all(|dy| {
-                    (-SPECK_DIST..=SPECK_DIST).all(|dx| {
-                        let (nx, ny) = (x + dx, y + dy);
-                        if nx < 0 || ny < 0 || nx >= FW as i32 || ny >= FH as i32 {
-                            return true;
-                        }
-                        let l = label[ny as usize * FW + nx as usize];
-                        l == usize::MAX || l == k
-                    })
-                })
-            });
-        if c.cells.len() < MIN_AREA || isolated || touches_tb || (touches && spans) {
-            for &i in &c.cells {
-                mask[i] = false;
-            }
-        }
-    }
-}
-
-/// 2 値マスクを、外接矩形の中心が特徴の中心に来るよう整数 px だけ動かす。
-fn center_mask(mask: &[bool]) -> Vec<bool> {
-    let (mut x0, mut y0, mut x1, mut y1) = (FW, FH, 0usize, 0usize);
-    let mut any = false;
-    for (i, &m) in mask.iter().enumerate() {
-        if m {
-            any = true;
-            let (x, y) = (i % FW, i / FW);
-            x0 = x0.min(x);
-            x1 = x1.max(x);
-            y0 = y0.min(y);
-            y1 = y1.max(y);
-        }
-    }
-    if !any {
-        return mask.to_vec();
-    }
-    let sx = FW as i32 / 2 - (x0 + x1) as i32 / 2;
-    let sy = FH as i32 / 2 - (y0 + y1) as i32 / 2;
-    let mut out = vec![false; NPIX];
-    for (i, &m) in mask.iter().enumerate() {
-        if m {
-            let (nx, ny) = ((i % FW) as i32 + sx, (i / FW) as i32 + sy);
-            if (0..FW as i32).contains(&nx) && (0..FH as i32).contains(&ny) {
-                out[ny as usize * FW + nx as usize] = true;
-            }
-        }
-    }
-    out
-}
-
-/// 3x3 の平均（位置ずれと線の太さの揺れをならす）。
-fn blur3(mask: &[bool]) -> Vec<f32> {
-    let mut out = vec![0f32; NPIX];
-    for y in 0..FH {
-        for x in 0..FW {
-            let mut s = 0;
-            for dy in -1i32..=1 {
-                for dx in -1i32..=1 {
-                    let (nx, ny) = (x as i32 + dx, y as i32 + dy);
-                    if (0..FW as i32).contains(&nx) && (0..FH as i32).contains(&ny) && mask[ny as usize * FW + nx as usize] {
-                        s += 1;
-                    }
-                }
-            }
-            out[y * FW + x] = s as f32 / 9.0;
-        }
-    }
-    out
-}
-
-/// 枠の切り抜き → 文字だけの特徴（FW x FH、0..1）。
-/// 背景色（枠内の各チャンネルの中央値）との差で文字を拾うので、色の組み合わせに依らない。
-fn preprocess(img: &RgbImage, center: bool) -> Vec<f32> {
-    let small = imageops::resize(img, FW as u32, FH as u32, imageops::FilterType::Triangle);
-    let mut med = [0u8; 3];
-    for (c, m) in med.iter_mut().enumerate() {
-        let mut v: Vec<u8> = small.pixels().map(|p| p[c]).collect();
-        *m = median_u8(&mut v);
-    }
-    let diff: Vec<f32> = small
-        .pixels()
-        .map(|p| (0..3).map(|c| (p[c] as i32 - med[c] as i32).abs()).max().unwrap() as f32)
-        .collect();
-    let thr = text_threshold(&diff);
-    let mut mask: Vec<bool> = diff.iter().map(|&d| d >= thr).collect();
-    remove_junk(&mut mask);
-    if center {
-        mask = center_mask(&mask);
-    }
-    blur3(&mask)
-}
-
-// ---- 類似度 ----
-
-/// 平均を引いて長さ 1 にする。全部同じ値（文字なし）は零ベクトル（= 誰とも似ない）。
-fn normalize(raw: &[f32]) -> Vec<f32> {
-    let mean = raw.iter().sum::<f32>() / raw.len() as f32;
-    let norm = raw.iter().map(|v| (v - mean) * (v - mean)).sum::<f32>().sqrt();
-    if norm < 1e-6 {
-        return vec![0.0; raw.len()];
-    }
-    raw.iter().map(|v| (v - mean) / norm).collect()
-}
-
-fn dot_shift(a: &[f32], b: &[f32], dx: i32, dy: i32) -> f32 {
-    let mut s = 0f32;
-    let (y0, y1) = (dy.max(0) as usize, (FH as i32 + dy.min(0)) as usize);
-    let (x0, x1) = (dx.max(0) as usize, (FW as i32 + dx.min(0)) as usize);
-    for y in y0..y1 {
-        let yb = (y as i32 - dy) as usize;
-        let ra = &a[y * FW + x0..y * FW + x1];
-        let xb0 = (x0 as i32 - dx) as usize;
-        let rb = &b[yb * FW + xb0..yb * FW + xb0 + (x1 - x0)];
-        s += ra.iter().zip(rb).map(|(p, q)| p * q).sum::<f32>();
-    }
-    s
-}
-
-/// 正規化済み 2 ベクトルの相互相関の、位置ずれ（±SHIFT）での最大値と、そのずれ。[-1, 1]。
-/// ずれ (dx, dy) は `a[y][x] * b[y-dy][x-dx]` の向き。
-fn similarity_arg(a: &[f32], b: &[f32]) -> (f32, i32, i32) {
-    let mut best = (f32::MIN, 0, 0);
-    for dy in -SHIFT_Y..=SHIFT_Y {
-        for dx in -SHIFT_X..=SHIFT_X {
-            let s = dot_shift(a, b, dx, dy);
-            if s > best.0 {
-                best = (s, dx, dy);
-            }
-        }
-    }
-    best
-}
-
-fn similarity(a: &[f32], b: &[f32]) -> f32 {
-    similarity_arg(a, b).0
-}
 
 // ---- テンプレート ----
 
@@ -357,19 +102,6 @@ fn build_template(feats: &[&[f32]]) -> Vec<f32> {
         .collect()
 }
 
-struct Template {
-    raw: Vec<f32>,
-    norm: Vec<f32>,
-    /// このテンプレートに割り当てられた学習サンプル数
-    count: usize,
-}
-
-impl Template {
-    fn new(raw: Vec<f32>, count: usize) -> Self {
-        let norm = normalize(&raw);
-        Template { raw, norm, count }
-    }
-}
 
 /// タグの類似度は、そのタグの代表（複数）のうち一番似ているもの。代表が無いタグは最低値。
 fn tag_sim(norm: &[f32], protos: &[Template]) -> f32 {
@@ -529,167 +261,6 @@ fn best_perm(s: &[[f32; 5]; 5], perms: &[[usize; 5]]) -> [usize; 5] {
     best.1
 }
 
-// ---- 紛らわしい 2 タグの再判定 ----
-// 近距離/遠距離・「〜タイプ」・エリート/上級エリートのように文字を共有するタグは、全体の相関だと
-// 差が小さい。1 位と 2 位のテンプレートが似ているとき、2 つが違う画素だけで測り直して差を取る。
-
-/// 2 つのテンプレートが似ているとみなす相関の下限（この組だけ再判定する）。
-const PAIR_SIM: f32 = 0.85;
-/// 2 テンプレートの差がこの値を超える画素を「違う画素」とし、DIFF_DILATE px 太らせる。
-const DIFF_THR: f32 = 0.25;
-const DIFF_DILATE: i32 = 2;
-
-/// そのタグの代表のうち一番似ているもの: (類似度, 代表の添字, ずれ dx, ずれ dy)。代表が無ければ最低値。
-fn tag_best(norm: &[f32], protos: &[Template]) -> (f32, usize, i32, i32) {
-    let mut best = (f32::MIN, 0, 0, 0);
-    for (k, p) in protos.iter().enumerate() {
-        let (s, dx, dy) = similarity_arg(norm, &p.norm);
-        if s > best.0 {
-            best = (s, k, dx, dy);
-        }
-    }
-    best
-}
-
-/// 2 テンプレートの違う画素（太らせてある）。
-fn diff_mask(ta: &[f32], tb: &[f32]) -> Vec<bool> {
-    let raw: Vec<bool> = ta.iter().zip(tb).map(|(a, b)| (a - b).abs() > DIFF_THR).collect();
-    let mut out = vec![false; NPIX];
-    for (i, &m) in raw.iter().enumerate() {
-        if !m {
-            continue;
-        }
-        let (x, y) = ((i % FW) as i32, (i / FW) as i32);
-        for dy in -DIFF_DILATE..=DIFF_DILATE {
-            for dx in -DIFF_DILATE..=DIFF_DILATE {
-                let (nx, ny) = (x + dx, y + dy);
-                if (0..FW as i32).contains(&nx) && (0..FH as i32).contains(&ny) {
-                    out[ny as usize * FW + nx as usize] = true;
-                }
-            }
-        }
-    }
-    out
-}
-
-/// マスク内の画素だけのピアソン相関（枠の特徴 `f` とテンプレート `t`。t は (dx, dy) ずらして重ねる）。
-fn masked_sim(f: &[f32], t: &[f32], mask: &[bool], dx: i32, dy: i32) -> f32 {
-    let (mut n, mut sf, mut st, mut sff, mut stt, mut sft) = (0f32, 0f32, 0f32, 0f32, 0f32, 0f32);
-    for (i, &m) in mask.iter().enumerate() {
-        if !m {
-            continue;
-        }
-        let (x, y) = ((i % FW) as i32 - dx, (i / FW) as i32 - dy);
-        if x < 0 || y < 0 || x >= FW as i32 || y >= FH as i32 {
-            continue;
-        }
-        let (a, b) = (f[i], t[y as usize * FW + x as usize]);
-        n += 1.0;
-        sf += a;
-        st += b;
-        sff += a * a;
-        stt += b * b;
-        sft += a * b;
-    }
-    if n < 20.0 {
-        return 0.0;
-    }
-    let (vf, vt) = (sff - sf * sf / n, stt - st * st / n);
-    if vf < 1e-6 || vt < 1e-6 {
-        return 0.0;
-    }
-    (sft - sf * st / n) / (vf * vt).sqrt()
-}
-
-/// テンプレート一式と、タグ同士の似かた（代表どうしの相関の最大値）。
-struct Model<'a> {
-    templates: &'a [Vec<Template>],
-    gate: Vec<Vec<f32>>,
-}
-
-impl<'a> Model<'a> {
-    fn new(templates: &'a [Vec<Template>]) -> Self {
-        let n = templates.len();
-        let mut gate = vec![vec![0f32; n]; n];
-        for a in 0..n {
-            for b in a + 1..n {
-                let mut best = 0f32;
-                for pa in &templates[a] {
-                    for pb in &templates[b] {
-                        best = best.max(similarity(&pa.norm, &pb.norm));
-                    }
-                }
-                gate[a][b] = best;
-                gate[b][a] = best;
-            }
-        }
-        Model { templates, gate }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct BoxScore {
-    best_tag: usize,
-    best: f32,
-    second_tag: usize,
-    second: f32,
-    /// 受理の条件に使う 1 位と 2 位の差。再判定した組では、違う画素だけの相関の差。
-    margin: f32,
-}
-
-/// 全テンプレートとの類似度から、1 位と 2 位を取る。
-fn top2(scores: &[f32]) -> BoxScore {
-    let mut b = BoxScore { best_tag: 0, best: f32::MIN, second_tag: 0, second: f32::MIN, margin: 0.0 };
-    for (t, &s) in scores.iter().enumerate() {
-        if s > b.best {
-            b.second = b.best;
-            b.second_tag = b.best_tag;
-            b.best = s;
-            b.best_tag = t;
-        } else if s > b.second {
-            b.second = s;
-            b.second_tag = t;
-        }
-    }
-    b.margin = b.best - b.second;
-    b
-}
-
-/// 1 枠の採点結果。
-struct BoxResult {
-    /// 全タグとの類似度
-    scores: Vec<f32>,
-    /// 全体の相関だけの 1 位・2 位
-    plain: BoxScore,
-    /// 紛らわしい組を再判定した後の 1 位・2 位
-    refined: BoxScore,
-    /// 1 位のタグのどの代表に一番似ていたか
-    best_proto: usize,
-    /// 再判定した組: (全体の相関での 1 位, 2 位, 違う画素での相関 1 位, 2 位)
-    pair: Option<(usize, usize, f32, f32)>,
-}
-
-fn score_box(b: &BoxData, model: &Model) -> BoxResult {
-    let per: Vec<(f32, usize, i32, i32)> = model.templates.iter().map(|ps| tag_best(&b.norm, ps)).collect();
-    let scores: Vec<f32> = per.iter().map(|p| p.0).collect();
-    let plain = top2(&scores);
-    let mut refined = plain;
-    let mut pair = None;
-    let (a, c) = (plain.best_tag, plain.second_tag);
-    if plain.second > f32::MIN && model.gate[a][c] >= PAIR_SIM {
-        let (ta, tc) = (&model.templates[a][per[a].1].raw, &model.templates[c][per[c].1].raw);
-        let mask = diff_mask(ta, tc);
-        let sa = masked_sim(&b.raw, ta, &mask, per[a].2, per[a].3);
-        let sc = masked_sim(&b.raw, tc, &mask, per[c].2, per[c].3);
-        pair = Some((a, c, sa, sc));
-        if sc > sa {
-            refined = BoxScore { best_tag: c, best: scores[c], second_tag: a, second: scores[a], margin: sc - sa };
-        } else {
-            refined.margin = sa - sc;
-        }
-    }
-    BoxResult { scores, plain, refined, best_proto: per[plain.best_tag].1, pair }
-}
 
 /// 正解（truth）から見た差。再判定した組に正解が入っていれば違う画素での差、そうでなければ全体の相関での差。
 fn truth_margin(r: &BoxResult, truth: usize, refined: bool) -> f32 {
@@ -707,9 +278,6 @@ fn truth_margin(r: &BoxResult, truth: usize, refined: bool) -> f32 {
     r.scores[truth] - w
 }
 
-fn accepts(b: &BoxScore, t: f32, m: f32) -> bool {
-    b.best >= t && b.margin >= m
-}
 
 // ---- しきい値の評価と選択 ----
 
@@ -717,7 +285,7 @@ fn accepts(b: &BoxScore, t: f32, m: f32) -> bool {
 struct ImgEval {
     label: [usize; 5],
     english: bool,
-    boxes: Option<[BoxScore; 5]>,
+    boxes: Option<[TopScore; 5]>,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -878,10 +446,12 @@ struct Args {
     /// 時系列でなく、ファイル名のハッシュ順で 80/20 に分ける（表示言語などの経時変化を混ぜた参考値用）。
     shuffle: bool,
     out_dir: String,
+    /// 英語を除く全データで学習し直した本番テンプレートを、この場所に PNG + meta.json で書き出す。
+    export: Option<PathBuf>,
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { root: PathBuf::from("local/recruit_samples"), tags: PathBuf::from("data/recruitment/tagList.json"), center: true, shuffle: false, out_dir: "templates".into() };
+    let mut a = Args { root: PathBuf::from("local/recruit_samples"), tags: PathBuf::from("data/recruitment/tagList.json"), center: true, shuffle: false, out_dir: "templates".into(), export: None };
     let mut it = std::env::args().skip(1);
     while let Some(k) = it.next() {
         match k.as_str() {
@@ -890,6 +460,7 @@ fn parse_args() -> Args {
             "--no-center" => a.center = false,
             "--shuffle" => a.shuffle = true,
             "--out-dir" => a.out_dir = it.next().expect("--out-dir に値が要る"),
+            "--export" => a.export = Some(PathBuf::from(it.next().expect("--export に値が要る"))),
             other => panic!("知らない引数: {other}"),
         }
     }
@@ -1016,7 +587,7 @@ fn fit(set: &[&ImgData], tags: &[String], perms: &[[usize; 5]], log: &mut Vec<St
 }
 
 fn score_boxes(set: &[&ImgData], model: &Model) -> Vec<Option<Vec<BoxResult>>> {
-    par_map(set, |img| img.boxes.as_ref().map(|bs| bs.iter().map(|b| score_box(b, model)).collect()))
+    par_map(set, |img| img.boxes.as_ref().map(|bs| bs.iter().map(|b| score_box(&b.raw, &b.norm, model)).collect()))
 }
 
 /// `refined` が true なら紛らわしい組の再判定を使う。
@@ -1027,7 +598,7 @@ fn to_evals(set: &[&ImgData], res: &[Option<Vec<BoxResult>>], refined: bool) -> 
             label: img.label,
             english: img.english,
             boxes: r.as_ref().map(|r| {
-                let v: Vec<BoxScore> = r.iter().map(|x| if refined { x.refined } else { x.plain }).collect();
+                let v: Vec<TopScore> = r.iter().map(|x| if refined { x.refined } else { x.plain }).collect();
                 [v[0], v[1], v[2], v[3], v[4]]
             }),
         })
@@ -1107,6 +678,7 @@ fn pct_line(name: &str, v: &mut [f32]) -> String {
 
 fn main() {
     let args = parse_args();
+    assert!(args.export.is_none() || !args.shuffle, "--export は時系列分割（--shuffle なし）でだけ使える");
     let tl: TagList = serde_json::from_str(&std::fs::read_to_string(&args.tags).expect("tagList.json")).expect("tagList.json の形");
     let tags: Vec<String> = [tl.elite.clone(), tl.job, tl.position, tl.other].concat();
     let tag_idx: HashMap<&str, usize> = tags.iter().enumerate().map(|(i, t)| (t.as_str(), i)).collect();
@@ -1317,6 +889,33 @@ fn main() {
         }
     }
 
+    // ---- 本番と同じ経路（量子化した PNG を TagOcr::load、元のスクショから analyze）での評価 ----
+    // 同じ T, M、同じテスト画像。切り抜きの PNG を経由する上の評価との差は、量子化と、切り抜きから検出までの経路だけ。
+    {
+        let qdir = args.root.join(&args.out_dir).join("quantized_train");
+        store::write(&qdir, &tags, &templates, t, m, args.center, "train-only fit, for the quantized evaluation").expect("量子化テンプレートの書き出し");
+        let ocr = TagOcr::load(&qdir).expect("量子化テンプレートの読み込み");
+        assert_eq!(ocr.thresholds(), (t, m), "meta.json の T, M が往復で変わった");
+        let to_top = |b: &BoxScore| TopScore {
+            best_tag: tag_idx[b.best_tag.as_str()],
+            best: b.best,
+            second_tag: tag_idx[b.second_tag.as_str()],
+            second: b.second,
+            margin: b.margin,
+        };
+        let q_evals: Vec<ImgEval> = par_map(&test_set, |img| {
+            let boxes = image::open(root.join(&img.file)).ok().and_then(|im| ocr.analyze(&im)).map(|v| {
+                let v: Vec<TopScore> = v.iter().map(to_top).collect();
+                [v[0], v[1], v[2], v[3], v[4]]
+            });
+            ImgEval { label: img.label, english: img.english, boxes }
+        });
+        out!("QUANTIZED templates (PNG via TagOcr::load + analyze on the original screenshots, same T={t:.2} M={m:.2}):");
+        out!("  {}", metrics_line("TEST including English", &evaluate(&q_evals, t, m)));
+        out!("  {}", metrics_line("TEST excluding English", &evaluate_filtered(&q_evals, t, m, |e| !e.english)));
+        out!("  {}", english_line("English safety, test part", &english_stats(&q_evals, t, m)));
+    }
+
     // ---- 類似度の分布（テスト、英語を除く。正解は EM の割り当て）----
     let mut correct = Vec::new();
     let mut wrong = Vec::new();
@@ -1448,6 +1047,23 @@ fn main() {
         let all_set: Vec<&ImgData> = imgs.iter().collect();
         let all_en = to_evals(&all_set, &score_boxes(&all_set, &all_model), true);
         out!("  {}", english_line("English safety with production templates, all splits", &english_stats(&all_en, t, m)));
+        if let Some(dir) = &args.export {
+            store::write(
+                dir,
+                &tags,
+                &all_templates,
+                t,
+                m,
+                args.center,
+                "T, M chosen by the validation rule on the train-only fit (see fit_tag_templates); templates refit on all usable non-English images",
+            )
+            .expect("--export の書き出し");
+            // 書き出したものを本番と同じ読み方で読み直し、英語の画像が読み切られないことを確かめる
+            let ocr = TagOcr::load(dir).expect("--export したテンプレートの読み込み");
+            let en: Vec<&ImgData> = imgs.iter().filter(|i| i.english).collect();
+            let read = par_map(&en, |img| image::open(root.join(&img.file)).ok().is_some_and(|im| matches!(ocr.read(&im), astesiabot_rust::engine::recruit::tag_ocr::TagOcrResult::Read { .. }))).into_iter().filter(|&r| r).count();
+            out!("EXPORTED production templates to {} (T={t:.2} M={m:.2}); English images fully read through TagOcr::read: {read}/{}", dir.display(), en.len());
+        }
         write_templates(
             &args.root.join("templates_all"),
             &tags,
@@ -1466,7 +1082,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::Rgb;
+    use image::{Rgb, RgbImage};
 
     /// 枠の色の上に、縦棒の文字風パターンを描く。
     fn synth_box(bg: [u8; 3], fg: [u8; 3], bars: &[(u32, u32)], w: u32, h: u32) -> RgbImage {
@@ -1484,61 +1100,6 @@ mod tests {
     const BARS_A: [(u32, u32); 3] = [(40, 12), (80, 12), (120, 12)];
     const BARS_B: [(u32, u32); 4] = [(30, 10), (60, 30), (110, 10), (140, 20)];
 
-    #[test]
-    fn polarity_does_not_matter() {
-        let white_on_dark = preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), true);
-        let dark_on_yellow = preprocess(&synth_box([255, 216, 0], [20, 20, 20], &BARS_A, 200, 64), true);
-        let yellow_on_dark = preprocess(&synth_box([48, 48, 48], [255, 216, 0], &BARS_A, 200, 64), true);
-        let a = normalize(&white_on_dark);
-        assert!(similarity(&a, &normalize(&dark_on_yellow)) > 0.95);
-        assert!(similarity(&a, &normalize(&yellow_on_dark)) > 0.95);
-    }
-
-    #[test]
-    fn different_text_is_dissimilar() {
-        let a = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), true));
-        let b = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_B, 200, 64), true));
-        assert!(similarity(&a, &b) < 0.6, "{}", similarity(&a, &b));
-    }
-
-    #[test]
-    fn dust_speck_is_removed() {
-        let clean = synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64);
-        let mut dusty = clean.clone();
-        for y in 3..7 {
-            for x in 3..7 {
-                dusty.put_pixel(x, y, Rgb([255, 255, 255]));
-            }
-        }
-        let (a, b) = (preprocess(&clean, true), preprocess(&dusty, true));
-        let diff: f32 = a.iter().zip(&b).map(|(p, q)| (p - q).abs()).sum();
-        assert!(diff < 1.0, "{diff}");
-    }
-
-    #[test]
-    fn blank_box_gives_empty_feature() {
-        let f = preprocess(&RgbImage::from_pixel(200, 64, Rgb([48, 48, 48])), true);
-        assert!(f.iter().all(|&v| v == 0.0));
-        assert!(normalize(&f).iter().all(|&v| v == 0.0));
-    }
-
-    #[test]
-    fn small_offset_is_tolerated_without_centering() {
-        let a = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), false));
-        let shifted: Vec<(u32, u32)> = BARS_A.iter().map(|&(x, w)| (x + 3, w)).collect(); // 縮小後 約 1.4px
-        let b = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &shifted, 200, 64), false));
-        assert!(similarity(&a, &b) > 0.9);
-    }
-
-    #[test]
-    fn similarity_properties() {
-        let a = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), true));
-        let b = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_B, 200, 64), true));
-        assert!((similarity(&a, &a) - 1.0).abs() < 1e-4);
-        assert!((similarity(&a, &b) - similarity(&b, &a)).abs() < 1e-5);
-        assert!(similarity(&a, &b) <= 1.0 + 1e-5);
-        assert!(similarity(&a, &vec![0.0; NPIX]).abs() < 1e-6);
-    }
 
     #[test]
     fn perm_assignment_on_toy() {
@@ -1564,8 +1125,8 @@ mod tests {
         assert!(t.iter().all(|&v| (v - 1.0).abs() < 1e-6));
     }
 
-    fn bs(best_tag: usize, best: f32, second: f32) -> BoxScore {
-        BoxScore { best_tag, best, second_tag: 9, second, margin: best - second }
+    fn bs(best_tag: usize, best: f32, second: f32) -> TopScore {
+        TopScore { best_tag, best, second_tag: 9, second, margin: best - second }
     }
 
     #[test]
@@ -1654,87 +1215,13 @@ mod tests {
         assert_ne!(fnv1a("images/1_2.jpg"), fnv1a("images/1_3.jpg"));
     }
 
-    fn rect_feat(rects: &[(usize, usize, usize, usize)]) -> Vec<f32> {
-        let mut v = vec![0f32; NPIX];
-        for &(x, y, w, h) in rects {
-            for yy in y..y + h {
-                for xx in x..x + w {
-                    v[yy * FW + xx] = 1.0;
-                }
-            }
-        }
-        v
-    }
-
-    /// 共通の大きな塊 + 違う位置の細い縦棒（近距離/遠距離のように、ほとんど同じで一部だけ違う 2 タグ）。
-    fn pair_feats() -> (Vec<f32>, Vec<f32>) {
-        let common = (60, 16, 70, 32);
-        (rect_feat(&[common, (140, 16, 4, 32)]), rect_feat(&[common, (40, 16, 4, 32)]))
-    }
-
-    #[test]
-    fn diff_mask_covers_only_differing_strokes() {
-        let (a, b) = pair_feats();
-        let m = diff_mask(&a, &b);
-        assert!(m[30 * FW + 141] && m[30 * FW + 41]); // 違う棒の上
-        assert!(!m[30 * FW + 100]); // 共通の塊の真ん中
-        assert!(m[30 * FW + 145]); // 太らせた縁
-        assert!(!m[30 * FW + 148] && !m[30 * FW + 175]);
-    }
-
-    #[test]
-    fn masked_sim_separates_what_plain_ncc_cannot() {
-        let (a, b) = pair_feats();
-        let (na, nb) = (normalize(&a), normalize(&b));
-        // 全体の相関では A と B はよく似ている
-        assert!(similarity(&na, &nb) > 0.7);
-        let plain_margin = similarity(&na, &na) - similarity(&na, &nb);
-        let mask = diff_mask(&a, &b);
-        // A の特徴を、違う画素だけで A・B と比べる
-        let (sa, sb) = (masked_sim(&a, &a, &mask, 0, 0), masked_sim(&a, &b, &mask, 0, 0));
-        assert!(sa > 0.99 && sb < -0.2, "{sa} {sb}");
-        assert!(sa - sb > 3.0 * plain_margin);
-    }
-
-    #[test]
-    fn masked_sim_degenerate_is_zero() {
-        let (a, _) = pair_feats();
-        assert_eq!(masked_sim(&a, &a, &vec![false; NPIX], 0, 0), 0.0); // マスクが空
-        let flat = vec![0.5f32; NPIX];
-        assert_eq!(masked_sim(&flat, &a, &vec![true; NPIX], 0, 0), 0.0); // 分散ゼロ
-    }
-
-    #[test]
-    fn pair_rescoring_flips_a_wrong_plain_winner() {
-        let (a, b) = pair_feats();
-        // 3 つ目のタグは全然違う
-        let other = rect_feat(&[(10, 5, 20, 10)]);
-        let templates: Vec<Vec<Template>> = vec![vec![Template::new(a.clone(), 10)], vec![Template::new(b.clone(), 10)], vec![Template::new(other, 10)]];
-        let model = Model::new(&templates);
-        assert!(model.gate[0][1] >= PAIR_SIM && model.gate[0][2] < PAIR_SIM);
-        // B の棒が薄く、A の棒も薄く出ている枠 → 全体の相関では差がほとんど付かないが、違う画素では B が勝つ
-        let mut f = b.clone();
-        for y in 16..48 {
-            for x in 40..44 {
-                f[y * FW + x] = 0.6;
-            }
-            for x in 140..144 {
-                f[y * FW + x] = 0.5;
-            }
-        }
-        let bd = BoxData { norm: normalize(&f), raw: f, color: "dark".into(), crop_file: String::new() };
-        let r = score_box(&bd, &model);
-        assert!(r.pair.is_some());
-        assert_eq!(r.refined.best_tag, 1, "{:?} {:?}", r.plain, r.pair);
-        assert!(r.refined.margin > r.plain.margin);
-    }
 
     #[test]
     fn truth_margin_uses_pair_only_when_truth_is_in_it() {
         let r = BoxResult {
             scores: vec![0.9, 0.88, 0.2],
-            plain: BoxScore { best_tag: 0, best: 0.9, second_tag: 1, second: 0.88, margin: 0.02 },
-            refined: BoxScore { best_tag: 0, best: 0.9, second_tag: 1, second: 0.88, margin: 0.6 },
+            plain: TopScore { best_tag: 0, best: 0.9, second_tag: 1, second: 0.88, margin: 0.02 },
+            refined: TopScore { best_tag: 0, best: 0.9, second_tag: 1, second: 0.88, margin: 0.6 },
             best_proto: 0,
             pair: Some((0, 1, 0.8, 0.2)),
         };

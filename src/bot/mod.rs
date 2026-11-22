@@ -50,6 +50,11 @@ pub async fn run_bot(token: String, state: Arc<AppState>) {
                     state.clone(),
                 ));
 
+                // ローカル OCR の shadow 集計の日次 DM（LOCAL_OCR_REPORT_USER_ID があり shadow のときだけ）。
+                if state.local_ocr.mode == services::recruit::local_ocr::LocalOcrMode::Shadow && state.local_ocr.report_user.is_some() {
+                    tokio::spawn(services::recruit::local_ocr::run_daily_summary(ctx.clone(), state.clone()));
+                }
+
                 // YouTube 新着のお知らせ。環境変数が揃っていなければ起動しない（任意機能）。
                 match services::youtube_notify::YoutubeNotifyConfig::from_env() {
                     Some(config) => {

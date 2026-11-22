@@ -54,6 +54,8 @@ pub struct AppState {
     pub fk_data_search: FkDataSearchEngine,
     /// 占い館（OpenAIチャット）の会話セッション・課金ロール判定・APIクライアント。
     pub uranai: UranaiState,
+    /// 公開求人のローカル OCR（タグ枠のテンプレート照合）。モードは LOCAL_OCR_MODE（既定 off）。
+    pub local_ocr: crate::bot::services::recruit::local_ocr::LocalOcr,
 }
 
 /// canonical / hreflang / sitemap で使う絶対URLの起点（例: `https://example.com`）。
