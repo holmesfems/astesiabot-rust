@@ -302,25 +302,43 @@ pub(super) fn neutralize_backticks(text: &str) -> String {
     text.replace('`', "\u{02CB}")
 }
 
-/// `channels` が空でなければ、末尾に `<#id>` のリストを列挙する。
-/// Discord 側が自動でチャンネル名にリンク展開する。
-async fn create_report(
-    ctx: &serenity::Context,
-    state: &ModerationState,
+/// 通報に載せるスパム本文の文字数。中身は判断にほとんど要らない（何の投稿かが分かれば足りる）。
+pub(super) const REPORT_EXCERPT_CHARS: usize = 100;
+/// Discord のメッセージ本文の上限（文字数）。超えると送信が弾かれ、通報ごと届かなくなる。
+pub(super) const DISCORD_MESSAGE_MAX_CHARS: usize = 2000;
+
+/// 通報文の「誰の・どの発言か」の部分。
+pub(super) struct ReportSubject<'a> {
+    pub(super) author: &'a str,
+    /// Some(bot名) なら、author が打ったスラッシュコマンドへの bot の返信
+    pub(super) via_bot: Option<&'a str>,
+    pub(super) content: &'a str,
+}
+
+/// 通報文を組み立てる。スパム本文は冒頭 `REPORT_EXCERPT_CHARS` 文字だけ載せ、長ければ元の文字数を添える
+/// （長さ自体がスパムの手がかりになる）。全体も `DISCORD_MESSAGE_MAX_CHARS` 以内に収める。
+/// `channels` が空でなければ、末尾に `<#id>` のリストを列挙する（Discord 側がチャンネル名にリンク展開する）。
+pub(super) fn build_report_content(
     report: &str,
-    subject: Option<(&serenity::Message, Actor<'_>)>,
+    subject: Option<ReportSubject<'_>>,
     channels: &[serenity::ChannelId],
-) -> Result<(), Error> {
+) -> String {
     let mut content = format!("{report}\n");
-    if let Some((msg, actor)) = subject {
-        content += &format!("author:{}", neutralize_backticks(&actor.user.name));
-        if let Some(bot) = actor.via_bot {
-            content += &format!("（{}のスラッシュコマンド経由）", neutralize_backticks(&bot.name));
+    if let Some(subject) = subject {
+        content += &format!("author:{}", neutralize_backticks(subject.author));
+        if let Some(bot) = subject.via_bot {
+            content += &format!("（{}のスラッシュコマンド経由）", neutralize_backticks(bot));
         }
         content += "\n";
+        let total_chars = subject.content.chars().count();
+        let excerpt: String = subject.content.chars().take(REPORT_EXCERPT_CHARS).collect();
         let sanitized =
-            neutralize_backticks(&msg.content.replace('.', "_").replace("http", "ht tp"));
-        content += &format!("content:```{sanitized}```\n");
+            neutralize_backticks(&excerpt.replace('.', "_").replace("http", "ht tp"));
+        content += &format!("content:```{sanitized}```");
+        if total_chars > REPORT_EXCERPT_CHARS {
+            content += &format!("…（全{total_chars}文字）");
+        }
+        content += "\n";
     }
     if !channels.is_empty() {
         let mentions = channels
@@ -330,6 +348,26 @@ async fn create_report(
             .join(" ");
         content += &format!("channel:{mentions}");
     }
+    if content.chars().count() > DISCORD_MESSAGE_MAX_CHARS {
+        content = content.chars().take(DISCORD_MESSAGE_MAX_CHARS - 1).collect();
+        content.push('…');
+    }
+    content
+}
+
+async fn create_report(
+    ctx: &serenity::Context,
+    state: &ModerationState,
+    report: &str,
+    subject: Option<(&serenity::Message, Actor<'_>)>,
+    channels: &[serenity::ChannelId],
+) -> Result<(), Error> {
+    let subject = subject.map(|(msg, actor)| ReportSubject {
+        author: &actor.user.name,
+        via_bot: actor.via_bot.map(|bot| bot.name.as_str()),
+        content: &msg.content,
+    });
+    let content = build_report_content(report, subject, channels);
     // 通報文にはスパム投稿者の文字列が入るので、@everyone/ロール/ユーザーへの
     // メンション通知を一切させない（<#id> のチャンネル表示は通知ではないので影響しない）。
     let builder = serenity::CreateMessage::new()
