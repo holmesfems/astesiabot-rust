@@ -41,11 +41,8 @@ import {
 export async function initUi() {
   setCatalog(await fetchCatalog());
   const shared = takeStateFromSharedUrl();
-  setState(shared ?? loadSavedState() ?? { v: 1, enemy: defaultEnemy(), rows: [], globalBuffIds: [], globalBuffLevels: {}, inspire: { sources: {} } });
-  if (shared) {
-    showToast("共有URLの内容を読み込みました");
-    saveState();
-  }
+  const freshState = () => ({ v: 1, enemy: defaultEnemy(), rows: [], globalBuffIds: [], globalBuffLevels: {}, inspire: { sources: {} } });
+  setState(shared ?? loadSavedState() ?? freshState());
   setExpandedIdx(null);
 
   const app = $("app");
@@ -77,5 +74,22 @@ export async function initUi() {
     true,
   );
 
-  render();
+  // 信頼できない状態(共有URL・壊れたlocalStorage)で最初の描画が例外になっても、
+  // ページが「読み込み中…」のまま固まらないよう既定の状態へ戻す。保存は描画に成功してから
+  // (壊れた状態をlocalStorageへ書くと、以後の訪問も毎回壊れるため)。
+  try {
+    render();
+  } catch (e) {
+    console.error("保存/共有された状態を描画できなかったため、既定の状態に戻します", e);
+    setState(freshState());
+    render();
+    // 壊れた保存値を初期状態で上書きする（残すと次の訪問でもまた描画に失敗する）。
+    saveState();
+    showToast("読み込んだ状態を表示できなかったため、初期状態に戻しました");
+    return;
+  }
+  if (shared) {
+    showToast("共有URLの内容を読み込みました");
+    saveState();
+  }
 }

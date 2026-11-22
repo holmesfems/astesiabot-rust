@@ -21,17 +21,20 @@ const SUGGEST_CAP_HITS = 3; // 追加Hit数の上限（仕様どおりシンプ�
  * `predicate`が[lo,hi]区間で単調非減少(false...false,true...true)である前提で、
  * predicateが真になる最小の整数を返す。hiでも真にならなければnull(=不可能)。
  */
-function minimalIntegerSatisfying(lo, hi, predicate) {
+export function minimalIntegerSatisfying(lo, hi, predicate) {
+  // 安全整数を超える/非有限の区間では mid+1===mid で収束しなくなるので、探索しない。
+  if (!Number.isSafeInteger(lo) || !Number.isSafeInteger(hi)) return null;
   if (!predicate(hi)) return null;
   if (predicate(lo)) return lo;
   let l = lo,
     h = hi;
-  while (l < h) {
+  // 安全整数の範囲なら二分探索は53回前後で終わる。何があっても固まらないよう回数にも上限を置く。
+  for (let i = 0; i < 64 && l < h; i++) {
     const mid = l + Math.floor((h - l) / 2);
     if (predicate(mid)) h = mid;
     else l = mid + 1;
   }
-  return l;
+  return l < h ? null : l;
 }
 
 /**

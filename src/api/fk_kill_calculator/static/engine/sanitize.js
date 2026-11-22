@@ -41,7 +41,8 @@ import { maxEliteFor, maxLevelForElite, normalizePotentialRank } from "./stats.j
  * 移行はしない: 形が合わなければ丸ごとentry既定値で作り直す)。
  */
 function isValidExtraParts(extraParts, expectedLen) {
-  if (expectedLen === 0) return !extraParts || extraParts.length === 0;
+  // `{"length":0}`のような配列もどきを通すと後段の`.map`で例外になるので、必ずArray.isArrayで見る。
+  if (expectedLen === 0) return extraParts == null || (Array.isArray(extraParts) && extraParts.length === 0);
   if (!Array.isArray(extraParts) || extraParts.length !== expectedLen) return false;
   return extraParts.every(
     (p) => p && typeof p.multiplier === "number" && typeof p.dmgType === "string" && typeof p.dmgMult === "number",
@@ -56,7 +57,25 @@ function isValidExtraParts(extraParts, expectedLen) {
  */
 function finiteNumberOr(v, fallback) {
   const n = v == null ? NaN : Number(v);
-  return Number.isFinite(n) ? n : fallback;
+  // 1e308のような巨大値は二分探索(suggest)や積の計算を壊すので、現実の入力より十分大きい
+  // 上限(±NUM_CAP)で頭打ちにする。実在の敵HP/防御やダメージはこれより遥かに小さい。
+  return Number.isFinite(n) ? Math.max(-NUM_CAP, Math.min(NUM_CAP, n)) : fallback;
+}
+
+const NUM_CAP = 1e9;
+
+// 列挙値は既知の値以外を既定値へ戻す(UIの<select>やダメージ式の分岐に未知の文字列を入れない)。
+const DMG_TYPES = ["physical", "arts", "true"];
+function enumOr(v, allowed, fallback) {
+  return allowed.includes(v) ? v : fallback;
+}
+/** 整数に丸めて[lo,hi]へ収める。数値でなければfallback。 */
+function intInRange(v, lo, hi, fallback) {
+  return Math.max(lo, Math.min(hi, Math.round(finiteNumberOr(v, fallback))));
+}
+/** 文字列かnull(モジュールid等。UIへ埋め込む前にescapeされるが、型だけは揃える)。 */
+function stringOrNull(v) {
+  return typeof v === "string" ? v : null;
 }
 
 // 敵の入力欄(ui.jsの`defaultEnemy`と同じフィールド。既定値は全て0)。
@@ -97,11 +116,16 @@ export function dropStaleRows(state, catalog) {
       // (`makeDefaultRow`と同じ既定: 最大昇進・その最大レベル・信頼度100)。
       const elite = finiteNumberOr(row.elite, maxEliteFor(op));
       const level = finiteNumberOr(row.level, maxLevelForElite(op, elite));
-      const skillLevel = row.skillLevel != null ? row.skillLevel : 10; // P7: 旧(P1〜P6)形の補完
+      const skillLevel = intInRange(row.skillLevel, 1, 10, 10); // P7: 旧(P1〜P6)形の補完
       // P10: extraPartsの形/長さがentry.partsの2番目以降と合わなければ作り直す。
       const expectedExtraLen = Math.max(((entry && entry.parts && entry.parts.length) || 0) - 1, 0);
+      // 形が合っていても、既知のフィールドだけを型を揃えて作り直す(余計なキーや非数を通さない)。
       const extraParts = isValidExtraParts(row.extraParts, expectedExtraLen)
-        ? row.extraParts
+        ? (row.extraParts || []).map((p) => ({
+            multiplier: finiteNumberOr(p.multiplier, 1),
+            dmgType: enumOr(p.dmgType, DMG_TYPES, "physical"),
+            dmgMult: finiteNumberOr(p.dmgMult, 1),
+          }))
         : makeDefaultExtraParts(entry, skillLevel);
       return {
         ...row,
@@ -111,7 +135,14 @@ export function dropStaleRows(state, catalog) {
         skillLevel,
         hits: finiteNumberOr(row.hits, 1),
         ignoreDef: finiteNumberOr(row.ignoreDef, 0),
-        buffFlat: Number.isFinite(row.buffFlat) ? row.buffFlat : 0, // 手入力 基礎攻撃力+ (#29)
+        buffFlat: finiteNumberOr(row.buffFlat, 0), // 手入力 基礎攻撃力+ (#29)
+        dmgType: enumOr(row.dmgType, DMG_TYPES, "physical"),
+        moduleId: stringOrNull(row.moduleId),
+        moduleLv: intInRange(row.moduleLv, 1, 3, 3),
+        multiplier: finiteNumberOr(row.multiplier, 1),
+        selfPct: finiteNumberOr(row.selfPct, 0),
+        buffPct: finiteNumberOr(row.buffPct, 0),
+        dmgMult: finiteNumberOr(row.dmgMult, 1),
         // P8: `potential`は旧来のboolean(攻撃凸チェックボックス)から潜在ランク(0〜5の数値)へ
         // 仕様変更した。プロトタイプ段階のため丁寧な移行はせず、数値でなければ単純に
         // 既定値(5=潜在6)へリセットする(オーナー指示)。
@@ -145,16 +176,17 @@ export function dropStaleRows(state, catalog) {
   for (const b of buffers) {
     if (!b.source) continue;
     const d = b.source.defaults || {};
-    const stored = rawLevels[b.id] || {};
+    const stored = rawLevels[b.id];
+    // 保存値(外部入力)は既知のキーだけを型を揃えて取り込む(`...stored`で生のまま通さない)。
+    const st = stored && typeof stored === "object" ? stored : {};
     globalBuffLevels[b.id] = {
-      elite: d.elite ?? 2,
-      potential: d.potential ?? 5,
-      moduleId: d.moduleId ?? null,
-      moduleLevel: d.moduleLevel ?? 3,
-      skillLevel: d.skillLevel ?? 1,
-      stageIndex: d.stageIndex ?? 1,
-      toggleOn: false,
-      ...stored,
+      elite: intInRange(st.elite, 0, 2, d.elite ?? 2),
+      potential: normalizePotentialRank(st.potential ?? d.potential ?? 5),
+      moduleId: st.moduleId === undefined ? (d.moduleId ?? null) : stringOrNull(st.moduleId),
+      moduleLevel: intInRange(st.moduleLevel, 1, 3, d.moduleLevel ?? 3),
+      skillLevel: intInRange(st.skillLevel, 1, 10, d.skillLevel ?? 1),
+      stageIndex: intInRange(st.stageIndex, 1, 99, d.stageIndex ?? 1),
+      toggleOn: st.toggleOn === true,
     };
     if (migratedToggleOn.has(b.id)) globalBuffLevels[b.id].toggleOn = true;
     if (b.id === "stainless_s1" && hadStainless2) globalBuffLevels[b.id].toggleOn = true;
@@ -185,8 +217,10 @@ export function dropStaleRows(state, catalog) {
       elite,
       level,
       trust: finiteNumberOr(cfg.trust, 100),
-      skillLevel: finiteNumberOr(cfg.skillLevel, 10), // P7: 旧(P1〜P6)形の補完
-      moduleLv: finiteNumberOr(cfg.moduleLv, 3),
+      skillLevel: intInRange(cfg.skillLevel, 1, 10, 10), // P7: 旧(P1〜P6)形の補完
+      moduleId: stringOrNull(cfg.moduleId),
+      skillNum: typeof cfg.skillNum === "string" ? cfg.skillNum : "",
+      moduleLv: intInRange(cfg.moduleLv, 1, 3, 3),
       buffPct: finiteNumberOr(cfg.buffPct, 0),
       potential: normalizePotentialRank(cfg.potential), // P8: 旧形式は既定値(5)へリセット
       buffIds: migrateStainlessIds(cfg.buffIds || []).filter((id) => validBuffIds.has(id)),

@@ -501,6 +501,61 @@ async function runStaleRowScenario(browser, baseUrl) {
   }
 }
 
+// 悪意ある共有URL(extraPartsが{"length":0}、巨大な数値)でも、ページが固まらず・壊れた状態を
+// localStorageへ書かないこと。
+async function runHostileShareLinkScenario(browser, baseUrl) {
+  const bootstrapContext = await browser.newContext();
+  const bootstrapPage = await bootstrapContext.newPage();
+  let hashValue;
+  try {
+    await bootstrapPage.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
+    hashValue = await bootstrapPage.evaluate(() => {
+      const state = {
+        v: 1,
+        enemy: { hp: 5e17, def: 9e17, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 },
+        rows: [{
+          opId: 'char_456_ash', entryIdx: 0, dmgType: 'physical', potential: 5,
+          moduleId: null, moduleLv: 3, multiplier: 1, selfPct: 0, hits: 1, buffPct: 0, buffFlat: 1e18, dmgMult: 1, ignoreDef: 0,
+          extraParts: { length: 0 },
+        }],
+      };
+      return 'state=' + window.LZString.compressToEncodedURIComponent(JSON.stringify(state));
+    });
+  } finally {
+    await bootstrapContext.close();
+  }
+
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.goto(baseUrl + '/FrameKillCalculator#' + hashValue, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(800); // 保存のデバウンス(300ms)より長く待つ
+    ok('hostile share link: page renders the row', (await page.locator('.row-card').count()) === 1);
+    ok('hostile share link: verdict is shown', (await page.locator('#verdict-text').innerText()).length > 0);
+    const saved = await page.evaluate(() => localStorage.getItem('fkc-state-v1'));
+    const parsed = saved ? JSON.parse(saved) : null;
+    ok('hostile share link: persisted extraParts is an array',
+      !parsed || parsed.rows.every((r) => Array.isArray(r.extraParts)), saved && saved.slice(0, 200));
+    ok('hostile share link: persisted numbers are clamped',
+      !parsed || (parsed.enemy.def <= 1e9 && parsed.rows.every((r) => r.buffFlat <= 1e9)), saved && saved.slice(0, 200));
+
+    // 既に壊れた状態がlocalStorageにあっても、ページが立ち上がること。
+    await page.evaluate(() => {
+      localStorage.setItem('fkc-state-v1', JSON.stringify({
+        v: 1, enemy: { hp: 1 }, rows: [{ opId: 'char_456_ash', entryIdx: 0, extraParts: { length: 0 } }],
+      }));
+    });
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+    ok('poisoned localStorage: page still renders', (await page.locator('#verdict-text').count()) === 1);
+  } catch (e) {
+    fail++;
+    console.log(`FAIL  hostile share link scenario unexpected exception -> ${e && e.stack ? e.stack : e}`);
+  } finally {
+    await context.close();
+  }
+}
+
 // P2: 個別バフ/条件付きバフ/特殊強化トグルの表現層テスト。
 // ブレイズ(S3のみのFKエントリ。特殊強化「待機ボーナス」を持つ)とAsh(S3/400%、狙撃=非近距離)を
 // 使い、個別バフチップ・全体バフ(条件付き)チップ・特殊強化チェックボックス・single_target警告
@@ -2000,6 +2055,7 @@ try {
 
   await runMainScenario(browser, baseUrl);
   await runStaleRowScenario(browser, baseUrl);
+  await runHostileShareLinkScenario(browser, baseUrl);
   await runBuffScenario(browser, baseUrl);
   await runConditionalSourceScenario(browser, baseUrl);
   await runIndividualBuffLevelsScenario(browser, baseUrl);
