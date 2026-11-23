@@ -18,6 +18,11 @@ impl MembershipConfig {
     }
 }
 
+/// 課金ロールを判定する鯖（GUILD_ID_F）の発言か。メンション会話はこの鯖でしか受けない。
+pub fn in_guild(config: &MembershipConfig, msg: &serenity::Message) -> bool {
+    msg.guild_id == Some(config.guild_id)
+}
+
 /// 課金ロール（YouTubeメンバーシップ or サーバーブースト）を持っているか判定する。
 /// 占い館チャンネル自体がDiscord側のロール権限で書き込み制限されている想定なので、
 /// ここでの判定は防御的な二重チェックの位置づけ（NGなら無反応でよい）。

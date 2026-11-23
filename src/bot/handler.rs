@@ -63,6 +63,11 @@ pub async fn event_handler(
         } else if let Some(reply) = reply_dispatch::handle(ctx, msg, data).await? {
             // スラッシュコマンド応答embedへの明示リプライ（例: fksearchのスキル選び直し）。
             reply_embed_reply(ctx, msg, &reply).await?;
+        } else {
+            // アステシアへのメンションで始まる会話（会話中のチャンネルは参加者の発言も）。
+            // 公開求人・占い館のチャンネルは上で振り分け済み。その中のスレッドを除くために ID を渡す。
+            let excluded = [data.channel_routing.koukai_kyujin, data.channel_routing.uranai];
+            uranai::mention::handle(ctx, msg, data, &excluded).await?;
         }
         // どのサービスにも該当しない発言は何もしない（本文をログに残さない）。
     }

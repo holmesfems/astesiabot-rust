@@ -61,6 +61,17 @@ impl ChatSession {
     pub fn push_exchange(&mut self, user_message: String, assistant_message: String) {
         self.messages.push((Role::User, user_message));
         self.messages.push((Role::Assistant, assistant_message));
+        self.trim_and_touch();
+    }
+
+    /// アステシアが黙っていたターン。ユーザー発言だけを積む（次のターンで流れが分かるように）。
+    pub fn push_user_only(&mut self, user_message: String) {
+        self.messages.push((Role::User, user_message));
+        self.trim_and_touch();
+    }
+
+    /// 送る履歴は直近 `MAX_EXCHANGES * 2` 発言まで。上限を超えた分は古い方から捨てる。
+    fn trim_and_touch(&mut self) {
         let max_messages = Self::MAX_EXCHANGES * 2;
         if self.messages.len() > max_messages {
             let excess = self.messages.len() - max_messages;
