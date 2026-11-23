@@ -216,7 +216,7 @@ async fn operator_mastery_returns_three_masteries_and_ranking() {
     assert!(body["ranking"]["total"].as_u64().unwrap() >= body["ranking"]["rank"].as_u64().unwrap());
 
     // 大陸版限定オペレーターは大陸版の理性価値で換算する
-    let (status, body) = get(&uri("/api/risei/operators/mastery", "operator=焔狐竜オーキッド&skill=1")).await;
+    let (status, body) = get(&uri("/api/risei/operators/mastery", "operator=タルラ&skill=1")).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["cn_only"], true);
     assert_eq!(body["values_server"], "mainland");
