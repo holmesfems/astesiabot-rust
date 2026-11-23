@@ -816,7 +816,7 @@ mod tests {
     /// エーベンホルツ(char_4046_ebnhlz): E0=Lv1-50(611〜873)/E1=Lv1-80(873〜1134)/
     /// E2=Lv1-90(1134〜1400)、信頼度最大加算(atk_trust_max)=150、
     /// スキル解放昇進はS1=E0/S2=E1/S3=E2。ブレイズのモジュールX(uniequip_002_huang)は
-    /// 昇進2 Lv60以上で装備可能。いずれもオーナー確認済みの実データ(2026-09時点)。
+    /// 昇進2 Lv60以上で装備可能。いずれもオーナー確認済みの実データ。
     #[test]
     fn seed_has_expected_phase_and_module_unlock_data() {
         let json = std::fs::read_to_string(SEED_PATH)

@@ -380,7 +380,7 @@ fn build_patches(
 /// **振り分け先は`tmplId`優先**: アーミヤの前衛/医療形態のような
 /// `char_patch_table`の派生形専用モジュールは、`charId`が基礎オペレーター("char_002_amiya")の
 /// ままで、`tmplId`に派生形("char_1001_amiya2"等)が入る。`charId`だけで振り分けると
-/// 派生形のモジュールが術師アーミヤに付き、派生形側はモジュール無しになる(issue #20)。
+/// 派生形のモジュールが術師アーミヤに付き、派生形側はモジュール無しになる。
 /// `tmplId`を持たないモジュール(通常のオペレーターや、濁心スカジのように専用
 /// charIdを持つ派生キャラ)は`charId`のままで正しいので`tmplId.unwrap_or(charId)`にする
 /// (`operator_combat.rs`の`build_modules`と同じ)。
@@ -510,7 +510,7 @@ mod tests {
     }
 
     /// 派生形(前衛/医療アーミヤ)専用モジュールが`tmplId`で派生形側に振り分けられていること
-    /// （issue #20。オフライン。Seedを直接読む）。
+    /// （オフライン。Seedを直接読む）。
     #[test]
     fn seed_attributes_patch_modules_by_tmpl_id() {
         let json = std::fs::read_to_string(SEED_PATH)

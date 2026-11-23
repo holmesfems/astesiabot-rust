@@ -9,7 +9,7 @@
 //! (`build_inspire_sources`と同じ位置付け)。
 //!
 //! ## ソースの5パターン
-//! `build_source`が1つの関数でまとめて扱う。実際に使われる組み合わせ(2026-09時点):
+//! `build_source`が1つの関数でまとめて扱う。実際に使われる組み合わせの例:
 //!   - `talent`のみ: 素質値そのもの(例: castle3、エクシア、前衛アーミヤ)
 //!   - `skill_num`のみ: スキルLv別blackboardがそのまま値(例: 血漿、ドリアン、ズィマー、
 //!     スプリア)
@@ -48,7 +48,7 @@
 //! (`ConditionalSkillSource::varies`。全レベルで値が同じなら`varies=false`とし、UIはこの
 //! 軸のセレクトを出さない。例: スワイヤーS1のtalent_scaleは全レベル2.0固定なので
 //! `varies=false`)。
-//! 実データ調査済みの具体例(2026-09時点):
+//! 実データで調べた具体例:
 //!   - ポデンコ(char_258_podego)talent0: モジュールX上書きの値がベースと完全一致
 //!     (Lv2/Lv3とも同じ.09/.11)なのでmodulesは空になる(意図的)。
 //!   - ペペ(char_4058_pepe)talent1: モジュールA(uniequip_003_pepe)上書きも同様に

@@ -1073,7 +1073,7 @@ console.log("\n=== バフ調整: 「全員」タグ・exclusiveGroup（前衛ア
 }
 
 console.log("\n=== P4: 条件付きバフの動的値解決(resolveConditionalValue) ===\n");
-// 実データ(character_table.json talents + battle_equip_table.json。2026-09時点)の値をそのまま
+// 実データ(character_table.json talents + battle_equip_table.json)の値をそのまま
 // 使う。出典・導出の詳細はdata/fk_kill_calc/buffers.yamlのconditional各行のnote参照。
 {
   // エイヤ(talent0.atk): E1(.07/潜在6で.09)/E2(.14/潜在6で.16)、
@@ -1311,7 +1311,7 @@ console.log("\n=== P4: state移行(前衛アーミヤの旧2エントリ→新1�
 }
 
 console.log("\n=== P5: 個別バフの動的値解決(talent×scale/base_pct×scale/stage/max_targets_by_module) ===\n");
-// 実データ(character_table.json talents + skill_table.json blackboard_by_level。2026-09時点)の
+// 実データ(character_table.json talents + skill_table.json blackboard_by_level)の
 // 値をそのまま使う。出典・導出の詳細はdata/fk_kill_calc/buffers.yamlのindividual各行のnote参照。
 {
   // ワルファリンS2(skill_num=2のblackboard"atk"そのもの。旧固定.90→P5でスキルLv解決)。
