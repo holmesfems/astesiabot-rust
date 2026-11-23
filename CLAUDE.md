@@ -8,6 +8,10 @@
 `src/engine/external_source/` / `src/engine/fk_kill_calc/` / `src/engine/recruit/` /
 `src/engine/operator_cost_calc/`。ここには全体に効くことだけを書く。
 
+CLAUDE.md には、守ること（不変条件）と、どこから読むかだけを書く。ファイルごとの役割や関数名の一覧は
+書かない（コードを検索すれば分かり、名前を変えると古くなる）。CLAUDE.md に書いたパスは
+`tests/claude_md_paths.rs` が実在を確かめる。
+
 ## コマンド
 
 ```powershell
