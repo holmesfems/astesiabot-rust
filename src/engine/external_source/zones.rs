@@ -10,7 +10,6 @@ const PENGUIN_USER_AGENT: (&str, &str) = ("User-Agent", "ArkPlanner");
 
 pub const SEED_PATH: &str = "data/seed/zones.json";
 
-/// zoneId → 日本語ゾーン名。
 #[derive(Serialize, Deserialize, Default)]
 pub struct Zones {
     id_to_ja: HashMap<String, String>,

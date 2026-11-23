@@ -64,12 +64,10 @@ impl ItemNames {
     }
 }
 
-/// [`super::Source`] に登録するfetch関数。
 pub fn fetch() -> BoxFuture<'static, Result<ItemNames, FetchError>> {
     Box::pin(fetch_impl())
 }
 
-/// Seedの手動更新ツール（`cargo run --bin regen_seeds`）に登録するジョブ。
 pub fn update_seed() -> BoxFuture<'static, Result<(), FetchError>> {
     Box::pin(async {
         let data = fetch_impl().await?;

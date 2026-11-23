@@ -9,7 +9,7 @@ use crate::bot::reply::{to_embed_batches, EmbedReply};
 use crate::engine::operator_cost_calc::dto::RankingPosition;
 use crate::engine::operator_cost_calc::{AllOperatorsInfo, ValueSet};
 
-/// charmaterials.py側の`EPSILON = 1e-6`。個数表示の整数/小数丸め判定に使う
+/// 個数表示の整数/小数丸め判定に使う
 /// （`engine::operator_cost_calc::EPSILON`と同一値だが、こちらは表示整形専用として
 /// コマンド層に置く。理性価値の閾値判定は既にengine層のランキング関数側で適用済み）。
 const DISPLAY_EPSILON: f64 = 1e-6;
@@ -63,8 +63,7 @@ fn fmt_item_line(name: &str, count: f64) -> String {
     }
 }
 
-/// 素材を```のコードブロックに整形する。`sort_by_count`時は個数降順に安定並べ替え
-/// （タイは元の`value_target`順を保つ）。
+/// 素材を```のコードブロックに整形する。`sort_by_count`時は個数降順。
 pub fn fmt_item_block(items: &[(String, f64)], sort_by_count: bool) -> String {
     let mut items = items.to_vec();
     if sort_by_count {
@@ -75,4 +74,40 @@ pub fn fmt_item_block(items: &[(String, f64)], sort_by_count: bool) -> String {
         .map(|(name, count)| fmt_item_line(name, *count))
         .collect();
     dump_to_print(&lines)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn items() -> Vec<(String, f64)> {
+        [("a", 1.0), ("b", 3.0), ("c", 3.0), ("d", 2.0)]
+            .iter()
+            .map(|(n, c)| (n.to_string(), *c))
+            .collect()
+    }
+
+    #[test]
+    fn item_block_sorts_by_count_desc_keeping_tie_order() {
+        assert_eq!(
+            fmt_item_block(&items(), true),
+            "```\nb × 3\nc × 3\nd × 2\na × 1```"
+        );
+    }
+
+    #[test]
+    fn item_block_keeps_input_order_when_not_sorting() {
+        assert_eq!(
+            fmt_item_block(&items(), false),
+            "```\na × 1\nb × 3\nc × 3\nd × 2```"
+        );
+    }
+
+    #[test]
+    fn item_line_shows_integer_within_epsilon_else_three_decimals() {
+        assert_eq!(fmt_item_line("x", 3.0), "x × 3");
+        assert_eq!(fmt_item_line("x", 3.0000004), "x × 3");
+        assert_eq!(fmt_item_line("x", 2.5), "x × 2.500");
+        assert_eq!(fmt_item_line("x", 3.00001), "x × 3.000");
+    }
 }

@@ -41,7 +41,7 @@ fn swagger_ui() -> SwaggerUi {
     SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi())
 }
 
-/// アプリ全体で共有する状態。今後 DB やキャッシュもここに載せられる。
+/// アプリ全体で共有する状態。
 pub struct AppState {
     pub recruit: RecruitEngine,
     pub moderation: ModerationState,
@@ -81,7 +81,6 @@ pub(crate) fn base_url(headers: &HeaderMap) -> String {
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| {
-            // localhost や IP アドレス直指定（LAN 内の実機確認など）は TLS 無しの dev サーバー
             if is_plain_http_host(host) {
                 "http"
             } else {
@@ -170,8 +169,7 @@ where
         .route("/health", get(|| async { "ok" }))
         .route("/robots.txt", get(robots))
         .route("/sitemap.xml", get(sitemap))
-        // axum の nest() は内側の "/" を末尾スラッシュなしの prefix にのみ割り当てるため、
-        // "/WLBatterySimulator/" 単体は別途 prefix なしへリダイレクトする。
+        // axum の nest() は内側の "/" を末尾スラッシュなしにしか割り当てないので、末尾スラッシュ付きは別途リダイレクトする。
         .route(
             "/WLBatterySimulator/",
             get(|| async { Redirect::permanent("/WLBatterySimulator") }),
@@ -391,6 +389,100 @@ mod tests {
         assert!(doc["paths"]["/recruitment/"]["post"].is_object(), "{doc}");
         for schema in ["OcrRawData", "TagReplyData", "ShortcutUpdate"] {
             assert!(doc["components"]["schemas"][schema].is_object(), "{schema}");
+        }
+    }
+
+    fn headers_with(host: &str, proto: Option<&str>) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::HOST, host.parse().unwrap());
+        if let Some(proto) = proto {
+            headers.insert("x-forwarded-proto", proto.parse().unwrap());
+        }
+        headers
+    }
+
+    #[test]
+    fn base_url_takes_scheme_from_forwarded_proto_or_host() {
+        // PUBLIC_BASE_URL が設定された環境では確かめられない
+        if std::env::var("PUBLIC_BASE_URL").is_ok() {
+            return;
+        }
+        assert_eq!(
+            base_url(&headers_with("example.com", Some("https, http"))),
+            "https://example.com"
+        );
+        assert_eq!(
+            base_url(&headers_with("localhost:3000", None)),
+            "http://localhost:3000"
+        );
+        assert_eq!(
+            base_url(&headers_with("astesiabot.com", None)),
+            "https://astesiabot.com"
+        );
+    }
+
+    async fn get_response(path: &str) -> axum::response::Response {
+        web_ui_router::<()>()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .header("host", "example.com")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn trailing_slash_redirects_to_slashless_path() {
+        for path in [
+            "/WLBatterySimulator",
+            "/EFRecipeCalculator",
+            "/LodChestSolver",
+            "/FrameKillCalculator",
+        ] {
+            let response = get_response(&format!("{path}/")).await;
+            assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT, "{path}");
+            assert_eq!(response.headers()[header::LOCATION], path);
+        }
+    }
+
+    #[tokio::test]
+    async fn robots_and_sitemap_cover_crawler_contract() {
+        let robots = get_html("/robots.txt").await;
+        for line in [
+            "Disallow: /docs
+",
+            "Disallow: /api-docs/
+",
+            "Disallow: /health
+",
+            "Sitemap: https://example.com/sitemap.xml
+",
+        ] {
+            assert!(robots.contains(line), "{line}");
+        }
+        let sitemap = get_html("/sitemap.xml").await;
+        for path in [
+            "/",
+            "/LodChestSolver",
+            "/LodChestSolver/en",
+            "/WLBatterySimulator",
+            "/EFRecipeCalculator",
+            "/FrameKillCalculator",
+        ] {
+            assert!(
+                sitemap.contains(&format!("<loc>https://example.com{path}</loc>")),
+                "{path}"
+            );
+        }
+        for link in [
+            r#"hreflang="ja" href="https://example.com/LodChestSolver""#,
+            r#"hreflang="en" href="https://example.com/LodChestSolver/en""#,
+            r#"hreflang="x-default" href="https://example.com/LodChestSolver""#,
+        ] {
+            assert_eq!(sitemap.matches(link).count(), 2, "{link}");
         }
     }
 

@@ -282,3 +282,51 @@ impl RiseiCalculatorEngine {
             .collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::engine::external_source::ExternalSourceRegistry;
+    use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
+    use tokio::sync::OnceCell;
+
+    async fn seed_engine() -> &'static RiseiCalculatorEngine {
+        static ENGINE: OnceCell<RiseiCalculatorEngine> = OnceCell::const_new();
+        ENGINE
+            .get_or_init(|| async {
+                let source = ExternalSourceRegistry::load(true).await;
+                RiseiCalculatorEngine::load(&source)
+                    .await
+                    .expect("seed engine")
+            })
+            .await
+    }
+
+    #[tokio::test]
+    async fn resolve_category_key_accepts_key_then_ja_name_then_partial() {
+        let engine = seed_engine().await;
+        let file = engine.stage_category();
+        let (key, info) = file.main.iter().next().expect("main category exists");
+
+        assert_eq!(
+            engine.resolve_category_key(key).as_deref(),
+            Some(key.as_str())
+        );
+        let by_ja = engine
+            .resolve_category_key(&info.to_ja)
+            .expect("resolves by ja name");
+        assert_eq!(file.main[&by_ja].to_ja, info.to_ja);
+
+        let longer = format!("{}-extra", info.to_ja);
+        let partial = engine
+            .resolve_category_key(&longer)
+            .expect("resolves when input contains the ja name");
+        assert!(longer.contains(&file.main[&partial].to_ja));
+    }
+
+    #[tokio::test]
+    async fn resolve_category_key_rejects_empty_and_unknown_input() {
+        let engine = seed_engine().await;
+        assert_eq!(engine.resolve_category_key(""), None);
+        assert_eq!(engine.resolve_category_key("zzzz_no_such_category"), None);
+    }
+}

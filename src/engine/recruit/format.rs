@@ -2,20 +2,17 @@ use super::calc::MatchItem;
 use std::cmp::Reverse;
 use std::collections::BTreeSet;
 
-/// 5段ソート（display_chunks と response_for_ai で共通）。
-/// 安定ソートを重ねがけして並べる。
-/// 適用順（最後が最優先）:
-///   keyLen desc → valueLen asc → maxstar desc → minstar desc → containsPickup desc
+/// 並び順（display_chunks と response_for_ai で共通）。安定ソートの重ねがけで、最後が最優先。
 fn sort_items(items: &mut [MatchItem]) {
-    items.sort_by_key(|a| Reverse(a.combo.len())); // keyLen desc
-    items.sort_by_key(|a| a.operators.len()); // valueLen asc
+    items.sort_by_key(|a| Reverse(a.combo.len()));
+    items.sort_by_key(|a| a.operators.len());
     items.sort_by(|a, b| {
         let ma = a.star_set.iter().max().copied().unwrap_or(0);
         let mb = b.star_set.iter().max().copied().unwrap_or(0);
-        mb.cmp(&ma) // maxstar desc
+        mb.cmp(&ma)
     });
-    items.sort_by_key(|a| Reverse(a.min_star)); // minstar desc
-    items.sort_by_key(|a| Reverse(a.contains_pickup)); // containsPickup desc
+    items.sort_by_key(|a| Reverse(a.min_star));
+    items.sort_by_key(|a| Reverse(a.contains_pickup));
 }
 
 fn star_set_str(set: &BTreeSet<u8>) -> String {
@@ -54,7 +51,6 @@ pub fn response_for_ai(mut items: Vec<MatchItem>) -> String {
         let mut chunk = format!("{key_msg} ->★{}", star_set_str(&it.star_set));
 
         if it.min_star >= 5 || it.min_star == 1 {
-            // 名前を「, 」区切りで列挙
             let names: Vec<String> = it.operators.iter().map(|o| o.name.clone()).collect();
             chunk.push('\n');
             chunk.push_str(&names.join(", "));
@@ -109,10 +105,9 @@ pub fn make_title(sorted_input: &[String], is_global: bool, show_tag_loss: bool)
 }
 
 // ---- 分割ユーティリティ ----
-// 注意: Rust の String::len() はバイト数なので、
-// 日本語で挙動がズレないよう chars() ベースで文字数を数える。
+// 長さは chars() で数える（String::len() はバイト数）。
 
-/// limit超のテキストを改行/空白優先で分割。
+/// limit 超のテキストを分割する。
 pub fn chunk_text(text: &str, limit: usize) -> Vec<String> {
     let chars: Vec<char> = text.chars().collect();
     let n = chars.len();
@@ -146,7 +141,7 @@ pub fn chunk_text(text: &str, limit: usize) -> Vec<String> {
     chunks
 }
 
-/// chunk群を maxLength に収まるよう結合。
+/// chunk 群を max_length 以内に結合する。
 pub fn arrangement_chunks(msg_list: &[String], max_length: usize) -> Vec<String> {
     let mut chunks: Vec<String> = Vec::new();
     for item in msg_list {
@@ -163,4 +158,135 @@ pub fn arrangement_chunks(msg_list: &[String], max_length: usize) -> Vec<String>
         }
     }
     chunks
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::recruit::calc::OperatorRef;
+
+    fn item(id: &str, combo_len: usize, min_star: u8, stars: &[u8], pickup: bool) -> MatchItem {
+        MatchItem {
+            combo: vec![id.to_string(); combo_len],
+            min_star,
+            operators: stars
+                .iter()
+                .enumerate()
+                .map(|(i, &s)| OperatorRef {
+                    name: format!("{id}{i}"),
+                    stars: s,
+                })
+                .collect(),
+            star_set: stars.iter().copied().collect(),
+            contains_pickup: pickup,
+            pickup_target: Vec::new(),
+        }
+    }
+
+    fn order(mut items: Vec<MatchItem>) -> Vec<String> {
+        sort_items(&mut items);
+        items.iter().map(|i| i.combo[0].clone()).collect()
+    }
+
+    #[test]
+    fn sort_pickup_beats_min_star() {
+        let v = vec![item("A", 1, 5, &[5], false), item("B", 1, 3, &[3], true)];
+        assert_eq!(order(v), vec!["B", "A"]);
+    }
+
+    #[test]
+    fn sort_min_star_desc_beats_max_star() {
+        let v = vec![
+            item("A", 1, 3, &[3, 5], false),
+            item("B", 1, 4, &[4], false),
+        ];
+        assert_eq!(order(v), vec!["B", "A"]);
+    }
+
+    #[test]
+    fn sort_max_star_desc_beats_operator_count() {
+        let v = vec![
+            item("A", 1, 4, &[4], false),
+            item("B", 1, 4, &[4, 5, 5], false),
+        ];
+        assert_eq!(order(v), vec!["B", "A"]);
+    }
+
+    #[test]
+    fn sort_fewer_operators_first() {
+        let v = vec![
+            item("A", 1, 4, &[4, 4, 4], false),
+            item("B", 1, 4, &[4], false),
+        ];
+        assert_eq!(order(v), vec!["B", "A"]);
+    }
+
+    #[test]
+    fn sort_longer_combo_first() {
+        let v = vec![item("A", 1, 4, &[4], false), item("B", 2, 4, &[4], false)];
+        assert_eq!(order(v), vec!["B", "A"]);
+    }
+
+    #[test]
+    fn sort_ties_keep_input_order() {
+        let v = vec![
+            item("A", 1, 4, &[4], false),
+            item("B", 1, 4, &[4], false),
+            item("C", 1, 4, &[4], false),
+        ];
+        assert_eq!(order(v), vec!["A", "B", "C"]);
+    }
+
+    #[test]
+    fn response_for_ai_lists_star_set_ascending() {
+        let mut it = item("A", 1, 4, &[4], false);
+        it.star_set = [5u8, 4].into_iter().collect();
+        assert_eq!(response_for_ai(vec![it]), "A ->★4,5\n");
+    }
+
+    #[test]
+    fn chunk_text_returns_short_text_as_is() {
+        assert_eq!(chunk_text("abc", 3), vec!["abc"]);
+    }
+
+    #[test]
+    fn chunk_text_counts_chars_not_bytes() {
+        assert_eq!(chunk_text("あいうえお", 3), vec!["あいう", "えお"]);
+    }
+
+    #[test]
+    fn chunk_text_prefers_newline_and_drops_separator() {
+        assert_eq!(chunk_text("あい\nうえお", 4), vec!["あい", "うえお"]);
+        // 後ろに空白があっても改行を優先する
+        assert_eq!(chunk_text("aa bb\nc dd", 8), vec!["aa bb", "c dd"]);
+    }
+
+    #[test]
+    fn chunk_text_falls_back_to_space_then_hard_cut() {
+        assert_eq!(chunk_text("abc def", 5), vec!["abc", "def"]);
+        let text = "あ".repeat(10);
+        let lens: Vec<usize> = chunk_text(&text, 4)
+            .iter()
+            .map(|c| c.chars().count())
+            .collect();
+        assert_eq!(lens, vec![4, 4, 2]);
+    }
+
+    #[test]
+    fn arrangement_chunks_joins_while_within_max_length() {
+        let list: Vec<String> = ["aaa", "bbb", "ccc"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(arrangement_chunks(&list, 6), vec!["aaabbb", "ccc"]);
+        // 文字数で数える（バイト数なら結合されない）
+        let jp: Vec<String> = ["あああ", "いいい"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(arrangement_chunks(&jp, 6), vec!["あああいいい"]);
+    }
+
+    #[test]
+    fn arrangement_chunks_splits_oversized_item() {
+        let list: Vec<String> = ["a", "あいうえお"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(arrangement_chunks(&list, 3), vec!["a", "あいう", "えお"]);
+    }
 }

@@ -130,10 +130,8 @@ async fn fetch_impl() -> Result<RecruitPool, FetchError> {
 
 /// `recruitDetail`から（★, 名前）を掲載順に取り出す。
 ///
-/// 「★だけの行」で★の節が始まり、`-----`の区切り線か次の★行で終わる。節の中の行は
-/// リッチテキストのタグ（`<@rc.eml>…</>`。緑字＝公開求人限定）を取り除いて`/`で分割する。
-/// CNは改行が文字の`\n`のまま入っているので先に本物の改行へ直す。全角スペースは
-/// `str::trim`が落とす（Unicodeの空白扱い）。
+/// 節の中の行はリッチテキストのタグ（`<@rc.eml>…</>`。緑字＝公開求人限定）を取り除いて
+/// `/`で分割する。CNは改行が文字の`\n`のまま入っているので先に本物の改行へ直す。
 pub(crate) fn parse_recruit_detail(text: &str) -> Vec<(u8, String)> {
     let normalized = text.replace("\\n", "\n");
     let mut current_star: Option<u8> = None;
@@ -246,7 +244,7 @@ fn build(
 
 /// `recruitDetail`の名前をcharacter_tableのIDへ解決する（CN/JPの突き合わせをIDで行うため。
 /// 名前で突き合わせると「THRM-EX」→「サーマル-EX」のような表記変更で別人扱いになる）。
-/// 入手不可（`isNotObtainable`）のエントリは予備隊員等の同名が重複するので除外する。
+/// 入手不可（`isNotObtainable`）は予備隊員等の同名が重複するので除外する。
 fn resolve_ids(
     entries: &[(u8, String)],
     chars: &CharTable,
@@ -541,6 +539,43 @@ mod tests {
         let (cn, jp) = sample_tables();
         let err = build(CN_DETAIL, "★★★★★\nエクシア", &cn, &jp).unwrap_err();
         assert!(err.to_string().contains("★5"), "{err}");
+    }
+
+    #[test]
+    fn parse_recruit_detail_ignores_lines_after_separator_until_next_star_line() {
+        let text = "★★\nAAA\n--------------------\n注釈の行 / 別の注釈\n★★★\nBBB";
+        assert_eq!(
+            names(&parse_recruit_detail(text)),
+            vec![(2, "AAA"), (3, "BBB")]
+        );
+    }
+
+    #[test]
+    fn resolve_ids_lists_a_duplicated_id_once() {
+        let (cn, _) = sample_tables();
+        let entries = vec![(6, "能天使".to_string()), (6, "能天使".to_string())];
+        let ids = resolve_ids(&entries, &cn, "CN").unwrap();
+        assert_eq!(ids, vec![("char_103_angel".to_string(), 6)]);
+    }
+
+    #[test]
+    fn resolve_ids_fails_when_a_name_matches_two_obtainable_ids() {
+        let (mut cn, _) = sample_tables();
+        cn.insert(
+            "char_998_twin".into(),
+            char_entry("能天使", json!("TIER_6"), "SNIPER", "RANGED", &[]),
+        );
+        let entries = vec![(6, "能天使".to_string())];
+        let err = resolve_ids(&entries, &cn, "CN").unwrap_err();
+        assert!(err.to_string().contains("複数のID"), "{err}");
+    }
+
+    #[test]
+    fn parse_stars_handles_tier_string_and_zero_based_int() {
+        assert_eq!(parse_stars(&json!("TIER_6")), Some(6));
+        assert_eq!(parse_stars(&json!(5)), Some(6));
+        assert_eq!(parse_stars(&json!(null)), None);
+        assert_eq!(parse_stars(&json!("6")), None);
     }
 
     /// 実ネットワークでの疎通確認。`cargo test -- --ignored` で明示実行する。

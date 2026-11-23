@@ -514,3 +514,48 @@ fn suggest_skips_candidates_whose_length_differs_beyond_threshold() {
     let long = "a".repeat(65_000);
     assert!(suggest(&long, ["1-7", "GT-HX-3", "/api/risei/stages"]).is_empty());
 }
+
+#[test]
+fn suggest_caps_dedups_and_puts_prefix_hits_first() {
+    let many = ["a1", "a2", "a3", "a4", "a5", "a6", "a7"];
+    assert_eq!(suggest("a", many).len(), 5);
+    assert_eq!(suggest("stages", ["stages", "stages"]), vec!["stages"]);
+    let found = suggest("MAT", ["max", "Materials", "matrix"]);
+    assert_eq!(found.len(), 3);
+    assert_eq!(found[2], "max", "前方一致(大文字小文字無視)が先: {found:?}");
+}
+
+#[tokio::test]
+async fn stage_search_results_are_prefix_matches_in_name_order() {
+    let (status, body) = get(&uri("/api/risei/stages", "stage=1-")).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let names: Vec<&str> = body["stages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["name"].as_str().unwrap())
+        .collect();
+    assert!(names.len() > 1);
+    assert!(names.iter().all(|n| n.starts_with("1-")), "{names:?}");
+    let mut sorted = names.clone();
+    sorted.sort();
+    assert_eq!(names, sorted, "名前順");
+}
+
+#[tokio::test]
+async fn efficiency_lists_are_in_descending_order() {
+    for kind in ["te2", "te3", "special", "cc"] {
+        let (status, body) = get(&format!("/api/risei/lists/{kind}")).await;
+        assert_eq!(status, StatusCode::OK, "{kind}");
+        let efficiencies: Vec<f64> = body["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|i| i["efficiency"].as_f64().unwrap())
+            .collect();
+        assert!(
+            efficiencies.windows(2).all(|w| w[0] >= w[1]),
+            "{kind}: 効率の降順"
+        );
+    }
+}

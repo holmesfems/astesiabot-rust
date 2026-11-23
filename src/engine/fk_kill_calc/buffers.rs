@@ -659,3 +659,29 @@ mod tests {
         assert_eq!(bonus.tags, vec!["ラテラーノ".to_string()]);
     }
 }
+
+#[cfg(test)]
+mod kind_and_value_tests {
+    use super::*;
+
+    #[test]
+    fn exactly_one_of_pct_or_flat_gives_kind_and_value() {
+        assert_eq!(kind_and_value(Some(0.2), None, "x"), (BufferKind::Pct, 0.2));
+        assert_eq!(
+            kind_and_value(None, Some(50.0), "x"),
+            (BufferKind::Flat, 50.0)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "pct か flat")]
+    fn neither_pct_nor_flat_panics() {
+        kind_and_value(None, None, "x");
+    }
+
+    #[test]
+    #[should_panic(expected = "同時に指定できない")]
+    fn both_pct_and_flat_panics() {
+        kind_and_value(Some(0.1), Some(1.0), "x");
+    }
+}

@@ -486,3 +486,61 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod filter_stages_tests {
+    use super::*;
+    use crate::engine::external_source::ark_matrix::RawDropRecord;
+    use crate::engine::external_source::ark_stages::RawStage;
+    use crate::engine::external_source::item_names::ItemNames;
+    use std::collections::HashMap;
+
+    fn stage(id: &str, times: i64) -> Arc<StageItem> {
+        let raw = RawStage {
+            code: id.to_string(),
+            zone_id: "z".to_string(),
+            stage_id: id.to_string(),
+            ap_cost: Some(10),
+            stage_type: "MAIN".to_string(),
+            min_clear_time: None,
+            drop_infos: Vec::new(),
+        };
+        let mut s = StageItem::from_raw(&raw, String::new(), &HashMap::new());
+        let names: ItemNames = serde_json::from_value(serde_json::json!({
+            "id_to_ja": {"i": "ja"},
+            "id_to_zh": {"i": "zh"},
+            "zh_to_id": {"zh": "i"},
+            "ja_to_id": {"ja": "i"},
+        }))
+        .unwrap();
+        let record = RawDropRecord {
+            stage_id: id.to_string(),
+            item_id: "i".to_string(),
+            times,
+            quantity: 1.0,
+            start: 0,
+            end: None,
+        };
+        s.add_drop_record(&record, &["zh"], &names);
+        Arc::new(s)
+    }
+
+    fn ids(stages: &[Arc<StageItem>]) -> Vec<&str> {
+        stages.iter().map(|s| s.stage_id.as_str()).collect()
+    }
+
+    #[test]
+    fn filter_drops_stages_below_threshold_keeping_order() {
+        let out = filter_stages_by_show_min_times(
+            vec![stage("a", 2000), stage("b", 10), stage("c", 1000)],
+            1000,
+        );
+        assert_eq!(ids(&out), ["a", "c"]);
+    }
+
+    #[test]
+    fn filter_returns_everything_in_order_when_all_would_be_dropped() {
+        let out = filter_stages_by_show_min_times(vec![stage("a", 5), stage("b", 10)], 1000);
+        assert_eq!(ids(&out), ["a", "b"]);
+    }
+}

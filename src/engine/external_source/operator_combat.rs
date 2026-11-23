@@ -268,7 +268,7 @@ fn is_char_key(key: &str) -> bool {
 }
 
 /// `unlockCondition.phase`("PHASE_0"/"PHASE_1"/"PHASE_2")を0/1/2へ変換する。
-/// 未知の値はPHASE_0(0)扱い(実データで確認済みの値以外は来ない想定)。
+/// 未知の値は0扱い。
 fn phase_to_u8(phase: &str) -> u8 {
     match phase {
         "PHASE_1" => 1,
@@ -642,18 +642,8 @@ fn build_patches(
 
 /// uniequip_table.json（モジュールのメタ情報: 名前/typeName2/charId）と
 /// battle_equip_table.json（Stage1〜3のATK加算値 + 素質上書き）を突き合わせて
-/// 各オペレーターへ追加する。
-///
-/// **`tmplId`優先の注意(実データの罠)**: アーミヤの前衛/医療形態のような
-/// 「複数の`char_patch_table`派生形が同じ基礎`charId`を共有する」オペレーターの場合、
-/// uniequip_table.json側の各モジュールは`charId`が基礎オペレーター(例:
-/// "char_002_amiya")のまま共通で、`tmplId`にどの派生形専用か(例: "char_1001_amiya2"
-/// =前衛アーミヤ)が入る。ここを`charId`だけで振り分けると、派生形専用のはずの
-/// モジュールが全て基礎オペレーターの方に付いてしまう(前衛アーミヤで起きる)。
-/// `tmplId`があればそちらを優先して振り分け先にする。
-/// (濁心スカジのように`char_1012_skadi2`という専用charIdを直接持つ派生キャラは
-/// `tmplId`を持たない=`charId`のままで正しく振り分けられる。両ケースを両立させるため
-/// `tmplId.unwrap_or(charId)`にする)。
+/// 各オペレーターへ追加する。振り分け先は`tmplId`優先（無ければ`charId`）。
+/// アーミヤの派生形専用モジュールは`charId`が基礎オペレーターのままで`tmplId`に派生形が入る。
 fn build_modules(
     cn_uniequip: &Value,
     jp_uniequip: &Value,
@@ -680,7 +670,6 @@ fn build_modules(
         let Some(char_id) = cn_value.get("charId").and_then(Value::as_str) else {
             continue;
         };
-        // tmplId優先の理由は関数冒頭コメント参照。
         let target_id = cn_value
             .get("tmplId")
             .and_then(Value::as_str)
@@ -763,6 +752,64 @@ fn build_modules(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn phase_to_u8_maps_known_phases_and_defaults_to_zero() {
+        assert_eq!(phase_to_u8("PHASE_0"), 0);
+        assert_eq!(phase_to_u8("PHASE_1"), 1);
+        assert_eq!(phase_to_u8("PHASE_2"), 2);
+        assert_eq!(phase_to_u8("PHASE_9"), 0);
+        assert_eq!(phase_to_u8(""), 0);
+    }
+
+    #[test]
+    fn build_modules_goes_to_tmpl_id_operator_else_char_id() {
+        let mini = |id: &str| RawOperatorCombat {
+            id: id.to_string(),
+            name: id.to_string(),
+            cn_name: id.to_string(),
+            profession: String::new(),
+            position: String::new(),
+            nation_id: String::new(),
+            atk_base: 0.0,
+            atk_potential: 0.0,
+            atk_potential_by_rank: [0.0; 6],
+            modules: Vec::new(),
+            talents: Vec::new(),
+            phases: Vec::new(),
+            atk_trust_max: 0.0,
+            skill_unlock_phase: Vec::new(),
+        };
+        let mut operators: IndexMap<String, RawOperatorCombat> = IndexMap::new();
+        for id in ["char_002_amiya", "char_1001_amiya2", "char_010_chen"] {
+            operators.insert(id.to_string(), mini(id));
+        }
+        let entry = |char_id: &str, tmpl: Option<&str>, ty: &str| {
+            let mut v = serde_json::json!({ "charId": char_id, "typeName2": ty });
+            if let Some(t) = tmpl {
+                v["tmplId"] = serde_json::json!(t);
+            }
+            v
+        };
+        let cn = serde_json::json!({ "equipDict": {
+            "uniequip_a": entry("char_002_amiya", Some("char_1001_amiya2"), "X"),
+            "uniequip_b": entry("char_002_amiya", None, "Y"),
+            "uniequip_c": entry("char_010_chen", None, "Z"),
+        }});
+        let empty = serde_json::json!({});
+        build_modules(&cn, &empty, &empty, &empty, &mut operators);
+
+        let types = |id: &str| -> Vec<&str> {
+            operators[id]
+                .modules
+                .iter()
+                .map(|m| m.eq_type.as_str())
+                .collect()
+        };
+        assert_eq!(types("char_1001_amiya2"), vec!["X"], "tmplId wins");
+        assert_eq!(types("char_002_amiya"), vec!["Y"], "no tmplId uses charId");
+        assert_eq!(types("char_010_chen"), vec!["Z"]);
+    }
 
     /// 実ネットワークで戦闘生データを取得できるかの疎通確認。
     /// `cargo test -- --ignored` で明示実行する（通常のCIでは走らせない）。

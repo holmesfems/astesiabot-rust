@@ -82,9 +82,7 @@ pub struct RawOperatorCost {
     pub modules: Vec<RawModule>,
 }
 
-/// オペレーター消費素材データ一式。
-/// `cn_to_ja` は旧`operator_names::OperatorNames`と同一ロジックで構築しており、
-/// 中国語名→日本語名変換（`to_ja`）に使う。
+/// オペレーター消費素材データ一式。`cn_to_ja` は中国語名→日本語名変換（`to_ja`）に使う。
 #[derive(Serialize, Deserialize, Default)]
 pub struct OperatorData {
     cn_to_ja: HashMap<String, String>,
@@ -96,8 +94,7 @@ pub struct OperatorData {
 }
 
 impl OperatorData {
-    /// 中国語名を日本語名に変換する。対応が無ければ中国語名をそのまま返す
-    /// （旧`OperatorNames::to_ja`と同一の意味・同一の変換結果を保証する）。
+    /// 中国語名を日本語名に変換する。対応が無ければ中国語名をそのまま返す。
     pub fn to_ja<'a>(&'a self, cn_name: &'a str) -> &'a str {
         self.cn_to_ja
             .get(cn_name)
@@ -179,7 +176,7 @@ fn is_char_key(key: &str) -> bool {
     key.split('_').next() == Some("char")
 }
 
-/// "TIER_n"（大陸版）/ int（日本版、+1する）のどちらでも星の数を解決する。
+/// "TIER_n"（大陸版）/ int（日本版、0始まりなので+1）のどちらでも星の数を解決する。
 fn parse_stars(value: &Value) -> u32 {
     match value.get("rarity") {
         Some(Value::String(s)) => s.trim_start_matches("TIER_").parse::<u32>().unwrap_or(0),
@@ -377,13 +374,9 @@ fn build_patches(
 
 /// uniequip_table.json からモジュール消費素材を各オペレーターへ追加する。
 ///
-/// **振り分け先は`tmplId`優先**: アーミヤの前衛/医療形態のような
-/// `char_patch_table`の派生形専用モジュールは、`charId`が基礎オペレーター("char_002_amiya")の
-/// ままで、`tmplId`に派生形("char_1001_amiya2"等)が入る。`charId`だけで振り分けると
-/// 派生形のモジュールが術師アーミヤに付き、派生形側はモジュール無しになる。
-/// `tmplId`を持たないモジュール(通常のオペレーターや、濁心スカジのように専用
-/// charIdを持つ派生キャラ)は`charId`のままで正しいので`tmplId.unwrap_or(charId)`にする
-/// (`operator_combat.rs`の`build_modules`と同じ)。
+/// 振り分け先は`tmplId`優先（無ければ`charId`）。アーミヤの派生形専用モジュールは
+/// `charId`が基礎オペレーターのままで`tmplId`に派生形が入るため
+/// （`operator_combat.rs`の`build_modules`も同じ）。
 fn build_modules(
     cn_uniequip: &Value,
     jp_uniequip: &Value,
@@ -415,7 +408,6 @@ fn build_modules(
         let Some(char_id) = value.get("charId").and_then(Value::as_str) else {
             continue;
         };
-        // tmplId優先の理由は関数冒頭コメント参照。
         let char_id = value
             .get("tmplId")
             .and_then(Value::as_str)
@@ -452,6 +444,66 @@ fn build_modules(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn mini_operator(id: &str) -> RawOperatorCost {
+        RawOperatorCost {
+            id: id.to_string(),
+            name: id.to_string(),
+            cn_name: id.to_string(),
+            stars: 6,
+            cn_only: false,
+            is_patch: false,
+            phases: Vec::new(),
+            skills: Vec::new(),
+            all_skill_lvlup: Vec::new(),
+            modules: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn build_modules_goes_to_tmpl_id_operator_else_char_id() {
+        let mut operators: IndexMap<String, RawOperatorCost> = IndexMap::new();
+        for id in ["char_002_amiya", "char_1001_amiya2", "char_010_chen"] {
+            operators.insert(id.to_string(), mini_operator(id));
+        }
+        let entry = |char_id: &str, tmpl: Option<&str>, ty: &str| {
+            let mut v = serde_json::json!({
+                "charId": char_id,
+                "typeName2": ty,
+                "itemCost": { "1": [{ "id": "mod_x", "count": 2 }] },
+            });
+            if let Some(t) = tmpl {
+                v["tmplId"] = serde_json::json!(t);
+            }
+            v
+        };
+        let cn = serde_json::json!({ "equipDict": {
+            "uniequip_a": entry("char_002_amiya", Some("char_1001_amiya2"), "X"),
+            "uniequip_b": entry("char_002_amiya", None, "Y"),
+            "uniequip_c": entry("char_010_chen", None, "Z"),
+        }});
+        build_modules(&cn, &serde_json::json!({}), &mut operators);
+
+        let types = |id: &str| -> Vec<&str> {
+            operators[id]
+                .modules
+                .iter()
+                .map(|m| m.eq_type.as_str())
+                .collect()
+        };
+        assert_eq!(types("char_1001_amiya2"), vec!["X"], "tmplId wins");
+        assert_eq!(types("char_002_amiya"), vec!["Y"], "no tmplId uses charId");
+        assert_eq!(types("char_010_chen"), vec!["Z"]);
+    }
+
+    #[test]
+    fn parse_stars_handles_tier_string_and_zero_based_int() {
+        let stars = |v: Value| parse_stars(&serde_json::json!({ "rarity": v }));
+        assert_eq!(stars(serde_json::json!("TIER_6")), 6);
+        assert_eq!(stars(serde_json::json!(5)), 6, "JP int is 0-based");
+        assert_eq!(stars(serde_json::json!(0)), 1);
+        assert_eq!(parse_stars(&serde_json::json!({})), 0, "missing is 0");
+    }
 
     /// 実ネットワークでキャラ/モジュール/昇格情報を取得できるかの疎通確認。
     /// `cargo test -- --ignored` で明示実行する（通常のCIでは走らせない）。

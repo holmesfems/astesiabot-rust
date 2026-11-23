@@ -28,13 +28,14 @@ bot にも api にも依存しない。画面側（engine.js / ui.js）は
 - **DTO の JSON は camelCase**（画面の JS がその名前で読む）。
 
 - **名前解決**: fk_data シート → ゲームデータは、全角/半角括弧と前後空白を
-  `normalize_operator_name` で正規化してから引く。解決できない名前は `skipped` に集める。
+  `normalize_operator_name` で正規化してから引く。解決できない名前は `skipped` に集める。（テスト: `normalize_operator_name_unifies_paren_width_and_whitespace`）
   バフ・鼓舞ソースも、参照先（operator / talentIndex / skill_num / module 等）が実データに
   無ければ `skipped` に `"buff:<id>"` / `"inspire:<id>"` として記録し、静かに落とす。
 - **倍率の自動判定**: 厳密一致の `atk_scale` → 無ければキーが `atk_scale` / `damage_scale` で
   終わる項目のうちアルファベット順で最初 → どちらも無ければ 1.0。候補一覧は
   「デフォルトが先頭、残りはキー名のアルファベット順」に正規化する
   （`write_seed_file` がキーをソートするので、Seed 経由と実 fetch で並びが揺れないように）。
+  （テスト: `entry.rs` の `exact_atk_scale_wins_over_suffix_keys` ほか）
 - **スキルLv別の値**: `FkEntry` は `multiplierByLevel` / `selfAtkPctByLevel`（Lv1〜10。
   8〜10＝特化1〜3）を持つ。`multiplier` / `self_atk_pct` は後方互換で最終レベルの値。
   overrides の `multiplier_key` と固定 `multiplier`、`self_atk_pct_factor`（Auto 値に係数。

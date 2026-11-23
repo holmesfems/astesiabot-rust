@@ -698,3 +698,92 @@ pub fn validate_individual_sources(
     }
     bad
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::external_source::operator_combat::{
+        RawModuleTalentOverride, RawTalentCandidate,
+    };
+    use indexmap::IndexMap;
+
+    fn bb(v: f64) -> IndexMap<String, f64> {
+        IndexMap::from([("atk".to_string(), v)])
+    }
+
+    fn cand(phase: u8, potential_rank: u8, v: f64) -> RawTalentCandidate {
+        RawTalentCandidate {
+            phase,
+            potential_rank,
+            blackboard: bb(v),
+        }
+    }
+
+    fn talent() -> RawTalent {
+        RawTalent {
+            candidates: vec![
+                cand(0, 0, 0.1),
+                cand(1, 0, 0.2),
+                cand(2, 0, 0.3),
+                cand(2, 1, 0.4),
+            ],
+        }
+    }
+
+    #[test]
+    fn talent_base_picks_last_candidate_satisfying_phase_and_potential() {
+        let t = talent();
+        assert_eq!(resolve_talent_base(&t, "atk", 0, 5), 0.1);
+        assert_eq!(resolve_talent_base(&t, "atk", 1, 5), 0.2);
+        assert_eq!(resolve_talent_base(&t, "atk", 2, 0), 0.3);
+        assert_eq!(resolve_talent_base(&t, "atk", 2, 1), 0.4);
+    }
+
+    #[test]
+    fn talent_base_is_zero_when_nothing_satisfies_or_key_is_missing() {
+        let t = RawTalent {
+            candidates: vec![cand(1, 2, 0.5)],
+        };
+        assert_eq!(resolve_talent_base(&t, "atk", 0, 5), 0.0);
+        assert_eq!(resolve_talent_base(&t, "atk", 2, 1), 0.0);
+        assert_eq!(resolve_talent_base(&t, "nokey", 2, 5), 0.0);
+    }
+
+    fn module() -> RawModuleCombat {
+        let ov = |idx: usize, pr: u8, v: f64| RawModuleTalentOverride {
+            talent_index: idx,
+            potential_rank: pr,
+            blackboard: bb(v),
+        };
+        RawModuleCombat {
+            eq_id: "uniequip_x".into(),
+            eq_type: "X".into(),
+            name: "x".into(),
+            atk_by_level: vec![],
+            unlock_phase: 2,
+            unlock_level: 40,
+            talent_overrides_by_level: vec![
+                vec![],
+                vec![ov(0, 0, 1.0), ov(0, 2, 2.0), ov(1, 0, 9.0)],
+            ],
+        }
+    }
+
+    #[test]
+    fn module_override_filters_by_potential_only_and_takes_last() {
+        let m = module();
+        assert_eq!(resolve_module_override(&m, 0, "atk", 1, 0), Some(1.0));
+        assert_eq!(resolve_module_override(&m, 0, "atk", 1, 1), Some(1.0));
+        assert_eq!(resolve_module_override(&m, 0, "atk", 1, 2), Some(2.0));
+        assert_eq!(resolve_module_override(&m, 1, "atk", 1, 5), Some(9.0));
+    }
+
+    #[test]
+    fn module_override_is_none_when_nothing_fits() {
+        let m = module();
+        assert_eq!(resolve_module_override(&m, 0, "atk", 0, 5), None); // 空のLv
+        assert_eq!(resolve_module_override(&m, 0, "atk", 7, 5), None); // Lv範囲外
+        assert_eq!(resolve_module_override(&m, 2, "atk", 1, 5), None); // 別の素質
+        assert_eq!(resolve_module_override(&m, 0, "nokey", 1, 5), None);
+    }
+}

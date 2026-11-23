@@ -48,19 +48,11 @@ pub struct StageInfo {
 impl StageInfo {
     /// 生データからステージ情報を構築する。
     ///
-    /// `eventMainList`（新章実装直後の期間限定ドロップ倍率ウィンドウを`(Event)`ステージへ
-    /// 退避する仕組み）自体は移植していない（対象の新章はとうに実装済みで
-    /// `eventMainDict`に一致するウィンドウが来ることはない）。
-    /// ただし、この仕組みが担っていた「MAIN/SUBステージ向けの`end`付き（期間限定）
-    /// matrixレコードは通常のdropListに混ぜない」という前提は今も有効。
-    /// penguin-statsの`/result/matrix`は本編ステージであっても、新章実装直後の
-    /// 一時的なブースト期間のレコード（`end`が設定され、他アイテムと桁違いの
-    /// `times`を持つ）を返し続けることがある（例: 14章実装時の酮凝集組ドロップ、
-    /// `end=1715716800000`のレコードが実装から1年以上経った現在も残っている）。
-    /// これをそのまま合算するとそのステージの`maxTimes`や特定アイテムのドロップ率が
-    /// 汚染され、基準マップ差し替えループが収束しなくなる実害があったため、
-    /// `end`付きレコードはMAIN/SUBステージについては読み飛ばす。ACTIVITYステージ
-    /// （`event_stage_dict`）は元々期間限定運用が前提のため対象外。
+    /// penguin-statsの`/result/matrix`は本編ステージでも、新章実装直後の一時的なブースト期間の
+    /// レコード（`end`が設定され、他アイテムと桁違いの`times`を持つ）を返し続けることがある
+    /// （例: 14章の酮凝集組、`end=1715716800000`）。合算すると`max_times`やドロップ率が汚染され
+    /// 基準マップ差し替えが収束しなくなるため、`end`付きレコードはMAIN/SUBでは読み飛ばす。
+    /// ACTIVITYステージは元々期間限定運用なので対象外。
     pub fn build(
         server: Server,
         stage_category_file: &StageCategoryFile,
@@ -115,8 +107,6 @@ impl StageInfo {
 
         for record in &ark_matrix.matrix {
             if let Some(stage) = main_stage_dict.get_mut(&record.stage_id) {
-                // 期間限定（`end`付き）レコードはMAIN/SUBの通常dropListに混ぜない
-                // （このimpl冒頭のコメント参照）。
                 if record.end.is_none() {
                     stage.add_drop_record(record, &value_target_list, &item_names);
                 }
@@ -323,5 +313,119 @@ impl StageInfo {
             .collect();
         result.truncate(limit);
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::external_source::ark_matrix::RawDropRecord;
+    use crate::engine::external_source::ark_stages::RawStage;
+
+    const ITEM_ID: &str = "item_a";
+    const ITEM_ZH: &str = "基础作战记录";
+
+    fn item_names() -> Arc<ItemNames> {
+        Arc::new(
+            serde_json::from_value(serde_json::json!({
+                "id_to_ja": {ITEM_ID: "ja_a"},
+                "id_to_zh": {ITEM_ID: ITEM_ZH},
+                "zh_to_id": {ITEM_ZH: ITEM_ID},
+                "ja_to_id": {"ja_a": ITEM_ID},
+            }))
+            .unwrap(),
+        )
+    }
+
+    fn raw_stage(stage_id: &str, stage_type: &str, zone_id: &str) -> RawStage {
+        RawStage {
+            code: stage_id.to_string(),
+            zone_id: zone_id.to_string(),
+            stage_id: stage_id.to_string(),
+            ap_cost: Some(10),
+            stage_type: stage_type.to_string(),
+            min_clear_time: None,
+            drop_infos: Vec::new(),
+        }
+    }
+
+    fn record(stage_id: &str, times: i64, quantity: f64, end: Option<i64>) -> RawDropRecord {
+        RawDropRecord {
+            stage_id: stage_id.to_string(),
+            item_id: ITEM_ID.to_string(),
+            times,
+            quantity,
+            start: 0,
+            end,
+        }
+    }
+
+    fn build(stages: Vec<RawStage>, records: Vec<RawDropRecord>) -> StageInfo {
+        let category_file = StageCategoryFile {
+            main: BTreeMap::new(),
+            new: BTreeMap::new(),
+        };
+        StageInfo::build(
+            Server::Mainland,
+            &category_file,
+            &ArkStages { stages },
+            &ArkMatrix { matrix: records },
+            &Zones::default(),
+            item_names(),
+            &HashMap::new(),
+        )
+    }
+
+    /// 本編ステージに期間限定（`end`付き）レコードを混ぜると、桁違いの`times`が
+    /// `max_times`やドロップ率を汚染して基準マップの差し替えが収束しなくなる。
+    #[test]
+    fn main_stage_ignores_period_limited_records() {
+        let info = build(
+            vec![raw_stage("main_x", "MAIN", "zone1")],
+            vec![
+                record("main_x", 1_000_000, 900_000.0, Some(1_715_716_800_000)),
+                record("main_x", 2000, 1000.0, None),
+            ],
+        );
+        let stage = &info.main_stage_dict["main_x"];
+        assert_eq!(stage.max_times(), 2000);
+        let rate = stage.get_drop_rate(ITEM_ZH, &info.value_target, &info.item_names);
+        assert!((rate - 0.5).abs() < 1e-9, "rate = {rate}");
+    }
+
+    #[test]
+    fn sub_stage_ignores_period_limited_records() {
+        let info = build(
+            vec![raw_stage("sub_x", "SUB", "zone1")],
+            vec![record("sub_x", 1_000_000, 900_000.0, Some(1))],
+        );
+        assert_eq!(info.main_stage_dict["sub_x"].max_times(), 0);
+    }
+
+    #[test]
+    fn event_stage_accepts_period_limited_records() {
+        let info = build(
+            vec![raw_stage("act_ev", "ACTIVITY", "act1side")],
+            vec![
+                record("act_ev", 1_000_000, 900_000.0, Some(1)),
+                record("act_ev", 2000, 1000.0, None),
+            ],
+        );
+        let stage = &info.event_stage_dict["act_ev"];
+        assert_eq!(stage.max_times(), 1_000_000);
+        // 同じアイテムは後から来たレコードで上書きされる。
+        let rate = stage.get_drop_rate(ITEM_ZH, &info.value_target, &info.item_names);
+        assert!((rate - 0.5).abs() < 1e-9, "rate = {rate}");
+    }
+
+    #[test]
+    fn event_stage_uses_period_limited_record_when_alone() {
+        let info = build(
+            vec![raw_stage("act_ev", "ACTIVITY", "act1side")],
+            vec![record("act_ev", 1000, 900.0, Some(1))],
+        );
+        let stage = &info.event_stage_dict["act_ev"];
+        let rate = stage.get_drop_rate(ITEM_ZH, &info.value_target, &info.item_names);
+        assert!((rate - 0.9).abs() < 1e-9, "rate = {rate}");
     }
 }

@@ -30,15 +30,12 @@ pub struct Source<T> {
     name: &'static str,
     fetch_fn: FetchFn<T>,
     cache: RwLock<Arc<T>>,
-    /// trueなら`refresh`はfetchを行わず即座に何もしない
-    /// （`--debug`起動時、常にSeedのままにするため）。
+    /// `--debug`起動時、常にSeedのままにするためのフラグ。
     force_seed_only: bool,
 }
 
 impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> Source<T> {
-    /// 起動時の初回ロード。`force_seed_only`がtrueならfetchを試みずSeedを直接読む
-    /// （`--debug`起動用。Seedが無ければpanicする）。falseなら従来どおり
-    /// fetch失敗時にSeed参照、Seedも無ければpanicする。
+    /// 起動時の初回ロード。`force_seed_only`は`--debug`起動用。
     pub async fn load(
         name: &'static str,
         seed_path: Option<&'static str>,
@@ -79,14 +76,11 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> Source<T> {
         }
     }
 
-    /// 現在メモリに保持している情報のスナップショットを取得する。
     pub async fn get(&self) -> Arc<T> {
         self.cache.read().await.clone()
     }
 
-    /// 再fetchしてメモリを更新する。失敗した場合は直前のメモリを保持し続ける。
-    /// `force_seed_only`（`--debug`）なら何もせず`false`を返す。
-    /// 戻り値は成否（呼び出し元がログ表示等に使えるように）。
+    /// 再fetchしてメモリを更新し、成否を返す（ログ表示用）。
     pub async fn refresh(&self) -> bool {
         if self.force_seed_only {
             return false;
@@ -112,14 +106,9 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> Source<T> {
     }
 }
 
-/// SeedのJSONファイルを書き出す（親ディレクトリが無ければ作成する）。
-/// 実行時の `Source` からは呼ばない。各ソースモジュールの `update_seed()`
-/// から、Seed手動更新ツール（`cargo run --bin regen_seeds`）実行時にのみ使う。
-///
-/// 書き出し直前にオブジェクトのキーを再帰的にソートする。元データ（HashMap等）
-/// の反復順はプロセス毎に不定なため、ソートしないとgit diffが毎回発生してしまう。
-/// 内部の計算ロジックやデータ構造には手を入れず、シリアライズ直前のこの関数内でのみ
-/// 順序を正規化する。
+/// SeedのJSONファイルを書き出す。実行時の `Source` からは呼ばない
+/// （`regen_seeds` 専用）。元データ（HashMap等）の反復順はプロセス毎に不定なので、
+/// キーをソートしてgit diffが毎回出ないようにする。
 pub fn write_seed_file<T: Serialize>(path: &str, data: &T) -> Result<(), FetchError> {
     let value = serde_json::to_value(data)?;
     let sorted = sort_json_keys(value);
@@ -131,7 +120,6 @@ pub fn write_seed_file<T: Serialize>(path: &str, data: &T) -> Result<(), FetchEr
     Ok(())
 }
 
-/// JSON値のオブジェクトキーを再帰的に辞書順ソートする。配列の順序は保持する。
 fn sort_json_keys(value: serde_json::Value) -> serde_json::Value {
     match value {
         serde_json::Value::Object(map) => {
@@ -207,5 +195,70 @@ mod tests {
         assert_eq!(*source.get().await, 99);
 
         std::fs::remove_file(path).ok();
+    }
+
+    static SEED_ONLY_FETCH_CALLED: AtomicBool = AtomicBool::new(false);
+    fn fetch_flags_call() -> BoxFuture<'static, Result<u32, FetchError>> {
+        Box::pin(async {
+            SEED_ONLY_FETCH_CALLED.store(true, Ordering::SeqCst);
+            Ok(1)
+        })
+    }
+
+    #[tokio::test]
+    async fn force_seed_only_reads_seed_and_never_fetches() {
+        let path: &'static str = Box::leak(
+            std::env::temp_dir()
+                .join("astesiabot_test_seed_only.json")
+                .to_string_lossy()
+                .into_owned()
+                .into_boxed_str(),
+        );
+        std::fs::write(path, "77").unwrap();
+        SEED_ONLY_FETCH_CALLED.store(false, Ordering::SeqCst);
+
+        let source: Source<u32> =
+            Source::load("test_seed_only", Some(path), fetch_flags_call, true).await;
+        assert_eq!(*source.get().await, 77);
+        assert!(!source.refresh().await, "refresh must report no update");
+        assert_eq!(*source.get().await, 77);
+        assert!(
+            !SEED_ONLY_FETCH_CALLED.load(Ordering::SeqCst),
+            "fetch must not be called in seed-only mode"
+        );
+
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn write_seed_file_sorts_keys_recursively_and_keeps_array_order() {
+        let dir =
+            std::env::temp_dir().join(format!("astesiabot_test_write_seed_{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        let path = dir.join("nested").join("seed.json");
+        let data = serde_json::json!({
+            "b": 1,
+            "a": { "z": 1, "y": 2 },
+            "list": [ { "d": 1, "c": 2 }, 3, [ { "q": 1, "p": 2 } ] ],
+            "arr_order": [3, 1, 2],
+        });
+
+        write_seed_file(path.to_str().unwrap(), &data).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(value, data, "content must be unchanged");
+        let pos = |needle: &str| text.find(needle).unwrap();
+        assert!(pos("\"a\"") < pos("\"arr_order\""));
+        assert!(pos("\"arr_order\"") < pos("\"b\""));
+        assert!(pos("\"b\"") < pos("\"list\""));
+        assert!(pos("\"y\"") < pos("\"z\""), "nested object keys sorted");
+        assert!(pos("\"c\"") < pos("\"d\""), "keys inside arrays sorted");
+        assert!(
+            pos("\"p\"") < pos("\"q\""),
+            "keys inside nested arrays sorted"
+        );
+        assert_eq!(value["arr_order"], serde_json::json!([3, 1, 2]));
     }
 }
