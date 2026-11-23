@@ -271,7 +271,7 @@ mod tests {
 
     /// meta.json に持つ紛らわしい組が、PNG から計算し直したものと一致する（重いので release で: `cargo test --release -- --ignored`）。
     #[test]
-    #[ignore]
+    #[ignore = "重いので release で回す"]
     fn confusable_pairs_match_recomputation() {
         let o = ocr();
         let fresh = score::Model::new(&o.model.templates);
@@ -293,7 +293,7 @@ mod tests {
 
     /// 手元のスクショでの 1 枚あたりの時間（`cargo test --release -- --ignored --nocapture read_timing`）。
     #[test]
-    #[ignore]
+    #[ignore = "手元のスクショ（local/）が要る"]
     fn read_timing() {
         let o = ocr();
         let dir = "local/recruit_samples/images";

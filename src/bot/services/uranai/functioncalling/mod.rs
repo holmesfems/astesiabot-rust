@@ -207,7 +207,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn risei_materials_returns_stages() {
         let state = build_state().await;
         let value = unwrap_ok(run("riseiMaterials", json!({ "target": "糖" }), &state).await);
@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn risei_stages_returns_stages() {
         let state = build_state().await;
         let value = unwrap_ok(run("riseiStages", json!({ "target": "1-7" }), &state).await);
@@ -231,7 +231,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn risei_lists_returns_contents() {
         let state = build_state().await;
         let value = unwrap_ok(run("riseiLists", json!({ "target": "理性価値表" }), &state).await);
@@ -243,7 +243,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn operator_elite_cost_returns_phases() {
         let state = build_state().await;
         let value = unwrap_ok(
@@ -262,7 +262,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn operator_skill_info_returns_masteries() {
         let state = build_state().await;
         let value = unwrap_ok(
@@ -281,7 +281,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn operator_module_cost_returns_modules() {
         let state = build_state().await;
         let value = unwrap_ok(
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn operator_fk_info_resolves_single_skill_operator() {
         let state = build_state().await;
         let value = unwrap_ok(
@@ -315,7 +315,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn get_recruitment_list_returns_combos_for_star5() {
         let state = build_state().await;
         let value = unwrap_ok(

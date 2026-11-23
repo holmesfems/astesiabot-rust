@@ -133,7 +133,7 @@ impl AllOperatorsInfo {
         let mainland_snapshot = risei.snapshot(Server::Mainland).await;
         let values = ValueSet {
             global: global_snapshot.values.clone(),
-            mainland: mainland_snapshot.values.clone(),
+            mainland: mainland_snapshot.values,
         };
         (info, values)
     }

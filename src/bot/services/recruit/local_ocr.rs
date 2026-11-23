@@ -988,7 +988,7 @@ mod tests {
     /// .env の DISCORD_TOKEN の bot から LOCAL_OCR_REPORT_USER_ID の人へ送る。送り先は bot と同じ鯖にいる必要がある。
     /// `$env:LOCAL_OCR_REPORT_USER_ID = "<ID>"; cargo test --lib -- --ignored local_ocr_dm_live`
     #[tokio::test]
-    #[ignore]
+    #[ignore = "本物の Discord に DM を送る"]
     async fn local_ocr_dm_live() {
         dotenvy::dotenv().ok();
         let token = std::env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN が要る");

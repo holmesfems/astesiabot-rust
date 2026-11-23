@@ -490,8 +490,7 @@ async fn post(
     pitch: &str,
     video: &FeedVideo,
 ) -> Result<(), Error> {
-    let allowed =
-        serenity::CreateAllowedMentions::new().roles(role.into_iter().collect::<Vec<_>>());
+    let allowed = serenity::CreateAllowedMentions::new().roles(role);
     let message = serenity::CreateMessage::new()
         .content(build_message(role, pitch, video))
         .allowed_mentions(allowed);
@@ -756,7 +755,7 @@ mod tests {
     /// （ネットワークと `.env` の `YOUTUBE_API_KEY` が要るので普段は走らせない。
     /// `cargo test -- --ignored youtube_live`）。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "本物の YouTube Data API を呼ぶ"]
     async fn youtube_live() {
         dotenvy::dotenv().ok();
         let config = YoutubeNotifyConfig {

@@ -284,7 +284,7 @@ mod tests {
         let second = c.take_batch().unwrap();
         assert_eq!(second.text, "b\n\nc");
         assert_eq!(second.merged, 2);
-        c.finish_turn(second.generation, second.text.clone(), "BC".into());
+        c.finish_turn(second.generation, second.text, "BC".into());
         assert!(c.take_batch().is_none());
         assert!(!c.is_busy());
         assert_eq!(c.history_input().len(), 4);

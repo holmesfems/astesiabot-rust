@@ -76,7 +76,7 @@ mod tests {
     /// 実ネットワークで実際のFKスプレッドシート+ゲームデータを突き合わせ、
     /// スキルを1つしか持たないオペレーターがskill_num省略で解決できることを確認する。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn resolves_real_single_skill_operator() {
         dotenvy::dotenv().ok();
         let fk_sheet = fk_data::fetch()
@@ -112,7 +112,7 @@ mod tests {
     /// 実データでの複数スキル分岐の検証（スキル未指定+複数候補、
     /// および指定スキルでの解決の両方を1件の実オペレーターで確認する）。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn needs_selection_for_real_multi_skill_operator() {
         dotenvy::dotenv().ok();
         let fk_sheet = fk_data::fetch()

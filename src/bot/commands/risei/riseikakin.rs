@@ -31,6 +31,10 @@ const TOTAL_TARGETS: [&str; 2] = ["全体比較(グローバル)", "Total_Global
 
 /// riseikakin の target 引数のオートコンプリート相当。
 /// まず販売中・販売前の期間限定パック名(+全体比較)を部分一致で探し、何も無ければ恒常パック名にフォールバックする。
+#[allow(
+    clippy::unused_async,
+    reason = "poise のオートコンプリートは async fn を求める"
+)]
 async fn autocomplete_kakin_target(
     _ctx: Context<'_>,
     partial: &str,
@@ -236,7 +240,7 @@ pub async fn riseikakin(
                     None
                 };
                 let reply = EmbedReply {
-                    title: pack.name.clone(),
+                    title: pack.name,
                     chunks,
                     msg_type: MsgType::Ok,
                     reply_marker: None,
@@ -267,7 +271,10 @@ mod tests {
         chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok()
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "テストの課金パックを1行で書けるように、項目をそのまま引数にしている"
+    )]
     fn pack(
         name: &str,
         price: f64,
@@ -517,7 +524,7 @@ mod tests {
 
     /// 実データ(ネットワークfetch)で照合する。`cargo test api_matches_discord_embed_live -- --ignored --nocapture`
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn api_matches_discord_embed_live() {
         dotenvy::dotenv().ok();
         compare(false).await;

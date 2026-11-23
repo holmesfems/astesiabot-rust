@@ -374,7 +374,10 @@ pub struct Calculator {
 }
 
 impl Calculator {
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "計算に使う入力を全部受け取って1回で組み立てる"
+    )]
     pub fn build(
         server: Server,
         stage_category_file: &StageCategoryFile,

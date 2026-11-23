@@ -314,14 +314,14 @@ mod tests {
         // 3 つ目のタグは全然違う
         let other = rect_feat(&[(10, 5, 20, 10)]);
         let templates: Vec<Vec<Template>> = vec![
-            vec![Template::new(a.clone(), 10)],
+            vec![Template::new(a, 10)],
             vec![Template::new(b.clone(), 10)],
             vec![Template::new(other, 10)],
         ];
         let model = Model::new(&templates);
         assert!(model.gate[0][1] >= PAIR_SIM && model.gate[0][2] < PAIR_SIM);
         // B の棒が薄く、A の棒も薄く出ている枠 → 全体の相関では差がほとんど付かないが、違う画素では B が勝つ
-        let mut f = b.clone();
+        let mut f = b;
         for y in 16..48 {
             for x in 40..44 {
                 f[y * FW + x] = 0.6;

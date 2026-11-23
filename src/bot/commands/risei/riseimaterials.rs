@@ -13,6 +13,10 @@ const MATERIALS_XLSX_FILENAME: &str = "MaterialsDrop.xlsx";
 
 /// riseimaterials/riseicalculator の target_item 選択肢。常に大陸版の
 /// 全カテゴリ(main+new)を使う。
+#[allow(
+    clippy::unused_async,
+    reason = "poise のオートコンプリートは async fn を求める"
+)]
 async fn autocomplete_target_item(
     ctx: Context<'_>,
     partial: &str,
