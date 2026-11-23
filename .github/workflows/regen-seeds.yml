@@ -4,7 +4,8 @@
 # PR は secrets.SEED_PR_TOKEN（astesiabot-rust だけに絞った fine-grained PAT。Contents・Pull requests を
 # Read and write）で作る。github.token で作った PR では CI が起動しないため。期限が切れたら作り直して登録し直す。
 # テストはここでも回して結果を PR の本文に載せ、通ったときだけ auto-merge を予約する（必須の CI が緑でマージ）。
-# 落ちたときは予約せず、月曜朝の Claude のクラウドルーチンが別の commit で直してコメントし、人がレビューしてマージする。
+# 落ちたときは予約せず、月曜朝の Claude のクラウドルーチンが別の commit で直してコメントする。仮訳 YAML の手入れ
+# （JP 実装で消す・CN 限定に足す）だけなら、ルーチンが auto-merge（merge commit）を予約し直す。それ以外は人がレビューする。
 name: Seed の作り直し
 
 on:

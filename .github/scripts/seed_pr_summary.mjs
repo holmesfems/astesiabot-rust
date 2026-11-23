@@ -45,7 +45,7 @@ if (testResult === "ok") {
   lines.push("`cargo test` はすべて通りました。CI が緑になったら自動でマージします（auto-merge）。");
 } else {
   const failed = failedListPath && existsSync(failedListPath) ? readFileSync(failedListPath, "utf8").split("\n").filter(Boolean) : [];
-  lines.push("⚠ **`cargo test` で落ちたテストがあります。** ゲームデータの変化をドリフト検知のテストが拾った可能性があります。自動ではマージしません。月曜朝の Claude のルーチンが直す commit を足して PR にコメントするので、それを見てからマージしてください（Seed と修正を分けたまま残すため、squash ではなく merge commit で）。");
+  lines.push("⚠ **`cargo test` で落ちたテストがあります。** ゲームデータの変化をドリフト検知のテストが拾った可能性があります。月曜朝の Claude のルーチンが、Seed とは別の commit で直して PR にコメントします。仮訳（`data/customOperatorZhToJa.yaml`）の手入れだけで直ったときは、CI が緑になったら自動でマージします（merge commit）。それ以外の直しは自動ではマージしないので、レビューしてから merge commit でマージしてください。");
   lines.push("");
   for (const name of failed.length ? failed : ["（テスト名を取れませんでした。ワークフローのログを見てください）"]) {
     lines.push(`- \`${name}\``);
