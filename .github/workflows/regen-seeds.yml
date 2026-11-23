@@ -1,8 +1,10 @@
 # 毎週 Seed（data/seed/*.json）を作り直し、理性価値表の golden も出し直して PR を作る。
 # 差分が無ければ PR は作らない。開いたままの PR があれば、それを最新に更新する。
 # regen_seeds が失敗したら（外部の fetch 失敗など）ジョブを失敗させ、PR は作らない。
-# Actions が作った PR の CI は自動では回らず、PR の画面で「Approve workflows」を押すと回る。
-# なのでテストはここでも回して、結果を PR の本文に載せる。
+# PR は secrets.SEED_PR_TOKEN（astesiabot-rust だけに絞った fine-grained PAT。Contents・Pull requests を
+# Read and write）で作る。github.token で作った PR では CI が起動しないため。期限が切れたら作り直して登録し直す。
+# テストはここでも回して結果を PR の本文に載せ、通ったときだけ auto-merge を予約する（必須の CI が緑でマージ）。
+# 落ちたときは予約せず、月曜朝の Claude のクラウドルーチンが別の commit で直してコメントし、人がレビューしてマージする。
 name: Seed の作り直し
 
 on:
@@ -66,9 +68,10 @@ jobs:
           cat "$RUNNER_TEMP/pr_body.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: PR を作る
+        id: cpr
         uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.SEED_PR_TOKEN }}
           branch: auto/regen-seeds
           delete-branch: true
           add-paths: |
@@ -77,3 +80,17 @@ jobs:
           commit-message: Seed を作り直す（週1の自動更新）
           title: ${{ steps.test.outputs.result == 'ok' && 'Seed を作り直す（週1の自動更新）' || '⚠ Seed を作り直す（週1の自動更新・テスト失敗あり）' }}
           body-path: ${{ runner.temp }}/pr_body.md
+
+      # テストが通ったら auto-merge を予約する。落ちたら（前の週の予約が残っていても）外す。
+      - name: auto-merge を予約する／外す
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.SEED_PR_TOKEN }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+          RESULT: ${{ steps.test.outputs.result }}
+        run: |
+          if [ "$RESULT" = "ok" ]; then
+            gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto --squash
+          else
+            gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --disable-auto || true
+          fi

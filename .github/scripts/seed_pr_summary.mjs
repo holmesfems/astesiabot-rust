@@ -42,10 +42,10 @@ lines.push("");
 // テストの結果
 lines.push("## テスト");
 if (testResult === "ok") {
-  lines.push("`cargo test` はすべて通りました。");
+  lines.push("`cargo test` はすべて通りました。CI が緑になったら自動でマージします（auto-merge）。");
 } else {
   const failed = failedListPath && existsSync(failedListPath) ? readFileSync(failedListPath, "utf8").split("\n").filter(Boolean) : [];
-  lines.push("⚠ **`cargo test` で落ちたテストがあります。** ゲームデータの変化をドリフト検知のテストが拾った可能性があります。マージする前に直してください。");
+  lines.push("⚠ **`cargo test` で落ちたテストがあります。** ゲームデータの変化をドリフト検知のテストが拾った可能性があります。自動ではマージしません。月曜朝の Claude のルーチンが直す commit を足して PR にコメントするので、それを見てからマージしてください（Seed と修正を分けたまま残すため、squash ではなく merge commit で）。");
   lines.push("");
   for (const name of failed.length ? failed : ["（テスト名を取れませんでした。ワークフローのログを見てください）"]) {
     lines.push(`- \`${name}\``);
@@ -115,5 +115,5 @@ for (const server of ["global", "mainland"]) {
 }
 
 lines.push("---");
-lines.push("このPRは `.github/workflows/regen-seeds.yml` が作りました。テストはワークフローの中で回して上に載せています。このPRの CI は自動では回らないので、マージする前に PR の画面で「Approve workflows」を押して回してください。直したいことがあれば、このブランチに push してください（開いたまま次の週の更新が来ると上書きされるので、直したら早めにマージする）。");
+lines.push("このPRは `.github/workflows/regen-seeds.yml` が作りました。テストはワークフローの中でも回して上に載せています。手で直したいときは、先に PR の auto-merge を外してからこのブランチに push してください（開いたまま次の週の更新が来ると上書きされるので、直したら早めにマージする）。");
 console.log(lines.join("\n"));
