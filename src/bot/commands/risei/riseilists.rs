@@ -132,9 +132,11 @@ mod tests {
         ];
         insta::assert_snapshot!(
             "riseilists_ticket_list",
-            ticket_list_chunks(list).join("
+            ticket_list_chunks(list).join(
+                "
 ----- chunk -----
-")
+"
+            )
         );
     }
 }

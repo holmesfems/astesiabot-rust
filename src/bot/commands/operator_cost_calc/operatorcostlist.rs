@@ -246,8 +246,16 @@ mod tests {
 
     fn summary() -> CostSummaryDto {
         CostSummaryDto {
-            operator_names: vec!["アーミヤ".into(), "ロスモンティス".into(), "ケルシー".into()],
-            total_items: items(&[("龍門幣", 12000.0), ("上級作戦記録", 24.5), ("技巧概論", 0.0)]),
+            operator_names: vec![
+                "アーミヤ".into(),
+                "ロスモンティス".into(),
+                "ケルシー".into(),
+            ],
+            total_items: items(&[
+                ("龍門幣", 12000.0),
+                ("上級作戦記録", 24.5),
+                ("技巧概論", 0.0),
+            ]),
             eq_items: items(&[("モジュールデータ", 3.0), ("データ増幅装置", 1.5)]),
             combined_r2_items: items(&[("RMA70-12", 9.0), ("ポリケトン", 18.25), ("糖", 4.0)]),
             total_risei_value: 12345.678,
@@ -297,7 +305,10 @@ mod tests {
             top10_heaviest: ranking(),
             lightest_name: "ケルシー S2".into(),
             lightest: view(10.0, &[("戦術演習", 3.0)]),
-            top10_lightest: vec![entry(3, "ケルシー S2", 10.0), entry(2, "ホシグマ S1", 20.55)],
+            top10_lightest: vec![
+                entry(3, "ケルシー S2", 10.0),
+                entry(2, "ホシグマ S1", 20.55),
+            ],
             average_risei: 340.125,
         };
         insta::assert_snapshot!(

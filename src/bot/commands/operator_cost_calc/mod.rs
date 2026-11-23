@@ -120,8 +120,12 @@ mod tests {
         };
         insta::assert_snapshot!(
             "operator_cost_ranking_texts",
-            format!("{}
-{}", mastery_ranking_text(&pos), elite_ranking_text(&pos))
+            format!(
+                "{}
+{}",
+                mastery_ranking_text(&pos),
+                elite_ranking_text(&pos)
+            )
         );
     }
 }

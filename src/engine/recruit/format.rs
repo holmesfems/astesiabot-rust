@@ -309,12 +309,28 @@ mod tests {
 
     fn sample_items() -> Vec<MatchItem> {
         vec![
-            named(&["上級エリート"], 6, &[("アーミヤ", 6), ("ロスモンティス", 6)], &[]),
-            named(&["近距離", "治療"], 4, &[("ホシグマ", 5), ("ミッドナイト", 4), ("ガヴィル", 4)], &[]),
+            named(
+                &["上級エリート"],
+                6,
+                &[("アーミヤ", 6), ("ロスモンティス", 6)],
+                &[],
+            ),
+            named(
+                &["近距離", "治療"],
+                4,
+                &[("ホシグマ", 5), ("ミッドナイト", 4), ("ガヴィル", 4)],
+                &[],
+            ),
             named(
                 &["遠距離", "火力"],
                 3,
-                &[("ケルシー", 6), ("エクシア", 5), ("ラップランド", 5), ("カーディ", 3), ("ヨモギ", 3)],
+                &[
+                    ("ケルシー", 6),
+                    ("エクシア", 5),
+                    ("ラップランド", 5),
+                    ("カーディ", 3),
+                    ("ヨモギ", 3),
+                ],
                 &["エクシア"],
             ),
             named(&["ロボット"], 1, &[("Lancet-2", 1), ("Castle-3", 1)], &[]),
@@ -323,9 +339,11 @@ mod tests {
 
     #[test]
     fn snapshot_display_chunks() {
-        let text = display_chunks(sample_items()).join("
+        let text = display_chunks(sample_items()).join(
+            "
 ----- chunk -----
-");
+",
+        );
         insta::assert_snapshot!("recruit_display_chunks", text);
     }
 
@@ -351,8 +369,10 @@ mod tests {
             make_title(&six, true, true),
             make_title(&six, true, false),
         ]
-        .join("
-");
+        .join(
+            "
+",
+        );
         insta::assert_snapshot!("recruit_make_title", text);
     }
 }

@@ -296,16 +296,66 @@ mod tests {
 
     fn sample_limited() -> Vec<KakinPack> {
         vec![
-            pack("新年限定パック", 6000.0, (Some("2020-01-01 16:00"), Some("2099-01-15 03:59")), 5432.1, 40.25, 9876.54, 1.6459, 12.5, 0.8123),
-            pack("開催前の予告パック", 3000.0, (Some("2099-01-01 16:00"), Some("2099-02-01 03:59")), 1000.0, 0.0, 0.0, 0.0, 0.0, 0.0),
-            pack("期間なしの極めて長い名前のスペシャルアニバーサリーパック", 9800.0, (None, None), 10000.0, 100.0, 12345.678, 1.2599, 30.0, 1.0),
+            pack(
+                "新年限定パック",
+                6000.0,
+                (Some("2020-01-01 16:00"), Some("2099-01-15 03:59")),
+                5432.1,
+                40.25,
+                9876.54,
+                1.6459,
+                12.5,
+                0.8123,
+            ),
+            pack(
+                "開催前の予告パック",
+                3000.0,
+                (Some("2099-01-01 16:00"), Some("2099-02-01 03:59")),
+                1000.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+            ),
+            pack(
+                "期間なしの極めて長い名前のスペシャルアニバーサリーパック",
+                9800.0,
+                (None, None),
+                10000.0,
+                100.0,
+                12345.678,
+                1.2599,
+                30.0,
+                1.0,
+            ),
         ]
     }
 
     fn sample_constants() -> Vec<KakinPack> {
         vec![
-            pack("10000円恒常パック", 10000.0, (None, None), 8000.0, 80.0, 10000.0, 1.0, 20.0, 1.0),
-            pack("月パック", 600.0, (None, None), 700.5, 6.0, 920.0, 1.5333, 0.0, 0.0),
+            pack(
+                "10000円恒常パック",
+                10000.0,
+                (None, None),
+                8000.0,
+                80.0,
+                10000.0,
+                1.0,
+                20.0,
+                1.0,
+            ),
+            pack(
+                "月パック",
+                600.0,
+                (None, None),
+                700.5,
+                6.0,
+                920.0,
+                1.5333,
+                0.0,
+                0.0,
+            ),
         ]
     }
 
@@ -315,18 +365,21 @@ mod tests {
             .iter()
             .map(value_block)
             .collect::<Vec<_>>()
-            .join("
+            .join(
+                "
 ----- block -----
-");
+",
+            );
         insta::assert_snapshot!("riseikakin_value_block", text);
     }
 
     #[test]
     fn snapshot_total_comparison_chunks() {
-        let text = total_comparison_chunks(&sample_limited(), &sample_constants())
-            .join("
+        let text = total_comparison_chunks(&sample_limited(), &sample_constants()).join(
+            "
 ----- chunk -----
-");
+",
+        );
         insta::assert_snapshot!("riseikakin_total_comparison", text);
     }
 
