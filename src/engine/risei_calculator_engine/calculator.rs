@@ -588,3 +588,139 @@ pub(super) fn check_invariants(
 
     bad
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::external_source::ark_matrix::RawDropRecord;
+    use crate::engine::external_source::ark_stages::RawStage;
+    use crate::engine::risei_calculator_engine::stage_info::CategoryInstance;
+
+    fn item_names() -> Arc<ItemNames> {
+        Arc::new(
+            serde_json::from_str(
+                r#"{"id_to_ja":{},"id_to_zh":{"i0":"基础作战记录"},
+                    "zh_to_id":{"基础作战记录":"i0"},"ja_to_id":{}}"#,
+            )
+            .unwrap(),
+        )
+    }
+
+    fn stage(stage_id: &str, ap_cost: i64, names: &ItemNames) -> Arc<StageItem> {
+        let raw = RawStage {
+            code: format!("code-{stage_id}"),
+            zone_id: "zone".into(),
+            stage_id: stage_id.into(),
+            ap_cost: Some(ap_cost),
+            stage_type: "MAIN".into(),
+            min_clear_time: None,
+            drop_infos: vec![],
+        };
+        let mut item = StageItem::from_raw(&raw, "zone".into(), &HashMap::new());
+        let record = RawDropRecord {
+            stage_id: stage_id.into(),
+            item_id: "i0".into(),
+            times: 101,
+            quantity: 50.5,
+            start: 0,
+            end: None,
+        };
+        item.add_drop_record(&record, &value_target(Server::Global), names);
+        Arc::new(item)
+    }
+
+    fn base_matrix(stage: Arc<StageItem>) -> BaseStageMatrix {
+        BaseStageMatrix {
+            valid_base_min_times: 1,
+            items: BTreeMap::from([(
+                "cat".to_string(),
+                BaseStageDropItem {
+                    category: "cat".into(),
+                    name: "cat-name".into(),
+                    stage,
+                },
+            )]),
+        }
+    }
+
+    /// 基础作战记录だけ理性価値2・誤差3、ほかは0。
+    fn calculator(base_stage: Arc<StageItem>) -> Calculator {
+        let names = item_names();
+        let target = value_target(Server::Global);
+        let mut value_array = DVector::zeros(target.len());
+        value_array[0] = 2.0;
+        let mut dev_array = DVector::zeros(target.len());
+        dev_array[0] = 3.0;
+        let mut values = RiseiValues::new(
+            Server::Global,
+            value_array,
+            names.clone(),
+            Arc::new(HashMap::new()),
+        );
+        values.set_dev_array(dev_array);
+        Calculator {
+            stage_info: Arc::new(StageInfo {
+                server: Server::Global,
+                item_names: names,
+                value_target: target,
+                main_stage_dict: HashMap::new(),
+                event_stage_dict: HashMap::new(),
+                main_code_to_stage: HashMap::new(),
+                event_code_to_stage: HashMap::new(),
+                category_instance_dict: BTreeMap::<String, CategoryInstance>::new(),
+            }),
+            base_stage_matrix: base_matrix(base_stage),
+            values,
+            last_updated: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn base_stage_matrix_contains_only_the_selected_stage_ids() {
+        let names = item_names();
+        let matrix = base_matrix(stage("base", 12, &names));
+        assert!(matrix.contains("base"));
+        assert!(!matrix.contains("other"));
+    }
+
+    #[test]
+    fn stage_dev_of_a_base_stage_is_zero() {
+        let names = item_names();
+        let base = stage("base", 12, &names);
+        let calc = calculator(base.clone());
+        assert_eq!(calc.get_stage_dev(&base), 0.0);
+    }
+
+    /// 誤差は sqrt((0.05*2)^2 + (0.5*3)^2) = sqrt(2.26)、それを理性消費で割る。
+    #[test]
+    fn stage_dev_is_std_dev_divided_by_ap_cost() {
+        let names = item_names();
+        let calc = calculator(stage("base", 12, &names));
+        let target = stage("target", 12, &names);
+        let expected = 2.26f64.sqrt() / 12.0;
+        assert!((calc.get_stage_dev(&target) - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn stage_dev_with_zero_ap_cost_is_not_divided() {
+        let names = item_names();
+        let calc = calculator(stage("base", 12, &names));
+        let target = stage("target", 0, &names);
+        assert!((calc.get_stage_dev(&target) - 2.26f64.sqrt()).abs() < 1e-9);
+    }
+
+    #[test]
+    fn non_square_prob_matrix_reports_row_count() {
+        let names = item_names();
+        let target = ["基础作战记录", "初级作战记录"];
+        let convertion: Vec<ConvertionItem> = (0..3)
+            .map(|i| ConvertionItem::new(2, format!("c{i}")))
+            .collect();
+        let empty = BaseStageMatrix {
+            valid_base_min_times: 1,
+            items: BTreeMap::new(),
+        };
+        let err = build_prob_matrix(&target, &names, &convertion, &[], &empty).unwrap_err();
+        assert!(err.to_string().contains("rows=3, cols=2"), "{err}");
+    }
+}

@@ -110,4 +110,21 @@ mod tests {
         assert_eq!(fmt_item_line("x", 2.5), "x × 2.500");
         assert_eq!(fmt_item_line("x", 3.00001), "x × 3.000");
     }
+
+    #[test]
+    fn snapshot_ranking_texts() {
+        let pos = RankingPosition {
+            star: 6,
+            rank: 12,
+            total: 87,
+        };
+        insta::assert_snapshot!(
+            "operator_cost_ranking_texts",
+            format!(
+                "{}\n{}",
+                mastery_ranking_text(&pos),
+                elite_ranking_text(&pos)
+            )
+        );
+    }
 }

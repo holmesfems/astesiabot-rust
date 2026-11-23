@@ -289,4 +289,156 @@ mod tests {
         b.merge_from(list(&[("y", 0.1, 100)], 100));
         assert_eq!(b.max_times(), 500);
     }
+
+    use crate::engine::external_source::ark_stages::RawDropInfo;
+    use crate::engine::risei_calculator_engine::server::{value_target, Server};
+    use std::sync::Arc;
+
+    const ID_A: &str = "item_a";
+    const ID_B: &str = "item_b";
+    const ZH_A: &str = "基础作战记录";
+    const ZH_B: &str = "初级作战记录";
+
+    fn names() -> ItemNames {
+        serde_json::from_value(serde_json::json!({
+            "id_to_ja": {ID_A: "ja_a", ID_B: "ja_b"},
+            "id_to_zh": {ID_A: ZH_A, ID_B: ZH_B},
+            "zh_to_id": {ZH_A: ID_A, ZH_B: ID_B},
+            "ja_to_id": {"ja_a": ID_A, "ja_b": ID_B},
+        }))
+        .unwrap()
+    }
+
+    fn raw(min_clear_time: Option<f64>, drops: &[(Option<&str>, &str)]) -> RawStage {
+        RawStage {
+            code: "1-7".to_string(),
+            zone_id: "main_1".to_string(),
+            stage_id: "main_01-07".to_string(),
+            ap_cost: Some(10),
+            stage_type: "MAIN".to_string(),
+            min_clear_time,
+            drop_infos: drops
+                .iter()
+                .map(|(id, ty)| RawDropInfo {
+                    item_id: id.map(str::to_string),
+                    drop_type: ty.to_string(),
+                })
+                .collect(),
+        }
+    }
+
+    fn stage_with(drops: DropList) -> StageItem {
+        let mut s = StageItem::from_raw(&raw(None, &[]), "zone".to_string(), &HashMap::new());
+        s.drop_list = drops;
+        s
+    }
+
+    fn values(a: f64, b: f64, dev_a: f64, dev_b: f64) -> RiseiValues {
+        let target = value_target(Server::Mainland);
+        let pos = |zh: &str| target.iter().position(|x| *x == zh).unwrap();
+        let mut value_array = DVector::zeros(target.len());
+        value_array[pos(ZH_A)] = a;
+        value_array[pos(ZH_B)] = b;
+        let mut dev_array = DVector::zeros(target.len());
+        dev_array[pos(ZH_A)] = dev_a;
+        dev_array[pos(ZH_B)] = dev_b;
+        let mut v = RiseiValues::new(
+            Server::Mainland,
+            value_array,
+            Arc::new(names()),
+            Arc::new(HashMap::new()),
+        );
+        v.set_dev_array(dev_array);
+        v
+    }
+
+    #[test]
+    fn from_raw_converts_min_clear_time_from_milliseconds_to_seconds() {
+        let s = StageItem::from_raw(&raw(Some(5000.0), &[]), "z".to_string(), &HashMap::new());
+        assert!((s.min_clear_time - 5.0).abs() < 1e-9);
+        let none = StageItem::from_raw(&raw(None, &[]), "z".to_string(), &HashMap::new());
+        assert_eq!(none.min_clear_time, 0.0);
+    }
+
+    #[test]
+    fn from_raw_prefers_injected_min_clear_time_for_the_stage_code() {
+        let inj = HashMap::from([("1-7".to_string(), 42.0)]);
+        let s = StageItem::from_raw(&raw(Some(5000.0), &[]), "z".to_string(), &inj);
+        assert_eq!(s.min_clear_time, 42.0);
+    }
+
+    #[test]
+    fn main_drop_string_lists_only_normal_drops_with_ids() {
+        let drops = [
+            (Some(ID_A), "NORMAL_DROP"),
+            (Some(ID_B), "SPECIAL_DROP"),
+            (None, "NORMAL_DROP"),
+        ];
+        let s = StageItem::from_raw(&raw(None, &drops), "z".to_string(), &HashMap::new());
+        assert_eq!(s.get_main_drop_ja_str(&names()), " ja_a");
+    }
+
+    #[test]
+    fn main_drop_string_joins_several_items_and_is_empty_without_any() {
+        let drops = [(Some(ID_A), "NORMAL_DROP"), (Some(ID_B), "NORMAL_DROP")];
+        let s = StageItem::from_raw(&raw(None, &drops), "z".to_string(), &HashMap::new());
+        assert_eq!(s.get_main_drop_ja_str(&names()), " ja_a ja_b");
+
+        let empty = StageItem::from_raw(&raw(None, &[]), "z".to_string(), &HashMap::new());
+        assert_eq!(empty.get_main_drop_ja_str(&names()), "");
+    }
+
+    #[test]
+    fn is_valid_for_show_requires_max_times_at_least_the_minimum() {
+        let target = value_target(Server::Mainland);
+        let s = stage_with(list(&[(ID_A, 0.5, 2000)], 2000));
+        assert!(!s.is_valid_for_show(2001, &target, &names()));
+        assert!(s.is_valid_for_show(2000, &target, &names()));
+        assert!(s.is_valid_for_show(1999, &target, &names()));
+    }
+
+    #[test]
+    fn partial_efficiency_sums_value_times_drop_rate_over_ap_cost() {
+        let s = stage_with(list(&[(ID_A, 0.5, 100), (ID_B, 0.25, 100)], 100));
+        let v = values(2.0, 3.0, 0.0, 0.0);
+        // (2*0.5 + 3*0.25) / 10
+        let both = s.get_partial_efficiency(&v, &[ZH_A, ZH_B]);
+        assert!((both - 0.175).abs() < 1e-9, "both = {both}");
+        let only_a = s.get_partial_efficiency(&v, &[ZH_A]);
+        assert!((only_a - 0.1).abs() < 1e-9, "only_a = {only_a}");
+    }
+
+    #[test]
+    fn std_dev_combines_item_variances_weighted_by_value() {
+        // 端数 0.5 / 試行 101 -> sigma^2 = 0.25/100、端数 0.2 / 試行 51 -> sigma^2 = 0.16/50。
+        let s = stage_with(list(&[(ID_A, 0.5, 101), (ID_B, 1.2, 51)], 101));
+        let v = values(2.0, 3.0, 0.4, 0.1);
+        // dev1 = 0.0025*2^2 + 0.0032*3^2、dev2 = 0.5^2*0.4^2 + 1.2^2*0.1^2
+        let expected = (0.0025 * 4.0 + 0.0032 * 9.0 + 0.25 * 0.16 + 1.44 * 0.01_f64).sqrt();
+        let got = s.get_std_dev(&v);
+        assert!(
+            (got - expected).abs() < 1e-9,
+            "got = {got}, expected = {expected}"
+        );
+    }
+
+    #[test]
+    fn max_efficiency_item_is_the_highest_drop_rate_with_its_display_name() {
+        let s = stage_with(list(&[(ID_A, 0.5, 100), (ID_B, 0.2, 100)], 100));
+        let (name, rate) = s.get_max_efficiency_item(&names()).unwrap();
+        assert_eq!(name, "ja_a");
+        assert!((rate - 0.5).abs() < 1e-9);
+
+        let s = stage_with(list(&[(ID_A, 0.1, 100), (ID_B, 0.2, 100)], 100));
+        let (name, rate) = s.get_max_efficiency_item(&names()).unwrap();
+        assert_eq!(name, "ja_b");
+        assert!((rate - 0.2).abs() < 1e-9);
+    }
+
+    #[test]
+    fn max_efficiency_item_is_none_without_drops() {
+        assert!(stage_with(DropList::default())
+            .get_max_efficiency_item(&names())
+            .is_none());
+    }
 }

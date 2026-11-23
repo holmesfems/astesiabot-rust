@@ -234,4 +234,48 @@ mod tests {
         let none = m.match_tag("hello");
         assert_eq!(none.lang, TagLang::Mixed);
     }
+
+    #[test]
+    fn mixed_fallback_is_global_only_when_japanese_tags_are_not_fewer_than_chinese() {
+        let m = Matcher::load().unwrap();
+        let more_ja = m.match_tag("近距離\n遠距離\n治疗");
+        assert_eq!(more_ja.lang, TagLang::Mixed);
+        assert_eq!(more_ja.matches.len(), 3);
+        assert!(more_ja.is_global);
+        let more_zh = m.match_tag("近距離\n远程位\n治疗");
+        assert_eq!(more_zh.lang, TagLang::Mixed);
+        assert_eq!(more_zh.matches.len(), 3);
+        assert!(!more_zh.is_global);
+        let equal = m.match_tag("近距離\n治疗");
+        assert_eq!(equal.matches.len(), 2);
+        assert!(equal.is_global);
+    }
+
+    #[test]
+    fn mixed_fallback_returns_english_tags_when_they_outnumber_japanese_and_chinese() {
+        let m = Matcher::load().unwrap();
+        let r = m.match_tag("Vanguard\nGuard\nSniper\nDefender");
+        assert_eq!(r.lang, TagLang::Mixed);
+        assert!(r.is_global);
+        assert!(r.matches.contains("狙撃"), "{:?}", r.matches);
+        assert_eq!(r.matches.len(), 4);
+    }
+
+    #[test]
+    fn match_core_finds_a_tag_that_is_one_word_of_a_line() {
+        let m = Matcher::load().unwrap();
+        let base: BTreeMap<String, String> = [("火力".to_string(), "火力".to_string())]
+            .into_iter()
+            .collect();
+        let lines = vec!["abc 火力 def".to_string()];
+        assert!(m.match_core(&lines, &base, None).contains("火力"));
+    }
+
+    #[test]
+    fn match_core_extra_patterns_match_one_word_of_a_line() {
+        let m = Matcher::load().unwrap();
+        let lines = vec!["狙撃タイプ xyz".to_string()];
+        let r = m.match_core(&lines, &BTreeMap::new(), Some(&m.ja_extra));
+        assert!(r.contains("狙撃"), "{r:?}");
+    }
 }

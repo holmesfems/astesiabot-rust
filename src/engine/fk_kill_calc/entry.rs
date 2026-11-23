@@ -427,4 +427,16 @@ mod tests {
         // 2レベル目に other_scale が無いので 0.0 で埋まる。
         assert_eq!(candidates[1].values_by_level, vec![4.0, 0.0, 6.0]);
     }
+
+    #[test]
+    fn self_atk_pct_factor_scales_the_default_value_when_no_levels_exist() {
+        let variant = OverrideVariant {
+            self_atk_pct_factor: Some(2.0),
+            ..Default::default()
+        };
+        let (value, by_level, fixed) = resolve_variant_self_atk_pct(&variant, &[], 1.5, 10);
+        assert_eq!(value.value, 3.0);
+        assert!(by_level.is_empty());
+        assert!(!fixed);
+    }
 }

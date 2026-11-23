@@ -786,4 +786,136 @@ mod tests {
         assert_eq!(resolve_module_override(&m, 2, "atk", 1, 5), None); // 別の素質
         assert_eq!(resolve_module_override(&m, 0, "nokey", 1, 5), None);
     }
+
+    fn combat_with_talent(candidates: &[(u8, u8, f64)]) -> RawOperatorCombat {
+        let cands: Vec<serde_json::Value> = candidates
+            .iter()
+            .map(|(phase, rank, v)| {
+                serde_json::json!({"phase": phase, "potential_rank": rank, "blackboard": {"atk": v}})
+            })
+            .collect();
+        serde_json::from_value(serde_json::json!({
+            "id": "op", "name": "op", "cn_name": "op", "profession": "WARRIOR",
+            "position": "MELEE", "atk_base": 0.0, "atk_potential": 0.0, "modules": [],
+            "talents": [{"candidates": cands}],
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn talent_source_hides_axes_whose_value_never_changes() {
+        let op = combat_with_talent(&[(0, 0, 5.0)]);
+        let src = build_talent_source(&op, 0, "atk").unwrap();
+        assert!(!src.elite_varies);
+        assert!(!src.potential_varies);
+        assert_eq!(src.values_by_elite_and_potential[2][5], 5.0);
+    }
+
+    #[test]
+    fn talent_source_reports_elite_variation_only() {
+        let op = combat_with_talent(&[(0, 0, 1.0), (1, 0, 2.0), (2, 0, 3.0)]);
+        let src = build_talent_source(&op, 0, "atk").unwrap();
+        assert!(src.elite_varies);
+        assert!(!src.potential_varies);
+    }
+
+    #[test]
+    fn talent_source_reports_potential_variation_only() {
+        let op = combat_with_talent(&[
+            (0, 0, 1.0),
+            (0, 3, 2.0),
+            (1, 0, 1.0),
+            (1, 3, 2.0),
+            (2, 0, 1.0),
+            (2, 3, 2.0),
+        ]);
+        let src = build_talent_source(&op, 0, "atk").unwrap();
+        assert!(!src.elite_varies);
+        assert!(src.potential_varies);
+    }
+
+    #[test]
+    fn talent_source_is_none_for_an_out_of_range_talent_index() {
+        let op = combat_with_talent(&[(0, 0, 1.0)]);
+        assert!(build_talent_source(&op, 1, "atk").is_none());
+    }
+
+    fn skills_with(name: &str) -> SkillData {
+        serde_json::from_value(serde_json::json!({"id_to_item": {"sk": {
+            "name": name, "description": "",
+            "blackboard": {"a": 1.0},
+            "blackboard_by_level": [{"a": 1.0}, {"a": 2.0}],
+        }}}))
+        .unwrap()
+    }
+
+    fn ops_with_skill() -> OperatorData {
+        serde_json::from_value(serde_json::json!({
+            "cn_to_ja": {}, "name_to_id": {},
+            "operators": {"op": {
+                "id": "op", "name": "op", "cn_name": "op", "stars": 6,
+                "cn_only": false, "is_patch": false, "phases": [],
+                "skills": [{"skill_id": "sk", "masteries": []}],
+                "all_skill_lvlup": [], "modules": [],
+            }},
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn skill_source_label_falls_back_to_skill_num_when_name_is_empty_or_missing() {
+        let ops = ops_with_skill();
+        let label = |name: &str| {
+            build_skill_source(&ops, &skills_with(name), "op", "1", "a")
+                .unwrap()
+                .skill_label
+        };
+        assert_eq!(label(""), "1");
+        assert_eq!(label("Missing"), "1");
+        assert_eq!(label("名前"), "名前");
+    }
+
+    #[test]
+    fn skill_source_collects_values_per_level_and_flags_variation() {
+        let ops = ops_with_skill();
+        let src = build_skill_source(&ops, &skills_with("名前"), "op", "1", "a").unwrap();
+        assert_eq!(src.values_by_level, vec![1.0, 2.0]);
+        assert!(src.varies);
+        let flat = build_skill_source(&ops, &skills_with("名前"), "op", "1", "zzz").unwrap();
+        assert_eq!(flat.values_by_level, vec![0.0, 0.0]);
+        assert!(!flat.varies);
+    }
+
+    fn strings(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn stage_source_label_falls_back_to_skill_id_when_name_is_empty_or_missing() {
+        let label = |name: &str| {
+            build_stage_source(&skills_with(name), "sk", &strings(&["a"]), &strings(&["L"]))
+                .unwrap()
+                .skill_label
+        };
+        assert_eq!(label(""), "sk");
+        assert_eq!(label("Missing"), "sk");
+        assert_eq!(label("名前"), "名前");
+    }
+
+    #[test]
+    fn stage_source_requires_nonempty_keys_with_matching_label_count() {
+        let skills = skills_with("名前");
+        assert!(build_stage_source(&skills, "sk", &[], &[]).is_none());
+        assert!(
+            build_stage_source(&skills, "sk", &strings(&["a"]), &strings(&["x", "y"])).is_none()
+        );
+        let ok = build_stage_source(
+            &skills,
+            "sk",
+            &strings(&["a", "none"]),
+            &strings(&["x", "y"]),
+        )
+        .unwrap();
+        assert_eq!(ok.values, vec![1.0, 0.0]);
+    }
 }

@@ -289,4 +289,127 @@ mod tests {
         let list: Vec<String> = ["a", "あいうえお"].iter().map(|s| s.to_string()).collect();
         assert_eq!(arrangement_chunks(&list, 3), vec!["a", "あいう", "えお"]);
     }
+
+    fn named(combo: &[&str], min_star: u8, ops: &[(&str, u8)], pickup: &[&str]) -> MatchItem {
+        MatchItem {
+            combo: combo.iter().map(|s| s.to_string()).collect(),
+            min_star,
+            operators: ops
+                .iter()
+                .map(|&(n, s)| OperatorRef {
+                    name: n.to_string(),
+                    stars: s,
+                })
+                .collect(),
+            star_set: ops.iter().map(|&(_, s)| s).collect(),
+            contains_pickup: !pickup.is_empty(),
+            pickup_target: pickup.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    fn sample_items() -> Vec<MatchItem> {
+        vec![
+            named(
+                &["上級エリート"],
+                6,
+                &[("アーミヤ", 6), ("ロスモンティス", 6)],
+                &[],
+            ),
+            named(
+                &["近距離", "治療"],
+                4,
+                &[("ホシグマ", 5), ("ミッドナイト", 4), ("ガヴィル", 4)],
+                &[],
+            ),
+            named(
+                &["遠距離", "火力"],
+                3,
+                &[
+                    ("ケルシー", 6),
+                    ("エクシア", 5),
+                    ("ラップランド", 5),
+                    ("カーディ", 3),
+                    ("ヨモギ", 3),
+                ],
+                &["エクシア"],
+            ),
+            named(&["ロボット"], 1, &[("Lancet-2", 1), ("Castle-3", 1)], &[]),
+        ]
+    }
+
+    #[test]
+    fn snapshot_display_chunks() {
+        let text = display_chunks(sample_items()).join("\n----- chunk -----\n");
+        insta::assert_snapshot!("recruit_display_chunks", text);
+    }
+
+    #[test]
+    fn snapshot_response_for_ai() {
+        insta::assert_snapshot!("recruit_response_for_ai", response_for_ai(sample_items()));
+    }
+
+    #[test]
+    fn snapshot_make_title() {
+        let tags: Vec<String> = ["上級エリート", "近距離", "治療"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let six: Vec<String> = ["a", "b", "c", "d", "e", "f"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let text = [
+            make_title(&tags, true, true),
+            make_title(&tags, false, true),
+            make_title(&tags, false, false),
+            make_title(&six, true, true),
+            make_title(&six, true, false),
+        ]
+        .join("\n");
+        insta::assert_snapshot!("recruit_make_title", text);
+    }
+
+    #[test]
+    fn response_for_ai_omits_other_count_when_all_of_a_star_are_pickup() {
+        let mut it = item("A", 1, 4, &[4, 4], true);
+        it.pickup_target = vec!["A0".to_string(), "A1".to_string()];
+        assert_eq!(response_for_ai(vec![it]), "A ->★4\nA0,A1\n");
+    }
+
+    #[test]
+    fn response_for_ai_counts_non_pickup_operators_of_the_same_star() {
+        let mut it = item("A", 1, 4, &[4, 4], true);
+        it.pickup_target = vec!["A0".to_string()];
+        assert_eq!(response_for_ai(vec![it]), "A ->★4\nA0(他★4が1人)\n");
+    }
+
+    #[test]
+    fn make_title_flags_tag_shortage_only_below_five() {
+        let tags = |n: usize| -> Vec<String> { (0..n).map(|i| format!("t{i}")).collect() };
+        assert_eq!(make_title(&tags(4), true, true), "t0 t1 t2 t3(タグ不足)");
+        assert_eq!(make_title(&tags(5), true, true), "t0 t1 t2 t3 t4");
+    }
+
+    #[test]
+    fn make_title_flags_tag_excess_only_above_five() {
+        let tags: Vec<String> = (0..6).map(|i| format!("t{i}")).collect();
+        assert_eq!(make_title(&tags, true, true), "t0 t1 t2 t3 t4 t5(タグ過多)");
+    }
+
+    #[test]
+    fn make_title_hides_flags_unless_requested_and_marks_cn() {
+        let tags: Vec<String> = (0..4).map(|i| format!("t{i}")).collect();
+        assert_eq!(make_title(&tags, true, false), "t0 t1 t2 t3");
+        assert_eq!(
+            make_title(&tags, false, true),
+            "t0 t1 t2 t3 (大陸版)(タグ不足)"
+        );
+    }
+
+    #[test]
+    fn chunk_text_does_not_split_at_a_leading_separator() {
+        // 区切りが窓の先頭にあるときは空のチャンクを作らず、窓の末尾で切る
+        assert_eq!(chunk_text("\nabcdef", 3), vec!["\nab", "cde", "f"]);
+        assert_eq!(chunk_text(" abcdef", 3), vec![" ab", "cde", "f"]);
+    }
 }
