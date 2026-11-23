@@ -172,6 +172,18 @@ mod tests {
     }
 
     #[test]
+    fn single_skill_is_not_chosen_when_a_different_skill_num_is_given() {
+        let fk_data = fk_data_with("アステシア", vec![row("1", "3")]);
+        let operator_data = OperatorData::empty_for_test();
+        let skill_data = SkillData::empty_for_test();
+        let result = resolve(&fk_data, &operator_data, &skill_data, "アステシア", "2");
+        match result {
+            FkSearchResult::SkillNotFound { candidates } => assert_eq!(candidates.len(), 1),
+            _ => panic!("expected SkillNotFound"),
+        }
+    }
+
+    #[test]
     fn autocomplete_filters_by_substring() {
         let fk_data = fk_data_with("アステシア", vec![row("1", "3")]);
         let hits = autocomplete(&fk_data, "テシ", 25);

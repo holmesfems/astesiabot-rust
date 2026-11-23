@@ -648,3 +648,163 @@ mod pickup_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod behavior_tests {
+    use super::*;
+
+    fn pool_op(name: &str, job: &str, tags: &[&str], stars: u8) -> PoolOperator {
+        PoolOperator {
+            char_id: format!("char_{name}"),
+            name: name.to_string(),
+            cn_name: format!("cn_{name}"),
+            job: job.to_string(),
+            tags: tags.iter().map(|s| s.to_string()).collect(),
+            stars,
+        }
+    }
+
+    fn tag_list() -> TagList {
+        TagList {
+            elite_tags: vec!["上級エリート".to_string(), "エリート".to_string()],
+            job_tags: vec!["狙撃".to_string(), "前衛".to_string()],
+            position_tags: vec!["遠距離".to_string()],
+            other_tags: vec!["火力".to_string(), "減速".to_string()],
+        }
+    }
+
+    fn data_for(jp: Vec<PoolOperator>, cn_only: Vec<PoolOperator>, yaml: &str) -> RecruitData {
+        let schedule = JpReleaseSchedule::parse(yaml).unwrap();
+        RecruitData::build_with(&RecruitPool { jp, cn_only }, &schedule, tag_list(), 16)
+    }
+
+    fn names(items: &[MatchItem]) -> Vec<String> {
+        items
+            .iter()
+            .flat_map(|i| i.operators.iter().map(|o| o.name.clone()))
+            .collect()
+    }
+
+    fn tags(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn combos_with_only_jp_or_only_cn_operators_are_both_kept() {
+        let data = data_for(
+            vec![pool_op("JP", "狙撃", &["火力"], 4)],
+            vec![pool_op("CN", "狙撃", &["減速"], 4)],
+            "- date: 2000-01-01\n  operators: [CN]\n",
+        );
+        assert_eq!(
+            names(&data.calculate(&tags(&["火力"]), true, 1, None)),
+            ["JP"]
+        );
+        assert_eq!(
+            names(&data.calculate(&tags(&["減速"]), true, 1, None)),
+            ["CN"]
+        );
+    }
+
+    #[test]
+    fn robot_combo_is_shown_only_when_min_star_is_four() {
+        let data = data_for(vec![pool_op("R", "狙撃", &["火力"], 1)], vec![], "");
+        let shown = |min_star| data.calculate(&tags(&["火力"]), true, min_star, None).len();
+        assert_eq!(shown(4), 1);
+        assert_eq!(shown(3), 0);
+        assert_eq!(shown(5), 0);
+    }
+
+    #[test]
+    fn robot_flag_does_not_admit_a_three_star_combo_below_the_threshold() {
+        let data = data_for(vec![pool_op("T", "狙撃", &["火力"], 3)], vec![], "");
+        assert!(data.calculate(&tags(&["火力"]), true, 4, None).is_empty());
+        assert_eq!(data.calculate(&tags(&["火力"]), true, 3, None).len(), 1);
+    }
+
+    #[test]
+    fn pickup_combo_is_kept_below_the_min_star_threshold() {
+        let data = data_for(vec![pool_op("T", "狙撃", &["火力"], 3)], vec![], "");
+        let pickup = tags(&["T"]);
+        let r = data.calculate(&tags(&["火力"]), true, 5, Some(&pickup));
+        assert_eq!(r.len(), 1);
+        assert!(r[0].contains_pickup);
+        let other = tags(&["誰か"]);
+        assert!(data
+            .calculate(&tags(&["火力"]), true, 5, Some(&other))
+            .is_empty());
+    }
+
+    #[test]
+    fn future_release_hour_comes_from_env_and_rejects_24_or_more() {
+        let schedule = JpReleaseSchedule::global();
+        let Some(entry) = schedule.entries().first() else {
+            return;
+        };
+        let name = entry.operators[0].clone();
+        let pool = RecruitPool {
+            jp: vec![],
+            cn_only: vec![pool_op(&name, "狙撃", &["火力"], 5)],
+        };
+        let hour_of = |value: &str| {
+            std::env::set_var("RECRUIT_FUTURE_HOUR", value);
+            let data = RecruitData::build(&pool).unwrap();
+            std::env::remove_var("RECRUIT_FUTURE_HOUR");
+            let ops = &data.future_map[&vec!["火力".to_string()]];
+            ops[0].release.map(|r| r.format("%H").to_string())
+        };
+        assert_eq!(hour_of("10").as_deref(), Some("10"));
+        assert_eq!(hour_of("24").as_deref(), Some("16"));
+    }
+
+    fn tag(name: &str, tag_type: TagType) -> Tag {
+        Tag {
+            name: name.to_string(),
+            tag_type,
+        }
+    }
+
+    fn satisfies(op: &PoolOperator, combo: &[Tag]) -> bool {
+        let refs: Vec<&Tag> = combo.iter().collect();
+        satisfy_tags(op, &refs)
+    }
+
+    #[test]
+    fn elite_tag_matches_only_five_star_and_senior_elite_only_six_star() {
+        let elite = [tag("エリート", TagType::Elite)];
+        let senior = [tag("上級エリート", TagType::Elite)];
+        let five = pool_op("a", "狙撃", &[], 5);
+        let six = pool_op("b", "狙撃", &[], 6);
+        let four = pool_op("c", "狙撃", &[], 4);
+        assert!(satisfies(&five, &elite));
+        assert!(!satisfies(&five, &senior));
+        assert!(satisfies(&six, &senior));
+        assert!(!satisfies(&six, &elite));
+        assert!(!satisfies(&four, &elite));
+        assert!(!satisfies(&four, &senior));
+    }
+
+    #[test]
+    fn six_star_requires_the_senior_elite_tag_but_five_star_does_not() {
+        let job = [tag("狙撃", TagType::Job)];
+        assert!(!satisfies(&pool_op("b", "狙撃", &[], 6), &job));
+        assert!(satisfies(&pool_op("a", "狙撃", &[], 5), &job));
+    }
+
+    #[test]
+    fn job_tag_matches_only_the_same_job() {
+        let job = [tag("狙撃", TagType::Job)];
+        assert!(satisfies(&pool_op("a", "狙撃", &[], 4), &job));
+        assert!(!satisfies(&pool_op("a", "前衛", &[], 4), &job));
+    }
+
+    #[test]
+    fn other_tag_matches_only_operators_that_have_it() {
+        let other = [tag("火力", TagType::Other)];
+        assert!(satisfies(
+            &pool_op("a", "狙撃", &["火力", "減速"], 4),
+            &other
+        ));
+        assert!(!satisfies(&pool_op("a", "狙撃", &["減速"], 4), &other));
+    }
+}
