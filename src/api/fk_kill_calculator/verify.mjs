@@ -87,9 +87,8 @@ function row(overrides) {
     opId: "op",
     entryIdx: 0,
     dmgType: "true",
-    // P8: 潜在ランク(0始まり)。op()はatkPotentialByRankを持たないため、
-    // resolveAtkPotentialのフォールバック(rank>0で全額)が効くようにrank5(潜在6)にする
-    // (旧`potential: true`と同じ結果)。
+    // 潜在ランク(0始まり)。op()はatkPotentialByRankを持たないため、
+    // resolveAtkPotentialのフォールバック(rank>0で全額)が効くようにrank5(潜在6)にする。
     potential: 5,
     moduleId: "m",
     moduleLv: 3,
@@ -348,7 +347,7 @@ console.log("\n=== 提案の現実性キャップ（UIラウンド2: 「Hit数+2
   check("撃破済みのときsuggestは空配列", Array.isArray(suggestions) && suggestions.length === 0, suggestions);
 }
 
-console.log("\n=== P2: 個別バフ/条件付きバフ/特殊強化 ===\n");
+console.log("\n=== 個別バフ/条件付きバフ/特殊強化 ===\n");
 {
   // Ash S3 400%: buffIds([plasma, nasty_s3]=0.9+0.6=1.5)経由でも、手入力buffPctを
   // 使った既存ケースと同じ最終値(6910)に届くこと。
@@ -377,12 +376,12 @@ console.log("\n=== P2: 個別バフ/条件付きバフ/特殊強化 ===\n");
   approxEqual(results[0].final, 17249, 1, "FW S2(buffIds経由)");
 }
 {
-  // Horn(X) S2 物理: atk=1136(=1006+30+100)、multiplier=2.4。P9で固定selfPct(0.31)を
-  // 撤去したので selfPct=0(Auto) になり、代わりにconditionalバフ「horn」(素質「軍事要塞」。
+  // Horn(X) S2 物理: atk=1136(=1006+30+100)、multiplier=2.4。固定selfPct(0.31)ではなく
+  // 値をリンク経由で解決するので selfPct=0(Auto) になり、代わりにconditionalバフ「horn」(素質「軍事要塞」。
   // ホルン自身も重装なので自分の行に適用される。E2・潜在6・モジュールXLv3で.31)をONにする。
   // 異格エクシア(条件付き。弾薬スキル+13%)も併せてON。
-  // final = 1136×(1+0.31+0.13)×2.4 = 3926.016 ≈ 3926 (旧固定selfPctと同じ結果になること
-  // = P9でのリファクタリングが数値を変えていないことの回帰テスト)。
+  // final = 1136×(1+0.31+0.13)×2.4 = 3926.016 ≈ 3926 (selfPctを固定値で持った場合と同じ結果になること
+  // = 値の解決をリンク経由にしても数値が変わらないことの回帰テスト)。
   // 弾薬スキルタグを持たないエントリには適用されない(conditionalPct=0)ことも確認する。
   const exusiaiAlter = {
     id: "exusiai_alter",
@@ -545,13 +544,13 @@ console.log("\n=== P2: 個別バフ/条件付きバフ/特殊強化 ===\n");
   }
 }
 {
-  // 旧(P1)形のstate(buffIds/specialOn/globalBuffIds無し)もdropStaleRows経由で
+  // buffIds/specialOn/globalBuffIds を持たない古い形のstateもdropStaleRows経由で
   // 補われて計算できること(後方互換)。
   const catalog = { operators: [{ ...op(1000, 0, null), id: "old", fkEntries: [{ tags: [] }] }], buffers: [] };
   const oldRow = {
     opId: "old", entryIdx: 0, dmgType: "true", potential: true, moduleId: null, moduleLv: 3,
     multiplier: 1, selfPct: 0, hits: 1, buffPct: 0, dmgMult: 1, ignoreDef: 0,
-  }; // buffIds/specialOnフィールドが無い旧形
+  }; // buffIds/specialOnフィールドが無い
   const oldState = { v: 1, enemy: { ...enemyNeutral, hp: 500 }, rows: [oldRow] }; // globalBuffIdsも無い
   const { state: cleaned } = dropStaleRows(oldState, catalog);
   check(
@@ -559,16 +558,16 @@ console.log("\n=== P2: 個別バフ/条件付きバフ/特殊強化 ===\n");
     Array.isArray(cleaned.rows[0].buffIds) && cleaned.rows[0].specialOn === true && Array.isArray(cleaned.globalBuffIds),
     cleaned,
   );
-  // P8: 旧`potential`(boolean)は丁寧な移行をせず既定値(5=潜在6)へリセットする(オーナー指示)。
+  // boolean の`potential`は移行せず既定値(5=潜在6)へリセットする。
   check("旧形のboolean potentialは既定値5へリセットされる", cleaned.rows[0].potential === 5, cleaned.rows[0].potential);
   const { total, killed } = computeTotal(catalog, cleaned.rows, cleaned.enemy, cleaned.globalBuffIds);
   check("旧形のstateでも計算できる(撃破)", killed === true, total);
 }
 
-console.log("\n=== P2 follow-up: 特殊強化(モジュール依存の加算系/乗算系) ===\n");
+console.log("\n=== 特殊強化(モジュール依存の加算系/乗算系) ===\n");
 {
-  // ファイヤーウォッチS2「遠距離特効」: 乗算系(mul_multiplier)。P8 follow-upで固定値
-  // (base/module/byModuleLevel)から素質「暗殺者」の値テーブル参照へ置き換えた。実データ
+  // ファイヤーウォッチS2「遠距離特効」: 乗算系(mul_multiplier)。固定値
+  // (base/module/byModuleLevel)ではなく素質「暗殺者」の値テーブルを参照する。実データ
   // (character_table.json talents + battle_equip_table.json uniequip_002_milu。
   // ここではダミーモジュールid"m")を写した値: E0=素質未解放(0)、E1=1.2(潜在1〜4)/
   // 1.25(潜在5〜6)、E2=1.4/1.45、モジュールY Lv1=E2基礎値のまま(素質強化が付かない)/
@@ -633,7 +632,7 @@ console.log("\n=== P2 follow-up: 特殊強化(モジュール依存の加算系/
   const lv2 = computeTotal(catalog, [{ ...rLv3On, moduleLv: 2, buffIds: [] }], enemyNeutral, []).results[0];
   check("FW S2 モジュールYのLv2は1.5", lv2.specialMulFactor === 1.5, lv2.specialMulFactor);
 
-  // --- P8 follow-up: 固定値ではなく行自身の昇進/潜在に素直に追従する ---
+  // --- 固定値ではなく行自身の昇進/潜在に素直に追従する ---
   const pot4 = computeTotal(catalog, [{ ...rLv3On, potential: 3, buffIds: [] }], enemyNeutral, []).results[0];
   check("FW S2 潜在4・モジュールYLv3は1.5(潜在5境目未満)", pot4.specialMulFactor === 1.5, pot4.specialMulFactor);
 
@@ -643,7 +642,7 @@ console.log("\n=== P2 follow-up: 特殊強化(モジュール依存の加算系/
   const e0 = computeTotal(catalog, [{ ...rLv3On, elite: 0, buffIds: [] }], enemyNeutral, []).results[0];
   check("FW S2 E0は素質未解放なのでmul係数1(影響なし)", e0.specialMulFactor === 1, e0.specialMulFactor);
 
-  // --- P8 follow-up: E0では特殊強化がヒント状態になり、ⓘ現在値は×1のプレビューになる ---
+  // --- E0では特殊強化がヒント状態になり、ⓘ現在値は×1のプレビューになる ---
   const e0Row = { ...rLv3On, elite: 0 };
   check("FW S2 E0はspecialMulCanApply=false(素質未解放)", specialMulCanApply(fwOp, fwEntry, e0Row) === false);
   check("FW S2 E0はspecialUiStateがhint", specialUiState(fwOp, fwEntry, e0Row) === "hint", specialUiState(fwOp, fwEntry, e0Row));
@@ -659,7 +658,7 @@ console.log("\n=== P2 follow-up: 特殊強化(モジュール依存の加算系/
     JSON.stringify(resolveSpecialCurrentValue(fwOp, fwEntry, rLv3On)),
   );
 
-  // --- P8 follow-up: 行の潜在セレクトの境目はATK潜在(潜在1-3/4-6)と素質境目
+  // --- 行の潜在セレクトの境目はATK潜在(潜在1-3/4-6)と素質境目
   //     (潜在1-4/5-6)の和になり、「潜在1-3/潜在4/潜在5-6」の3択になる ---
   check(
     "atkPotentialGroups(FW,entry,row) = 潜在1-3/潜在4/潜在5-6の3グループ",
@@ -720,7 +719,7 @@ console.log("\n=== P2 follow-up: 特殊強化(モジュール依存の加算系/
   approxEqual(lv3.final, 6656, 1, "ブレイズ S3 モジュールX Lv3+ON (self=0.712+0.06=0.772)");
 }
 
-console.log("\n=== P3: 鼓舞(インスパイア)ソース(濁心スカジ) ===\n");
+console.log("\n=== 鼓舞(インスパイア)ソース(濁心スカジ) ===\n");
 // 実データ(character_table.json talents + battle_equip_table.json)の値をそのまま使う。
 // 出典・導出の詳細はdata/fk_kill_calc/buffers.yaml末尾のコメント参照。
 function skadi2Source(overrides) {
@@ -731,7 +730,7 @@ function skadi2Source(overrides) {
     tags: ["補助"], // profession=SUPPORT, position=RANGED (近距離タグは無い)
     atkBase: 418,
     atkPotential: 27,
-    // P8: 潜在4(rank3)で+27(実データに即した単純な all-or-nothing テーブル。
+    // 潜在4(rank3)で+27(実データに即した単純な all-or-nothing テーブル。
     // シー/夜刀のような複数段階のケースは別途専用フィクスチャで検証する)。
     atkPotentialByRank: [0, 0, 0, 27, 27, 27],
     modules: [
@@ -742,8 +741,8 @@ function skadi2Source(overrides) {
       { skillNum: "2", ratio: 0.6 },
       { skillNum: "3", ratio: 1.1 },
     ],
-    // P8: 素質「捕食本能」のrequiredPotentialRank(0始まり)=4(潜在5)。旧「素質凸」
-    // チェックボックスは潜在セレクトへ統合したため、cfg.potential>=4で素質凸ボーナスが乗る。
+    // 素質「捕食本能」のrequiredPotentialRank(0始まり)=4(潜在5)。
+    // cfg.potential>=4で素質凸ボーナスが乗る。
     talentPotentialRank: 4,
     selfParts: [
       {
@@ -804,8 +803,7 @@ function skadi2Cfg(overrides) {
   return {
     on: true,
     skillNum: "2",
-    // P8: 潜在ランク(0始まり)。既定はrank3(潜在4=ATK潜在は含むが素質凸[rank4]未満)。
-    // 旧来の「攻撃凸ON・素質凸OFF」と同じ状態になる。
+    // 潜在ランク(0始まり)。既定はrank3(潜在4=ATK潜在は含むが素質凸[rank4]未満)。
     potential: 3,
     moduleId: null,
     moduleLv: 3,
@@ -899,7 +897,7 @@ const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value:
   check("モジュールY装備時もXパーツは適用されない(talentのみ0.09)", Math.abs(yInstead - 0.09) < 1e-9, yInstead);
 }
 {
-  // P8: 鼓舞ソースの潜在セレクトの境目はATK加算の変化点(潜在4)∪素質凸の解放境目(潜在5)。
+  // 鼓舞ソースの潜在セレクトの境目はATK加算の変化点(潜在4)∪素質凸の解放境目(潜在5)。
   // 濁心スカジは潜在1-3/潜在4/潜在5-6の3グループになるはず。
   const source = skadi2Source();
   const groups = inspirePotentialGroups(source);
@@ -970,7 +968,7 @@ const exusiaiBuffer = { id: "exusiai", name: "エクシア", kind: "pct", value:
   check("results[0].inspireAppliedにソースidが入る", results[0].inspireApplied && results[0].inspireApplied.sourceId === "skadi2", results[0].inspireApplied);
 }
 {
-  // 旧(P2)形のstate(state.inspire無し)もcomputeTotal/suggestにそのまま通せる(後方互換)。
+  // state.inspire を持たない古い形のstateもcomputeTotal/suggestにそのまま通せる(後方互換)。
   const catalog = { operators: [{ id: "old2", name: "old2", tags: [], atkBase: 1000, atkPotential: 0, modules: [], fkEntries: [{ tags: [] }] }], buffers: [], inspireSources: [] };
   const oldRow = row({ opId: "old2", entryIdx: 0, dmgType: "true", moduleId: null, hits: 1 });
   const oldState = { v: 1, enemy: { ...enemyNeutral, hp: 500 }, rows: [oldRow], globalBuffIds: [] }; // state.inspire無し
@@ -1072,7 +1070,7 @@ console.log("\n=== バフ調整: 「全員」タグ・exclusiveGroup（前衛ア
     b3.appliedConditional.length === 1 && b3.appliedConditional[0].id === "amiya_guard_skill", b3.appliedConditional);
 }
 
-console.log("\n=== P4: 条件付きバフの動的値解決(resolveConditionalValue) ===\n");
+console.log("\n=== 条件付きバフの動的値解決(resolveConditionalValue) ===\n");
 // 実データ(character_table.json talents + battle_equip_table.json)の値をそのまま
 // 使う。出典・導出の詳細はdata/fk_kill_calc/buffers.yamlのconditional各行のnote参照。
 {
@@ -1267,7 +1265,7 @@ console.log("\n=== P4: 条件付きバフの動的値解決(resolveConditionalVa
   approxEqual(b2.conditionalPct, 0.26, 1e-9, "異格エクシア(source化後): ラテラーノ勢はbonus.multで基本値の2倍(26%)");
 }
 
-console.log("\n=== P4: state移行(前衛アーミヤの旧2エントリ→新1エントリ+toggle、globalBuffLevelsのデフォルト補完) ===\n");
+console.log("\n=== state移行(前衛アーミヤの2エントリ→1エントリ+toggle、globalBuffLevelsのデフォルト補完) ===\n");
 {
   const amiyaGuard = {
     id: "amiya_guard",
@@ -1288,13 +1286,13 @@ console.log("\n=== P4: state移行(前衛アーミヤの旧2エントリ→新1�
   };
   const catalog = { operators: [], buffers: [amiyaGuard], inspireSources: [] };
 
-  // 旧(P2)形: amiya_guard_skillがONだった → 新amiya_guard + toggleOn=trueに移行する。
+  // amiya_guard_skillがONだったstate → amiya_guard + toggleOn=trueに移行する。
   const oldSkillState = { v: 1, enemy: { hp: 0, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 }, rows: [], globalBuffIds: ["amiya_guard_skill"] };
   const { state: migratedSkill } = dropStaleRows(oldSkillState, catalog);
   check("amiya_guard_skillはamiya_guardへ移行される", migratedSkill.globalBuffIds.includes("amiya_guard") && !migratedSkill.globalBuffIds.includes("amiya_guard_skill"), migratedSkill.globalBuffIds);
   check("amiya_guard_skillだった場合、toggleOn=trueへ移行される", migratedSkill.globalBuffLevels.amiya_guard.toggleOn === true, migratedSkill.globalBuffLevels);
 
-  // 旧(P2)形: amiya_guard_normalがONだった → 新amiya_guard(toggleOn=falseのまま)に移行する。
+  // amiya_guard_normalがONだったstate → amiya_guard(toggleOn=falseのまま)に移行する。
   const oldNormalState = { v: 1, enemy: { hp: 0, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 }, rows: [], globalBuffIds: ["amiya_guard_normal"] };
   const { state: migratedNormal } = dropStaleRows(oldNormalState, catalog);
   check("amiya_guard_normalはamiya_guardへ移行される", migratedNormal.globalBuffIds.includes("amiya_guard"), migratedNormal.globalBuffIds);
@@ -1310,11 +1308,11 @@ console.log("\n=== P4: state移行(前衛アーミヤの旧2エントリ→新1�
   );
 }
 
-console.log("\n=== P5: 個別バフの動的値解決(talent×scale/base_pct×scale/stage/max_targets_by_module) ===\n");
+console.log("\n=== 個別バフの動的値解決(talent×scale/base_pct×scale/stage/max_targets_by_module) ===\n");
 // 実データ(character_table.json talents + skill_table.json blackboard_by_level)の
 // 値をそのまま使う。出典・導出の詳細はdata/fk_kill_calc/buffers.yamlのindividual各行のnote参照。
 {
-  // ワルファリンS2(skill_num=2のblackboard"atk"そのもの。旧固定.90→P5でスキルLv解決)。
+  // ワルファリンS2(skill_num=2のblackboard"atk"そのもの。スキルLvで解決する)。
   const plasma = {
     id: "plasma",
     name: "ワルファリンS2",
@@ -1340,7 +1338,7 @@ console.log("\n=== P5: 個別バフの動的値解決(talent×scale/base_pct×sc
   check("ワルファリンS2はsingleTarget=true", plasma.singleTarget === true);
 }
 {
-  // アS3(skill_num=3のblackboard"atk"そのもの。旧固定.50→P5でスキルLv解決)。
+  // アS3(skill_num=3のblackboard"atk"そのもの。スキルLvで解決する)。
   const durian = {
     id: "durian",
     name: "アS3",
@@ -1366,7 +1364,7 @@ console.log("\n=== P5: 個別バフの動的値解決(talent×scale/base_pct×sc
   check("アS3はsingleTarget=true", durian.singleTarget === true);
 }
 {
-  // スプリアS2(旧固定.20→P5でスキルLv解決。single_targetは既存どおり維持)。
+  // スプリアS2(スキルLvで解決する。single_targetでもある)。
   const sprria = {
     id: "sprria_s2",
     name: "スプリアS2",
@@ -1556,7 +1554,7 @@ console.log("\n=== P5: 個別バフの動的値解決(talent×scale/base_pct×sc
   check("エクシア: モジュールXLv1(min_level未満)なら2行でも警告", findSingleTargetConflicts(catalog, rows2, {}, levelsLv1).has("exusiai"));
 }
 {
-  // コーディネーター指示: ワルファリンS2/アS3もsingle_targetなので、2行で選ぶと警告が出ること。
+  // ワルファリンS2/アS3もsingle_targetなので、2行で選ぶと警告が出ること。
   const plasmaBuf = { id: "plasma", name: "ワルファリンS2", kind: "pct", scope: { type: "individual" }, singleTarget: true, source: null, value: 0.9 };
   const durianBuf = { id: "durian", name: "アS3", kind: "pct", scope: { type: "individual" }, singleTarget: true, source: null, value: 0.5 };
   const catalog = { buffers: [plasmaBuf, durianBuf] };
@@ -1596,7 +1594,7 @@ console.log("\n=== P5: 個別バフの動的値解決(talent×scale/base_pct×sc
   approxEqual(b2.individualPct, 0.9, 1e-9, "個別バフ(source付き): globalBuffLevels省略時はデフォルト(Lv10)で+90%");
 }
 
-console.log("\n=== P5: state移行(旧stainless_1/stainless_2の2エントリ→新stainless_s1+toggle) ===\n");
+console.log("\n=== state移行(stainless_1/stainless_2の2エントリ→stainless_s1+toggle) ===\n");
 {
   const stainlessS1 = {
     id: "stainless_s1",
@@ -1622,13 +1620,13 @@ console.log("\n=== P5: state移行(旧stainless_1/stainless_2の2エントリ→
   const catalog = { operators: [{ ...op(1000, 0, null), id: "op", fkEntries: [{ tags: [] }] }], buffers: [stainlessS1], inspireSources: [] };
   const enemy = { hp: 0, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 };
 
-  // 旧stainless_1(トグル無し相当)だった行 → stainless_s1(toggleOnはfalseのまま)へ移行。
+  // stainless_1(トグル無し相当)だった行 → stainless_s1(toggleOnはfalseのまま)へ移行。
   const oldRow1State = { v: 1, enemy, rows: [row({ opId: "op", entryIdx: 0, buffIds: ["stainless_1"] })], globalBuffIds: [] };
   const { state: migrated1 } = dropStaleRows(oldRow1State, catalog);
   check("stainless_1はstainless_s1へ移行される", migrated1.rows[0].buffIds.includes("stainless_s1") && !migrated1.rows[0].buffIds.includes("stainless_1"), migrated1.rows[0].buffIds);
   check("stainless_1だった場合、toggleOnはfalseのまま", migrated1.globalBuffLevels.stainless_s1.toggleOn === false, migrated1.globalBuffLevels.stainless_s1);
 
-  // 旧stainless_2(装置2台相当)だった行 → stainless_s1 + toggleOn=trueへ移行。
+  // stainless_2(装置2台相当)だった行 → stainless_s1 + toggleOn=trueへ移行。
   const oldRow2State = { v: 1, enemy, rows: [row({ opId: "op", entryIdx: 0, buffIds: ["stainless_2"] })], globalBuffIds: [] };
   const { state: migrated2 } = dropStaleRows(oldRow2State, catalog);
   check("stainless_2はstainless_s1へ移行される", migrated2.rows[0].buffIds.includes("stainless_s1") && !migrated2.rows[0].buffIds.includes("stainless_2"), migrated2.rows[0].buffIds);
@@ -1662,7 +1660,7 @@ console.log("\n=== P5: state移行(旧stainless_1/stainless_2の2エントリ→
   );
 }
 
-console.log("\n=== P6: 昇進/レベル/信頼度からのベースATK計算(computeBaseAtk/resolveAtk) ===\n");
+console.log("\n=== 昇進/レベル/信頼度からのベースATK計算(computeBaseAtk/resolveAtk) ===\n");
 {
   // エーベンホルツ(char_4046_ebnhlz)。オーナー確認済みの実データ。
   const ebenholz = {
@@ -1703,7 +1701,7 @@ console.log("\n=== P6: 昇進/レベル/信頼度からのベースATK計算(com
     tags: [],
     atkBase: 1028,
     atkPotential: 34,
-    // P8: 実データ(seed_has_expected_atk_potential_by_rankで検証済み)。潜在4(rank3)で+34、
+    // 実データ(seed_has_expected_atk_potential_by_rankで検証済み)。潜在4(rank3)で+34、
     // 潜在1〜3(rank0〜2)は+0。
     atkPotentialByRank: [0, 0, 0, 34, 34, 34],
     modules: [],
@@ -1726,7 +1724,7 @@ console.log("\n=== P6: 昇進/レベル/信頼度からのベースATK計算(com
     computeBaseAtk(dusk, 2, 71, 0) === 887,
     computeBaseAtk(dusk, 2, 71, 0),
   );
-  // P8: 潜在4(rank3)でも同じ+34が乗る(実機確認値「潜在4 +34」の元)ので1031のまま。
+  // 潜在4(rank3)でも同じ+34が乗る(実機確認値「潜在4 +34」の元)ので1031のまま。
   // 潜在3(rank2)以下は+0になるので997(1031-34)まで下がる。
   check(
     "シー 潜在4(rank3)でも1031のまま(ATK潜在は潜在4で解放済み)",
@@ -1748,13 +1746,13 @@ console.log("\n=== P6: 昇進/レベル/信頼度からのベースATK計算(com
     atkPotentialGroups({ atkPotentialByRank: [0, 0, 0, 0, 0, 0] }).length === 1,
   );
 
-  // phasesが無い(旧来の簡易opオブジェクト)場合はatkBaseへフォールバックする(後方互換)。
+  // phasesが無い簡易opオブジェクトの場合はatkBaseへフォールバックする(後方互換)。
   const legacyOp = { atkBase: 500, atkPotential: 0, modules: [] };
   check("phases無しのopはelite/levelを無視してatkBaseを返す", computeBaseAtk(legacyOp, 2, 1, 0) === 500);
   check("phases無しのopのmaxEliteForは0", maxEliteFor(legacyOp) === 0);
 }
 
-console.log("\n=== P6: モジュール装備可否(moduleUsable/effectiveModuleId) ===\n");
+console.log("\n=== モジュール装備可否(moduleUsable/effectiveModuleId) ===\n");
 {
   const moduleE2Lv60 = { id: "m", typeName: "X", name: "m", atkByLevel: [10, 20, 30], unlockPhase: 2, unlockLevel: 60 };
   check("E2 Lv60ちょうどは装備可能", moduleUsable(moduleE2Lv60, 2, 60) === true);
@@ -1781,7 +1779,7 @@ console.log("\n=== P6: モジュール装備可否(moduleUsable/effectiveModuleI
   check("unlockPhase/unlockLevel無しのモジュールは常に装備可能(後方互換)", moduleUsable(legacyModule, 0, 1) === true);
 }
 
-console.log("\n=== P6: makeDefaultRowの昇進/レベル/信頼度の既定値 ===\n");
+console.log("\n=== makeDefaultRowの昇進/レベル/信頼度の既定値 ===\n");
 {
   const opFullPhases = {
     id: "op4",
@@ -1811,7 +1809,7 @@ console.log("\n=== P6: makeDefaultRowの昇進/レベル/信頼度の既定値 =
   check("既定レベルはE1の最大(80)", rowTwo.level === 80, rowTwo.level);
 }
 
-console.log("\n=== P6: スキル解放昇進の警告(skillUnlockWarning) ===\n");
+console.log("\n=== スキル解放昇進の警告(skillUnlockWarning) ===\n");
 {
   const opS3E2 = {
     id: "op5",
@@ -1832,7 +1830,7 @@ console.log("\n=== P6: スキル解放昇進の警告(skillUnlockWarning) ===\n"
   check("素質行(skillUnlockPhaseに無いskillNum)は警告対象外", skillUnlockWarning(opS3E2, entryTalent, { elite: 0 }) === null);
 }
 
-console.log("\n=== P7: スキルLv別の倍率/セルフ%解決(valueAtLevel/resolveEntryValues) ===\n");
+console.log("\n=== スキルLv別の倍率/セルフ%解決(valueAtLevel/resolveEntryValues) ===\n");
 {
   // ブレイズS3を模したエントリ(multiplier_key相当のAuto倍率+self_atk_pct_factor相当のManualセルフ%)。
   const entryLv = {
@@ -1866,13 +1864,13 @@ console.log("\n=== P7: スキルLv別の倍率/セルフ%解決(valueAtLevel/res
   check("resolveEntryValues(省略時=特化3): multiplier=3.0", valuesDefault.multiplier === 3.0);
   check("resolveEntryValues(省略時=特化3): selfPct=0.712", valuesDefault.selfPct === 0.712);
 
-  // multiplierByLevel/selfAtkPctByLevelが無い(旧形/未解決)エントリは固定値(.value)にフォールバックする。
+  // multiplierByLevel/selfAtkPctByLevelが無い(未解決)エントリは固定値(.value)にフォールバックする。
   const entryNoByLevel = { multiplier: { value: 1.5, source: "auto" }, selfAtkPct: { value: 0.1, source: "auto" } };
   check("multiplierByLevelが無ければ.valueにフォールバック", resolveMultiplierAtLevel(entryNoByLevel, 3) === 1.5);
   check("selfAtkPctByLevelが無ければ.valueにフォールバック", resolveSelfAtkPctAtLevel(entryNoByLevel, 3) === 0.1);
 }
 
-console.log("\n=== P7: 昇進によるスキルLv上限の警告(maxSkillLevelForElite/skillLevelWarning) ===\n");
+console.log("\n=== 昇進によるスキルLv上限の警告(maxSkillLevelForElite/skillLevelWarning) ===\n");
 {
   check("E0の上限はSLv4", maxSkillLevelForElite(0) === 4);
   check("E1の上限はSLv7", maxSkillLevelForElite(1) === 7);
@@ -1886,7 +1884,7 @@ console.log("\n=== P7: 昇進によるスキルLv上限の警告(maxSkillLevelFo
   check("E2で特化3(10)は警告無し", skillLevelWarning(2, 10) === null);
 }
 
-console.log("\n=== P7: dropStaleRowsが旧形にskillLevel既定値(10)を補完する ===\n");
+console.log("\n=== dropStaleRowsが古い形にskillLevel既定値(10)を補完する ===\n");
 {
   const opForMigration = {
     id: "opMig",
@@ -1905,9 +1903,9 @@ console.log("\n=== P7: dropStaleRowsが旧形にskillLevel既定値(10)を補完
   const oldState = {
     v: 1,
     enemy: enemyNeutral,
-    // potential: true(旧boolean形式)は数値でないので、dropStaleRows後は既定値5へリセットされるはず(P8)。
+    // potential: true(boolean)は数値でないので、dropStaleRows後は既定値5へリセットされるはず。
     rows: [{ opId: "opMig", entryIdx: 0, dmgType: "physical", potential: true, moduleId: null, moduleLv: 3, multiplier: 1, selfPct: 0, hits: 1, buffPct: 0, dmgMult: 1, ignoreDef: 0 }],
-    // 鼓舞ソースcfg側もpotential未設定(旧形)なので同じく既定値5へ。
+    // 鼓舞ソースcfg側もpotential未設定なので同じく既定値5へ。
     inspire: { sources: { srcMig: { on: true, skillNum: "1" } } },
   };
   const { state: cleaned } = dropStaleRows(oldState, catalogForMigration);
@@ -1948,7 +1946,7 @@ console.log("\n=== P7: dropStaleRowsが旧形にskillLevel既定値(10)を補完
   );
 }
 
-console.log("\n=== P7: 鼓舞ソースのratioByLevel解決(resolveInspireRatioAtLevel/computeInspireSource) ===\n");
+console.log("\n=== 鼓舞ソースのratioByLevel解決(resolveInspireRatioAtLevel/computeInspireSource) ===\n");
 {
   const skillEntryLv = { skillNum: "3", ratio: 1.1, ratioByLevel: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.9, 1.0, 1.1] };
   check("resolveInspireRatioAtLevel: SLv1", resolveInspireRatioAtLevel(skillEntryLv, 1) === 0.5);
@@ -1977,9 +1975,9 @@ console.log("\n=== P7: 鼓舞ソースのratioByLevel解決(resolveInspireRatioA
   approxEqual(resultLv10.amount, 1000 * 1.1, 1e-9, "鼓舞ソース特化3(ratio=1.1)のamount");
 }
 
-console.log("\n=== P9: バフの育成設定をFK行にリンクする(effectiveBuffLevels/findLinkedRow) ===\n");
+console.log("\n=== バフの育成設定をFK行にリンクする(effectiveBuffLevels/findLinkedRow) ===\n");
 {
-  // ホルン素質「軍事要塞」相当の簡易source(実データの値。上のP2セクションのhornBuffと同じ形)。
+  // ホルン素質「軍事要塞」相当の簡易source(実データの値。上の個別バフ/条件付きバフ/特殊強化セクションのhornBuffと同じ形)。
   const hornOp = {
     id: "horn_op",
     name: "ホルン",
@@ -2061,7 +2059,7 @@ console.log("\n=== P9: バフの育成設定をFK行にリンクする(effective
   const levelsUnusable = effectiveBuffLevels(hornBuff, { ...baseState, rows: [rowModuleUnusable] }, catalog);
   approxEqual(resolveConditionalValue(hornBuff, levelsUnusable), 0.23, 1e-9, "リンク: モジュール未装備(Lv不足)ならベースE2・潜在6の値(.23)");
 
-  // 最大成長(E2・潜在6・モジュールXLv3) → .31(overrides.yamlの旧固定値と一致)
+  // 最大成長(E2・潜在6・モジュールXLv3) → .31(overrides.yamlの固定値と一致)
   const rowMax = { opId: "horn_op", entryIdx: 0, elite: 2, level: 90, trust: 100, potential: 5, moduleId: "uniequip_002_horn", moduleLv: 3, skillLevel: 10 };
   const levelsMax = effectiveBuffLevels(hornBuff, { ...baseState, rows: [rowMax] }, catalog);
   approxEqual(resolveConditionalValue(hornBuff, levelsMax), 0.31, 1e-9, "リンク: 最大成長(E2・潜在6・モジュールXLv3) → .31");
@@ -2081,7 +2079,7 @@ console.log("\n=== P9: バフの育成設定をFK行にリンクする(effective
   approxEqual(resolveConditionalValue(hornBuff, allLevels.horn), 0.31, 1e-9, "computeEffectiveGlobalBuffLevels経由でも最大成長.31");
 }
 
-console.log("\n=== P9: 行のオペレーター確定でsource付き条件付きバフを自動ON(autoEnableSourcedBuffs) ===\n");
+console.log("\n=== 行のオペレーター確定でsource付き条件付きバフを自動ON(autoEnableSourcedBuffs) ===\n");
 {
   const catalog = {
     buffers: [
@@ -2123,7 +2121,7 @@ console.log("\n=== 初期モジュール(overrideのdefault_module) ===\n");
   check("選んだエントリに指定が無くても、同じオペの他エントリのdefaultModuleを使う", defaultModuleId(hornWithEntries, hornWithEntries.fkEntries[0]) === "uniequip_002_horn");
 }
 
-console.log("\n=== P10: 混合スキル(物理+術。例: ホルンS2)の複数ダメージパーツ ===\n");
+console.log("\n=== 混合スキル(物理+術。例: ホルンS2)の複数ダメージパーツ ===\n");
 {
   // atkBase=1000・潜在/モジュール無しの単純なop。物理パーツ(倍率2)+術パーツ(倍率1)を
   // combined:trueで1エントリにまとめた想定(Rust側のFkEntry.partsをそのまま模した最小形)。

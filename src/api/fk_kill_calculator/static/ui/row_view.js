@@ -56,7 +56,7 @@ export function moduleOptions(op, row) {
   return html;
 }
 
-// P7: entry.multiplierCandidatesは{key, valuesByLevel}の配列(valuesByLevelはスキルLv別)。
+// entry.multiplierCandidatesは{key, valuesByLevel}の配列(valuesByLevelはスキルLv別)。
 // 現在のスキルLvでの値をvalueAtLevelで引いて%で表示する(value属性は状態と同じ小数のまま)。
 function multiplierCandidateOptions(entry, skillLevel) {
   let html = `<option value="">候補から選ぶ…</option>`;
@@ -67,17 +67,17 @@ function multiplierCandidateOptions(entry, skillLevel) {
   return html;
 }
 
-// カタログ側の既定値(entry由来。P7: 現在のスキルLvでの値)。行のフィールドがユーザー操作で
+// カタログ側の既定値(entry由来。現在のスキルLvでの値)。行のフィールドがユーザー操作で
 // この値から変わっていれば「↺」リセットボタンを出す。entryが無ければ全てnull。
-// P2 follow-up: 特殊強化はもう置き換え系を持たない(加算系/乗算系は都度計算する
-// 別枠なので、ここでの既定値には影響しない)ため`specialOn`は見なくなった。
+// 特殊強化は置き換え系を持たない(加算系/乗算系は都度計算する
+// 別枠なので、ここでの既定値には影響しない)ため`specialOn`は見ない。
 export function catalogDefaults(entry, skillLevel) {
   if (!entry) return { multiplier: null, selfPct: null, hits: null, dmgType: null };
   const values = resolveEntryValues(entry, skillLevel);
   return { multiplier: values.multiplier, selfPct: values.selfPct, hits: values.hits, dmgType: values.dmgType };
 }
 
-// P10(混合スキル): パーツ(entry.parts[partIndex])単位のカタログ既定値
+// 混合スキル: パーツ(entry.parts[partIndex])単位のカタログ既定値
 // (multiplier/dmgTypeのみ。Hit数は行で共通、selfPct/dmgMultはパーツを持たない)。
 export function partCatalogDefaults(part, skillLevel) {
   if (!part) return { multiplier: null, dmgType: null };
@@ -87,14 +87,14 @@ export function partCatalogDefaults(part, skillLevel) {
   };
 }
 
-// P7: 「補正」バッジの文言。固定(Manualかつスキルレベルに追従しない)なら「補正(特化3固定)」、
+// 「補正」バッジの文言。固定(Manualかつスキルレベルに追従しない)なら「補正(特化3固定)」、
 // スキルLvに追従するManual(multiplier_key/self_atk_pct_factor経由)ならただの「補正」。
 function manualBadgeLabel(field, entry) {
   const fixedMap = { multiplier: entry.multiplierFixed, selfPct: entry.selfAtkPctFixed };
   return fixedMap[field] ? "補正(特化3固定)" : "補正";
 }
 
-// P10(混合スキル): `partIndex`が1以上ならentry.parts[partIndex](FkPart)を基準に
+// 混合スキル: `partIndex`が1以上ならentry.parts[partIndex](FkPart)を基準に
 // manual補正バッジ/↺リセットボタンを判定する(field=multiplier/hits/dmgTypeのみ)。
 // `partIndex`省略/0なら従来通りentry基準(selfPctも含む全フィールド対応)。
 export function fieldBadges(entry, field, currentValue, idx, skillLevel, partIndex = 0) {
@@ -124,13 +124,13 @@ export function valuesEqual(a, b) {
   return a === b;
 }
 
-// entry.tagsを小さな地味なチップで並べる(P2)。
+// entry.tagsを小さな地味なチップで並べる。
 function renderTagsChips(entry) {
   if (!entry || !entry.tags || !entry.tags.length) return "";
   return `<div class="row-tags">${entry.tags.map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join("")}</div>`;
 }
 
-// 個別バフ(行ごとに選ぶ)のトグルチップ一覧(P2)。同じsingle_targetバフが他の行でも
+// 個別バフ(行ごとに選ぶ)のトグルチップ一覧。同じsingle_targetバフが他の行でも
 // 選ばれていれば⚠を出す(singleConflicts: findSingleTargetConflictsの戻り値)。
 function renderIndividualBuffChips(row, idx, singleConflicts) {
   const individual = (catalog.buffers || []).filter((b) => b.scope.type === "individual");
@@ -138,7 +138,7 @@ function renderIndividualBuffChips(row, idx, singleConflicts) {
   const chips = individual
     .map((b) => {
       const on = (row.buffIds || []).includes(b.id);
-      // P5: sourceを持つ個別バフは「個別バフの育成設定」で選んだ現在値を表示する。
+      // sourceを持つ個別バフは「個別バフの育成設定」で選んだ現在値を表示する。
       const value = b.source ? resolveConditionalValue(b, buffLevels(b)) : b.value;
       const pctLabel = b.kind === "pct" ? `+${fmtPct(value)}%` : `+${trimNum(value)}`;
       const conflict = on && singleConflicts.has(b.id);
@@ -151,7 +151,7 @@ function renderIndividualBuffChips(row, idx, singleConflicts) {
   return `<div class="row-field"><span class="group-label" id="${labelId}">個別バフ（この行だけに掛けるもの）</span><div class="chip-row" role="group" aria-labelledby="${labelId}">${chips}</div></div>`;
 }
 
-// 全体でONの条件付きバフが、このエントリに適用されるか(✓)/されないか(–)の一覧(P2)。
+// 全体でONの条件付きバフが、このエントリに適用されるか(✓)/されないか(–)の一覧。
 // ON中の条件付きバフが1件も無ければ何も出さない。
 function renderConditionalStatusLine(r) {
   if (!r || !r.breakdown) return "";
@@ -171,7 +171,7 @@ function moduleTypeNameFor(op, moduleId) {
   return m ? m.typeName : "X";
 }
 
-// P8 follow-up: mulMultiplier(素質値テーブル)が現在の行の昇進で未解放(全潜在0)な間の
+// mulMultiplier(素質値テーブル)が現在の行の昇進で未解放(全潜在0)な間の
 // 最小昇進を求める("素質は昇進<N>で解放"ヒント用)。見つからない(理論上起きない)場合は
 // テーブルの行数(=最大昇進+1)を返す。
 function minEliteForMulMultiplier(table) {
@@ -181,11 +181,10 @@ function minEliteForMulMultiplier(table) {
 }
 
 // 特殊強化のヒント文。加算系(requiresModule)がモジュール条件を満たさない間は
-// 「特殊強化「<label>」はモジュール<X> Lv<N>以上で有効」、乗算系(mulMultiplier。P8
-// follow-upで素質値テーブル参照になった)が素質未解放の間は「特殊強化「<label>」は
-// 素質が昇進<N>で解放」を出す(`specialUiState`と同じ優先順位: requiresModuleを先に
-// 判定する)。
-// P6: モジュール自体が現在の昇進/レベルで装備できない間は、実データ(unlockPhase/
+// 「特殊強化「<label>」はモジュール<X> Lv<N>以上で有効」、乗算系(mulMultiplier。素質値テーブル参照)が
+// 素質未解放の間は「特殊強化「<label>」は素質が昇進<N>で解放」を出す(`specialUiState`と同じ優先順位:
+// requiresModuleを先に判定する)。
+// モジュール自体が現在の昇進/レベルで装備できない間は、実データ(unlockPhase/
 // unlockLevel)から「昇進<X> Lv<Y>以上で装備可能」を示す。装備はできているが
 // モジュールLv側の条件(addSelfAtkPctByModuleLevelの最初の非ゼロ要素)を
 // 満たさない間は従来どおり「モジュール<X> Lv<N>以上で有効」を示す。
@@ -208,16 +207,16 @@ function specialHintText(op, entry, row) {
   return "";
 }
 
-// ⓘ説明文の末尾に付ける「現在: +N%」/「現在: ×N」(P2 follow-up)。
+// ⓘ説明文の末尾に付ける「現在: +N%」/「現在: ×N」。
 function specialCurrentValueText(op, entry, row) {
   const cur = resolveSpecialCurrentValue(op, entry, row);
   if (!cur) return "";
   return cur.kind === "mul" ? `現在: ×${trimNum(cur.value)}` : `現在: +${fmtPct(cur.value)}%`;
 }
 
-// 「特殊強化: <label>」チェックボックス + ⓘ説明文トグル(P2/P2 follow-up)。
+// 「特殊強化: <label>」チェックボックス + ⓘ説明文トグル。
 // entry.specialが無いスキルは何も出さない。加算系(requiresModule)でモジュール条件を
-// 満たさない間、乗算系(mulMultiplier。P8 follow-upで素質値テーブル参照になった)で
+// 満たさない間、乗算系(mulMultiplier。素質値テーブル参照)で
 // 素質が未解放の間は、それぞれチェックボックスの代わりにヒントを出す
 // (`specialUiState`が判定する)。
 function renderSpecialCheckbox(op, entry, row, idx) {
@@ -243,7 +242,7 @@ function renderSpecialCheckbox(op, entry, row, idx) {
   </div>`;
 }
 
-// P3: 行の鼓舞トグル。鼓舞ソースが1件も無ければ何も出さない(specialのentry.special有無と
+// 行の鼓舞トグル。鼓舞ソースが1件も無ければ何も出さない(specialのentry.special有無と
 // 同じ考え方)。実際に適用中のソースがあればその名前をtitleで示す。
 function renderRowInspireToggle(r, row, idx) {
   const sources = catalog.inspireSources || [];
@@ -259,7 +258,7 @@ function renderRowInspireToggle(r, row, idx) {
   </div>`;
 }
 
-// P6: 昇進(0/1/2=E0/E1/E2)のセレクト選択肢。そのオペレーターが到達できる段階まで
+// 昇進(0/1/2=E0/E1/E2)のセレクト選択肢。そのオペレーターが到達できる段階まで
 // (`maxEliteFor`。フェーズが少ないオペレーターは選択肢自体が少ない)。
 export function eliteOptions(op, row) {
   const maxElite = maxEliteFor(op);
@@ -270,7 +269,7 @@ export function eliteOptions(op, row) {
   return html;
 }
 
-// P6: 「[E2▾] Lv[ 90 ]/90  信頼度[100]%」の3列コントロール。昇進セレクトを変えると
+// 「[E2▾] Lv[ 90 ]/90  信頼度[100]%」の3列コントロール。昇進セレクトを変えると
 // (onRowFieldChangeが)レベルをその昇進の最大値へリセットする。
 function renderEliteLevelTrustControls(op, row, idx) {
   const maxLevel = maxLevelForElite(op, row.elite);
@@ -290,7 +289,7 @@ function renderEliteLevelTrustControls(op, row, idx) {
   </div>`;
 }
 
-// P6: entryのスキルが現在の昇進でまだ解放されていない場合の警告(計算は続行する)。
+// entryのスキルが現在の昇進でまだ解放されていない場合の警告(計算は続行する)。
 function renderSkillUnlockWarning(op, entry, row) {
   if (!op || !entry) return "";
   const warning = skillUnlockWarning(op, entry, row);
@@ -298,7 +297,7 @@ function renderSkillUnlockWarning(op, entry, row) {
   return `<p class="special-hint">${escapeHtml(warning)}（計算は続行されます）</p>`;
 }
 
-// P7: スキルLv(1〜n)のセレクト選択肢。nは`entry.multiplierByLevel`の長さ(データが
+// スキルLv(1〜n)のセレクト選択肢。nは`entry.multiplierByLevel`の長さ(データが
 // 10未満のスキルにも対応)。
 export function skillLevelOptionsN(n, current) {
   // Lv数の少ないスキル(例: 7段階)では、計算側のクランプと同じく最大Lvを選択表示にする。
@@ -310,7 +309,7 @@ export function skillLevelOptionsN(n, current) {
   return html;
 }
 
-// P7: `elite`/`skillLevel`の組み合わせから、まだ解放されていないスキルLvを選んでいる
+// `elite`/`skillLevel`の組み合わせから、まだ解放されていないスキルLvを選んでいる
 // 場合の警告(「特化は昇進2で解放」/「SLv5以上は昇進1で解放」)。計算は続行する
 // (skillUnlockWarningと同じ方針)。`cfgLike`は`{elite, skillLevel}`を持つrow/inspireのcfg。
 export function renderSkillLevelWarning(cfgLike) {
@@ -319,7 +318,7 @@ export function renderSkillLevelWarning(cfgLike) {
   return `<p class="special-hint">${escapeHtml(warning)}（計算は続行されます）</p>`;
 }
 
-// P7: 行のスキルLvセレクト(FK対象と同じ行の右側に狭めに置く)。選択肢の数は
+// 行のスキルLvセレクト(FK対象と同じ行の右側に狭めに置く)。選択肢の数は
 // entry.multiplierByLevelの長さに合わせる(無ければ10=SLv1〜特化3のフルセットにフォールバック)。
 function renderSkillLevelSelect(entry, row, idx) {
   const n = (entry.multiplierByLevel && entry.multiplierByLevel.length) || 10;
@@ -328,7 +327,7 @@ function renderSkillLevelSelect(entry, row, idx) {
     </label>`;
 }
 
-// P6: 選択中のモジュールが現在の昇進/レベルでは装備できない場合のヒント
+// 選択中のモジュールが現在の昇進/レベルでは装備できない場合のヒント
 // (実データのunlockPhase/unlockLevelから組み立てる。ATKには加算されない)。
 export function renderModuleUnusableHint(op, row) {
   if (!op || !row.moduleId) return "";
@@ -378,7 +377,7 @@ function renderHitsSection(op, entry, row, idx) {
     </label>`;
 }
 
-// 「スキルの値」の中身。P10(混合スキル): `entry.parts`が無い/1件以下(=通常エントリ)なら
+// 「スキルの値」の中身。混合スキル: `entry.parts`が無い/1件以下(=通常エントリ)なら
 // ダメージ種別・倍率候補・倍率%・ダメージ倍率%の単一ブロック(data-partは付けない=パーツ0扱い)、
 // 2件以上ならパーツごとの小ブロック(見出し=パーツラベル。例: "物理"/"術"。倍率%/ダメージ倍率%だけ)。
 // ダメージ種別は見出しで自明なので選ばせず、倍率候補セレクトも出さない(overrideでキーが指定済みのため)。

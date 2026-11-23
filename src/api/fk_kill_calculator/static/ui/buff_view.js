@@ -9,15 +9,15 @@ import {
 import { escapeHtml, fmtPct, trimNum } from "./dom.js";
 import { buffLevels, catalog, linkedOperatorFor, state } from "./store.js";
 
-// P4: 潜在ラベル("潜在1"〜"潜在6")。0始まりのpotentialRankをそのままindexに使う。
+// 潜在ラベル("潜在1"〜"潜在6")。0始まりのpotentialRankをそのままindexに使う。
 function potentialOptionLabel(group) {
   return group.from === group.to ? `潜在${group.from + 1}` : `潜在${group.from + 1}-${group.to + 1}`;
 }
 
-// P8: 行のATK潜在セレクト(旧「攻撃凸」チェックボックスの後継)。値が変わる境目だけを
+// 行のATK潜在セレクト。値が変わる境目だけを
 // 選択肢にする(`atkPotentialGroups`。バフカードの潜在セレクトと同じUX)。ATK潜在を
 // 持たないオペレーターは境目が無い(選択肢が「潜在1-6」の1つだけ)ため、セレクト自体を
-// 隠す(オーナー承認の仕様)。P8 follow-up: `entry`も渡し、`entry.special.mulMultiplier`
+// 隠す(オーナー承認の仕様)。`entry`も渡し、`entry.special.mulMultiplier`
 // (乗算系特殊強化の素質値テーブル)があればATK潜在境目と合成する(例: ファイヤーウォッチは
 // 潜在1-3/潜在4/潜在5-6の3択になる)。
 export function renderRowPotentialSelect(op, entry, row, idx) {
@@ -34,7 +34,7 @@ export function renderRowPotentialSelect(op, entry, row, idx) {
   </label>`;
 }
 
-// P8: 鼓舞ソースの潜在セレクト(旧「攻撃凸」+「素質凸」チェックボックスの後継。1つに統合)。
+// 鼓舞ソースの潜在セレクト(攻撃と素質の潜在をまとめて選ぶ)。
 // 境目はATK潜在の変化点 ∪ 素質凸(自己%パーツの`pctPotentialBonus`)の解放境目
 // (`inspirePotentialGroups`。詳細はengine.jsのコメント参照)。
 export function renderInspirePotentialSelect(source, cfg) {
@@ -51,12 +51,12 @@ export function renderInspirePotentialSelect(source, cfg) {
   </label>`;
 }
 
-// P4: スキルLvラベル("1"〜"7" + "特化1"〜"特化3")。Lv1始まりのskillLevelをそのままindexに使う。
+// スキルLvラベル("1"〜"7" + "特化1"〜"特化3")。Lv1始まりのskillLevelをそのままindexに使う。
 export function skillLevelOptionLabel(skillLevel) {
   return skillLevel <= 7 ? `SLv${skillLevel}` : `特化${skillLevel - 7}`;
 }
 
-// P4/P5: `source`(素質/スキルLv/スケール/固定基礎値/段階由来の動的値解決)を持つバフの
+// `source`(素質/スキルLv/スケール/固定基礎値/段階由来の動的値解決)を持つバフの
 // 「値が変わる軸」だけをインラインの<select>で出す共通ヘルパー(dedupe済み。値が変わらない
 // 軸は`b.source`側に無いので出ない)。conditionalのカード(renderConditionalSourceCard)と
 // individualの育成設定カード(renderIndividualBuffLevelCard)の両方から使う。戻り値の
@@ -64,7 +64,7 @@ export function skillLevelOptionLabel(skillLevel) {
 // 書式なので、スコープ(conditional/individual)を問わず`onGlobalBuffLevelChange`が処理する。
 // `b.toggle`(例: 前衛アーミヤの「スキル中は効果2倍」、ステインレスS1の「装置2台」)が
 // あればチェックボックスも出す。
-// P9: `linkedOp`が渡されている(=このバフがFK行の育成設定にリンクしている)間は、
+// `linkedOp`が渡されている(=このバフがFK行の育成設定にリンクしている)間は、
 // 昇進/潜在/モジュール/スキルLvのセレクトを出さず「FK行（<name>）の設定を使用」の
 // ヒントだけを出す(トグルは引き続きユーザー操作できるので出す)。
 function renderBuffAxisControls(b, levels, linkedOp) {
@@ -136,7 +136,7 @@ function renderBuffAxisControls(b, levels, linkedOp) {
       .join("");
     controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="skillLevel">${opts}</select>`;
   }
-  // P5: talent/base_pctに掛け合わせるスキルLv別スケール。全レベルで値が同じ(varies=false。
+  // talent/base_pctに掛け合わせるスキルLv別スケール。全レベルで値が同じ(varies=false。
   // 例: スワイヤーS1のtalent_scale)ならセレクトを出さない。
   if (scale && scale.varies) {
     const opts = scale.valuesByLevel
@@ -147,7 +147,7 @@ function renderBuffAxisControls(b, levels, linkedOp) {
       .join("");
     controls += `<select data-role="global-buff-level" data-buff-id="${escapeHtml(b.id)}" data-field="skillLevel">${opts}</select>`;
   }
-  // P5: スキルLvではなく離散段階(例: ナスティS3の装置アップグレード段階)。
+  // スキルLvではなく離散段階(例: ナスティS3の装置アップグレード段階)。
   if (stage) {
     const opts = stage.values
       .map((_, i) => {
@@ -168,7 +168,7 @@ function renderBuffAxisControls(b, levels, linkedOp) {
   return { controls, hint, value };
 }
 
-// P4: `source`を持つ条件付きバフ1件分のカード。OFFの間はトグルチップだけ、ONになると
+// `source`を持つ条件付きバフ1件分のカード。OFFの間はトグルチップだけ、ONになると
 // `renderBuffAxisControls`が返す軸コントロールを表示する。
 export function renderConditionalSourceCard(b) {
   const onIds = state.globalBuffIds || [];
@@ -191,7 +191,7 @@ export function renderConditionalSourceCard(b) {
   </div>`;
 }
 
-// P5: `source`を持つ個別バフ1件分の「育成設定」カード。individualバフはconditionalと
+// `source`を持つ個別バフ1件分の「育成設定」カード。individualバフはconditionalと
 // 違いスコープ自体のON/OFFチップを持たない(行/鼓舞ソースのチップで選ぶため)ので、
 // トグルチップの代わりに名前をそのまま見出しにする。
 function renderIndividualBuffLevelCard(b) {
@@ -206,7 +206,7 @@ function renderIndividualBuffLevelCard(b) {
   </div>`;
 }
 
-// P5: 行(row.buffIds)/鼓舞ソース(ONのcfg.buffIds)のどちらかで現在選ばれている
+// 行(row.buffIds)/鼓舞ソース(ONのcfg.buffIds)のどちらかで現在選ばれている
 // バフidの集合(育成設定カードの表示対象を絞るために使う)。
 function usedIndividualBuffIds() {
   const used = new Set();
@@ -219,7 +219,7 @@ function usedIndividualBuffIds() {
   return used;
 }
 
-// 「個別バフの育成設定」セクション(P5)。sourceを持つ個別バフのうち、行または鼓舞ソースで
+// 「個別バフの育成設定」セクション。sourceを持つ個別バフのうち、行または鼓舞ソースで
 // 現在チェックされているものだけをカード表示する(オーナー方針:
 // 「チェックしたやつの育成状況を設定出来るようにすればOK」)。1件も無ければヒントのみ。
 export function renderIndividualBuffLevelsSection() {

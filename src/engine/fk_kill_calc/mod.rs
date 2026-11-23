@@ -149,7 +149,7 @@ pub fn build_catalog(
         for row in rows {
             let skill_id = skill_ids.get(row.skill_num.as_str()).copied();
             let blackboard = skill_id.and_then(|id| skills.get_blackboard(id));
-            // P7: スキルLv別blackboard(空Vecなら「無い」扱いに正規化する。levels.rsが
+            // スキルLv別blackboard(空Vecなら「無い」扱いに正規化する。levels.rsが
             // deserialize失敗時に空Mapを積むことがあるため、要素はあっても値が全部0の
             // ケースまでは弾かない=`values_by_level_for_key`が0.0フォールバックで処理する)。
             let blackboard_by_level = skill_id
@@ -180,7 +180,7 @@ pub fn build_catalog(
             }
 
             match overrides.variants_for(op_id, &row.skill_num) {
-                // P10: 同じskill_num内でcombined:trueのバリアント群は「同時発生する
+                // 同じskill_num内でcombined:trueのバリアント群は「同時発生する
                 // 複数ダメージパーツ」として1つのFkEntryにまとめる(選択肢を増やさない)。
                 Some(variants) if !variants.is_empty() && variants[0].combined => {
                     fk_entries.push(build_combined_entry(
@@ -223,7 +223,7 @@ pub fn build_catalog(
                                 default_self_atk_pct,
                                 num_levels,
                             );
-                        // P8 follow-up: `mul_multiplier`(素質値テーブル参照)が実データに解決
+                        // `mul_multiplier`(素質値テーブル参照)が実データに解決
                         // できない(talent_index範囲外)場合は、fk_dataのskipped/inspireのskippedと
                         // 同じ方針で`skipped`に記録した上でこの特殊強化を静かに落とす(ドリフト自体は
                         // `cargo test`の`validate_special_mul_multiplier`が検知する)。
@@ -305,7 +305,7 @@ pub fn build_catalog(
 
     let inspire_sources = build_inspire_sources(combat, ops, skills, &mut skipped);
 
-    // P4/P5: 固定pct/flatのバフ(individual + 一部conditional)に、ゲームデータから動的解決した
+    // 固定pct/flatのバフ(individual + 一部conditional)に、ゲームデータから動的解決した
     // conditional/individual(`source`付き)を続けて足す。fk_dataのskipped/inspireのskippedと
     // 同じ方針で、実データと不一致なバフは`skipped`に記録した上で静かに落とす
     // (`conditional_source::build_conditional_sourced_buffers`/

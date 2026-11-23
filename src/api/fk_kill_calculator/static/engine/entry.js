@@ -30,7 +30,7 @@ export function defaultModuleId(op, entry) {
 }
 
 /**
- * P7: 配列`arr`(スキルLv1〜(データ数)ごとの値)から、スキルLv`skillLevel`(1始まり)の値を
+ * 配列`arr`(スキルLv1〜(データ数)ごとの値)から、スキルLv`skillLevel`(1始まり)の値を
  * 引く。`skillLevel`は配列の長さにクランプする(データが10未満のスキルでも安全に動く)。
  * `arr`が空/無ければ0を返す。
  */
@@ -40,21 +40,21 @@ export function valueAtLevel(arr, skillLevel) {
   return arr[idx];
 }
 
-/** P7: `entry.multiplierByLevel`から現在のスキルLvの倍率を引く。配列が無ければ`entry.multiplier.value`。 */
+/** `entry.multiplierByLevel`から現在のスキルLvの倍率を引く。配列が無ければ`entry.multiplier.value`。 */
 export function resolveMultiplierAtLevel(entry, skillLevel) {
   const arr = entry.multiplierByLevel;
   if (!arr || !arr.length) return entry.multiplier.value;
   return valueAtLevel(arr, skillLevel);
 }
 
-/** P7: `entry.selfAtkPctByLevel`から現在のスキルLvのセルフ%を引く。配列が無ければ`entry.selfAtkPct.value`。 */
+/** `entry.selfAtkPctByLevel`から現在のスキルLvのセルフ%を引く。配列が無ければ`entry.selfAtkPct.value`。 */
 export function resolveSelfAtkPctAtLevel(entry, skillLevel) {
   const arr = entry.selfAtkPctByLevel;
   if (!arr || !arr.length) return entry.selfAtkPct.value;
   return valueAtLevel(arr, skillLevel);
 }
 
-/** P10: `entry.parts[i]`(FkPart)から現在のスキルLvの倍率を引く(`resolveMultiplierAtLevel`のパーツ版)。 */
+/** `entry.parts[i]`(FkPart)から現在のスキルLvの倍率を引く(`resolveMultiplierAtLevel`のパーツ版)。 */
 function resolvePartMultiplierAtLevel(part, skillLevel) {
   const arr = part.multiplierByLevel;
   if (!arr || !arr.length) return part.multiplier.value;
@@ -62,7 +62,7 @@ function resolvePartMultiplierAtLevel(part, skillLevel) {
 }
 
 /**
- * P10(混合スキル): `entry.parts[1..]`から、現在のスキルLvでの実効値を持つ
+ * 混合スキル: `entry.parts[1..]`から、現在のスキルLvでの実効値を持つ
  * `row.extraParts`の既定配列を作る(倍率は`resolvePartMultiplierAtLevel`、
  * ダメージ種別はそのパーツの値そのまま、ダメージ倍率は既定1。Hit数は行で共通なので持たない)。`entryIdx`/`skillLevel`
  * 変更時に`makeDefaultRow`と同じくこれで再スナップする。`entry.parts`が無い/1件以下
@@ -78,12 +78,12 @@ export function makeDefaultExtraParts(entry, skillLevel = 10) {
 }
 
 /**
- * P10(混合スキル): 行を「パーツごとの疑似行」配列に展開する。row自身が常にパーツ0
+ * 混合スキル: 行を「パーツごとの疑似行」配列に展開する。row自身が常にパーツ0
  * (multiplier/dmgType/dmgMultはトップレベルのまま)、2番目以降は
  * `row.extraParts[i]`のmultiplier/dmgType/dmgMultだけで上書きした疑似行(それ以外の
  * フィールド=opId/entryIdx/elite/level/trust/potential/moduleId/moduleLv/selfPct/
  * buffPct/ignoreDef/hits/buffIds/specialOn/inspireOn等は行のまま共有する。extraPartsに
- * 余計なフィールド[旧形のhits等]が残っていても拾わない)。`computeTotal`/`suggest`が
+ * 余計なフィールド[hits等]が残っていても拾わない)。`computeTotal`/`suggest`が
  * パーツ単位でダメージを計算する入口。`row.extraParts`が無ければ`[row]`(通常行と完全互換)。
  */
 export function expandRowParts(row) {
@@ -97,10 +97,9 @@ export function expandRowParts(row) {
  * (multiplier/selfPct/hits/dmgType。dmgMultは特殊強化が持たない限り常に1)。
  * `entryIdx`変更時にこれを使い、行フィールドを新しいエントリの値へ再スナップする
  * （ユーザーの手動編集は「別のエントリを選び直した」時点でリセットされる）。
- * P2 follow-upで「置き換え系」特殊強化(FW/Weedy等)を撤去したため、`entry.special`は
- * もう見ない(加算系/乗算系は`resolveSpecialAddPct`/`resolveSpecialMultiplierFactor`が
- * 都度計算する。行フィールドへのスナップショットが不要になった)。
- * P7: `skillLevel`(既定10=特化3。旧デフォルトと同じ結果になる)で倍率/セルフ%を
+ * `entry.special`は見ない(加算系/乗算系は`resolveSpecialAddPct`/
+ * `resolveSpecialMultiplierFactor`が都度計算する。行フィールドへのスナップショットは不要)。
+ * `skillLevel`(既定10=特化3)で倍率/セルフ%を
  * スキルLv別に解決する。`skillLevel`を変える(entryIdxはそのまま)場合もこの関数を
  * 呼び直して行フィールドを再スナップする(倍率入力欄が常に「現在のスキルLvでの
  * カタログ既定値」を表示するようにするため。ユーザーの手動編集はそこから更に上書きできる)。
@@ -145,7 +144,7 @@ export function resolveSpecialAddPct(op, entry, row) {
 }
 
 /**
- * P8 follow-up: 素質由来の値テーブル(`ConditionalTalentSource`)から、指定の昇進/
+ * 素質由来の値テーブル(`ConditionalTalentSource`)から、指定の昇進/
  * (装備可能なら)モジュールLvに対応する「潜在ごとの値配列」(長さ6)を取り出す。
  * モジュールは昇進2でしか装備できないので`elite < 2`の間は`moduleId`を無視する
  * (呼び出し側は既に`effectiveElite`/`effectiveModuleId`で解決済みの値を渡す)。
@@ -167,8 +166,7 @@ export function resolveTalentTableValue(talent, { elite, potential, moduleId, mo
 }
 
 /**
- * 特殊強化の「乗算系」(`entry.special.mulMultiplier`。P8 follow-upで固定`base`/`module`/
- * `byModuleLevel`から素質値テーブル参照へ置き換えた)を、行自身の昇進/潜在/実効モジュール
+ * 特殊強化の「乗算系」(`entry.special.mulMultiplier`。素質値テーブルを参照する)を、行自身の昇進/潜在/実効モジュール
  * (`effectiveElite`/`effectiveModuleId`。elite/level条件込み)で解決した生の値。値0は
  * 「その昇進/潜在では素質が未解放」を意味する(例: E0)。`row.specialOn`は見ない
  * (`resolveSpecialMultiplierFactor`/`resolveSpecialCurrentValue`/`specialMulCanApply`の
@@ -206,8 +204,7 @@ export function specialMulCanApply(op, entry, row) {
 }
 
 /**
- * UIが特殊強化のチェックボックス/ヒントのどちらを出すべきかを判定する(P2 follow-up。
- * P8 follow-upで乗算系[素質値テーブル]も「適用不可」になり得るようになったため対応)。
+ * UIが特殊強化のチェックボックス/ヒントのどちらを出すべきかを判定する。
  * 加算系(`requiresModule`付き)はモジュール条件を満たさない間、乗算系(`mulMultiplier`)は
  * 素質が未解放の間、それぞれ「適用不可」になり得るためヒントに切り替える。
  * 特殊強化そのものが無い場合は`"none"`(呼び出し側で描画をスキップする)。
@@ -222,13 +219,13 @@ export function specialUiState(op, entry, row) {
 }
 
 /**
- * 特殊強化のⓘ説明文に付け足す「現在の効果値」(P2 follow-up)。`row.specialOn`に
- * 関わらず、今の昇進/潜在/モジュール/Lv(P6: elite/levelで実際に装備できている場合のみ)
+ * 特殊強化のⓘ説明文に付け足す「現在の効果値」。`row.specialOn`に
+ * 関わらず、今の昇進/潜在/モジュール/Lv(elite/levelで実際に装備できている場合のみ)
  * なら発動時にどんな値になるかを返す(プレビュー用途)。
  * 加算系(`requiresModule`)は`{kind:"add", value}`、乗算系(`mulMultiplier`)は
  * `{kind:"mul", value}`を返す。特殊強化が無い/どちらの系統も無ければ`null`。
  * 乗算系は素質値テーブルの解決値(0=素質未解放)を、`resolveSpecialMultiplierFactor`と
- * 同じく1(影響なし)へフォールバックしてプレビューする(P8 follow-up)。
+ * 同じく1(影響なし)へフォールバックしてプレビューする。
  * @returns {null|{kind:"add"|"mul", value:number}}
  */
 export function resolveSpecialCurrentValue(op, entry, row) {
@@ -249,24 +246,23 @@ export function resolveSpecialCurrentValue(op, entry, row) {
 
 /**
  * オペレーター+FkEntryから、カタログ値をそのまま初期値にした行を作る。
- * P6: 昇進(elite)はそのオペレーターが到達できる最大値(通常E2。フェーズが少ない
- * オペレーターはその最大)、レベルはその昇進の最大レベル、信頼度は100を既定にする
- * (＝旧atkBase[E2最大Lv+信頼度100]と同じベースATKになる。デフォルト値は変わらない)。
+ * 昇進(elite)はそのオペレーターが到達できる最大値(通常E2。フェーズが少ない
+ * オペレーターはその最大)、レベルはその昇進の最大レベル、信頼度は100を既定にする。
  */
 export function makeDefaultRow(op, entryIdx) {
   const entry = op.fkEntries[entryIdx];
-  const skillLevel = 10; // P7: 既定は特化3(旧デフォルトと同じ結果になる)。
+  const skillLevel = 10; // 既定は特化3。
   const values = resolveEntryValues(entry, skillLevel);
   const elite = maxEliteFor(op);
   return {
     opId: op.id,
     entryIdx,
     dmgType: values.dmgType,
-    potential: 5, // P8: 潜在ランク(0始まり。既定は潜在6=フル。旧来の攻撃凸チェックボックスと同じ結果になる)
+    potential: 5, // 潜在ランク(0始まり。既定は潜在6=フル)
     elite,
     level: maxLevelForElite(op, elite),
     trust: 100,
-    skillLevel, // P7: スキルLv(1〜10。SLv1〜7+特化1〜3)
+    skillLevel, // スキルLv(1〜10。SLv1〜7+特化1〜3)
     moduleId: defaultModuleId(op, entry),
     moduleLv: 3,
     multiplier: values.multiplier,
@@ -276,10 +272,10 @@ export function makeDefaultRow(op, entryIdx) {
     buffFlat: 0, // 手入力 基礎攻撃力+(%バフの前に足す)
     dmgMult: values.dmgMult,
     ignoreDef: 0,
-    buffIds: [], // P2: 個別バフ(行ごとに選ぶ)
-    specialOn: true, // P2: 特殊強化トグル(デフォルトON。entry.specialが無ければ意味を持たない)
-    inspireOn: true, // P3: 鼓舞トグル(デフォルトON。鼓舞ソースが無ければ意味を持たない)
-    extraParts: makeDefaultExtraParts(entry, skillLevel), // P10: 混合スキルのパーツ1以降(通常エントリは空)
+    buffIds: [], // 個別バフ(行ごとに選ぶ)
+    specialOn: true, // 特殊強化トグル(デフォルトON。entry.specialが無ければ意味を持たない)
+    inspireOn: true, // 鼓舞トグル(デフォルトON。鼓舞ソースが無ければ意味を持たない)
+    extraParts: makeDefaultExtraParts(entry, skillLevel), // 混合スキルのパーツ1以降(通常エントリは空)
     stones: [], // 碁石盤のマス番号(entry.stoneBoardが無ければ意味を持たない)
   };
 }

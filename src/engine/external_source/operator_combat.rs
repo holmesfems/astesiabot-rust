@@ -67,7 +67,7 @@ pub struct RawModuleCombat {
     /// 40/50/60等)。
     #[serde(default)]
     pub unlock_level: u32,
-    /// フレームキル計算機の「条件付きバフ(P4)」用: このモジュールを装備した時の素質上書き
+    /// フレームキル計算機の「条件付きバフ」用: このモジュールを装備した時の素質上書き
     /// (`addOrOverrideTalentDataBundle`)候補一覧。インデックス0=Lv1/1=Lv2/2=Lv3。
     /// Lv1は素質強化自体が無いことが多く、その場合は空Vec。`talentIndex`が負値(素質を
     /// 上書きしない特性追加等)の候補は含めない(`talent_index`はusizeなので保持できない)。
@@ -75,7 +75,7 @@ pub struct RawModuleCombat {
     pub talent_overrides_by_level: Vec<Vec<RawModuleTalentOverride>>,
 }
 
-/// モジュールによる素質上書き候補1件（P4。`battle_equip_table.json`の
+/// モジュールによる素質上書き候補1件（`battle_equip_table.json`の
 /// `phases[lvIdx].parts[].addOrOverrideTalentDataBundle.candidates[]`）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RawModuleTalentOverride {
@@ -87,7 +87,7 @@ pub struct RawModuleTalentOverride {
     pub blackboard: IndexMap<String, f64>,
 }
 
-/// 素質(talent)候補1件（P4。`character_table.json`/`char_patch_table.json`の
+/// 素質(talent)候補1件（`character_table.json`/`char_patch_table.json`の
 /// `talents[i].candidates[]`）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RawTalentCandidate {
@@ -143,14 +143,14 @@ pub struct RawOperatorCombat {
     /// 倍率型(MULTIPLY等)のATK潜在は将来的に別扱いが必要なため、ここには含めない）。
     /// `atk_potential_by_rank[5]`と同じ値(後方互換のため残す)。
     pub atk_potential: f64,
-    /// 潜在ランク別(0始まり。0=潜在1〜5=潜在6)の累積ATK加算値(P8。フレームキル計算機の
+    /// 潜在ランク別(0始まり。0=潜在1〜5=潜在6)の累積ATK加算値(フレームキル計算機の
     /// 「潜在セレクト」用)。`potentialRanks[i]`は0始まりpotential_rank=(i+1)で解放される
     /// (`RawTalentCandidate.potential_rank`と同じ採番)ため、潜在1(rank0)は常に0。
     #[serde(default)]
     pub atk_potential_by_rank: [f64; 6],
     /// デフォルト(無強化)モジュールは含めない。`eq_type`昇順ソート済み。
     pub modules: Vec<RawModuleCombat>,
-    /// 素質一覧(P4。フレームキル計算機の「条件付きバフ」が昇進/潜在から値を機械抽出する
+    /// 素質一覧(フレームキル計算機の「条件付きバフ」が昇進/潜在から値を機械抽出する
     /// ために使う。`talents[i]`の`i`がtalentIndex)。
     #[serde(default)]
     pub talents: Vec<RawTalent>,
@@ -294,7 +294,7 @@ fn parse_blackboard(value: Option<&Value>) -> IndexMap<String, f64> {
 }
 
 /// `talents[i].candidates[]`(character_table.json/char_patch_table.json共通)をパースする。
-/// P4: フレームキル計算機の「条件付きバフ」が昇進/潜在から値を機械抽出するために使う。
+/// フレームキル計算機の「条件付きバフ」が昇進/潜在から値を機械抽出するために使う。
 fn parse_talents(source_value: &Value) -> Vec<RawTalent> {
     let Some(Value::Array(talents)) = source_value.get("talents") else {
         return Vec::new();
@@ -437,8 +437,8 @@ fn parse_skill_unlock_phase(source_value: &Value) -> Vec<(String, u8)> {
 }
 
 /// `potentialRanks[i]`のうち`attributeType == "ATK"` かつ `formulaItem == "ADDITION"`の
-/// modifierの値を、潜在ランク別(0始まり。0=潜在1〜5=潜在6)の累積配列にする(P8。
-/// フレームキル計算機の「潜在セレクト」用)。倍率型(MULTIPLY等)のATK潜在は意図的に
+/// modifierの値を、潜在ランク別(0始まり。0=潜在1〜5=潜在6)の累積配列にする
+/// (フレームキル計算機の「潜在セレクト」用)。倍率型(MULTIPLY等)のATK潜在は意図的に
 /// 含めない（フラットな`atk_base`加算として扱うのが不適切なため。将来的に必要になったら
 /// 別フィールドで持つこと）。
 ///
@@ -641,16 +641,16 @@ fn build_patches(
 }
 
 /// uniequip_table.json（モジュールのメタ情報: 名前/typeName2/charId）と
-/// battle_equip_table.json（Stage1〜3のATK加算値 + P4の素質上書き）を突き合わせて
+/// battle_equip_table.json（Stage1〜3のATK加算値 + 素質上書き）を突き合わせて
 /// 各オペレーターへ追加する。
 ///
-/// **`tmplId`優先の注意(P4で発覚した実データの罠)**: アーミヤの前衛/医療形態のような
+/// **`tmplId`優先の注意(実データの罠)**: アーミヤの前衛/医療形態のような
 /// 「複数の`char_patch_table`派生形が同じ基礎`charId`を共有する」オペレーターの場合、
 /// uniequip_table.json側の各モジュールは`charId`が基礎オペレーター(例:
 /// "char_002_amiya")のまま共通で、`tmplId`にどの派生形専用か(例: "char_1001_amiya2"
 /// =前衛アーミヤ)が入る。ここを`charId`だけで振り分けると、派生形専用のはずの
-/// モジュールが全て基礎オペレーターの方に付いてしまう(前衛アーミヤの実装時に発覚した
-/// 回帰。P4で修正)。`tmplId`があればそちらを優先して振り分け先にする。
+/// モジュールが全て基礎オペレーターの方に付いてしまう(前衛アーミヤで起きる)。
+/// `tmplId`があればそちらを優先して振り分け先にする。
 /// (濁心スカジのように`char_1012_skadi2`という専用charIdを直接持つ派生キャラは
 /// `tmplId`を持たない=`charId`のままで正しく振り分けられる。両ケースを両立させるため
 /// `tmplId.unwrap_or(charId)`にする)。
@@ -884,7 +884,7 @@ mod tests {
         assert_eq!(dusk.atk_trust_max, 110.0);
     }
 
-    /// P8: `atk_potential_by_rank`(潜在ランク別累積ATK加算)の実データ突き合わせ
+    /// `atk_potential_by_rank`(潜在ランク別累積ATK加算)の実データ突き合わせ
     /// (オフライン。Seedを直接読む)。オーナー確認済み実機値: シー(char_2015_dusk)は
     /// 潜在4(0始まりrank3)で+34(潜在1〜3は+0)。夜刀(char_502_nblade)は
     /// potentialRanksのindex2,3(rank3,4=潜在4,5)の2回に分けて加算される。

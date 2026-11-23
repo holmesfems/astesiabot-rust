@@ -5,12 +5,12 @@ import { valueAtLevel } from "./entry.js";
 import { effectiveModuleId, maxEliteFor, maxLevelForElite, resolveAtk } from "./stats.js";
 
 /* ============================================================
-   P3: 鼓舞(インスパイア)ソース
+   鼓舞(インスパイア)ソース
    ============================================================ */
 
 /**
  * 鼓舞ソースの設定の初期値(state未設定時のフォールバック)。
- * P6: 昇進/レベル/信頼度も行(`makeDefaultRow`)と同じ既定(最大昇進・その最大レベル・
+ * 昇進/レベル/信頼度も行(`makeDefaultRow`)と同じ既定(最大昇進・その最大レベル・
  * 信頼度100)にする。
  */
 export function defaultInspireSourceCfg(source) {
@@ -18,8 +18,8 @@ export function defaultInspireSourceCfg(source) {
   return {
     on: false,
     skillNum: source.skills && source.skills[0] ? source.skills[0].skillNum : "",
-    skillLevel: 10, // P7: スキルLv(既定は特化3。旧デフォルトと同じ結果になる)
-    potential: 5, // P8: 潜在ランク(0始まり。既定は潜在6=フル。旧来の攻撃凸+素質凸を統合)
+    skillLevel: 10, // スキルLv(既定は特化3)
+    potential: 5, // 潜在ランク(0始まり。既定は潜在6=フル。攻撃と素質の潜在をまとめて選ぶ)
     moduleId: null,
     moduleLv: 3,
     elite,
@@ -42,12 +42,11 @@ export function defaultInspireSourceCfg(source) {
 export function computeInspireSelfParts(source, cfg) {
   const parts = (source && source.selfParts) || [];
   const partCfg = (cfg && cfg.parts) || {};
-  // P6: モジュール条件は`effectiveModuleId`(elite/level込みの装備可否)経由で判定する
+  // モジュール条件は`effectiveModuleId`(elite/level込みの装備可否)経由で判定する
   // (未装備/装備不可の間はモジュール由来の効果を含めない)。
   const moduleId = effectiveModuleId(source, cfg);
-  // P8: 旧来の「素質凸」チェックボックス(cfg.talentPotential)は潜在セレクト(cfg.potential)へ
-  // 統合したため、`source.talentPotentialRank`(0始まり。素質凸ボーナスが解放される潜在)
-  // 以上を選んでいる間だけ適用する(rankが無いソースは素質凸ボーナスの概念が無いのでfalse)。
+  // 素質凸ボーナスは潜在セレクト(cfg.potential)で、`source.talentPotentialRank`
+  // (0始まり。素質凸ボーナスが解放される潜在)以上を選んでいる間だけ適用する(rankが無いソースは素質凸ボーナスの概念が無いのでfalse)。
   const talentPotentialOn = source && source.talentPotentialRank != null && (cfg.potential ?? 5) >= source.talentPotentialRank;
 
   const isApplicable = (p) => !p.requiresModule || moduleId === p.requiresModule;
@@ -113,7 +112,7 @@ export function resolveInspireSourceAtk(source, cfg) {
  *            selfParts:{pct:number, applied:Array}, breakdown:object, manualPct:number}}
  */
 /**
- * P7: `skillEntry.ratioByLevel`から`skillLevel`(既定10=特化3)の鼓舞倍率を引く。
+ * `skillEntry.ratioByLevel`から`skillLevel`(既定10=特化3)の鼓舞倍率を引く。
  * 配列が無ければ`skillEntry.ratio`(固定値)にフォールバックする。
  */
 export function resolveInspireRatioAtLevel(skillEntry, skillLevel) {

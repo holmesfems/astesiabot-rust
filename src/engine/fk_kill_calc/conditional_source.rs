@@ -1,5 +1,4 @@
-//! 「条件付き/個別バフの「ゲームデータからの動的値解決」(P4で条件付き向けに追加、
-//! P5で個別バフにも対応させ3種のソースを追加)。
+//! 「条件付き/個別バフの「ゲームデータからの動的値解決」。
 //!
 //! `data/fk_kill_calc/buffers.yaml`の`conditional.*.source`/`individual.*.source`(生データは
 //! `buffers.rs`の`RawConditionalSource`/`raw_conditional_sourced()`/`raw_individual_sourced()`)を、
@@ -44,7 +43,7 @@
 //! 判定は「潜在最大(5)で昇進0/1/2を比較(elite_varies)」「昇進最大(2)で潜在0〜5を比較
 //! (potential_varies)」「モジュール各Lv×各潜在の値をベース(E2側)と比較して1箇所でも
 //! 違えば採用(modules)」という単純な全探索(高々3×6=18通り)で行う。
-//! P5で追加した「スキルLv別スケール」(`scale`)にも同じ思想のdedupeを適用する
+//! 「スキルLv別スケール」(`scale`)にも同じ思想のdedupeを適用する
 //! (`ConditionalSkillSource::varies`。全レベルで値が同じなら`varies=false`とし、UIはこの
 //! 軸のセレクトを出さない。例: スワイヤーS1のtalent_scaleは全レベル2.0固定なので
 //! `varies=false`)。
@@ -59,7 +58,7 @@
 //! `SkillData::get_blackboard_by_level`のレベル1〜(データ数)の該当キー値をそのまま使う。
 //! 昇進/潜在/モジュールの概念は無い(スキルLvの1軸のみ)。
 //!
-//! ## 解決アルゴリズム(P5。スケール乗算・固定基礎値・段階)
+//! ## 解決アルゴリズム(スケール乗算・固定基礎値・段階)
 //! - `scale_skill_num`/`scale_key`: `skill_num`単独と全く同じ仕組み(`build_skill_source`を
 //!   再利用)で値テーブルを作り、`talent`(または`base_pct`)の値に掛け合わせる。
 //!   `defaults.skill_level`(単独`skill`と共有するフィールド。両者は排他なので衝突しない)
@@ -71,7 +70,7 @@
 //!   `stage_labels`はUI表示用のラベル(例: "1段階"〜"3段階")。`talent`/`skill_num`/
 //!   `scale_skill_num`/`base_pct`とは排他。
 //!
-//! ## 対象人数の拡張(P5。`max_targets_by_module`。個別バフ専用)
+//! ## 対象人数の拡張(`max_targets_by_module`。個別バフ専用)
 //! エクシアの素質「配置後ランダムな味方1名にも同じ効果を付与」はモジュールX
 //! (uniequip_002_angel)Lv2以上を装備すると対象が2名になる。値の解決自体には関与せず、
 //! `single_target`警告(`engine.js`の`findSingleTargetConflicts`)が許容する選択数の
@@ -133,7 +132,7 @@ fn resolve_module_override(
 
 /// 素質由来の`ConditionalTalentSource`を組み立てる。`talent_index`が範囲外なら`None`
 /// (ドリフト検知は`validate_conditional_sources`/`validate_individual_sources`が担当する)。
-/// `mod.rs`の`to_special_dto`(P8 follow-up。特殊強化の乗算系`mul_multiplier`)からも
+/// `mod.rs`の`to_special_dto`(特殊強化の乗算系`mul_multiplier`)からも
 /// 同じビルダーを再利用するため`pub(super)`にしている。
 pub(super) fn build_talent_source(
     op: &RawOperatorCombat,
@@ -200,7 +199,7 @@ pub(super) fn build_talent_source(
 
 /// スキルLv由来の`ConditionalSkillSource`を組み立てる。skill_numから実スキルが
 /// 解決できない/blackboardが無ければ`None`。`ConditionalSource.skill`(値そのもの)と
-/// `ConditionalSource.scale`(P5。他の値に掛ける倍率)の両方でこの関数を使い回す
+/// `ConditionalSource.scale`(他の値に掛ける倍率)の両方でこの関数を使い回す
 /// (呼び出し側が渡す`skill_num`/`key`が違うだけで、構築ロジックは同一)。
 fn build_skill_source(
     ops: &OperatorData,
@@ -236,7 +235,7 @@ fn build_skill_source(
     })
 }
 
-/// 離散的な「段階」で値が変わる`ConditionalStageSource`を組み立てる(P5)。`skill_id`を
+/// 離散的な「段階」で値が変わる`ConditionalStageSource`を組み立てる。`skill_id`を
 /// `skill_id_by_num`経由ではなく直接指定する(トークンスキル等、そのオペレーター自身の
 /// skill_num一覧には載らないため)。`stage_keys`/`stage_labels`は同じ要素数であること
 /// (`validate_one_source`が検証する)。
@@ -294,7 +293,7 @@ fn compute_defaults(
     }
 }
 
-/// `defaults`の選択状態で値を解決する(`Buffer.value`に入れる初期値)。P5で追加した
+/// `defaults`の選択状態で値を解決する(`Buffer.value`に入れる初期値)。
 /// `scale`/`base_pct`/`stage`を含めた統一ロジック:
 ///   - `stage`があれば段階値をそのまま返す(他の軸とは排他)。
 ///   - `talent`/`base_pct`のどちらも無ければ(=`skill`単独。値そのもの)そのまま返す。
@@ -357,7 +356,7 @@ fn build_source(
 ) -> Option<ConditionalSource> {
     let op = combat.operators.get(&spec.operator)?;
 
-    // 段階ソース(P5)は他の軸と排他なので、他を見る前に確定させる。
+    // 段階ソースは他の軸と排他なので、他を見る前に確定させる。
     if let Some(skill_id) = &spec.stage_skill_id {
         let stage = build_stage_source(
             skills,
@@ -494,7 +493,7 @@ pub fn build_conditional_sourced_buffers(
     out
 }
 
-/// `raw_individual_sourced()`(YAML生データ。P5)と`operator_combat`/`operator_data`/
+/// `raw_individual_sourced()`(YAML生データ)と`operator_combat`/`operator_data`/
 /// `skill_data`をマージして`dto::Buffer`一覧を組み立てる。`build_conditional_sourced_buffers`
 /// の個別バフ版(ロジックは`build_source`を共有する)。個別バフの`source`は今のところ
 /// 全て`pct`種のみ(`flat`種が必要になったら`RawIndividual`に`kind`を足して拡張する)。
@@ -677,8 +676,8 @@ pub fn validate_conditional_sources(
     bad
 }
 
-/// `raw_individual_sourced()`が実データと整合しているかを検証する(P5。
-/// `validate_conditional_sources`の個別バフ版)。
+/// `raw_individual_sourced()`が実データと整合しているかを検証する
+/// (`validate_conditional_sources`の個別バフ版)。
 #[cfg(test)] // `mod.rs`の`#[cfg(test)]`からのみ呼ばれる。
 pub fn validate_individual_sources(
     combat: &OperatorCombat,

@@ -83,7 +83,7 @@ function rowPlainSummary(row) {
   const entry = findEntry(op, row.entryIdx);
   const { results } = computeTotal(catalog, [row], state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());
   const r = results[0];
-  // P10(混合スキル): パーツが2つ以上あるエントリはパーツ内訳(例: "物理 1200 + 術 300")を出す。
+  // 混合スキル: パーツが2つ以上あるエントリはパーツ内訳(例: "物理 1200 + 術 300")を出す。
   if (entry && entry.parts && entry.parts.length > 1) {
     const partsText = entry.parts.map((p, i) => `${p.label} ${fmtInt(r.parts[i].rowDamage)}`).join(" + ");
     return `${op.name} ${eliteLevelLabel(row)} ${shortSkillRef(entry)}: ${partsText} → 実ダメ ${fmtInt(r.rowDamage)}`;
@@ -95,8 +95,8 @@ function rowPlainSummary(row) {
   return `${op.name} ${eliteLevelLabel(row)} ${shortSkillRef(entry)}: ${fmtInt(r.perHit)}×${row.hits}Hit → 実ダメ ${fmtInt(r.rowDamage)}`;
 }
 
-// P6: "E2 Lv90"(信頼度100%は省略。それ以外は"信頼60%"のように付け足す)。
-// P7: スキルLvが既定(特化3=10)でない場合だけ末尾に付け足す(例: "E2 Lv90 SLv7")。
+// "E2 Lv90"(信頼度100%は省略。それ以外は"信頼60%"のように付け足す)。
+// スキルLvが既定(特化3=10)でない場合だけ末尾に付け足す(例: "E2 Lv90 SLv7")。
 function eliteLevelLabel(row) {
   let s = `E${row.elite} Lv${row.level}`;
   if (row.trust !== 100) s += ` 信頼${row.trust}%`;
@@ -112,7 +112,7 @@ function buffCountBadge(r) {
   return `<span class="badge badge-buffcount" title="適用中のバフ数">バフ${n}</span>`;
 }
 
-// P3: 鼓舞が実際に適用されている(amount>0)行にだけ小さな「鼓舞」バッジを出す。
+// 鼓舞が実際に適用されている(amount>0)行にだけ小さな「鼓舞」バッジを出す。
 function inspireBadge(r) {
   if (!r || !r.inspireApplied) return "";
   return `<span class="badge badge-inspire" title="${escapeHtml(r.inspireApplied.sourceName)}の鼓舞+${fmtInt(r.inspireApplied.amount)}が適用中">鼓舞</span>`;
@@ -137,11 +137,11 @@ function renderRowSummary(row, idx) {
     + `<span class="row-summary-damage" title="${tooltip}">${fmtInt(r.rowDamage)}</span>`;
 }
 
-// 「② 全体バフ（条件付き）」セクション。summaryに"N件ON"を出す(仕様どおり。P3で
+// 「② 全体バフ（条件付き）」セクション。summaryに"N件ON"を出す(仕様どおり。
 // 鼓舞ソースのON件数と合計量も合算して出す)。
 function renderGlobalBuffs() {
   const conditional = (catalog.buffers || []).filter((b) => b.scope.type === "conditional");
-  // P4: 固定値(pct/flat)のconditionalは従来どおりチップ1行に並べ、`source`付き
+  // 固定値(pct/flat)のconditionalは従来どおりチップ1行に並べ、`source`付き
   // (ゲームデータから動的解決するもの)は選択軸を出せるカード形式にする。
   const fixedConditional = conditional.filter((b) => !b.source);
   const sourcedConditional = conditional.filter((b) => b.source);
@@ -342,13 +342,13 @@ export function renderLive() {
       }
       card.querySelectorAll(".field-badges").forEach((badges) => {
         const field = badges.dataset.badgesFor;
-        // P10(混合スキル): data-part(1以上)が付いていればrow.extraParts[part-1]から
+        // 混合スキル: data-part(1以上)が付いていればrow.extraParts[part-1]から
         // 現在値を読む(0/未指定ならrow自身=パーツ0のまま)。
         const partIndex = badges.dataset.part ? Number(badges.dataset.part) : 0;
         const currentValue = partIndex > 0 ? (row.extraParts && row.extraParts[partIndex - 1] && row.extraParts[partIndex - 1][field]) : row[field];
         badges.outerHTML = fieldBadges(entry, field, currentValue, idx, row.skillLevel, partIndex);
       });
-      // P6: レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するよう
+      // レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するよう
       // 差し替える(elite/moduleIdの変更は既にrender()で全体を作り直す)。
       const moduleHint = card.querySelector('[data-role="module-hint"]');
       if (moduleHint) moduleHint.innerHTML = op ? renderModuleUnusableHint(op, row) : "";
@@ -357,7 +357,7 @@ export function renderLive() {
       if (main) main.innerHTML = renderRowSummary(row, idx);
     }
   });
-  // P3: ONになっている鼓舞ソースの結果行(→ 鼓舞 +N)も打鍵のたびに差し替える
+  // ONになっている鼓舞ソースの結果行(→ 鼓舞 +N)も打鍵のたびに差し替える
   // (手入力バフ+%はrenderLive経由で更新するため。行の入力欄は他のケースと同じく触らない)。
   (catalog.inspireSources || []).forEach((source) => {
     const wrap = document.querySelector(`.inspire-result-wrap[data-source-id="${source.id}"]`);
@@ -365,7 +365,7 @@ export function renderLive() {
     const cfg = sourceCfg(source);
     const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds, buffLevelsState());
     wrap.innerHTML = renderInspireResultBlock(source, cfg, result);
-    // P6: レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するようにする。
+    // レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するようにする。
     const moduleHint = document.querySelector(`[data-role="inspire-module-hint"][data-source-id="${source.id}"]`);
     if (moduleHint) moduleHint.innerHTML = renderModuleUnusableHint(source, cfg);
   });

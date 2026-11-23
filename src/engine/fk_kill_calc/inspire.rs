@@ -55,7 +55,7 @@ pub(super) fn build_inspire_sources(
     sources
 }
 
-/// `RawInspireSkill`(固定`ratio` or スキルLv別追従`ratio_key`。P7)から
+/// `RawInspireSkill`(固定`ratio` or スキルLv別追従`ratio_key`)から
 /// `dto::InspireSkillRatio`を組み立てる。`ratio_key`が実スキルのblackboardに解決できない
 /// 場合は固定`ratio`(未指定なら0.0)にフォールバックする(ドリフト自体は
 /// `validate_inspire_sources`が検知する)。

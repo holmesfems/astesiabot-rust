@@ -4,7 +4,7 @@ import { findOperator, resolveTalentTableValue, talentTableRowFor } from "./entr
 import { effectiveElite, effectiveModuleId } from "./stats.js";
 
 /**
- * P2のバフ内訳を計算する。個別バフ(row.buffIds)は無条件に合算、条件付きバフ
+ * バフ内訳を計算する。個別バフ(row.buffIds)は無条件に合算、条件付きバフ
  * (globalBuffIds)はentry.tagsとの重なりで判定する（詳細はファイル冒頭コメント参照）。
  * `entry`が無い(未選択行等)場合はタグ判定ができないため条件付きバフは全て不適用扱いになる
  * （個別バフはタグ判定不要なのでentryが無くても合算する）。
@@ -17,7 +17,7 @@ import { effectiveElite, effectiveModuleId } from "./stats.js";
 export const ALL_TAG = "全員";
 
 /**
- * `b.source`(P4。素質由来 or スキルLv由来)を持つ条件付きバフの値を、選択中の軸
+ * `b.source`(素質由来 or スキルLv由来)を持つ条件付きバフの値を、選択中の軸
  * (`levels`。省略/未選択の軸は`source.defaults`にフォールバック)で解決する。
  * `b.source`が無い(固定`pct`/`flat`)バフはそのまま`b.value`を返す。
  * `b.toggle`(省略可)がONなら最後に`toggle.mult`を掛ける。
@@ -25,8 +25,8 @@ export const ALL_TAG = "全員";
  * @param {{elite?:number, potential?:number, moduleId?:(string|null), moduleLevel?:number,
  *           skillLevel?:number, toggleOn?:boolean}} levels
  */
-// 潜在(0〜5=潜在1〜6)を「値が変わる境目」でまとめる汎用ヘルパー(P4で素質ソース向けに
-// 追加、P8で行/鼓舞ソースのATK潜在・鼓舞ソースの素質凸境目にも使えるよう汎用化した)。
+// 潜在(0〜5=潜在1〜6)を「値が変わる境目」でまとめる汎用ヘルパー(素質ソース・行/鼓舞ソースのATK潜在・
+// 鼓舞ソースの素質凸境目のどれにも使う)。
 // `tables`は各要素が`table[p]`(潜在p=0〜5の値)を持つ配列(長さ6)の配列で、
 // どれか1つでも値の組が変われば境目にする(例: 素質×モジュールの全テーブルで揃って
 // 同じ潜在はまとめる。エイヤは潜在1-5/潜在6)。
@@ -42,8 +42,8 @@ export function potentialGroups(tables) {
   return groups;
 }
 
-// P8: 素質ソース(talent)向けの全テーブル(昇進×潜在 + 各モジュールのLv×潜在)を集めて
-// potentialGroupsに渡す。旧`potentialGroups(talent)`呼び出しの置き換え。
+// 素質ソース(talent)向けの全テーブル(昇進×潜在 + 各モジュールのLv×潜在)を集めて
+// potentialGroupsに渡す。
 export function talentPotentialGroups(talent) {
   const tables = [
     ...((talent && talent.valuesByEliteAndPotential) || []),
@@ -52,9 +52,9 @@ export function talentPotentialGroups(talent) {
   return potentialGroups(tables);
 }
 
-// P8: 行/鼓舞ソースのATK潜在(単一テーブル)を「値が変わる境目」でグルーピングする。
+// 行/鼓舞ソースのATK潜在(単一テーブル)を「値が変わる境目」でグルーピングする。
 // `op.atkPotentialByRank`が無い(簡易オブジェクト)場合は境目無し(潜在1-6の1グループ)扱い。
-// P8 follow-up: `entry`/`row`を渡すと、`entry.special.mulMultiplier`(乗算系特殊強化の
+// `entry`/`row`を渡すと、`entry.special.mulMultiplier`(乗算系特殊強化の
 // 素質値テーブル)がある場合にATK潜在テーブルと合成する(境目の和集合)。テーブルは行自身の
 // 現在の昇進/実効モジュール(`effectiveElite`/`effectiveModuleId`)に対応する「潜在ごとの
 // 値配列」を使う(`talentTableRowFor`。elite/moduleIdを変えれば選ぶ配列も変わるが、
@@ -85,7 +85,7 @@ export function atkPotentialGroups(op, entry, row) {
   return potentialGroups(tables);
 }
 
-// P8: 鼓舞ソースの潜在セレクトの境目。ATK加算の変化点 ∪ 素質凸(pctPotentialBonus)が
+// 鼓舞ソースの潜在セレクトの境目。ATK加算の変化点 ∪ 素質凸(pctPotentialBonus)が
 // 解放される境目(`source.talentPotentialRank`。0始まり)。素質凸境目は「そのrank以上なら1、
 // 未満なら0」という仮想テーブルとしてpotentialGroupsに一緒に渡すことで、ATK/素質凸どちらの
 // 境目でも自然にグループが分かれる(例: 濁心スカジは潜在1-3/潜在4/潜在5-6)。
@@ -102,7 +102,7 @@ export function resolveConditionalValue(b, levels = {}) {
   const defaults = source.defaults || {};
   let base;
   if (source.stage) {
-    // P5: 離散段階ソース(スキルLvではなく段階で値が変わる。例: ナスティS3)。
+    // 離散段階ソース(スキルLvではなく段階で値が変わる。例: ナスティS3)。
     const stageIndex = levels.stageIndex ?? defaults.stageIndex ?? 1;
     const idx = Math.min(Math.max(stageIndex, 1), source.stage.values.length) - 1;
     base = source.stage.values[idx] ?? 0;
@@ -112,15 +112,15 @@ export function resolveConditionalValue(b, levels = {}) {
     const idx = Math.min(Math.max(skillLevel, 1), source.skill.valuesByLevel.length) - 1;
     base = source.skill.valuesByLevel[idx] ?? 0;
   } else {
-    // P5: talent または base_pct を主軸とし、scale(あれば)を掛け合わせる。
+    // talent または base_pct を主軸とし、scale(あれば)を掛け合わせる。
     let primary;
     if (source.talent) {
       const elite = levels.elite ?? defaults.elite ?? 2;
       const potential = levels.potential ?? defaults.potential ?? 5;
       const moduleId = levels.moduleId !== undefined ? levels.moduleId : (defaults.moduleId ?? null);
       const moduleLevel = levels.moduleLevel ?? defaults.moduleLevel ?? 3;
-      // P8 follow-up: 素質値テーブルの解決自体は特殊強化の乗算系(mulMultiplier)と
-      // 共通の`resolveTalentTableValue`に切り出した(モジュールは昇進2でしか装備
+      // 素質値テーブルの解決は特殊強化の乗算系(mulMultiplier)と
+      // 共通の`resolveTalentTableValue`を使う(モジュールは昇進2でしか装備
       // できないのでE0/E1ではモジュール選択を無視する、という判定も含めて同じロジック)。
       primary = resolveTalentTableValue(source.talent, { elite, potential, moduleId, moduleLevel });
     } else {
@@ -151,7 +151,7 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = [], gl
   for (const id of row.buffIds || []) {
     const b = byId.get(id);
     if (!b || b.scope.type !== "individual") continue;
-    // P5: sourceを持つ個別バフはglobalBuffLevels[id](育成設定)で解決した値を使う
+    // sourceを持つ個別バフはglobalBuffLevels[id](育成設定)で解決した値を使う
     // (conditionalと同じ`resolveConditionalValue`をそのまま再利用する)。
     const value = b.source ? resolveConditionalValue(b, (globalBuffLevels && globalBuffLevels[id]) || {}) : b.value;
     if (b.kind === "pct") individualPct += value;
@@ -208,7 +208,7 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = [], gl
 }
 
 /**
- * P9: 「FK行との育成設定リンク」。バフの`source.operatorId`と一致するFK行
+ * 「FK行との育成設定リンク」。バフの`source.operatorId`と一致するFK行
  * (`state.rows`内で最初に見つかったもの)を返す。無ければ`null`。
  * `effectiveBuffLevels`と、UIの「FK行（<name>）の設定を使用」表示の両方から使う
  * 共通ロジック(計算と表示を同じ判定基準に揃えるため)。
@@ -221,7 +221,7 @@ export function findLinkedRow(buffer, state) {
 }
 
 /**
- * P9: バフ1件分の軸選択(`resolveConditionalValue`の`levels`引数)を組み立てる。
+ * バフ1件分の軸選択(`resolveConditionalValue`の`levels`引数)を組み立てる。
  * 通常は`state.globalBuffLevels[buffer.id]`(未設定分は`source.defaults`)をそのまま使うが、
  * このバフの`source.operatorId`と同じオペレーターのFK行があれば、
  * 昇進(elite)/潜在(potential)/モジュール(moduleId・moduleLevel)/スキルLv(skillLevel)は
@@ -266,7 +266,7 @@ export function effectiveBuffLevels(buffer, state, catalog) {
 }
 
 /**
- * P9: カタログの全バフに`effectiveBuffLevels`を適用したbuffId→軸選択のmap。
+ * カタログの全バフに`effectiveBuffLevels`を適用したbuffId→軸選択のmap。
  * `computeTotal`/`findSingleTargetConflicts`/`suggest`/`computeInspireSource`に渡す
  * `globalBuffLevels`はこの解決済みmapを使う(呼び出し側がFK行リンクを個別に意識せず
  * 済むようにするための唯一の差し込み口。ui.jsの`buffLevelsState()`もこれをそのまま使う)。
@@ -279,7 +279,7 @@ export function computeEffectiveGlobalBuffLevels(catalog, state) {
 }
 
 /**
- * P9: 行のオペレーターが確定した瞬間(`opId`が今のidになった瞬間)、その
+ * 行のオペレーターが確定した瞬間(`opId`が今のidになった瞬間)、その
  * オペレーターを`source.operatorId`に持つ条件付きバフを一度だけ自動でONにする
  * (例: ホルンを行に追加すると「軍事要塞」がON。異格エクシア等の他のバフ付き
  * オペレーターでも同様に働く。意図的な汎用挙動)。既にONのidは変えない(冪等)。
@@ -305,10 +305,10 @@ export function autoEnableSourcedBuffs(catalog, globalBuffIds, opId) {
 /**
  * `single_target`(単体対象)バフが許容数を超えて選ばれているかを検出する。
  * UIが⚠警告を出すためのデータ(「本当に両方に乗るのか？」の注意喚起。計算自体は
- * 単純合算のままで、警告を出すだけに留める)。P3: 鼓舞ソース(`inspireSourceStates`。
+ * 単純合算のままで、警告を出すだけに留める)。鼓舞ソース(`inspireSourceStates`。
  * ON中のソースの`buffIds`のみを数える。OFF中は効果自体が無いため対象外)側の選択も
  * 行と同じ名前空間で数える(例: エクシアを行とソース両方で選ぶと両方に⚠が出る)。
- * 許容数は通常1だが、P5の`b.source.maxTargetsByModule`(例: エクシア。モジュールX Lv2以上
+ * 許容数は通常1だが、`b.source.maxTargetsByModule`(例: エクシア。モジュールX Lv2以上
  * 装備時は2名まで許容)が現在の`globalBuffLevels`選択で条件を満たす間は`count`に緩和する。
  * @returns {Set<string>} 許容数を超えて選ばれているバフidの集合
  */

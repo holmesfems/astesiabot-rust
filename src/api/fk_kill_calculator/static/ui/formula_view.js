@@ -4,9 +4,9 @@ import { computeTotal, findEntry, resolveStoneBoardValues } from "../engine.js";
 import { escapeHtml, fmtInt, fmtPct, trimNum } from "./dom.js";
 import { buffLevelsState, catalog, inspireStates, state } from "./store.js";
 
-// フォーミュラ行(P2/P3): `691 ×(1 + セルフ0% + 個別150% + 条件0% + 手入力0%) × 400% = 6,910 /hit`。
-// 鼓舞(flat種バフ + P3の鼓舞ソースからの加算の合計)は0でない時だけ足す(仕様どおり)。
-// P10(混合スキル): パーツごとに1行ずつ式を組み立て、パーツが2つ以上ある時だけ
+// フォーミュラ行: `691 ×(1 + セルフ0% + 個別150% + 条件0% + 手入力0%) × 400% = 6,910 /hit`。
+// 鼓舞(flat種バフ + 鼓舞ソースからの加算の合計)は0でない時だけ足す(仕様どおり)。
+// 混合スキル: パーツごとに1行ずつ式を組み立て、パーツが2つ以上ある時だけ
 // 最後に合計行を足す(パーツを持たない通常行は従来通り1行のまま)。
 export function renderFormulaLine(op, row) {
   const entry = findEntry(op, row.entryIdx);

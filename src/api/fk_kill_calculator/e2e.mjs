@@ -556,7 +556,7 @@ async function runHostileShareLinkScenario(browser, baseUrl) {
   }
 }
 
-// P2: 個別バフ/条件付きバフ/特殊強化トグルの表現層テスト。
+// 個別バフ/条件付きバフ/特殊強化トグルの表現層テスト。
 // ブレイズ(S3のみのFKエントリ。特殊強化「待機ボーナス」を持つ)とAsh(S3/400%、狙撃=非近距離)を
 // 使い、個別バフチップ・全体バフ(条件付き)チップ・特殊強化チェックボックス・single_target警告
 // ・条件付き適用状況の✓/–表示・buffN件バッジ・localStorage/共有URLでの永続化を検証する。
@@ -573,7 +573,7 @@ async function runBuffScenario(browser, baseUrl) {
     await addOperator(page, 'ブレイズ', null);
     await page.waitForSelector('.row-expanded', { timeout: 5000 });
 
-    // --- 特殊強化チェックボックス(P2 follow-up): デフォルトONで、トグルすると加算系
+    // --- 特殊強化チェックボックス: デフォルトONで、トグルすると加算系
     //     ボーナス(「待機ボーナス6%」)がフォーミュラ行に出たり消えたりする。selfPct自体は
     //     もう変わらない(0.712固定。バグ込みの実測値として常に適用されるため)。---
     const specialCheckbox = page.locator('[data-field="specialOn"]');
@@ -598,7 +598,7 @@ async function runBuffScenario(browser, baseUrl) {
     const formulaRestored = await page.locator('.row-formula').innerText();
     ok('re-checking special toggle restores the bonus in the formula', formulaRestored.includes('待機ボーナス6%'), formulaRestored);
 
-    // --- ⓘボタン: 説明文のトグル(aria-expanded)。P2 follow-up ---
+    // --- ⓘボタン: 説明文のトグル(aria-expanded) ---
     const infoBtn = page.locator('.special-info-btn');
     ok('ⓘ info button is present next to the special checkbox', (await infoBtn.count()) === 1);
     ok('ⓘ button starts collapsed (aria-expanded=false)', (await infoBtn.getAttribute('aria-expanded')) === 'false');
@@ -613,7 +613,7 @@ async function runBuffScenario(browser, baseUrl) {
     ok('ⓘ button collapses again after a 2nd click', (await page.locator('.special-info-btn').getAttribute('aria-expanded')) === 'false');
     ok('special description is hidden again after collapsing', (await page.locator('.special-desc').count()) === 0);
 
-    // --- モジュールを切り替えるとチェックボックス/ヒントが出し分けられる(P2 follow-up)。
+    // --- モジュールを切り替えるとチェックボックス/ヒントが出し分けられる。
     //     ブレイズの特殊強化はモジュールX限定なので、モジュールYへ切り替えるとヒントに
     //     変わり、Xへ戻すとチェックボックスに戻る。 ---
     const moduleSelect = page.locator('select[data-field="moduleId"]');
@@ -643,7 +643,7 @@ async function runBuffScenario(browser, baseUrl) {
     const formulaWithPlasma = await page.locator('.row-formula').innerText();
     ok('formula line reflects the individual buff pct (個別90%)', formulaWithPlasma.includes('個別90%'), formulaWithPlasma);
 
-    // --- single_targetバフ(アS3/durian。コーディネーター指示でP5にsingle_target化)を
+    // --- single_targetバフ(アS3/durian)を
     //     2行で選ぶと⚠が出る ---
     const durianChip1 = page.locator('.chip[data-buff-id="durian"]');
     ok('single_target chip (アS3/durian) exists', (await durianChip1.count()) === 1);
@@ -670,7 +670,7 @@ async function runBuffScenario(browser, baseUrl) {
     await page.waitForTimeout(100);
     await page.click('[data-action="collapse-row"]');
 
-    // --- single_targetバフ(エクシア)は対象人数の拡張(max_targets_by_module。P5)の対象:
+    // --- single_targetバフ(エクシア)は対象人数の拡張(max_targets_by_module)の対象:
     //     育成設定の既定(モジュールX Lv2以上)では2行選んでも⚠が出ない ---
     await page.locator('[data-action="edit-row"]').first().click();
     await page.waitForSelector('.row-expanded', { timeout: 5000 });
@@ -754,7 +754,7 @@ async function runBuffScenario(browser, baseUrl) {
     ok('Castle does not apply (–) to Ash(狙撃/非近距離)', condAsh.includes('–') && condAsh.includes('Castle'), condAsh);
     await page.click('[data-action="collapse-row"]');
 
-    // --- P4: Castle(source付き。潜在のみ変化・昇進/モジュールは変わらない)は、
+    // --- Castle(source付き。潜在のみ変化・昇進/モジュールは変わらない)は、
     //     ONにするとインラインの潜在セレクトだけが出て、選択を変えると解決値が変わる ---
     const castleCard = page.locator('.cond-source-card[data-buff-id="castle3"]');
     ok('Castle card has a potential select (potential varies)',
@@ -780,8 +780,8 @@ async function runBuffScenario(browser, baseUrl) {
     ok('エイヤ potential options are grouped to 潜在1-5/潜在6', JSON.stringify(ayaPotOpts) === JSON.stringify(['潜在1-5', '潜在6']), JSON.stringify(ayaPotOpts));
     if (!ayaWasOn) { await page.locator('.chip[data-buff-id="aya"]').click(); await page.waitForTimeout(100); }
 
-    // --- 前衛アーミヤ: 「全員」に効き、toggle(スキル中は効果2倍)で解決値が変わる(P4で
-    //     旧amiya_guard_normal/amiya_guard_skillの2エントリから1エントリ+toggleへ統合) ---
+    // --- 前衛アーミヤ: 「全員」に効き、toggle(スキル中は効果2倍)で解決値が変わる。
+    //     通常/スキル中は1エントリ(amiya_guard)+toggleで表す ---
     const amiyaChip = page.locator('.chip[data-buff-id="amiya_guard"]');
     await amiyaChip.click();
     await page.waitForTimeout(100);
@@ -855,7 +855,7 @@ async function runBuffScenario(browser, baseUrl) {
   }
 }
 
-// P3: 鼓舞(インスパイア)ソース(濁心スカジ)の表現層テスト。ONにすると鼓舞量が表示され
+// 鼓舞(インスパイア)ソース(濁心スカジ)の表現層テスト。ONにすると鼓舞量が表示され
 // 判定が変わること、スキル切替、モジュール条件によるチェックボックス/ヒントの出し分け、
 // 行の鼓舞トグル、折りたたみバッジ、手入力バフ+%欄のキー入力、single_target⚠が
 // 行と鼓舞ソースを跨いで検出されること、リロード/共有URLでの永続化を検証する。
@@ -920,7 +920,7 @@ async function runInspireScenario(browser, baseUrl) {
     ok('selecting module X reveals the condition checkbox instead of the hint',
       (await page.locator('input[data-source-id="skadi2"][data-field^="part:"]').count()) >= 1);
 
-    // --- P8: 潜在セレクト(旧「攻撃凸」+「素質凸」チェックボックスの統合)。濁心スカジは
+    // --- 潜在セレクト(攻撃凸と素質凸を1つにまとめたもの)。濁心スカジは
     //     ATK潜在(潜在4)と素質凸(潜在5)の2つの境目を持つため潜在1-3/潜在4/潜在5-6の3択 ---
     const potentialSelect = page.locator('select[data-source-id="skadi2"][data-field="potential"]');
     ok('inspire source card has a potential select', (await potentialSelect.count()) === 1);
@@ -1010,7 +1010,7 @@ async function runInspireScenario(browser, baseUrl) {
     await sourceDurianChip.click();
     await page.waitForTimeout(100);
 
-    // --- エクシア(max_targets_by_module=2。P5): 育成設定が既定(モジュールX Lv2以上)の間は
+    // --- エクシア(max_targets_by_module=2): 育成設定が既定(モジュールX Lv2以上)の間は
     //     ソース+行の合計2箇所選んでも⚠が出ない ---
     const sourceExusiaiChip = page.locator('.inspire-source-card .chip[data-buff-id="exusiai"]');
     await sourceExusiaiChip.click();
@@ -1068,7 +1068,7 @@ async function runInspireScenario(browser, baseUrl) {
   }
 }
 
-// P4: 条件付きバフの動的値解決(昇進/潜在/モジュール/スキルLv)のインライン選択UIの
+// 条件付きバフの動的値解決(昇進/潜在/モジュール/スキルLv)のインライン選択UIの
 // 表現層テスト。スズラン(モジュール限定。未装備時はヒント)・ズィマー(スキルLv選択)・
 // 選択のlocalStorage永続化を検証する。
 async function runConditionalSourceScenario(browser, baseUrl) {
@@ -1157,7 +1157,7 @@ async function runConditionalSourceScenario(browser, baseUrl) {
   }
 }
 
-// P5: 個別バフの動的値解決(talent×scale/base_pct×scale/stage)と「個別バフの育成設定」
+// 個別バフの動的値解決(talent×scale/base_pct×scale/stage)と「個別バフの育成設定」
 // セクションの表現層テスト。何も選んでいない間はヒントのみ、行でバフを選ぶとカードが
 // 現れること・軸の表示/非表示(scaleのvaries)・段階セレクト・トグル(装置2台)・
 // リロードでの永続化を検証する。
@@ -1270,14 +1270,14 @@ async function runIndividualBuffLevelsScenario(browser, baseUrl) {
   }
 }
 
-// P1形(buffIds/specialOn/globalBuffIds無し)のlocalStorage stateがそのまま読み込めること。
+// buffIds/specialOn/globalBuffIds を持たない古い形の localStorage state がそのまま読み込めること。
 async function runOldShapeLocalStorageScenario(browser, baseUrl) {
   const context = await browser.newContext();
   const page = await context.newPage();
   try {
     await page.goto(baseUrl + '/FrameKillCalculator', { waitUntil: 'networkidle' });
     await page.evaluate(() => {
-      // P1当時のフィールドのみを持つstate(buffIds/specialOn/globalBuffIds無し)。
+      // buffIds/specialOn/globalBuffIds を持たない古い形のstate。
       const oldState = {
         v: 1,
         enemy: { hp: 5000, def: 0, res: 0, defFlat: 0, defPct: 0, resFlat: 0, vulnPct: 0 },
@@ -1290,13 +1290,13 @@ async function runOldShapeLocalStorageScenario(browser, baseUrl) {
     });
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(300);
-    ok('old P1-shaped localStorage state loads without error (1 row)', (await page.locator('.row-card').count()) === 1);
+    ok('old-shaped localStorage state loads without error (1 row)', (await page.locator('.row-card').count()) === 1);
     const verdictText = await page.locator('#verdict-text').innerText();
-    ok('old P1-shaped localStorage state computes a verdict',
+    ok('old-shaped localStorage state computes a verdict',
       verdictText.includes('撃破できる') || verdictText.includes('足りない'), verdictText);
 
-    // --- P8: 旧boolean形式のpotential(true)は丁寧な移行をせず既定値(5=潜在6)へ
-    //     リセットされる(オーナー指示。詳細はengine.jsのdropStaleRowsコメント参照) ---
+    // --- boolean形式のpotential(true)は移行せず既定値(5=潜在6)へ
+    //     リセットされる(詳細はengine.jsのdropStaleRowsコメント参照) ---
     await page.locator('[data-action="edit-row"]').first().click();
     await page.waitForSelector('.row-expanded', { timeout: 5000 });
     const potentialSelect = page.locator('select[data-field="potential"][data-idx="0"]');
@@ -1309,7 +1309,7 @@ async function runOldShapeLocalStorageScenario(browser, baseUrl) {
   }
 }
 
-// P8: 行/鼓舞ソースの潜在セレクト(旧「攻撃凸」/「攻撃凸+素質凸」チェックボックスの後継)。
+// 行/鼓舞ソースの潜在セレクト(攻撃凸・素質凸を1つにまとめたもの)。
 async function runPotentialScenario(browser, baseUrl) {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -1371,7 +1371,7 @@ async function runPotentialScenario(browser, baseUrl) {
   }
 }
 
-// P8 follow-up: 特殊強化(乗算系mulMultiplier)が固定値ではなく行自身の昇進/潜在に
+// 特殊強化(乗算系mulMultiplier)が固定値ではなく行自身の昇進/潜在に
 // 追従すること(ファイヤーウォッチS2「遠距離特効」)。verify.mjsの計算結果(潜在4は×1.5、
 // E2/潜在6/モジュールYLv3は×1.55、E0は素質未解放で×1[ヒント])を表現層で確認する。
 async function runFwSpecialScenario(browser, baseUrl) {
@@ -1451,7 +1451,7 @@ async function runFwSpecialScenario(browser, baseUrl) {
   }
 }
 
-// P6: 昇進(elite)/レベル(level)/信頼度(trust)コントロール。
+// 昇進(elite)/レベル(level)/信頼度(trust)コントロール。
 async function runEliteLevelTrustScenario(browser, baseUrl) {
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
@@ -1581,7 +1581,7 @@ async function runEliteLevelTrustScenario(browser, baseUrl) {
   }
 }
 
-// P7: スキルLv(SLv1〜7+特化1〜3)コントロール。
+// スキルLv(SLv1〜7+特化1〜3)コントロール。
 // row-formula の2行目("→ 実ダメ ... = <b>合計</b> ...")から合計ダメージを取り出す。
 // テキスト中に"="が複数回出る(1行目のfinal算出にも"="がある)ので、最後の"="の後の数値を使う。
 function lastEqualsNumber(text) {
@@ -1777,7 +1777,7 @@ async function runStoneBoardScenario(browser, baseUrl) {
   }
 }
 
-// P9: 「ホルン」を行に追加すると、そのオペレーターをsourceに持つ条件付きバフ「ホルン」
+// 「ホルン」を行に追加すると、そのオペレーターをsourceに持つ条件付きバフ「ホルン」
 // (素質「軍事要塞」)が自動でONになり、育成設定(昇進/潜在/モジュール)はカード自身の
 // セレクトではなく行の設定にリンクされることを検証する。手動でOFFにした後は行の他
 // フィールド変更で再ONにならないこと・行を削除するとカードが自分のセレクトに戻ること・
@@ -1943,7 +1943,7 @@ async function runDatalistPickScenario(browser, baseUrl) {
   }
 }
 
-// P10: 混合スキル(物理+術。ホルンS2)。FK対象の選択肢が「物理+術」1つにまとまっていること、
+// 混合スキル(物理+術。ホルンS2)。FK対象の選択肢が「物理+術」1つにまとまっていること、
 // パーツ欄が2ブロック(見出し=物理/術)出ること、共通のHit数を打鍵で変えると合計
 // (式表示の"合計 = N")が更新されること、昇進を変えると両パーツ(共有ATK)に効くことを検証する。
 async function runMixedSkillPartsScenario(browser, baseUrl) {
