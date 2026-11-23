@@ -67,7 +67,10 @@ fn verdict(config: &OriginSecret, headers: &HeaderMap, path: &str) -> Verdict {
     if host.is_some_and(super::legacy_host_redirect::is_herokuapp_host) {
         return Verdict::Skip;
     }
-    let given = headers.get(HEADER_NAME).map(|v| v.as_bytes()).unwrap_or_default();
+    let given = headers
+        .get(HEADER_NAME)
+        .map(|v| v.as_bytes())
+        .unwrap_or_default();
     if constant_time_eq(given, config.secret.as_bytes()) {
         Verdict::Match
     } else {
@@ -88,11 +91,19 @@ pub(crate) async fn check_origin_secret(
             }
         }
         Verdict::Mismatch => {
-            let host = req.headers().get(header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("-");
+            let host = req
+                .headers()
+                .get(header::HOST)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("-");
             let present = req.headers().contains_key(HEADER_NAME);
             eprintln!(
                 "X-Origin-Secret: 不一致（{}） host={host} path={} enforce={}",
-                if present { "値が違う" } else { "ヘッダ無し" },
+                if present {
+                    "値が違う"
+                } else {
+                    "ヘッダ無し"
+                },
                 req.uri().path(),
                 config.enforce,
             );
@@ -114,34 +125,61 @@ mod tests {
 
     async fn send(enforce: bool, host: &str, path: &str, secret: Option<&str>) -> StatusCode {
         let config = Arc::new(OriginSecret::new("s3cret", enforce).unwrap());
-        let app = Router::new()
-            .fallback(get(|| async { "ok" }))
-            .layer(axum::middleware::from_fn_with_state(config, check_origin_secret));
+        let app = Router::new().fallback(get(|| async { "ok" })).layer(
+            axum::middleware::from_fn_with_state(config, check_origin_secret),
+        );
         let mut req = Request::get(path).header(header::HOST, host);
         if let Some(s) = secret {
             req = req.header(HEADER_NAME, s);
         }
-        app.oneshot(req.body(Body::empty()).unwrap()).await.unwrap().status()
+        app.oneshot(req.body(Body::empty()).unwrap())
+            .await
+            .unwrap()
+            .status()
     }
 
     #[tokio::test]
     async fn enforce_rejects_missing_or_wrong_secret() {
-        assert_eq!(send(true, "astesiabot.com", "/", Some("s3cret")).await, StatusCode::OK);
-        assert_eq!(send(true, "astesiabot.com", "/", None).await, StatusCode::FORBIDDEN);
-        assert_eq!(send(true, "astesiabot.com", "/", Some("wrong")).await, StatusCode::FORBIDDEN);
-        assert_eq!(send(true, "astesiabot.com", "/", Some("s3cre")).await, StatusCode::FORBIDDEN);
+        assert_eq!(
+            send(true, "astesiabot.com", "/", Some("s3cret")).await,
+            StatusCode::OK
+        );
+        assert_eq!(
+            send(true, "astesiabot.com", "/", None).await,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            send(true, "astesiabot.com", "/", Some("wrong")).await,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            send(true, "astesiabot.com", "/", Some("s3cre")).await,
+            StatusCode::FORBIDDEN
+        );
     }
 
     #[tokio::test]
     async fn log_only_mode_passes_everything() {
-        assert_eq!(send(false, "astesiabot.com", "/", None).await, StatusCode::OK);
-        assert_eq!(send(false, "astesiabot.com", "/", Some("wrong")).await, StatusCode::OK);
+        assert_eq!(
+            send(false, "astesiabot.com", "/", None).await,
+            StatusCode::OK
+        );
+        assert_eq!(
+            send(false, "astesiabot.com", "/", Some("wrong")).await,
+            StatusCode::OK
+        );
     }
 
     #[tokio::test]
     async fn herokuapp_and_health_are_exempt() {
-        assert_eq!(send(true, "foo-123.herokuapp.com", "/recruitment/", None).await, StatusCode::OK);
-        assert_eq!(send(true, "astesiabot.com", "/health", None).await, StatusCode::OK);
+        assert_eq!(
+            send(true, "foo-123.herokuapp.com", "/recruitment/", None).await,
+            StatusCode::OK
+        );
+        assert_eq!(
+            send(true, "astesiabot.com", "/health", None).await,
+            StatusCode::OK
+        );
     }
 
     #[test]

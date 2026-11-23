@@ -84,10 +84,13 @@
 //! 見せる値と一致させるため)。
 use super::buffers::{self, RawConditionalSource};
 use super::dto::{
-    Buffer, BufferBonus, BufferKind, BufferScope, BuffToggle, ConditionalSkillSource, ConditionalSource, ConditionalSourceDefaults,
-    ConditionalSourceModule, ConditionalStageSource, ConditionalTalentSource, MaxTargetsByModule,
+    BuffToggle, Buffer, BufferBonus, BufferKind, BufferScope, ConditionalSkillSource,
+    ConditionalSource, ConditionalSourceDefaults, ConditionalSourceModule, ConditionalStageSource,
+    ConditionalTalentSource, MaxTargetsByModule,
 };
-use crate::engine::external_source::operator_combat::{OperatorCombat, RawModuleCombat, RawOperatorCombat, RawTalent};
+use crate::engine::external_source::operator_combat::{
+    OperatorCombat, RawModuleCombat, RawOperatorCombat, RawTalent,
+};
 use crate::engine::external_source::operator_data::OperatorData;
 use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::fk_data_search::search::skill_id_by_num;
@@ -111,7 +114,13 @@ fn resolve_talent_base(talent: &RawTalent, key: &str, elite: u8, potential: u8) 
 /// モジュール1種の、あるLv(0=Lv1/1=Lv2/2=Lv3)におけるtalent_index上書き候補から
 /// `potentialRank <= potential`を満たす最後のものの`key`値を取る。無ければ`None`
 /// (呼び出し側がベース値へフォールバックする)。
-fn resolve_module_override(module: &RawModuleCombat, talent_index: usize, key: &str, level_idx: usize, potential: u8) -> Option<f64> {
+fn resolve_module_override(
+    module: &RawModuleCombat,
+    talent_index: usize,
+    key: &str,
+    level_idx: usize,
+    potential: u8,
+) -> Option<f64> {
     module
         .talent_overrides_by_level
         .get(level_idx)?
@@ -126,7 +135,11 @@ fn resolve_module_override(module: &RawModuleCombat, talent_index: usize, key: &
 /// (ドリフト検知は`validate_conditional_sources`/`validate_individual_sources`が担当する)。
 /// `mod.rs`の`to_special_dto`(P8 follow-up。特殊強化の乗算系`mul_multiplier`)からも
 /// 同じビルダーを再利用するため`pub(super)`にしている。
-pub(super) fn build_talent_source(op: &RawOperatorCombat, talent_index: usize, key: &str) -> Option<ConditionalTalentSource> {
+pub(super) fn build_talent_source(
+    op: &RawOperatorCombat,
+    talent_index: usize,
+    key: &str,
+) -> Option<ConditionalTalentSource> {
     let talent = op.talents.get(talent_index)?;
 
     let mut values = [[0.0_f64; NUM_POTENTIAL]; NUM_ELITE];
@@ -137,12 +150,18 @@ pub(super) fn build_talent_source(op: &RawOperatorCombat, talent_index: usize, k
     }
 
     let elite_varies = {
-        let at_max_potential: Vec<f64> = (0..NUM_ELITE).map(|e| values[e][NUM_POTENTIAL - 1]).collect();
-        at_max_potential.iter().any(|v| (v - at_max_potential[0]).abs() > 1e-9)
+        let at_max_potential: Vec<f64> = (0..NUM_ELITE)
+            .map(|e| values[e][NUM_POTENTIAL - 1])
+            .collect();
+        at_max_potential
+            .iter()
+            .any(|v| (v - at_max_potential[0]).abs() > 1e-9)
     };
     let potential_varies = {
         let at_max_elite = values[NUM_ELITE - 1];
-        at_max_elite.iter().any(|v| (v - at_max_elite[0]).abs() > 1e-9)
+        at_max_elite
+            .iter()
+            .any(|v| (v - at_max_elite[0]).abs() > 1e-9)
     };
 
     let mut modules = Vec::new();
@@ -152,7 +171,9 @@ pub(super) fn build_talent_source(op: &RawOperatorCombat, talent_index: usize, k
         for (level_idx, row) in mvalues.iter_mut().enumerate() {
             for (potential, slot) in row.iter_mut().enumerate() {
                 let base = values[NUM_ELITE - 1][potential]; // モジュールはE2前提なのでE2側にフォールバック
-                let value = resolve_module_override(m, talent_index, key, level_idx, potential as u8).unwrap_or(base);
+                let value =
+                    resolve_module_override(m, talent_index, key, level_idx, potential as u8)
+                        .unwrap_or(base);
                 *slot = value;
                 if (value - base).abs() > 1e-9 {
                     differs = true;
@@ -169,27 +190,47 @@ pub(super) fn build_talent_source(op: &RawOperatorCombat, talent_index: usize, k
         }
     }
 
-    Some(ConditionalTalentSource { values_by_elite_and_potential: values, elite_varies, potential_varies, modules })
+    Some(ConditionalTalentSource {
+        values_by_elite_and_potential: values,
+        elite_varies,
+        potential_varies,
+        modules,
+    })
 }
 
 /// スキルLv由来の`ConditionalSkillSource`を組み立てる。skill_numから実スキルが
 /// 解決できない/blackboardが無ければ`None`。`ConditionalSource.skill`(値そのもの)と
 /// `ConditionalSource.scale`(P5。他の値に掛ける倍率)の両方でこの関数を使い回す
 /// (呼び出し側が渡す`skill_num`/`key`が違うだけで、構築ロジックは同一)。
-fn build_skill_source(ops: &OperatorData, skills: &SkillData, operator_id: &str, skill_num: &str, key: &str) -> Option<ConditionalSkillSource> {
+fn build_skill_source(
+    ops: &OperatorData,
+    skills: &SkillData,
+    operator_id: &str,
+    skill_num: &str,
+    key: &str,
+) -> Option<ConditionalSkillSource> {
     let cost_op = ops.operators.get(operator_id)?;
     let skill_ids = skill_id_by_num(cost_op);
     let skill_id = skill_ids.get(skill_num)?;
     let by_level = skills.get_blackboard_by_level(skill_id)?;
     let skill_label = skills.get_str(skill_id);
-    let values_by_level: Vec<f64> = by_level.iter().map(|bb| bb.get(key).copied().unwrap_or(0.0)).collect();
+    let values_by_level: Vec<f64> = by_level
+        .iter()
+        .map(|bb| bb.get(key).copied().unwrap_or(0.0))
+        .collect();
     if values_by_level.is_empty() {
         return None;
     }
-    let varies = values_by_level.iter().any(|v| (v - values_by_level[0]).abs() > 1e-9);
+    let varies = values_by_level
+        .iter()
+        .any(|v| (v - values_by_level[0]).abs() > 1e-9);
     Some(ConditionalSkillSource {
         skill_num: skill_num.to_string(),
-        skill_label: if skill_label.is_empty() || skill_label == "Missing" { skill_num.to_string() } else { skill_label.to_string() },
+        skill_label: if skill_label.is_empty() || skill_label == "Missing" {
+            skill_num.to_string()
+        } else {
+            skill_label.to_string()
+        },
         values_by_level,
         varies,
     })
@@ -199,16 +240,28 @@ fn build_skill_source(ops: &OperatorData, skills: &SkillData, operator_id: &str,
 /// `skill_id_by_num`経由ではなく直接指定する(トークンスキル等、そのオペレーター自身の
 /// skill_num一覧には載らないため)。`stage_keys`/`stage_labels`は同じ要素数であること
 /// (`validate_one_source`が検証する)。
-fn build_stage_source(skills: &SkillData, skill_id: &str, keys: &[String], labels: &[String]) -> Option<ConditionalStageSource> {
+fn build_stage_source(
+    skills: &SkillData,
+    skill_id: &str,
+    keys: &[String],
+    labels: &[String],
+) -> Option<ConditionalStageSource> {
     if keys.is_empty() || keys.len() != labels.len() {
         return None;
     }
     let blackboard = skills.get_blackboard(skill_id)?;
     let skill_label = skills.get_str(skill_id);
-    let values: Vec<f64> = keys.iter().map(|k| blackboard.get(k).copied().unwrap_or(0.0)).collect();
+    let values: Vec<f64> = keys
+        .iter()
+        .map(|k| blackboard.get(k).copied().unwrap_or(0.0))
+        .collect();
     Some(ConditionalStageSource {
         skill_id: skill_id.to_string(),
-        skill_label: if skill_label.is_empty() || skill_label == "Missing" { skill_id.to_string() } else { skill_label.to_string() },
+        skill_label: if skill_label.is_empty() || skill_label == "Missing" {
+            skill_id.to_string()
+        } else {
+            skill_label.to_string()
+        },
         values,
         labels: labels.to_vec(),
     })
@@ -222,11 +275,23 @@ fn compute_defaults(
     scale: Option<&ConditionalSkillSource>,
     stage: Option<&ConditionalStageSource>,
 ) -> ConditionalSourceDefaults {
-    let module_id = talent.and_then(|t| t.modules.first()).map(|m| m.module_id.clone());
+    let module_id = talent
+        .and_then(|t| t.modules.first())
+        .map(|m| m.module_id.clone());
     // skillとscaleは排他(片方だけが`Some`)なので、どちらの長さを見ても衝突しない。
-    let skill_level = skill.map(|s| s.values_by_level.len() as u8).or_else(|| scale.map(|s| s.values_by_level.len() as u8)).unwrap_or(1);
+    let skill_level = skill
+        .map(|s| s.values_by_level.len() as u8)
+        .or_else(|| scale.map(|s| s.values_by_level.len() as u8))
+        .unwrap_or(1);
     let stage_index = stage.map(|s| s.values.len() as u8).unwrap_or(1);
-    ConditionalSourceDefaults { elite: 2, potential: (NUM_POTENTIAL - 1) as u8, module_id, module_level: 3, skill_level, stage_index }
+    ConditionalSourceDefaults {
+        elite: 2,
+        potential: (NUM_POTENTIAL - 1) as u8,
+        module_id,
+        module_level: 3,
+        skill_level,
+        stage_index,
+    }
 }
 
 /// `defaults`の選択状態で値を解決する(`Buffer.value`に入れる初期値)。P5で追加した
@@ -236,13 +301,17 @@ fn compute_defaults(
 ///   - それ以外は`primary(talent or base_pct) × scale係数(scaleが無ければ1.0)`。
 fn resolve_default_value(source: &ConditionalSource) -> f64 {
     if let Some(stage) = &source.stage {
-        let idx = (source.defaults.stage_index as usize).saturating_sub(1).min(stage.values.len().saturating_sub(1));
+        let idx = (source.defaults.stage_index as usize)
+            .saturating_sub(1)
+            .min(stage.values.len().saturating_sub(1));
         return stage.values.get(idx).copied().unwrap_or(0.0);
     }
 
     if source.talent.is_none() && source.base_pct.is_none() {
         if let Some(skill) = &source.skill {
-            let idx = (source.defaults.skill_level as usize).saturating_sub(1).min(skill.values_by_level.len().saturating_sub(1));
+            let idx = (source.defaults.skill_level as usize)
+                .saturating_sub(1)
+                .min(skill.values_by_level.len().saturating_sub(1));
             return skill.values_by_level.get(idx).copied().unwrap_or(0.0);
         }
         return 0.0;
@@ -251,19 +320,24 @@ fn resolve_default_value(source: &ConditionalSource) -> f64 {
     let primary = if let Some(talent) = &source.talent {
         if let Some(module_id) = &source.defaults.module_id {
             if let Some(m) = talent.modules.iter().find(|m| &m.module_id == module_id) {
-                m.values_by_level_and_potential[(source.defaults.module_level - 1) as usize][source.defaults.potential as usize]
+                m.values_by_level_and_potential[(source.defaults.module_level - 1) as usize]
+                    [source.defaults.potential as usize]
             } else {
-                talent.values_by_elite_and_potential[source.defaults.elite as usize][source.defaults.potential as usize]
+                talent.values_by_elite_and_potential[source.defaults.elite as usize]
+                    [source.defaults.potential as usize]
             }
         } else {
-            talent.values_by_elite_and_potential[source.defaults.elite as usize][source.defaults.potential as usize]
+            talent.values_by_elite_and_potential[source.defaults.elite as usize]
+                [source.defaults.potential as usize]
         }
     } else {
         source.base_pct.unwrap_or(0.0)
     };
 
     let scale_factor = if let Some(scale) = &source.scale {
-        let idx = (source.defaults.skill_level as usize).saturating_sub(1).min(scale.values_by_level.len().saturating_sub(1));
+        let idx = (source.defaults.skill_level as usize)
+            .saturating_sub(1)
+            .min(scale.values_by_level.len().saturating_sub(1));
         scale.values_by_level.get(idx).copied().unwrap_or(1.0)
     } else {
         1.0
@@ -275,12 +349,22 @@ fn resolve_default_value(source: &ConditionalSource) -> f64 {
 /// `RawConditionalSource`(individual/conditional共通の生データ)から`ConditionalSource`
 /// DTOを組み立てる。実データと不一致(オペレーターID/talentIndex/skill_num/skill_id等が
 /// 存在しない)なら`None`(呼び出し側が`skipped`へ記録して静かに落とす)。
-fn build_source(spec: &RawConditionalSource, combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData) -> Option<ConditionalSource> {
+fn build_source(
+    spec: &RawConditionalSource,
+    combat: &OperatorCombat,
+    ops: &OperatorData,
+    skills: &SkillData,
+) -> Option<ConditionalSource> {
     let op = combat.operators.get(&spec.operator)?;
 
     // 段階ソース(P5)は他の軸と排他なので、他を見る前に確定させる。
     if let Some(skill_id) = &spec.stage_skill_id {
-        let stage = build_stage_source(skills, skill_id, spec.stage_keys.as_deref()?, spec.stage_labels.as_deref()?)?;
+        let stage = build_stage_source(
+            skills,
+            skill_id,
+            spec.stage_keys.as_deref()?,
+            spec.stage_labels.as_deref()?,
+        )?;
         let defaults = compute_defaults(None, None, None, Some(&stage));
         return Some(ConditionalSource {
             operator_id: op.id.clone(),
@@ -300,19 +384,37 @@ fn build_source(spec: &RawConditionalSource, combat: &OperatorCombat, ops: &Oper
         None => None,
     };
     let scale = match &spec.scale_skill_num {
-        Some(num) => Some(build_skill_source(ops, skills, &spec.operator, num, spec.scale_key.as_deref()?)?),
+        Some(num) => Some(build_skill_source(
+            ops,
+            skills,
+            &spec.operator,
+            num,
+            spec.scale_key.as_deref()?,
+        )?),
         None => None,
     };
     let skill = match &spec.skill_num {
-        Some(num) => Some(build_skill_source(ops, skills, &spec.operator, num, spec.key.as_deref()?)?),
+        Some(num) => Some(build_skill_source(
+            ops,
+            skills,
+            &spec.operator,
+            num,
+            spec.key.as_deref()?,
+        )?),
         None => None,
     };
     if talent.is_none() && skill.is_none() && spec.base_pct.is_none() {
         return None;
     }
 
-    let max_targets_by_module =
-        spec.max_targets_by_module.as_ref().map(|mt| MaxTargetsByModule { module_id: mt.module.clone(), min_level: mt.min_level, count: mt.count });
+    let max_targets_by_module = spec
+        .max_targets_by_module
+        .as_ref()
+        .map(|mt| MaxTargetsByModule {
+            module_id: mt.module.clone(),
+            min_level: mt.min_level,
+            count: mt.count,
+        });
 
     let defaults = compute_defaults(talent.as_ref(), skill.as_ref(), scale.as_ref(), None);
     Some(ConditionalSource {
@@ -332,7 +434,12 @@ fn build_source(spec: &RawConditionalSource, combat: &OperatorCombat, ops: &Oper
 /// (固定値`pct`/`flat`は`buffers::build_fixed_bonus`を再利用する)。
 fn build_bonus_dto(cond_id: &str, kind: BufferKind, bonus: &buffers::RawBonus) -> BufferBonus {
     if let Some(mult) = bonus.mult {
-        return BufferBonus { target_tags: bonus.tags.clone(), value: None, mult: Some(mult), note: bonus.note.clone() };
+        return BufferBonus {
+            target_tags: bonus.tags.clone(),
+            value: None,
+            mult: Some(mult),
+            note: bonus.note.clone(),
+        };
     }
     buffers::build_fixed_bonus(cond_id, kind, bonus)
 }
@@ -342,24 +449,40 @@ fn build_bonus_dto(cond_id: &str, kind: BufferKind, bonus: &buffers::RawBonus) -
 /// skill_numが実データに存在しない場合は`skipped`に`"buff:<id>"`として記録し、その
 /// バフをカタログから静かに落とす(fk_dataのskipped/inspireのskippedと同じ方針。
 /// ドリフト自体は`cargo test`の`validate_conditional_sources`で検知する)。
-pub fn build_conditional_sourced_buffers(combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData, skipped: &mut Vec<String>) -> Vec<Buffer> {
+pub fn build_conditional_sourced_buffers(
+    combat: &OperatorCombat,
+    ops: &OperatorData,
+    skills: &SkillData,
+    skipped: &mut Vec<String>,
+) -> Vec<Buffer> {
     let mut out = Vec::new();
     for cond in buffers::raw_conditional_sourced() {
-        let spec = cond.source.as_ref().expect("raw_conditional_sourced()はsourceを持つはず");
+        let spec = cond
+            .source
+            .as_ref()
+            .expect("raw_conditional_sourced()はsourceを持つはず");
         let Some(source) = build_source(spec, combat, ops, skills) else {
             skipped.push(format!("buff:{}", cond.id));
             continue;
         };
         let value = resolve_default_value(&source);
-        let bonus = cond.bonus.as_ref().map(|b| build_bonus_dto(&cond.id, BufferKind::Pct, b));
-        let toggle = cond.toggle.as_ref().map(|t| BuffToggle { label: t.label.clone(), mult: t.mult });
+        let bonus = cond
+            .bonus
+            .as_ref()
+            .map(|b| build_bonus_dto(&cond.id, BufferKind::Pct, b));
+        let toggle = cond.toggle.as_ref().map(|t| BuffToggle {
+            label: t.label.clone(),
+            mult: t.mult,
+        });
 
         out.push(Buffer {
             id: cond.id.clone(),
             name: cond.name.clone(),
             kind: BufferKind::Pct,
             value,
-            scope: BufferScope::Conditional { target_tags: cond.targets.clone() },
+            scope: BufferScope::Conditional {
+                target_tags: cond.targets.clone(),
+            },
             single_target: false,
             bonus,
             exclusive_group: cond.exclusive_group.clone(),
@@ -375,16 +498,27 @@ pub fn build_conditional_sourced_buffers(combat: &OperatorCombat, ops: &Operator
 /// `skill_data`をマージして`dto::Buffer`一覧を組み立てる。`build_conditional_sourced_buffers`
 /// の個別バフ版(ロジックは`build_source`を共有する)。個別バフの`source`は今のところ
 /// 全て`pct`種のみ(`flat`種が必要になったら`RawIndividual`に`kind`を足して拡張する)。
-pub fn build_individual_sourced_buffers(combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData, skipped: &mut Vec<String>) -> Vec<Buffer> {
+pub fn build_individual_sourced_buffers(
+    combat: &OperatorCombat,
+    ops: &OperatorData,
+    skills: &SkillData,
+    skipped: &mut Vec<String>,
+) -> Vec<Buffer> {
     let mut out = Vec::new();
     for ind in buffers::raw_individual_sourced() {
-        let spec = ind.source.as_ref().expect("raw_individual_sourced()はsourceを持つはず");
+        let spec = ind
+            .source
+            .as_ref()
+            .expect("raw_individual_sourced()はsourceを持つはず");
         let Some(source) = build_source(spec, combat, ops, skills) else {
             skipped.push(format!("buff:{}", ind.id));
             continue;
         };
         let value = resolve_default_value(&source);
-        let toggle = ind.toggle.as_ref().map(|t| BuffToggle { label: t.label.clone(), mult: t.mult });
+        let toggle = ind.toggle.as_ref().map(|t| BuffToggle {
+            label: t.label.clone(),
+            mult: t.mult,
+        });
 
         out.push(Buffer {
             id: ind.id.clone(),
@@ -416,7 +550,10 @@ fn validate_one_source(
 ) -> Vec<String> {
     let mut bad = Vec::new();
     let Some(op) = combat.operators.get(&spec.operator) else {
-        bad.push(format!("{scope_label}:{id} (operator id'{}'がoperator_combatに無い)", spec.operator));
+        bad.push(format!(
+            "{scope_label}:{id} (operator id'{}'がoperator_combatに無い)",
+            spec.operator
+        ));
         return bad;
     };
 
@@ -436,14 +573,23 @@ fn validate_one_source(
         Some(idx) => match build_talent_source(op, idx, spec.key.as_deref().unwrap_or("")) {
             Some(t) => Some(t),
             None => {
-                bad.push(format!("{scope_label}:{id} (operator'{}'にtalent[{idx}]が無い)", spec.operator));
+                bad.push(format!(
+                    "{scope_label}:{id} (operator'{}'にtalent[{idx}]が無い)",
+                    spec.operator
+                ));
                 return bad;
             }
         },
         None => None,
     };
     let scale = match &spec.scale_skill_num {
-        Some(num) => match build_skill_source(ops, skills, &spec.operator, num, spec.scale_key.as_deref().unwrap_or("")) {
+        Some(num) => match build_skill_source(
+            ops,
+            skills,
+            &spec.operator,
+            num,
+            spec.scale_key.as_deref().unwrap_or(""),
+        ) {
             Some(s) => Some(s),
             None => {
                 bad.push(format!("{scope_label}:{id} (operator'{}'のscale_skill_num'{num}'が実スキルに解決できない)", spec.operator));
@@ -453,18 +599,28 @@ fn validate_one_source(
         None => None,
     };
     let skill = match &spec.skill_num {
-        Some(num) => match build_skill_source(ops, skills, &spec.operator, num, spec.key.as_deref().unwrap_or("")) {
-            Some(s) => Some(s),
-            None => {
-                bad.push(format!("{scope_label}:{id} (operator'{}'のskill_num'{num}'が実スキルに解決できない)", spec.operator));
-                return bad;
+        Some(num) => {
+            match build_skill_source(
+                ops,
+                skills,
+                &spec.operator,
+                num,
+                spec.key.as_deref().unwrap_or(""),
+            ) {
+                Some(s) => Some(s),
+                None => {
+                    bad.push(format!("{scope_label}:{id} (operator'{}'のskill_num'{num}'が実スキルに解決できない)", spec.operator));
+                    return bad;
+                }
             }
-        },
+        }
         None => None,
     };
 
     if talent.is_none() && skill.is_none() && spec.base_pct.is_none() {
-        bad.push(format!("{scope_label}:{id} (talent/skill_num/base_pctのいずれも無い)"));
+        bad.push(format!(
+            "{scope_label}:{id} (talent/skill_num/base_pctのいずれも無い)"
+        ));
         return bad;
     }
 
@@ -487,7 +643,10 @@ fn validate_one_source(
 
     if let Some(mt) = &spec.max_targets_by_module {
         if !op.modules.iter().any(|m| m.eq_id == mt.module) {
-            bad.push(format!("{scope_label}:{id} (max_targets_by_module.module'{}'が'{}'のmodulesに無い)", mt.module, spec.operator));
+            bad.push(format!(
+                "{scope_label}:{id} (max_targets_by_module.module'{}'が'{}'のmodulesに無い)",
+                mt.module, spec.operator
+            ));
         }
     }
     bad
@@ -498,11 +657,22 @@ fn validate_one_source(
 /// オペレーターID・talentIndex・skill_num・キー名が変わった際のドリフト検知用
 /// (`cargo test`で実行する)。
 #[cfg(test)] // `mod.rs`の`#[cfg(test)]`からのみ呼ばれる。
-pub fn validate_conditional_sources(combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData) -> Vec<String> {
+pub fn validate_conditional_sources(
+    combat: &OperatorCombat,
+    ops: &OperatorData,
+    skills: &SkillData,
+) -> Vec<String> {
     let mut bad = Vec::new();
     for cond in buffers::raw_conditional_sourced() {
         let Some(spec) = &cond.source else { continue };
-        bad.extend(validate_one_source("conditional", &cond.id, spec, combat, ops, skills));
+        bad.extend(validate_one_source(
+            "conditional",
+            &cond.id,
+            spec,
+            combat,
+            ops,
+            skills,
+        ));
     }
     bad
 }
@@ -510,11 +680,22 @@ pub fn validate_conditional_sources(combat: &OperatorCombat, ops: &OperatorData,
 /// `raw_individual_sourced()`が実データと整合しているかを検証する(P5。
 /// `validate_conditional_sources`の個別バフ版)。
 #[cfg(test)] // `mod.rs`の`#[cfg(test)]`からのみ呼ばれる。
-pub fn validate_individual_sources(combat: &OperatorCombat, ops: &OperatorData, skills: &SkillData) -> Vec<String> {
+pub fn validate_individual_sources(
+    combat: &OperatorCombat,
+    ops: &OperatorData,
+    skills: &SkillData,
+) -> Vec<String> {
     let mut bad = Vec::new();
     for ind in buffers::raw_individual_sourced() {
         let Some(spec) = &ind.source else { continue };
-        bad.extend(validate_one_source("individual", &ind.id, spec, combat, ops, skills));
+        bad.extend(validate_one_source(
+            "individual",
+            &ind.id,
+            spec,
+            combat,
+            ops,
+            skills,
+        ));
     }
     bad
 }

@@ -179,7 +179,9 @@ pub struct OperatorCombat {
 
 impl OperatorCombat {
     pub fn get_by_name(&self, name: &str) -> Option<&RawOperatorCombat> {
-        self.name_to_id.get(name).and_then(|id| self.operators.get(id))
+        self.name_to_id
+            .get(name)
+            .and_then(|id| self.operators.get(id))
     }
 
     #[cfg(test)]
@@ -201,7 +203,16 @@ pub fn update_seed() -> BoxFuture<'static, Result<(), FetchError>> {
 
 async fn fetch_impl() -> Result<OperatorCombat, FetchError> {
     let client = client();
-    let (cn_table, jp_table, cn_uniequip, jp_uniequip, cn_patch, jp_patch, cn_battle_equip, jp_battle_equip) = tokio::try_join!(
+    let (
+        cn_table,
+        jp_table,
+        cn_uniequip,
+        jp_uniequip,
+        cn_patch,
+        jp_patch,
+        cn_battle_equip,
+        jp_battle_equip,
+    ) = tokio::try_join!(
         fetch_json_with_retry(&client, CHAR_TABLE_URL_CN),
         fetch_json_with_retry(&client, CHAR_TABLE_URL_JP),
         fetch_json_with_retry(&client, UNI_EQ_URL_CN),
@@ -213,19 +224,41 @@ async fn fetch_impl() -> Result<OperatorCombat, FetchError> {
     )?;
 
     // JP未実装オペレーターの名前フォールバック（`operator_data.rs`と同じファイルを使う）。
-    let custom: BTreeMap<String, String> = match std::fs::read_to_string("data/customOperatorZhToJa.yaml") {
-        Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
-        Err(_) => BTreeMap::new(),
-    };
+    let custom: BTreeMap<String, String> =
+        match std::fs::read_to_string("data/customOperatorZhToJa.yaml") {
+            Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
+            Err(_) => BTreeMap::new(),
+        };
 
     let mut operators: IndexMap<String, RawOperatorCombat> = IndexMap::new();
     let mut name_to_id: HashMap<String, String> = HashMap::new();
 
-    build_characters(&cn_table, &jp_table, &custom, &mut operators, &mut name_to_id);
-    build_patches(&cn_patch, &jp_patch, &operators.clone(), &mut operators, &mut name_to_id);
-    build_modules(&cn_uniequip, &jp_uniequip, &cn_battle_equip, &jp_battle_equip, &mut operators);
+    build_characters(
+        &cn_table,
+        &jp_table,
+        &custom,
+        &mut operators,
+        &mut name_to_id,
+    );
+    build_patches(
+        &cn_patch,
+        &jp_patch,
+        &operators.clone(),
+        &mut operators,
+        &mut name_to_id,
+    );
+    build_modules(
+        &cn_uniequip,
+        &jp_uniequip,
+        &cn_battle_equip,
+        &jp_battle_equip,
+        &mut operators,
+    );
 
-    Ok(OperatorCombat { operators, name_to_id })
+    Ok(OperatorCombat {
+        operators,
+        name_to_id,
+    })
 }
 
 /// character_table.json のキーが `char_xxx_yyy` 形式（オペレーター）かどうか
@@ -247,7 +280,9 @@ fn phase_to_u8(phase: &str) -> u8 {
 /// blackboard配列(`[{key, value}]`)をIndexMapへ変換する。`value`が無い/数値でない項目は
 /// 除外する(skill_dataのblackboard構築と同じ方針)。
 fn parse_blackboard(value: Option<&Value>) -> IndexMap<String, f64> {
-    let Some(Value::Array(items)) = value else { return IndexMap::new() };
+    let Some(Value::Array(items)) = value else {
+        return IndexMap::new();
+    };
     items
         .iter()
         .filter_map(|item| {
@@ -261,7 +296,9 @@ fn parse_blackboard(value: Option<&Value>) -> IndexMap<String, f64> {
 /// `talents[i].candidates[]`(character_table.json/char_patch_table.json共通)をパースする。
 /// P4: フレームキル計算機の「条件付きバフ」が昇進/潜在から値を機械抽出するために使う。
 fn parse_talents(source_value: &Value) -> Vec<RawTalent> {
-    let Some(Value::Array(talents)) = source_value.get("talents") else { return Vec::new() };
+    let Some(Value::Array(talents)) = source_value.get("talents") else {
+        return Vec::new();
+    };
     talents
         .iter()
         .map(|t| {
@@ -271,10 +308,18 @@ fn parse_talents(source_value: &Value) -> Vec<RawTalent> {
                 .map(|arr| {
                     arr.iter()
                         .filter_map(|c| {
-                            let phase = c.get("unlockCondition")?.get("phase")?.as_str().map(phase_to_u8)?;
+                            let phase = c
+                                .get("unlockCondition")?
+                                .get("phase")?
+                                .as_str()
+                                .map(phase_to_u8)?;
                             let potential_rank = c.get("requiredPotentialRank")?.as_u64()? as u8;
                             let blackboard = parse_blackboard(c.get("blackboard"));
-                            Some(RawTalentCandidate { phase, potential_rank, blackboard })
+                            Some(RawTalentCandidate {
+                                phase,
+                                potential_rank,
+                                blackboard,
+                            })
                         })
                         .collect()
                 })
@@ -287,14 +332,21 @@ fn parse_talents(source_value: &Value) -> Vec<RawTalent> {
 /// `<uniEquipId>.phases[lvIdx].parts[].addOrOverrideTalentDataBundle.candidates[]`
 /// (battle_equip_table.json)をパースする。戻り値のインデックス0=Lv1/1=Lv2/2=Lv3。
 /// `talentIndex`が負値(素質を上書きしない特性追加等)の候補は除外する。
-fn parse_module_talent_overrides(battle_value: Option<&Value>) -> Vec<Vec<RawModuleTalentOverride>> {
-    let Some(phases) = battle_value.and_then(|v| v.get("phases")).and_then(Value::as_array) else {
+fn parse_module_talent_overrides(
+    battle_value: Option<&Value>,
+) -> Vec<Vec<RawModuleTalentOverride>> {
+    let Some(phases) = battle_value
+        .and_then(|v| v.get("phases"))
+        .and_then(Value::as_array)
+    else {
         return Vec::new();
     };
     phases
         .iter()
         .map(|phase| {
-            let Some(parts) = phase.get("parts").and_then(Value::as_array) else { return Vec::new() };
+            let Some(parts) = phase.get("parts").and_then(Value::as_array) else {
+                return Vec::new();
+            };
             parts
                 .iter()
                 .flat_map(|part| {
@@ -302,7 +354,9 @@ fn parse_module_talent_overrides(battle_value: Option<&Value>) -> Vec<Vec<RawMod
                         .get("addOrOverrideTalentDataBundle")
                         .and_then(|b| b.get("candidates"))
                         .and_then(Value::as_array);
-                    let Some(candidates) = candidates else { return Vec::new() };
+                    let Some(candidates) = candidates else {
+                        return Vec::new();
+                    };
                     candidates
                         .iter()
                         .filter_map(|c| {
@@ -310,9 +364,14 @@ fn parse_module_talent_overrides(battle_value: Option<&Value>) -> Vec<Vec<RawMod
                             if talent_index < 0 {
                                 return None;
                             }
-                            let potential_rank = c.get("requiredPotentialRank").and_then(Value::as_u64)? as u8;
+                            let potential_rank =
+                                c.get("requiredPotentialRank").and_then(Value::as_u64)? as u8;
                             let blackboard = parse_blackboard(c.get("blackboard"));
-                            Some(RawModuleTalentOverride { talent_index: talent_index as usize, potential_rank, blackboard })
+                            Some(RawModuleTalentOverride {
+                                talent_index: talent_index as usize,
+                                potential_rank,
+                                blackboard,
+                            })
                         })
                         .collect::<Vec<_>>()
                 })
@@ -325,7 +384,9 @@ fn parse_module_talent_overrides(battle_value: Option<&Value>) -> Vec<Vec<RawMod
 /// `maxLevel`/`attributesKeyFrames`が欠けているエントリは(実データでは起きない想定だが)
 /// 安全側に倒してスキップする。
 fn parse_phases(source_value: &Value) -> Vec<RawPhaseAtk> {
-    let Some(Value::Array(phases)) = source_value.get("phases") else { return Vec::new() };
+    let Some(Value::Array(phases)) = source_value.get("phases") else {
+        return Vec::new();
+    };
     phases
         .iter()
         .filter_map(|phase| {
@@ -333,7 +394,11 @@ fn parse_phases(source_value: &Value) -> Vec<RawPhaseAtk> {
             let kfs = phase.get("attributesKeyFrames").and_then(Value::as_array)?;
             let atk_min = kfs.first()?.get("data")?.get("atk")?.as_f64()?;
             let atk_max = kfs.last()?.get("data")?.get("atk")?.as_f64()?;
-            Some(RawPhaseAtk { max_level, atk_min, atk_max })
+            Some(RawPhaseAtk {
+                max_level,
+                atk_min,
+                atk_max,
+            })
         })
         .collect()
 }
@@ -354,12 +419,18 @@ fn parse_atk_trust_max(source_value: &Value) -> f64 {
 /// skill_num("1"始まり。`skills`配列の並び順がスキル1,2,3...という前提。
 /// `fk_data_search::search::skill_id_by_num`と同じ採番)→解放昇進(0/1/2)を構築する。
 fn parse_skill_unlock_phase(source_value: &Value) -> Vec<(String, u8)> {
-    let Some(Value::Array(skills)) = source_value.get("skills") else { return Vec::new() };
+    let Some(Value::Array(skills)) = source_value.get("skills") else {
+        return Vec::new();
+    };
     skills
         .iter()
         .enumerate()
         .filter_map(|(i, s)| {
-            let phase = s.get("unlockCond")?.get("phase")?.as_str().map(phase_to_u8)?;
+            let phase = s
+                .get("unlockCond")?
+                .get("phase")?
+                .as_str()
+                .map(phase_to_u8)?;
             Some(((i + 1).to_string(), phase))
         })
         .collect()
@@ -382,7 +453,11 @@ fn parse_atk_potential_by_rank(source_value: &Value) -> [f64; 6] {
         return by_rank;
     };
     for (i, rank) in ranks.iter().enumerate() {
-        let Some(modifiers) = rank.get("buff").and_then(|b| b.get("attributes")).and_then(|a| a.get("attributeModifiers")).and_then(Value::as_array)
+        let Some(modifiers) = rank
+            .get("buff")
+            .and_then(|b| b.get("attributes"))
+            .and_then(|a| a.get("attributeModifiers"))
+            .and_then(Value::as_array)
         else {
             continue;
         };
@@ -418,12 +493,18 @@ fn build_characters(
     operators: &mut IndexMap<String, RawOperatorCombat>,
     name_to_id: &mut HashMap<String, String>,
 ) {
-    let Value::Object(cn_map) = cn_table else { return };
+    let Value::Object(cn_map) = cn_table else {
+        return;
+    };
     for (key, cn_value) in cn_map {
         if !is_char_key(key) {
             continue;
         }
-        if cn_value.get("isNotObtainable").and_then(Value::as_bool).unwrap_or(false) {
+        if cn_value
+            .get("isNotObtainable")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
             continue;
         }
         let Some(cn_name) = cn_value.get("name").and_then(Value::as_str) else {
@@ -436,7 +517,9 @@ fn build_characters(
             .and_then(Value::as_str)
             .or_else(|| custom.get(cn_name).map(String::as_str));
         let source_value = jp_value.unwrap_or(cn_value);
-        let name = ja_name.map(str::to_string).unwrap_or_else(|| cn_name.to_string());
+        let name = ja_name
+            .map(str::to_string)
+            .unwrap_or_else(|| cn_name.to_string());
 
         let Some(profession) = source_value.get("profession").and_then(Value::as_str) else {
             continue;
@@ -445,7 +528,11 @@ fn build_characters(
             continue;
         };
 
-        let nation_id = source_value.get("nationId").and_then(Value::as_str).unwrap_or_default().to_string();
+        let nation_id = source_value
+            .get("nationId")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
 
         let phases = parse_phases(source_value);
         let atk_trust_max = parse_atk_trust_max(source_value);
@@ -483,9 +570,13 @@ fn build_patches(
     operators: &mut IndexMap<String, RawOperatorCombat>,
     name_to_id: &mut HashMap<String, String>,
 ) {
-    let Some(Value::Object(patch_info_cn)) = cn_patch.get("patchChars") else { return };
+    let Some(Value::Object(patch_info_cn)) = cn_patch.get("patchChars") else {
+        return;
+    };
     let patch_info_jp = jp_patch.get("patchChars");
-    let Some(Value::Object(patch_key_cn)) = cn_patch.get("infos") else { return };
+    let Some(Value::Object(patch_key_cn)) = cn_patch.get("infos") else {
+        return;
+    };
 
     // `tmplIds`にpatch_keyを含むoriginal operatorを逆引きする。
     let find_original = |patch_key: &str| -> Option<(&str, &str)> {
@@ -517,7 +608,11 @@ fn build_patches(
         let (original_name, original_cn_name) = find_original(key).unwrap_or(("", ""));
         let name = format!("{original_name}({job})");
         let cn_name = format!("{original_cn_name}({job})");
-        let nation_id = source_value.get("nationId").and_then(Value::as_str).unwrap_or_default().to_string();
+        let nation_id = source_value
+            .get("nationId")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
 
         let phases = parse_phases(source_value);
         let atk_trust_max = parse_atk_trust_max(source_value);
@@ -566,21 +661,30 @@ fn build_modules(
     jp_battle_equip: &Value,
     operators: &mut IndexMap<String, RawOperatorCombat>,
 ) {
-    let Some(Value::Object(equip_dict)) = cn_uniequip.get("equipDict") else { return };
+    let Some(Value::Object(equip_dict)) = cn_uniequip.get("equipDict") else {
+        return;
+    };
     let jp_equip_dict = jp_uniequip.get("equipDict");
 
     let mut by_operator: HashMap<String, Vec<RawModuleCombat>> = HashMap::new();
     for (equip_id, cn_value) in equip_dict {
         // typeName2が空/無しはデフォルト(無強化)モジュールなので対象外
         // （`operator_data.rs::build_modules`と同じ判定）。
-        let Some(eq_type) = cn_value.get("typeName2").and_then(Value::as_str).filter(|s| !s.is_empty()) else {
+        let Some(eq_type) = cn_value
+            .get("typeName2")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+        else {
             continue;
         };
         let Some(char_id) = cn_value.get("charId").and_then(Value::as_str) else {
             continue;
         };
         // tmplId優先の理由は関数冒頭コメント参照。
-        let target_id = cn_value.get("tmplId").and_then(Value::as_str).unwrap_or(char_id);
+        let target_id = cn_value
+            .get("tmplId")
+            .and_then(Value::as_str)
+            .unwrap_or(char_id);
         if !operators.contains_key(target_id) {
             continue;
         }
@@ -595,8 +699,15 @@ fn build_modules(
         // 装備可否条件(P?)。実データ調査済み: 現行の全モジュール(509件)は`unlockEvolvePhase`が
         // "PHASE_2"固定だが、将来的な変化に備えて機械抽出する。CN/JPで値が異なることは
         // 無い想定なのでcn_valueから読む(uniEquipName等と違いJP優先にする必要が無い)。
-        let unlock_phase = cn_value.get("unlockEvolvePhase").and_then(Value::as_str).map(phase_to_u8).unwrap_or(0);
-        let unlock_level = cn_value.get("unlockLevel").and_then(Value::as_u64).unwrap_or(0) as u32;
+        let unlock_phase = cn_value
+            .get("unlockEvolvePhase")
+            .and_then(Value::as_str)
+            .map(phase_to_u8)
+            .unwrap_or(0);
+        let unlock_level = cn_value
+            .get("unlockLevel")
+            .and_then(Value::as_u64)
+            .unwrap_or(0) as u32;
 
         // battle_equip_table.jsonはCN/JPどちらもトップレベルがequipIdそのままのdict。
         // JPにエントリがあればそちらを優先し、無ければCNを使う（数値自体はCN/JPで
@@ -614,7 +725,11 @@ fn build_modules(
                         phase
                             .get("attributeBlackboard")
                             .and_then(Value::as_array)
-                            .and_then(|items| items.iter().find(|item| item.get("key").and_then(Value::as_str) == Some("atk")))
+                            .and_then(|items| {
+                                items.iter().find(|item| {
+                                    item.get("key").and_then(Value::as_str) == Some("atk")
+                                })
+                            })
                             .and_then(|item| item.get("value"))
                             .and_then(Value::as_f64)
                             .unwrap_or(0.0)
@@ -623,15 +738,18 @@ fn build_modules(
             })
             .unwrap_or_default();
 
-        by_operator.entry(target_id.to_string()).or_default().push(RawModuleCombat {
-            eq_id: equip_id.clone(),
-            eq_type: eq_type.to_string(),
-            name,
-            atk_by_level,
-            unlock_phase,
-            unlock_level,
-            talent_overrides_by_level: parse_module_talent_overrides(battle_value),
-        });
+        by_operator
+            .entry(target_id.to_string())
+            .or_default()
+            .push(RawModuleCombat {
+                eq_id: equip_id.clone(),
+                eq_type: eq_type.to_string(),
+                name,
+                atk_by_level,
+                unlock_phase,
+                unlock_level,
+                talent_overrides_by_level: parse_module_talent_overrides(battle_value),
+            });
     }
 
     for (char_id, mut modules) in by_operator {
@@ -651,7 +769,9 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn fetch_gets_real_gamedata() {
-        let data = fetch().await.expect("fetch should succeed against real network");
+        let data = fetch()
+            .await
+            .expect("fetch should succeed against real network");
         assert!(!data.operators.is_empty());
         let ash = data.get_by_name("Ash").expect("Ash should exist");
         assert!(ash.atk_base > 0.0);
@@ -664,7 +784,8 @@ mod tests {
     fn seed_matches_reference_values() {
         let json = std::fs::read_to_string(SEED_PATH)
             .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
-        let data: OperatorCombat = serde_json::from_str(&json).expect("seedがOperatorCombatとしてparseできること");
+        let data: OperatorCombat =
+            serde_json::from_str(&json).expect("seedがOperatorCombatとしてparseできること");
 
         // (JA名, atk_base, atk_potential, いずれかのモジュールのLv1〜3攻撃力)。owner提供の参照スプレッドシート値。
         let cases: &[(&str, f64, f64, [f64; 3])] = &[
@@ -674,11 +795,18 @@ mod tests {
             ("ファイヤーウォッチ", 1175.0, 35.0, [60.0, 75.0, 87.0]),
         ];
         for (name, expected_atk_base, expected_atk_potential, expected_module_atk) in cases {
-            let op = data.get_by_name(name).unwrap_or_else(|| panic!("{name}がseedに存在すること"));
+            let op = data
+                .get_by_name(name)
+                .unwrap_or_else(|| panic!("{name}がseedに存在すること"));
             assert_eq!(op.atk_base, *expected_atk_base, "{name}のatk_baseが不一致");
-            assert_eq!(op.atk_potential, *expected_atk_potential, "{name}のatk_potentialが不一致");
+            assert_eq!(
+                op.atk_potential, *expected_atk_potential,
+                "{name}のatk_potentialが不一致"
+            );
             assert!(
-                op.modules.iter().any(|m| m.atk_by_level == expected_module_atk),
+                op.modules
+                    .iter()
+                    .any(|m| m.atk_by_level == expected_module_atk),
                 "{name}に攻撃力{expected_module_atk:?}のモジュールが無い"
             );
         }
@@ -693,10 +821,17 @@ mod tests {
     fn seed_has_expected_phase_and_module_unlock_data() {
         let json = std::fs::read_to_string(SEED_PATH)
             .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
-        let data: OperatorCombat = serde_json::from_str(&json).expect("seedがOperatorCombatとしてparseできること");
+        let data: OperatorCombat =
+            serde_json::from_str(&json).expect("seedがOperatorCombatとしてparseできること");
 
-        let ebenholz = data.get_by_name("エーベンホルツ").expect("エーベンホルツがseedに存在すること");
-        assert_eq!(ebenholz.phases.len(), 3, "エーベンホルツはE0/E1/E2の3段階のはず");
+        let ebenholz = data
+            .get_by_name("エーベンホルツ")
+            .expect("エーベンホルツがseedに存在すること");
+        assert_eq!(
+            ebenholz.phases.len(),
+            3,
+            "エーベンホルツはE0/E1/E2の3段階のはず"
+        );
         assert_eq!(ebenholz.phases[0].max_level, 50);
         assert_eq!(ebenholz.phases[0].atk_min, 611.0);
         assert_eq!(ebenholz.phases[0].atk_max, 873.0);
@@ -707,17 +842,37 @@ mod tests {
         assert_eq!(ebenholz.phases[2].atk_min, 1134.0);
         assert_eq!(ebenholz.phases[2].atk_max, 1400.0);
         assert_eq!(ebenholz.atk_trust_max, 150.0);
-        assert_eq!(ebenholz.atk_base, ebenholz.phases[2].atk_max + ebenholz.atk_trust_max, "atk_baseはphases/atk_trust_maxと整合しているはず");
+        assert_eq!(
+            ebenholz.atk_base,
+            ebenholz.phases[2].atk_max + ebenholz.atk_trust_max,
+            "atk_baseはphases/atk_trust_maxと整合しているはず"
+        );
         assert_eq!(
             ebenholz.skill_unlock_phase,
-            vec![("1".to_string(), 0), ("2".to_string(), 1), ("3".to_string(), 2)],
+            vec![
+                ("1".to_string(), 0),
+                ("2".to_string(), 1),
+                ("3".to_string(), 2)
+            ],
             "エーベンホルツはS1=E0/S2=E1/S3=E2のはず"
         );
 
-        let blaze = data.get_by_name("ブレイズ").expect("ブレイズがseedに存在すること");
-        let module_x = blaze.modules.iter().find(|m| m.eq_id == "uniequip_002_huang").expect("ブレイズにモジュールX(uniequip_002_huang)があるはず");
-        assert_eq!(module_x.unlock_phase, 2, "モジュールは昇進2で装備可能なはず");
-        assert_eq!(module_x.unlock_level, 60, "ブレイズ(6凸)のモジュール装備可能レベルは60のはず");
+        let blaze = data
+            .get_by_name("ブレイズ")
+            .expect("ブレイズがseedに存在すること");
+        let module_x = blaze
+            .modules
+            .iter()
+            .find(|m| m.eq_id == "uniequip_002_huang")
+            .expect("ブレイズにモジュールX(uniequip_002_huang)があるはず");
+        assert_eq!(
+            module_x.unlock_phase, 2,
+            "モジュールは昇進2で装備可能なはず"
+        );
+        assert_eq!(
+            module_x.unlock_level, 60,
+            "ブレイズ(6凸)のモジュール装備可能レベルは60のはず"
+        );
 
         // シー(char_2015_dusk)E2: Lv1=771/Lv90=918、信頼度最大加算=110。オーナー確認済みの
         // 実測値(E2 Lv71・信頼度100%・無モジュール・潜在+34でATK1031)の元データ
@@ -738,17 +893,37 @@ mod tests {
     fn seed_has_expected_atk_potential_by_rank() {
         let json = std::fs::read_to_string(SEED_PATH)
             .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
-        let data: OperatorCombat = serde_json::from_str(&json).expect("seedがOperatorCombatとしてparseできること");
+        let data: OperatorCombat =
+            serde_json::from_str(&json).expect("seedがOperatorCombatとしてparseできること");
 
         let dusk = data.get_by_name("シー").expect("シーがseedに存在すること");
-        assert_eq!(dusk.atk_potential_by_rank, [0.0, 0.0, 0.0, 34.0, 34.0, 34.0], "シーは潜在4(rank3)で+34のはず");
-        assert_eq!(dusk.atk_potential, 34.0, "atk_potentialはatk_potential_by_rank[5]と一致するはず");
+        assert_eq!(
+            dusk.atk_potential_by_rank,
+            [0.0, 0.0, 0.0, 34.0, 34.0, 34.0],
+            "シーは潜在4(rank3)で+34のはず"
+        );
+        assert_eq!(
+            dusk.atk_potential, 34.0,
+            "atk_potentialはatk_potential_by_rank[5]と一致するはず"
+        );
 
-        let nblade = data.operators.get("char_502_nblade").expect("夜刀(char_502_nblade)がseedに存在すること");
-        assert_eq!(nblade.atk_potential_by_rank, [0.0, 0.0, 0.0, 9.0, 18.0, 18.0], "夜刀は潜在4で+9・潜在5で更に+9(計+18)のはず");
+        let nblade = data
+            .operators
+            .get("char_502_nblade")
+            .expect("夜刀(char_502_nblade)がseedに存在すること");
+        assert_eq!(
+            nblade.atk_potential_by_rank,
+            [0.0, 0.0, 0.0, 9.0, 18.0, 18.0],
+            "夜刀は潜在4で+9・潜在5で更に+9(計+18)のはず"
+        );
 
-        let castle3 = data.get_by_name("Castle-3").expect("Castle-3がseedに存在すること");
-        assert_eq!(castle3.atk_potential_by_rank, [0.0; 6], "Castle-3はATK潜在を持たないので全ランク+0のはず");
+        let castle3 = data
+            .get_by_name("Castle-3")
+            .expect("Castle-3がseedに存在すること");
+        assert_eq!(
+            castle3.atk_potential_by_rank, [0.0; 6],
+            "Castle-3はATK潜在を持たないので全ランク+0のはず"
+        );
         assert_eq!(castle3.atk_potential, 0.0);
     }
 }

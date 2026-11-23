@@ -21,19 +21,29 @@ pub async fn build_context(state: &AppState) -> (AllOperatorsInfo, ValueSet) {
 
 /// 特化コストのランキング文言。
 pub fn mastery_ranking_text(ranking: &RankingPosition) -> String {
-    format!("星{}スキル{}個中、第{}位の消費です", ranking.star, ranking.total, ranking.rank)
+    format!(
+        "星{}スキル{}個中、第{}位の消費です",
+        ranking.star, ranking.total, ranking.rank
+    )
 }
 
 /// 昇進素材のランキング文言。
 pub fn elite_ranking_text(ranking: &RankingPosition) -> String {
-    format!("星{}オペレーター{}名中、第{}位の消費です", ranking.star, ranking.total, ranking.rank)
+    format!(
+        "星{}オペレーター{}名中、第{}位の消費です",
+        ranking.star, ranking.total, ranking.rank
+    )
 }
 
 /// EmbedReply をスラッシュコマンドの応答として送信する（`bot/commands/risei/mod.rs`の
 /// `send_reply`と同じ役割。feature間の結合を避けるためここに複製している）。
 pub async fn send_reply(ctx: Context<'_>, reply: EmbedReply) -> Result<(), Error> {
     for batch in to_embed_batches(&reply) {
-        ctx.send(poise::CreateReply { embeds: batch, ..Default::default() }).await?;
+        ctx.send(poise::CreateReply {
+            embeds: batch,
+            ..Default::default()
+        })
+        .await?;
     }
     Ok(())
 }
@@ -60,6 +70,9 @@ pub fn fmt_item_block(items: &[(String, f64)], sort_by_count: bool) -> String {
     if sort_by_count {
         items.sort_by(|a, b| b.1.total_cmp(&a.1));
     }
-    let lines: Vec<String> = items.iter().map(|(name, count)| fmt_item_line(name, *count)).collect();
+    let lines: Vec<String> = items
+        .iter()
+        .map(|(name, count)| fmt_item_line(name, *count))
+        .collect();
     dump_to_print(&lines)
 }

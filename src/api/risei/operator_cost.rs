@@ -8,12 +8,12 @@
 //! (混在時は古い方)を返す。
 
 use super::{
-    check_params, endpoint_usage, required, rfc3339, suggest, ApiError, ApiResult, EndpointSpec, ParamSpec, Params,
-    RiseiApiState, PREFIX,
+    check_params, endpoint_usage, required, rfc3339, suggest, ApiError, ApiResult, EndpointSpec,
+    ParamSpec, Params, RiseiApiState, PREFIX,
 };
 use crate::engine::operator_cost_calc::calc::{
-    cost_list_by_elite, cost_list_cost_of_cn_only, cost_list_cost_of_global, cost_list_master_stats,
-    operator_elite_cost, operator_module_cost, skill_master_cost,
+    cost_list_by_elite, cost_list_cost_of_cn_only, cost_list_cost_of_global,
+    cost_list_master_stats, operator_elite_cost, operator_module_cost, skill_master_cost,
 };
 use crate::engine::operator_cost_calc::dto::OperatorCostError;
 use crate::engine::operator_cost_calc::AllOperatorsInfo;
@@ -82,7 +82,12 @@ enum OperatorListKind {
 }
 
 impl OperatorListKind {
-    const ALL: [OperatorListKind; 4] = [Self::Elite, Self::Mastery, Self::UnimplementedTotal, Self::ImplementedTotal];
+    const ALL: [OperatorListKind; 4] = [
+        Self::Elite,
+        Self::Mastery,
+        Self::UnimplementedTotal,
+        Self::ImplementedTotal,
+    ];
 
     fn key(self) -> &'static str {
         match self {
@@ -121,14 +126,20 @@ pub(super) fn list_kinds_json() -> Vec<Value> {
 
 /// 存在しないパスへのサジェスト候補用。
 pub(super) fn list_paths() -> Vec<String> {
-    OperatorListKind::ALL.iter().map(|k| format!("{PREFIX}/operators/lists/{}", k.key())).collect()
+    OperatorListKind::ALL
+        .iter()
+        .map(|k| format!("{PREFIX}/operators/lists/{}", k.key()))
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
 // ハンドラ
 // ---------------------------------------------------------------------------
 
-pub(super) async fn mastery(State(state): State<RiseiApiState>, Query(params): Params) -> ApiResult {
+pub(super) async fn mastery(
+    State(state): State<RiseiApiState>,
+    Query(params): Params,
+) -> ApiResult {
     check_params(&params, &OPERATOR_MASTERY)?;
     let operator = required(&params, "operator", &OPERATOR_MASTERY)?;
     let skill = parse_skill(&params)?;
@@ -137,7 +148,9 @@ pub(super) async fn mastery(State(state): State<RiseiApiState>, Query(params): P
     let dto = skill_master_cost(&info, &values, operator, skill)
         .map_err(|e| calc_error(e, operator, &info, &OPERATOR_MASTERY))?;
     let servers = [server_for(dto.cn_only)];
-    Ok(Json(operator_envelope(&state, &servers, json!({ "query": operator }), &dto).await))
+    Ok(Json(
+        operator_envelope(&state, &servers, json!({ "query": operator }), &dto).await,
+    ))
 }
 
 pub(super) async fn elite(State(state): State<RiseiApiState>, Query(params): Params) -> ApiResult {
@@ -148,7 +161,9 @@ pub(super) async fn elite(State(state): State<RiseiApiState>, Query(params): Par
     let dto = operator_elite_cost(&info, &values, operator)
         .map_err(|e| calc_error(e, operator, &info, &OPERATOR_ELITE))?;
     let servers = [server_for(dto.cn_only)];
-    Ok(Json(operator_envelope(&state, &servers, json!({ "query": operator }), &dto).await))
+    Ok(Json(
+        operator_envelope(&state, &servers, json!({ "query": operator }), &dto).await,
+    ))
 }
 
 pub(super) async fn module(State(state): State<RiseiApiState>, Query(params): Params) -> ApiResult {
@@ -160,11 +175,15 @@ pub(super) async fn module(State(state): State<RiseiApiState>, Query(params): Pa
         .map_err(|e| calc_error(e, operator, &info, &OPERATOR_MODULE))?;
     // 換算サーバはモジュールごと(大陸版限定モジュールだけ大陸版の価値)。
     let servers: Vec<Server> = dto.modules.iter().map(|m| server_for(m.cn_only)).collect();
-    Ok(Json(operator_envelope(&state, &servers, json!({ "query": operator }), &dto).await))
+    Ok(Json(
+        operator_envelope(&state, &servers, json!({ "query": operator }), &dto).await,
+    ))
 }
 
 pub(super) async fn lists_index() -> Json<Value> {
-    Json(json!({ "operator_list_kinds": list_kinds_json(), "usage": endpoint_usage(&OPERATOR_LISTS) }))
+    Json(
+        json!({ "operator_list_kinds": list_kinds_json(), "usage": endpoint_usage(&OPERATOR_LISTS) }),
+    )
 }
 
 pub(super) async fn lists(
@@ -173,9 +192,15 @@ pub(super) async fn lists(
     Query(params): Params,
 ) -> ApiResult {
     let Some(kind) = OperatorListKind::from_key(&kind) else {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, format!("不明なオペレーター消費素材表の種類です: {kind}"))
-            .with("did_you_mean", suggest(&kind, OperatorListKind::ALL.iter().map(|k| k.key())))
-            .with("operator_list_kinds", list_kinds_json()));
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            format!("不明なオペレーター消費素材表の種類です: {kind}"),
+        )
+        .with(
+            "did_you_mean",
+            suggest(&kind, OperatorListKind::ALL.iter().map(|k| k.key())),
+        )
+        .with("operator_list_kinds", list_kinds_json()));
     };
     check_params(&params, &OPERATOR_LISTS)?;
     if !kind.takes_params() && !params.is_empty() {
@@ -183,7 +208,11 @@ pub(super) async fn lists(
         keys.sort_unstable();
         return Err(ApiError::new(
             StatusCode::BAD_REQUEST,
-            format!("kind={} は引数を取りません: {}", kind.key(), keys.join(", ")),
+            format!(
+                "kind={} は引数を取りません: {}",
+                kind.key(),
+                keys.join(", ")
+            ),
         )
         .with("usage", endpoint_usage(&OPERATOR_LISTS)));
     }
@@ -203,15 +232,28 @@ pub(super) async fn lists(
             let star = parse_star(&params)?;
             let only_recent = parse_only_recent(&params)?;
             let dto = cost_list_by_elite(&info, &values, star, only_recent);
-            operator_envelope(&state, &mixed, meta(json!({ "only_recent": only_recent })), &dto).await
+            operator_envelope(
+                &state,
+                &mixed,
+                meta(json!({ "only_recent": only_recent })),
+                &dto,
+            )
+            .await
         }
         OperatorListKind::Mastery => {
             let star = parse_star(&params)?;
             let only_recent = parse_only_recent(&params)?;
             let dto = cost_list_master_stats(&info, &values, star, only_recent).map_err(|e| {
-                ApiError::new(StatusCode::NOT_FOUND, e.to_string()).with("usage", endpoint_usage(&OPERATOR_LISTS))
+                ApiError::new(StatusCode::NOT_FOUND, e.to_string())
+                    .with("usage", endpoint_usage(&OPERATOR_LISTS))
             })?;
-            operator_envelope(&state, &mixed, meta(json!({ "only_recent": only_recent })), &dto).await
+            operator_envelope(
+                &state,
+                &mixed,
+                meta(json!({ "only_recent": only_recent })),
+                &dto,
+            )
+            .await
         }
         OperatorListKind::UnimplementedTotal => {
             let dto = cost_list_cost_of_cn_only(&info, &values);
@@ -241,7 +283,12 @@ fn server_for(cn_only: bool) -> Server {
 /// 応答の共通ヘッダ(`values_server`/`updated_at` + 固有メタ情報)の後ろにDTOのフィールドを並べる。
 /// `servers`は換算に使ったサーバ(1種類ならそのサーバ名、複数なら"mixed")。`updated_at`は
 /// そのうち最も古い最終更新時刻。
-async fn operator_envelope(state: &RiseiApiState, servers: &[Server], meta: Value, body: &impl Serialize) -> Value {
+async fn operator_envelope(
+    state: &RiseiApiState,
+    servers: &[Server],
+    meta: Value,
+    body: &impl Serialize,
+) -> Value {
     let mut distinct: Vec<Server> = Vec::new();
     for server in servers {
         if !distinct.contains(server) {
@@ -272,10 +319,21 @@ async fn operator_envelope(state: &RiseiApiState, servers: &[Server], meta: Valu
 
 /// 計算関数のエラー→JSON。オペレーター名の不一致は近い候補(`did_you_mean`)を添える。
 /// それ以外(スキル番号範囲外・★3の特化・モジュール無し等)もbotと同じ文言のまま404で返す。
-fn calc_error(error: OperatorCostError, operator: &str, info: &AllOperatorsInfo, endpoint: &EndpointSpec) -> ApiError {
+fn calc_error(
+    error: OperatorCostError,
+    operator: &str,
+    info: &AllOperatorsInfo,
+    endpoint: &EndpointSpec,
+) -> ApiError {
     let mut api = ApiError::new(StatusCode::NOT_FOUND, error.to_string());
     if let OperatorCostError::OperatorNotFound(_) = error {
-        api = api.with("did_you_mean", suggest(operator, info.data.operators.values().map(|op| op.name.as_str())));
+        api = api.with(
+            "did_you_mean",
+            suggest(
+                operator,
+                info.data.operators.values().map(|op| op.name.as_str()),
+            ),
+        );
     }
     api.with("usage", endpoint_usage(endpoint))
 }
@@ -288,7 +346,10 @@ fn parse_skill(params: &HashMap<String, String>) -> Result<u32, ApiError> {
     let value = required(params, "skill", &OPERATOR_MASTERY)?;
     match value.parse::<u32>() {
         Ok(n) if (1..=3).contains(&n) => Ok(n),
-        _ => Err(bad_request(format!("skill は1〜3の整数です: {value}"), &OPERATOR_MASTERY)),
+        _ => Err(bad_request(
+            format!("skill は1〜3の整数です: {value}"),
+            &OPERATOR_MASTERY,
+        )),
     }
 }
 
@@ -296,14 +357,24 @@ fn parse_star(params: &HashMap<String, String>) -> Result<u32, ApiError> {
     let value = required(params, "star", &OPERATOR_LISTS)?;
     match value.parse::<u32>() {
         Ok(n) if (4..=6).contains(&n) => Ok(n),
-        _ => Err(bad_request(format!("star は4〜6の整数です: {value}"), &OPERATOR_LISTS)),
+        _ => Err(bad_request(
+            format!("star は4〜6の整数です: {value}"),
+            &OPERATOR_LISTS,
+        )),
     }
 }
 
 fn parse_only_recent(params: &HashMap<String, String>) -> Result<bool, ApiError> {
-    match params.get("only_recent").map(|v| v.trim().to_ascii_lowercase()).as_deref() {
+    match params
+        .get("only_recent")
+        .map(|v| v.trim().to_ascii_lowercase())
+        .as_deref()
+    {
         None | Some("") | Some("false") => Ok(false),
         Some("true") => Ok(true),
-        Some(other) => Err(bad_request(format!("only_recent は true か false です: {other}"), &OPERATOR_LISTS)),
+        Some(other) => Err(bad_request(
+            format!("only_recent は true か false です: {other}"),
+            &OPERATOR_LISTS,
+        )),
     }
 }

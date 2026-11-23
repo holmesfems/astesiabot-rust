@@ -18,7 +18,10 @@ pub struct Zones {
 
 impl Zones {
     pub fn get_str(&self, id: &str) -> &str {
-        self.id_to_ja.get(id).map(String::as_str).unwrap_or("Missing")
+        self.id_to_ja
+            .get(id)
+            .map(String::as_str)
+            .unwrap_or("Missing")
     }
 }
 
@@ -35,7 +38,8 @@ pub fn update_seed() -> BoxFuture<'static, Result<(), FetchError>> {
 
 async fn fetch_impl() -> Result<Zones, FetchError> {
     let client = client();
-    let json = fetch_json_with_retry_headers(&client, ZONE_TABLE_URL, &[PENGUIN_USER_AGENT]).await?;
+    let json =
+        fetch_json_with_retry_headers(&client, ZONE_TABLE_URL, &[PENGUIN_USER_AGENT]).await?;
     let mut id_to_ja = HashMap::new();
     if let Value::Array(items) = json {
         for item in items {

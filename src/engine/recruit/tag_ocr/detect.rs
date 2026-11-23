@@ -105,9 +105,17 @@ fn dilate(m: &Mask, r: usize) -> Mask {
 /// 閉じ（膨張→収縮）。収縮は反転マスクの膨張で作る。
 fn close(m: &Mask, r: usize) -> Mask {
     let d = dilate(m, r);
-    let inv = Mask { w: d.w, h: d.h, v: d.v.iter().map(|b| !b).collect() };
+    let inv = Mask {
+        w: d.w,
+        h: d.h,
+        v: d.v.iter().map(|b| !b).collect(),
+    };
     let e = dilate(&inv, r);
-    Mask { w: e.w, h: e.h, v: e.v.iter().map(|b| !b).collect() }
+    Mask {
+        w: e.w,
+        h: e.h,
+        v: e.v.iter().map(|b| !b).collect(),
+    }
 }
 
 /// 外側につながっていない穴（枠の中の文字など）を埋める。画像の大きさに依らず効く。
@@ -144,7 +152,11 @@ fn fill_holes(m: &Mask) -> Mask {
             seed(x, y + 1, &mut stack);
         }
     }
-    Mask { w, h, v: outside.iter().map(|o| !o).collect() }
+    Mask {
+        w,
+        h,
+        v: outside.iter().map(|o| !o).collect(),
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -225,7 +237,13 @@ fn components(closed: &Mask, colors: &[Option<Color>]) -> Vec<Rect> {
             } else {
                 Color::Dark
             };
-            out.push(Rect { x: x0 as f32, y: y0 as f32, w: bw as f32, h: bh as f32, color });
+            out.push(Rect {
+                x: x0 as f32,
+                y: y0 as f32,
+                w: bw as f32,
+                h: bh as f32,
+                color,
+            });
         }
     }
     out
@@ -275,26 +293,46 @@ pub fn find_grid(c: &[Rect]) -> Option<Grid> {
                 continue;
             }
             // 1 行目の 3 つ目: x = b.x + pitch 付近
-            let Some((c3, d3)) = pick(c, |r| similar_size(a, r), |r| (r.x - (b.x + pitch)).abs() / w + (r.y - a.y).abs() / h, |r| {
-                (r.x - (b.x + pitch)).abs() <= 0.2 * w && (r.y - a.y).abs() <= 0.2 * h
-            }) else {
+            let Some((c3, d3)) = pick(
+                c,
+                |r| similar_size(a, r),
+                |r| (r.x - (b.x + pitch)).abs() / w + (r.y - a.y).abs() / h,
+                |r| (r.x - (b.x + pitch)).abs() <= 0.2 * w && (r.y - a.y).abs() <= 0.2 * h,
+            ) else {
                 continue;
             };
             // 2 行目: a・b の真下
             let below = |r: &Rect, col: &Rect| {
                 (r.x - col.x).abs() <= 0.2 * w && r.y >= a.y + 1.15 * h && r.y <= a.y + 2.5 * h
             };
-            let Some((d, dd)) = pick(c, |r| similar_size(a, r), |r| (r.x - a.x).abs() / w, |r| below(r, a)) else {
+            let Some((d, dd)) = pick(
+                c,
+                |r| similar_size(a, r),
+                |r| (r.x - a.x).abs() / w,
+                |r| below(r, a),
+            ) else {
                 continue;
             };
-            let Some((e, de)) = pick(c, |r| similar_size(a, r), |r| (r.x - b.x).abs() / w + (r.y - d.y).abs() / h, |r| {
-                below(r, b) && (r.y - d.y).abs() <= 0.2 * h
-            }) else {
+            let Some((e, de)) = pick(
+                c,
+                |r| similar_size(a, r),
+                |r| (r.x - b.x).abs() / w + (r.y - d.y).abs() / h,
+                |r| below(r, b) && (r.y - d.y).abs() <= 0.2 * h,
+            ) else {
                 continue;
             };
-            let score = dy / h + d3 + dd + de + (c3.w - w).abs() / w + (d.w - w).abs() / w + (e.w - w).abs() / w;
+            let score = dy / h
+                + d3
+                + dd
+                + de
+                + (c3.w - w).abs() / w
+                + (d.w - w).abs() / w
+                + (e.w - w).abs() / w;
             if best.as_ref().is_none_or(|g| score < g.score) {
-                best = Some(Grid { boxes: [*a, *b, *c3, *d, *e], score });
+                best = Some(Grid {
+                    boxes: [*a, *b, *c3, *d, *e],
+                    score,
+                });
             }
         }
     }
@@ -338,28 +376,44 @@ pub struct Detection {
 pub fn detect(img: &RgbImage) -> (Detection, RgbImage) {
     let (w, h) = img.dimensions();
     let small = if h > DETECT_HEIGHT {
-        let nw = ((w as f32) * DETECT_HEIGHT as f32 / h as f32).round().max(1.0) as u32;
+        let nw = ((w as f32) * DETECT_HEIGHT as f32 / h as f32)
+            .round()
+            .max(1.0) as u32;
         imageops::resize(img, nw, DETECT_HEIGHT, imageops::FilterType::Triangle)
     } else {
         img.clone()
     };
     let (sw, sh) = small.dimensions();
     let colors: Vec<Option<Color>> = small.pixels().map(|p| classify(p[0], p[1], p[2])).collect();
-    let mask = Mask { w: sw as usize, h: sh as usize, v: colors.iter().map(|c| c.is_some()).collect() };
+    let mask = Mask {
+        w: sw as usize,
+        h: sh as usize,
+        v: colors.iter().map(|c| c.is_some()).collect(),
+    };
     let closed = fill_holes(&close(&mask, CLOSE_RADIUS));
     let cands = filter_candidates(components(&closed, &colors), sw as f32, sh as f32);
     let mut grid = find_grid(&cands);
     if let Some(g) = grid.as_mut() {
         normalize_grid(g);
     }
-    (Detection { grid, candidates: cands, small: (sw, sh) }, small)
+    (
+        Detection {
+            grid,
+            candidates: cands,
+            small: (sw, sh),
+        },
+        small,
+    )
 }
 
 impl Detection {
     /// グリッドの 5 枠を元画像の座標 `[x, y, w, h]` にしたもの（縮小前の解像度）。
     pub fn full_boxes(&self, img_w: u32, img_h: u32) -> Option<[[u32; 4]; 5]> {
         let g = self.grid.as_ref()?;
-        let (sx, sy) = (img_w as f32 / self.small.0 as f32, img_h as f32 / self.small.1 as f32);
+        let (sx, sy) = (
+            img_w as f32 / self.small.0 as f32,
+            img_h as f32 / self.small.1 as f32,
+        );
         let conv = |r: &Rect| {
             let x0 = (r.x * sx).round().max(0.0) as u32;
             let y0 = (r.y * sy).round().max(0.0) as u32;
@@ -367,7 +421,13 @@ impl Detection {
             let y1 = (((r.y + r.h) * sy).round() as u32).min(img_h);
             [x0, y0, x1.saturating_sub(x0), y1.saturating_sub(y0)]
         };
-        Some([conv(&g.boxes[0]), conv(&g.boxes[1]), conv(&g.boxes[2]), conv(&g.boxes[3]), conv(&g.boxes[4])])
+        Some([
+            conv(&g.boxes[0]),
+            conv(&g.boxes[1]),
+            conv(&g.boxes[2]),
+            conv(&g.boxes[3]),
+            conv(&g.boxes[4]),
+        ])
     }
 }
 
@@ -381,7 +441,15 @@ pub fn crop_box(img: &RgbImage, b: &[u32; 4]) -> Option<RgbImage> {
     if b[0] + b[2] > iw || b[1] + b[3] > ih {
         return None;
     }
-    Some(img.view(b[0] + inset, b[1] + inset, b[2] - inset * 2, b[3] - inset * 2).to_image())
+    Some(
+        img.view(
+            b[0] + inset,
+            b[1] + inset,
+            b[2] - inset * 2,
+            b[3] - inset * 2,
+        )
+        .to_image(),
+    )
 }
 
 #[cfg(test)]
@@ -390,7 +458,13 @@ mod tests {
     use image::Rgb;
 
     fn r(x: f32, y: f32, w: f32, h: f32) -> Rect {
-        Rect { x, y, w, h, color: Color::Dark }
+        Rect {
+            x,
+            y,
+            w,
+            h,
+            color: Color::Dark,
+        }
     }
 
     #[test]
@@ -424,7 +498,16 @@ mod tests {
         c.push(r(300.0, 200.0, 80.0, 24.0));
         let g = find_grid(&c).expect("grid");
         let xs: Vec<(f32, f32)> = g.boxes.iter().map(|b| (b.x, b.y)).collect();
-        assert_eq!(xs, vec![(100.0, 100.0), (175.0, 100.0), (240.0, 100.0), (100.0, 130.0), (170.0, 130.0)]);
+        assert_eq!(
+            xs,
+            vec![
+                (100.0, 100.0),
+                (175.0, 100.0),
+                (240.0, 100.0),
+                (100.0, 130.0),
+                (170.0, 130.0)
+            ]
+        );
     }
 
     #[test]
@@ -455,7 +538,10 @@ mod tests {
         let mut img = RgbImage::from_pixel(400, 300, Rgb([235, 235, 235]));
         let dark = [0x30, 0x30, 0x30];
         // タグ枠: 80x26、3 列（ピッチ 100）x 2 行。1 つ目の枠には白い文字風の縞
-        for (i, (x, y)) in [(60, 150), (160, 150), (260, 150), (60, 200), (160, 200)].iter().enumerate() {
+        for (i, (x, y)) in [(60, 150), (160, 150), (260, 150), (60, 200), (160, 200)]
+            .iter()
+            .enumerate()
+        {
             let c = if i == 1 { [0x0a, 0x8f, 0xd8] } else { dark };
             fill(&mut img, *x, *y, 80, 26, c);
             for k in 0..5 {
@@ -463,7 +549,7 @@ mod tests {
             }
         }
         fill(&mut img, 260, 200, 80, 26, [0xb0, 0xb0, 0xb0]); // 6 個目の空き枠
-        // 時間ボタン（2 列）と ✓✕
+                                                              // 時間ボタン（2 列）と ✓✕
         for (x, y) in [(60, 20), (160, 20), (60, 80), (160, 80)] {
             fill(&mut img, x, y, 80, 26, dark);
         }
@@ -472,7 +558,11 @@ mod tests {
 
         let (det, _) = detect(&img);
         let g = det.grid.expect("grid");
-        let pos: Vec<(i32, i32)> = g.boxes.iter().map(|b| (b.x.round() as i32, b.y.round() as i32)).collect();
+        let pos: Vec<(i32, i32)> = g
+            .boxes
+            .iter()
+            .map(|b| (b.x.round() as i32, b.y.round() as i32))
+            .collect();
         let expect = [(60, 150), (160, 150), (260, 150), (60, 200), (160, 200)];
         for (p, e) in pos.iter().zip(expect) {
             assert!((p.0 - e.0).abs() <= 2 && (p.1 - e.1).abs() <= 2, "{pos:?}");

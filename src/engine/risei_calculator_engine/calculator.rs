@@ -26,7 +26,10 @@ const MAX_BASE_STAGE_UPDATE_ITERATIONS: usize = 1_000;
 
 /// 換算行列・基準マップ行列などの1行分。
 struct ConvertionItem {
-    #[allow(dead_code, reason = "行列の行のラベル。収束のデバッグでどの行かを見分けるために残している")]
+    #[allow(
+        dead_code,
+        reason = "行列の行のラベル。収束のデバッグでどの行かを見分けるために残している"
+    )]
     name: String,
     value_array: DVector<f64>,
 }
@@ -48,7 +51,12 @@ impl ConvertionItem {
     }
 }
 
-fn convertion_item_from_map(len: usize, value_target: &[&str], name: &str, dict: HashMap<&str, f64>) -> ConvertionItem {
+fn convertion_item_from_map(
+    len: usize,
+    value_target: &[&str],
+    name: &str,
+    dict: HashMap<&str, f64>,
+) -> ConvertionItem {
     let dict: HashMap<String, f64> = dict.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
     let mut item = ConvertionItem::new(len, name);
     item.set_value(&dict, value_target);
@@ -56,7 +64,11 @@ fn convertion_item_from_map(len: usize, value_target: &[&str], name: &str, dict:
 }
 
 /// 素材合成・経験値・純金換算の行列。
-fn build_convertion_matrix(server: Server, item_names: &ItemNames, formulas: &[RawFormula]) -> Vec<ConvertionItem> {
+fn build_convertion_matrix(
+    server: Server,
+    item_names: &ItemNames,
+    formulas: &[RawFormula],
+) -> Vec<ConvertionItem> {
     let value_target_list = value_target(server);
     let n = value_target_list.len();
     let mut items = vec![
@@ -92,7 +104,11 @@ fn build_convertion_matrix(server: Server, item_names: &ItemNames, formulas: &[R
             continue;
         }
         let formula_item = FormulaItem::from_raw(raw, item_names);
-        let array = formula_item.to_formula_array_with_outcome(CONVERTION_DROP_RATE, &value_target_list, item_names);
+        let array = formula_item.to_formula_array_with_outcome(
+            CONVERTION_DROP_RATE,
+            &value_target_list,
+            item_names,
+        );
         let mut item = ConvertionItem::new(n, format!("合成-{}", formula_item.name));
         item.set_value(&array.to_zh_count_dict(item_names), &value_target_list);
         items.push(item);
@@ -103,7 +119,10 @@ fn build_convertion_matrix(server: Server, item_names: &ItemNames, formulas: &[R
 
 /// 理性消費のみで換算される定番周回マップ。
 struct StageDropItem {
-    #[allow(dead_code, reason = "行列の行のラベル。収束のデバッグでどの行かを見分けるために残している")]
+    #[allow(
+        dead_code,
+        reason = "行列の行のラベル。収束のデバッグでどの行かを見分けるために残している"
+    )]
     name: String,
     value_array: DVector<f64>,
     ap_cost: f64,
@@ -114,7 +133,8 @@ fn build_const_stage_matrix(server: Server) -> Vec<StageDropItem> {
     let n = value_target_list.len();
 
     let make = |name: &str, dict: HashMap<&str, f64>, ap_cost: f64| -> StageDropItem {
-        let dict: HashMap<String, f64> = dict.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+        let dict: HashMap<String, f64> =
+            dict.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
         let mut item = ConvertionItem::new(n, name);
         item.set_value(&dict, &value_target_list);
         StageDropItem {
@@ -127,7 +147,11 @@ fn build_const_stage_matrix(server: Server) -> Vec<StageDropItem> {
     vec![
         make(
             "LS-6",
-            HashMap::from([("中级作战记录", 2.0), ("高级作战记录", 4.0), ("龙门币1000", 0.432)]),
+            HashMap::from([
+                ("中级作战记录", 2.0),
+                ("高级作战记录", 4.0),
+                ("龙门币1000", 0.432),
+            ]),
             36.0,
         ),
         make("CE-6", HashMap::from([("龙门币1000", 10.0)]), 36.0),
@@ -158,13 +182,29 @@ pub struct BaseStageMatrix {
 }
 
 impl BaseStageMatrix {
-    fn from_seed(valid_base_min_times: i64, seed: HashMap<String, Arc<StageItem>>, stage_info: &StageInfo) -> Self {
+    fn from_seed(
+        valid_base_min_times: i64,
+        seed: HashMap<String, Arc<StageItem>>,
+        stage_info: &StageInfo,
+    ) -> Self {
         let items = seed
             .into_iter()
             .filter_map(|(category, stage)| {
-                let to_ja = stage_info.category_instance_dict.get(&category)?.info.to_ja.clone();
+                let to_ja = stage_info
+                    .category_instance_dict
+                    .get(&category)?
+                    .info
+                    .to_ja
+                    .clone();
                 let name = format!("{to_ja}{}", stage.name);
-                Some((category.clone(), BaseStageDropItem { category, name, stage }))
+                Some((
+                    category.clone(),
+                    BaseStageDropItem {
+                        category,
+                        name,
+                        stage,
+                    },
+                ))
             })
             .collect();
         Self {
@@ -174,7 +214,9 @@ impl BaseStageMatrix {
     }
 
     pub fn contains(&self, stage_id: &str) -> bool {
-        self.items.values().any(|item| item.stage.stage_id == stage_id)
+        self.items
+            .values()
+            .any(|item| item.stage.stage_id == stage_id)
     }
 
     /// カテゴリ`to_ja`名→選択中のステージコード（基準マップ表示用）。
@@ -188,10 +230,11 @@ impl BaseStageMatrix {
     /// 基準マップより明らかに効率の良いステージがあれば1件だけ入れ替える。
     /// 入れ替えが起きなければ `Ok(false)`。
     fn update(&mut self, stage_info: &StageInfo, values: &RiseiValues) -> Result<bool, Error> {
-        let max_item = match stage_info.get_category_max_efficiency(values, self.valid_base_min_times) {
-            Some(item) => item,
-            None => return Err("有効な基準ステージ候補が見つかりませんでした".into()),
-        };
+        let max_item =
+            match stage_info.get_category_max_efficiency(values, self.valid_base_min_times) {
+                Some(item) => item,
+                None => return Err("有効な基準ステージ候補が見つかりませんでした".into()),
+            };
         if max_item.categories.is_empty() {
             return Err(format!(
                 "カテゴリから外れたマップを検出、計算を中断します。マップ{}は、何を稼ぐステージですか？",
@@ -299,13 +342,24 @@ fn solve_values(
     item_names: Arc<ItemNames>,
     const_values: Arc<HashMap<String, f64>>,
 ) -> Result<RiseiValues, Error> {
-    let prob_matrix = build_prob_matrix(value_target, &item_names, convertion_items, const_stage_items, base_stage_matrix)?;
+    let prob_matrix = build_prob_matrix(
+        value_target,
+        &item_names,
+        convertion_items,
+        const_stage_items,
+        base_stage_matrix,
+    )?;
     let cost_array = build_cost_array(convertion_items, const_stage_items, base_stage_matrix);
     let value_array = prob_matrix
         .lu()
         .solve(&cost_array)
         .ok_or("理性価値の連立方程式が解けませんでした（特異行列）")?;
-    Ok(RiseiValues::new(server, value_array, item_names, const_values))
+    Ok(RiseiValues::new(
+        server,
+        value_array,
+        item_names,
+        const_values,
+    ))
 }
 
 /// サーバ1つ分の理性価値表計算エンジン全体。
@@ -348,7 +402,8 @@ impl Calculator {
         let value_target_list = value_target(server);
 
         let seed = stage_info.generate_category_seed(valid_base_min_times)?;
-        let mut base_stage_matrix = BaseStageMatrix::from_seed(valid_base_min_times, seed, &stage_info);
+        let mut base_stage_matrix =
+            BaseStageMatrix::from_seed(valid_base_min_times, seed, &stage_info);
 
         let mut values = solve_values(
             server,
@@ -388,8 +443,20 @@ impl Calculator {
         println!("[risei_calculator_engine] Risei calculate end ({server:?})");
 
         // 誤差(標準偏差)を計算する。
-        let prob_matrix = build_prob_matrix(&value_target_list, &item_names, &convertion_items, &const_stage_items, &base_stage_matrix)?;
-        let dev_matrix = build_dev_matrix(&value_target_list, &item_names, &convertion_items, &const_stage_items, &base_stage_matrix);
+        let prob_matrix = build_prob_matrix(
+            &value_target_list,
+            &item_names,
+            &convertion_items,
+            &const_stage_items,
+            &base_stage_matrix,
+        )?;
+        let dev_matrix = build_dev_matrix(
+            &value_target_list,
+            &item_names,
+            &convertion_items,
+            &const_stage_items,
+            &base_stage_matrix,
+        );
         let prob_inv = prob_matrix
             .try_inverse()
             .ok_or("理性価値の行列が特異で誤差計算に失敗しました")?;
@@ -411,7 +478,11 @@ impl Calculator {
         if self.base_stage_matrix.contains(&target_stage.stage_id) {
             return 0.0;
         }
-        let cost = if target_stage.ap_cost > 0.0 { target_stage.ap_cost } else { 1.0 };
+        let cost = if target_stage.ap_cost > 0.0 {
+            target_stage.ap_cost
+        } else {
+            1.0
+        };
         target_stage.get_std_dev(&self.values) / cost
     }
 }
@@ -420,7 +491,11 @@ impl Calculator {
 /// Seedの中身に依存しない性質だけを見るので、Seedを作り直しても期待値の更新は要らない。
 /// `formulas`は`calc`を組み立てたときと同じもの（換算行列を組み直して連立方程式の残差を見る）。
 #[cfg(test)]
-pub(super) fn check_invariants(calc: &Calculator, item_names: &ItemNames, formulas: &[RawFormula]) -> Vec<String> {
+pub(super) fn check_invariants(
+    calc: &Calculator,
+    item_names: &ItemNames,
+    formulas: &[RawFormula],
+) -> Vec<String> {
     let server = calc.values.server;
     let values = &calc.values;
     let stage_info = &calc.stage_info;
@@ -430,13 +505,22 @@ pub(super) fn check_invariants(calc: &Calculator, item_names: &ItemNames, formul
     // 1. 連立方程式が解けている: 換算・定番周回・基準マップのすべての行で 確率行列×理性価値 = 理性消費
     let convertion_items = build_convertion_matrix(server, item_names, formulas);
     let const_stage_items = build_const_stage_matrix(server);
-    match build_prob_matrix(&values.value_target, item_names, &convertion_items, &const_stage_items, base) {
+    match build_prob_matrix(
+        &values.value_target,
+        item_names,
+        &convertion_items,
+        &const_stage_items,
+        base,
+    ) {
         Ok(prob_matrix) => {
             let cost_array = build_cost_array(&convertion_items, &const_stage_items, base);
             let residual = &prob_matrix * &values.value_array - &cost_array;
             let tolerance = 1e-9 * cost_array.amax().max(1.0);
             if residual.amax() > tolerance {
-                bad.push(format!("{server:?}: 連立方程式の残差が大きい (max={:e})", residual.amax()));
+                bad.push(format!(
+                    "{server:?}: 連立方程式の残差が大きい (max={:e})",
+                    residual.amax()
+                ));
             }
         }
         Err(e) => bad.push(format!("{server:?}: 確率行列を組み立てられない: {e}")),
@@ -446,7 +530,10 @@ pub(super) fn check_invariants(calc: &Calculator, item_names: &ItemNames, formul
     for item in base.items.values() {
         let eff = item.stage.get_efficiency(values);
         if (eff - 1.0).abs() > 1e-9 {
-            bad.push(format!("{server:?}: 基準マップ{}({})の効率が1でない: {eff}", item.stage.name, item.category));
+            bad.push(format!(
+                "{server:?}: 基準マップ{}({})の効率が1でない: {eff}",
+                item.stage.name, item.category
+            ));
         }
     }
 
@@ -454,7 +541,10 @@ pub(super) fn check_invariants(calc: &Calculator, item_names: &ItemNames, formul
     for stage in stage_info.valid_base_stages(base.valid_base_min_times) {
         let eff = stage.get_efficiency(values);
         if eff > 1.0 + EPSILON {
-            bad.push(format!("{server:?}: 基準マップより効率の良い候補{}がある: {eff}", stage.name));
+            bad.push(format!(
+                "{server:?}: 基準マップより効率の良い候補{}がある: {eff}",
+                stage.name
+            ));
         }
     }
 
@@ -467,14 +557,20 @@ pub(super) fn check_invariants(calc: &Calculator, item_names: &ItemNames, formul
     let mut seen = std::collections::HashSet::new();
     for item in base.items.values() {
         if !seen.insert(&item.stage.stage_id) {
-            bad.push(format!("{server:?}: 基準マップ{}が複数のカテゴリで重複している", item.stage.name));
+            bad.push(format!(
+                "{server:?}: 基準マップ{}が複数のカテゴリで重複している",
+                item.stage.name
+            ));
         }
         let in_category = stage_info
             .category_instance_dict
             .get(&item.category)
             .is_some_and(|c| c.stage_ids.contains(&item.stage.stage_id));
         if !in_category {
-            bad.push(format!("{server:?}: 基準マップ{}がカテゴリ{}に属していない", item.stage.name, item.category));
+            bad.push(format!(
+                "{server:?}: 基準マップ{}がカテゴリ{}に属していない",
+                item.stage.name, item.category
+            ));
         }
     }
 
@@ -482,10 +578,14 @@ pub(super) fn check_invariants(calc: &Calculator, item_names: &ItemNames, formul
     for (i, zh) in values.value_target.iter().enumerate() {
         let (value, dev) = (values.value_array[i], values.dev_array[i]);
         if !(value.is_finite() && value > 0.0) {
-            bad.push(format!("{server:?}: {zh}の理性価値が正の有限値でない: {value}"));
+            bad.push(format!(
+                "{server:?}: {zh}の理性価値が正の有限値でない: {value}"
+            ));
         }
         if !(dev.is_finite() && dev >= 0.0) {
-            bad.push(format!("{server:?}: {zh}の誤差が0以上の有限値でない: {dev}"));
+            bad.push(format!(
+                "{server:?}: {zh}の誤差が0以上の有限値でない: {dev}"
+            ));
         }
     }
 

@@ -42,7 +42,10 @@ pub async fn send_reply_with_attachment(
     let last = batches.len().saturating_sub(1);
     let mut attachment = attachment;
     for (i, batch) in batches.into_iter().enumerate() {
-        let mut created = poise::CreateReply { embeds: batch, ..Default::default() };
+        let mut created = poise::CreateReply {
+            embeds: batch,
+            ..Default::default()
+        };
         if i == last {
             if let Some(a) = attachment.take() {
                 created = created.attachment(a);
@@ -88,7 +91,11 @@ pub fn build_reference_block(
 }
 
 /// csv_fileオプション用xlsxのステージ1行分を組み立てる（`raw`から生ドロップ率を取り出す）。
-pub fn build_stage_export_row(raw: &Arc<StageItem>, snapshot: &EngineSnapshot, name: String) -> StageExportRow {
+pub fn build_stage_export_row(
+    raw: &Arc<StageItem>,
+    snapshot: &EngineSnapshot,
+    name: String,
+) -> StageExportRow {
     let drop_values = raw
         .to_drop_array(&snapshot.values.value_target, &snapshot.values.item_names)
         .iter()

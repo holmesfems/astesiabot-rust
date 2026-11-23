@@ -1,4 +1,7 @@
-use super::{build_reference_block, build_stage_export_row, fmt_percent, send_reply_with_attachment, server_from_bool};
+use super::{
+    build_reference_block, build_stage_export_row, fmt_percent, send_reply_with_attachment,
+    server_from_bool,
+};
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
 use crate::bot::utils::xlsx::build_stage_export_xlsx;
@@ -14,10 +17,7 @@ async fn autocomplete_event_stage(
     partial: &str,
 ) -> Vec<serenity::AutocompleteChoice> {
     let state = ctx.data().state.clone();
-    let snapshot = state
-        .risei_calculator
-        .snapshot(Server::Mainland)
-        .await;
+    let snapshot = state.risei_calculator.snapshot(Server::Mainland).await;
     snapshot
         .auto_complete_event_stage(partial, 25)
         .into_iter()
@@ -34,8 +34,7 @@ pub async fn riseievents(
     stage: String,
     #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
     is_global: Option<bool>,
-    #[description = "true:ドロップ率データをxlsxで添付"]
-    csv_file: Option<bool>,
+    #[description = "true:ドロップ率データをxlsxで添付"] csv_file: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let server = server_from_bool(is_global.unwrap_or(true));
@@ -65,15 +64,21 @@ pub async fn riseievents(
             }
             let attachment = if csv_file.unwrap_or(false) {
                 let snapshot = state.risei_calculator.snapshot(server).await;
-                let category_dict = stage_category_dict(state.risei_calculator.stage_category(), server);
-                let (columns, value_row, base_stage_row) = build_reference_block(&snapshot, &category_dict);
+                let category_dict =
+                    stage_category_dict(state.risei_calculator.stage_category(), server);
+                let (columns, value_row, base_stage_row) =
+                    build_reference_block(&snapshot, &category_dict);
                 let column_refs: Vec<&str> = columns.iter().map(String::as_str).collect();
                 let rows: Vec<_> = stages
                     .iter()
                     .map(|s| build_stage_export_row(&s.raw, &snapshot, s.name.clone()))
                     .collect();
-                let bytes = build_stage_export_xlsx(&column_refs, &value_row, &base_stage_row, &rows)?;
-                Some(serenity::CreateAttachment::bytes(bytes, EVENT_XLSX_FILENAME))
+                let bytes =
+                    build_stage_export_xlsx(&column_refs, &value_row, &base_stage_row, &rows)?;
+                Some(serenity::CreateAttachment::bytes(
+                    bytes,
+                    EVENT_XLSX_FILENAME,
+                ))
             } else {
                 None
             };

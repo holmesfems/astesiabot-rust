@@ -40,7 +40,11 @@ fn has_text(msg: &serenity::Message) -> bool {
 /// 送信者自身の発言を指しているか」で辿るための必須条件でもある。ここが
 /// プレーン送信だと、2回目以降の編集がフォールバックから見えなくなり、
 /// 常に一番最初のOCR結果まで遡ってしまう。
-pub async fn handle(ctx: &serenity::Context, msg: &serenity::Message, data: &Data) -> Result<(), Error> {
+pub async fn handle(
+    ctx: &serenity::Context,
+    msg: &serenity::Message,
+    data: &Data,
+) -> Result<(), Error> {
     if has_text(msg) {
         if let Some(reply) = edit_flow::build(ctx, msg, data).await? {
             reply_embed_reply(ctx, msg, &reply).await?;

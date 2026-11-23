@@ -48,7 +48,10 @@ pub fn tag_vocabulary() -> Vec<&'static str> {
 
 /// nationIdからタグ名を引く(登録の無い勢力は`None`)。
 pub fn faction_tag_for(nation_id: &str) -> Option<&'static str> {
-    FACTION_TAGS.iter().find(|(id, _)| *id == nation_id).map(|(_, ja)| *ja)
+    FACTION_TAGS
+        .iter()
+        .find(|(id, _)| *id == nation_id)
+        .map(|(_, ja)| *ja)
 }
 
 /// profession + position + nationId からオペレーター単位のタグ一覧を組み立てる。
@@ -85,7 +88,10 @@ mod tests {
 
     #[test]
     fn melee_position_adds_close_range_tag_before_profession_tag() {
-        assert_eq!(tags_for("WARRIOR", "MELEE", ""), vec!["近距離".to_string(), "前衛".to_string()]);
+        assert_eq!(
+            tags_for("WARRIOR", "MELEE", ""),
+            vec!["近距離".to_string(), "前衛".to_string()]
+        );
     }
 
     #[test]
@@ -100,7 +106,10 @@ mod tests {
 
     #[test]
     fn laterano_nation_id_adds_faction_tag_after_profession_tag() {
-        assert_eq!(tags_for("SPECIAL", "RANGED", "laterano"), vec!["特殊".to_string(), "ラテラーノ".to_string()]);
+        assert_eq!(
+            tags_for("SPECIAL", "RANGED", "laterano"),
+            vec!["特殊".to_string(), "ラテラーノ".to_string()]
+        );
     }
 
     #[test]

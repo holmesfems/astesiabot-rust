@@ -99,11 +99,16 @@ impl OperatorData {
     /// 中国語名を日本語名に変換する。対応が無ければ中国語名をそのまま返す
     /// （旧`OperatorNames::to_ja`と同一の意味・同一の変換結果を保証する）。
     pub fn to_ja<'a>(&'a self, cn_name: &'a str) -> &'a str {
-        self.cn_to_ja.get(cn_name).map(String::as_str).unwrap_or(cn_name)
+        self.cn_to_ja
+            .get(cn_name)
+            .map(String::as_str)
+            .unwrap_or(cn_name)
     }
 
     pub fn get_by_name(&self, name: &str) -> Option<&RawOperatorCost> {
-        self.name_to_id.get(name).and_then(|id| self.operators.get(id))
+        self.name_to_id
+            .get(name)
+            .and_then(|id| self.operators.get(id))
     }
 
     /// テスト用: 変換辞書・コストデータが空の状態を作る。
@@ -135,17 +140,31 @@ async fn fetch_impl() -> Result<OperatorData, FetchError> {
         fetch_json_with_retry(&client, PATCH_CHAR_TABLE_URL_JP),
     )?;
 
-    let custom: BTreeMap<String, String> = match std::fs::read_to_string("data/customOperatorZhToJa.yaml") {
-        Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
-        Err(_) => BTreeMap::new(),
-    };
+    let custom: BTreeMap<String, String> =
+        match std::fs::read_to_string("data/customOperatorZhToJa.yaml") {
+            Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
+            Err(_) => BTreeMap::new(),
+        };
 
     let mut operators: IndexMap<String, RawOperatorCost> = IndexMap::new();
     let mut cn_to_ja: HashMap<String, String> = HashMap::new();
     let mut name_to_id: HashMap<String, String> = HashMap::new();
 
-    build_characters(&cn_table, &jp_table, &custom, &mut operators, &mut cn_to_ja, &mut name_to_id);
-    build_patches(&cn_patch, &jp_patch, &operators.clone(), &mut operators, &mut name_to_id);
+    build_characters(
+        &cn_table,
+        &jp_table,
+        &custom,
+        &mut operators,
+        &mut cn_to_ja,
+        &mut name_to_id,
+    );
+    build_patches(
+        &cn_patch,
+        &jp_patch,
+        &operators.clone(),
+        &mut operators,
+        &mut name_to_id,
+    );
     build_modules(&cn_uniequip, &jp_uniequip, &mut operators);
 
     Ok(OperatorData {
@@ -188,7 +207,11 @@ fn parse_phases(value: &Value) -> Vec<Vec<CostEntry>> {
     let Some(Value::Array(phases)) = value.get("phases") else {
         return Vec::new();
     };
-    phases.iter().skip(1).map(|p| parse_cost_list(p.get("evolveCost"))).collect()
+    phases
+        .iter()
+        .skip(1)
+        .map(|p| parse_cost_list(p.get("evolveCost")))
+        .collect()
 }
 
 fn parse_skills(value: &Value) -> Vec<RawSkill> {
@@ -200,10 +223,16 @@ fn parse_skills(value: &Value) -> Vec<RawSkill> {
         .filter_map(|s| {
             let skill_id = s.get("skillId").and_then(Value::as_str)?.to_string();
             let masteries = match s.get("levelUpCostCond") {
-                Some(Value::Array(conds)) => conds.iter().map(|c| parse_cost_list(c.get("levelUpCost"))).collect(),
+                Some(Value::Array(conds)) => conds
+                    .iter()
+                    .map(|c| parse_cost_list(c.get("levelUpCost")))
+                    .collect(),
                 _ => Vec::new(),
             };
-            Some(RawSkill { skill_id, masteries })
+            Some(RawSkill {
+                skill_id,
+                masteries,
+            })
         })
         .collect()
 }
@@ -212,7 +241,10 @@ fn parse_all_skill_lvlup(value: &Value) -> Vec<Vec<CostEntry>> {
     let Some(Value::Array(items)) = value.get("allSkillLvlup") else {
         return Vec::new();
     };
-    items.iter().map(|item| parse_cost_list(item.get("lvlUpCost"))).collect()
+    items
+        .iter()
+        .map(|item| parse_cost_list(item.get("lvlUpCost")))
+        .collect()
 }
 
 /// char_table.json のCN/JPをマージしながらオペレーター一覧を構築する。
@@ -224,12 +256,18 @@ fn build_characters(
     cn_to_ja: &mut HashMap<String, String>,
     name_to_id: &mut HashMap<String, String>,
 ) {
-    let Value::Object(cn_map) = cn_table else { return };
+    let Value::Object(cn_map) = cn_table else {
+        return;
+    };
     for (key, cn_value) in cn_map {
         if !is_char_key(key) {
             continue;
         }
-        if cn_value.get("isNotObtainable").and_then(Value::as_bool).unwrap_or(false) {
+        if cn_value
+            .get("isNotObtainable")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
             continue;
         }
         let Some(cn_name) = cn_value.get("name").and_then(Value::as_str) else {
@@ -251,7 +289,9 @@ fn build_characters(
             Some(jp) => (jp, false),
             None => (cn_value, true),
         };
-        let name = ja_name.map(str::to_string).unwrap_or_else(|| cn_name.to_string());
+        let name = ja_name
+            .map(str::to_string)
+            .unwrap_or_else(|| cn_name.to_string());
 
         let raw = RawOperatorCost {
             id: key.clone(),
@@ -279,9 +319,13 @@ fn build_patches(
     operators: &mut IndexMap<String, RawOperatorCost>,
     name_to_id: &mut HashMap<String, String>,
 ) {
-    let Some(Value::Object(patch_info_cn)) = cn_patch.get("patchChars") else { return };
+    let Some(Value::Object(patch_info_cn)) = cn_patch.get("patchChars") else {
+        return;
+    };
     let patch_info_jp = jp_patch.get("patchChars");
-    let Some(Value::Object(patch_key_cn)) = cn_patch.get("infos") else { return };
+    let Some(Value::Object(patch_key_cn)) = cn_patch.get("infos") else {
+        return;
+    };
 
     // tmplIds に patch_key を含む original operator を逆引きする。
     let find_original = |patch_key: &str| -> Option<(&str, &str)> {
@@ -340,36 +384,61 @@ fn build_patches(
 /// `tmplId`を持たないモジュール(通常のオペレーターや、濁心スカジのように専用
 /// charIdを持つ派生キャラ)は`charId`のままで正しいので`tmplId.unwrap_or(charId)`にする
 /// (`operator_combat.rs`の`build_modules`と同じ)。
-fn build_modules(cn_uniequip: &Value, jp_uniequip: &Value, operators: &mut IndexMap<String, RawOperatorCost>) {
-    let Some(Value::Object(equip_dict)) = cn_uniequip.get("equipDict") else { return };
+fn build_modules(
+    cn_uniequip: &Value,
+    jp_uniequip: &Value,
+    operators: &mut IndexMap<String, RawOperatorCost>,
+) {
+    let Some(Value::Object(equip_dict)) = cn_uniequip.get("equipDict") else {
+        return;
+    };
     let jp_equip_dict = jp_uniequip.get("equipDict");
 
     let mut by_operator: HashMap<String, Vec<RawModule>> = HashMap::new();
     for (equip_id, value) in equip_dict {
         // itemCost==null は統合戦略モジュール等のため対象外。
-        let Some(item_cost_obj) = value.get("itemCost").filter(|v| !v.is_null()).and_then(Value::as_object) else {
+        let Some(item_cost_obj) = value
+            .get("itemCost")
+            .filter(|v| !v.is_null())
+            .and_then(Value::as_object)
+        else {
             continue;
         };
         // typeName2が空/無しはデフォルトモジュールとしてスキップ。
-        let Some(eq_type) = value.get("typeName2").and_then(Value::as_str).filter(|s| !s.is_empty()) else {
+        let Some(eq_type) = value
+            .get("typeName2")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+        else {
             continue;
         };
         let Some(char_id) = value.get("charId").and_then(Value::as_str) else {
             continue;
         };
         // tmplId優先の理由は関数冒頭コメント参照。
-        let char_id = value.get("tmplId").and_then(Value::as_str).unwrap_or(char_id);
+        let char_id = value
+            .get("tmplId")
+            .and_then(Value::as_str)
+            .unwrap_or(char_id);
         if !operators.contains_key(char_id) {
             continue;
         }
         // itemCost・typeName2はCN側の値をそのまま使う。JP側は実装済みか(cnOnly)の判定にのみ使う。
-        let cn_only = jp_equip_dict.and_then(|jp| jp.get(equip_id.as_str())).is_none();
-        let phase_costs: Vec<Vec<CostEntry>> = item_cost_obj.values().map(|v| parse_cost_list(Some(v))).collect();
-        by_operator.entry(char_id.to_string()).or_default().push(RawModule {
-            eq_type: eq_type.to_string(),
-            cn_only,
-            phase_costs,
-        });
+        let cn_only = jp_equip_dict
+            .and_then(|jp| jp.get(equip_id.as_str()))
+            .is_none();
+        let phase_costs: Vec<Vec<CostEntry>> = item_cost_obj
+            .values()
+            .map(|v| parse_cost_list(Some(v)))
+            .collect();
+        by_operator
+            .entry(char_id.to_string())
+            .or_default()
+            .push(RawModule {
+                eq_type: eq_type.to_string(),
+                cn_only,
+                phase_costs,
+            });
     }
 
     for (char_id, mut modules) in by_operator {
@@ -389,7 +458,9 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn fetch_gets_real_gamedata() {
-        let data = fetch().await.expect("fetch should succeed against real network");
+        let data = fetch()
+            .await
+            .expect("fetch should succeed against real network");
         assert!(!data.operators.is_empty());
         assert!(!data.name_to_id.is_empty());
         let ja = data.to_ja("夜烟");
@@ -410,11 +481,14 @@ mod tests {
             cn_to_ja: std::collections::HashMap<String, String>,
         }
         let legacy: LegacySeed = serde_json::from_str(
-            &std::fs::read_to_string("data/seed/operator_names.json").expect("legacy seed should exist"),
+            &std::fs::read_to_string("data/seed/operator_names.json")
+                .expect("legacy seed should exist"),
         )
         .expect("legacy seed should parse");
 
-        let data = fetch().await.expect("fetch should succeed against real network");
+        let data = fetch()
+            .await
+            .expect("fetch should succeed against real network");
 
         let mismatches: Vec<String> = legacy
             .cn_to_ja
@@ -428,7 +502,11 @@ mod tests {
                 }
             })
             .collect();
-        assert!(mismatches.is_empty(), "name resolution regressed:\n{}", mismatches.join("\n"));
+        assert!(
+            mismatches.is_empty(),
+            "name resolution regressed:\n{}",
+            mismatches.join("\n")
+        );
     }
 
     /// 派生形(前衛/医療アーミヤ)専用モジュールが`tmplId`で派生形側に振り分けられていること
@@ -437,7 +515,8 @@ mod tests {
     fn seed_attributes_patch_modules_by_tmpl_id() {
         let json = std::fs::read_to_string(SEED_PATH)
             .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
-        let data: OperatorData = serde_json::from_str(&json).expect("seedがOperatorDataとしてparseできること");
+        let data: OperatorData =
+            serde_json::from_str(&json).expect("seedがOperatorDataとしてparseできること");
         let module_types = |id: &str| -> Vec<String> {
             data.operators
                 .get(id)
@@ -447,9 +526,21 @@ mod tests {
                 .map(|m| m.eq_type.clone())
                 .collect()
         };
-        assert_eq!(module_types("char_002_amiya"), vec!["Y"], "術師アーミヤに派生形のモジュールが混入していないこと");
-        assert_eq!(module_types("char_1001_amiya2"), vec!["X"], "前衛アーミヤにモジュールXがあること");
-        assert_eq!(module_types("char_1037_amiya3"), vec!["X"], "医療アーミヤにモジュールXがあること");
+        assert_eq!(
+            module_types("char_002_amiya"),
+            vec!["Y"],
+            "術師アーミヤに派生形のモジュールが混入していないこと"
+        );
+        assert_eq!(
+            module_types("char_1001_amiya2"),
+            vec!["X"],
+            "前衛アーミヤにモジュールXがあること"
+        );
+        assert_eq!(
+            module_types("char_1037_amiya3"),
+            vec!["X"],
+            "医療アーミヤにモジュールXがあること"
+        );
     }
 
     /// data/customOperatorZhToJa.yaml（JP未実装オペレーターの仮訳）の手入れが必要かを教える
@@ -459,12 +550,15 @@ mod tests {
     fn custom_operator_names_need_no_tidying() {
         let json = std::fs::read_to_string(SEED_PATH)
             .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
-        let data: OperatorData = serde_json::from_str(&json).expect("seedがOperatorDataとしてparseできること");
-        let custom: BTreeMap<String, String> =
-            serde_saphyr::from_str(&std::fs::read_to_string("data/customOperatorZhToJa.yaml").expect("yaml should exist"))
-                .expect("yaml should parse");
+        let data: OperatorData =
+            serde_json::from_str(&json).expect("seedがOperatorDataとしてparseできること");
+        let custom: BTreeMap<String, String> = serde_saphyr::from_str(
+            &std::fs::read_to_string("data/customOperatorZhToJa.yaml").expect("yaml should exist"),
+        )
+        .expect("yaml should parse");
 
-        let ops: Vec<&RawOperatorCost> = data.operators.values().filter(|op| !op.is_patch).collect();
+        let ops: Vec<&RawOperatorCost> =
+            data.operators.values().filter(|op| !op.is_patch).collect();
         let unknown: Vec<&str> = custom
             .keys()
             .filter(|k| !ops.iter().any(|op| op.cn_name == **k))

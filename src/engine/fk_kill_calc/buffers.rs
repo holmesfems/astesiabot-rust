@@ -245,13 +245,23 @@ fn kind_and_value(pct: Option<f64>, flat: Option<f64>, ctx: &str) -> (BufferKind
 /// `build_conditional_sourced_buffers`(mod.rs)側が別途組み立てるので、ここは呼ばない。
 fn build_bonus(parent_id: &str, parent_kind: BufferKind, raw: &RawBonus) -> BufferBonus {
     assert!(raw.mult.is_none(), "buffers.yaml: conditional {parent_id}.bonus.mult は固定値バフでは使えない(source付きバフ専用)");
-    let (bonus_kind, value) = kind_and_value(raw.pct, raw.flat, &format!("conditional {parent_id}.bonus"));
-    assert_eq!(bonus_kind, parent_kind, "buffers.yaml: conditional {parent_id}.bonus は親と同じ種別(pct/flat)を使うこと");
-    BufferBonus { target_tags: raw.tags.clone(), value: Some(value), mult: None, note: raw.note.clone() }
+    let (bonus_kind, value) =
+        kind_and_value(raw.pct, raw.flat, &format!("conditional {parent_id}.bonus"));
+    assert_eq!(
+        bonus_kind, parent_kind,
+        "buffers.yaml: conditional {parent_id}.bonus は親と同じ種別(pct/flat)を使うこと"
+    );
+    BufferBonus {
+        target_tags: raw.tags.clone(),
+        value: Some(value),
+        mult: None,
+        note: raw.note.clone(),
+    }
 }
 
 fn build_buffers() -> Vec<Buffer> {
-    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML)
+        .expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
     let mut buffers = Vec::new();
 
     // P5: `source`付きのindividualはconditionalと同じく、値をゲームデータから解決する
@@ -284,14 +294,17 @@ fn build_buffers() -> Vec<Buffer> {
         if cond.source.is_some() {
             continue;
         }
-        let (kind, value) = kind_and_value(cond.pct, cond.flat, &format!("conditional {}", cond.id));
+        let (kind, value) =
+            kind_and_value(cond.pct, cond.flat, &format!("conditional {}", cond.id));
         let bonus = cond.bonus.as_ref().map(|b| build_bonus(&cond.id, kind, b));
         buffers.push(Buffer {
             id: cond.id,
             name: cond.name,
             kind,
             value,
-            scope: BufferScope::Conditional { target_tags: cond.targets },
+            scope: BufferScope::Conditional {
+                target_tags: cond.targets,
+            },
             single_target: false,
             bonus,
             exclusive_group: cond.exclusive_group,
@@ -315,8 +328,13 @@ pub fn global() -> &'static [Buffer] {
 static CONDITIONAL_SOURCED_RAW: OnceLock<Vec<RawConditional>> = OnceLock::new();
 
 fn build_conditional_sourced_raw() -> Vec<RawConditional> {
-    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
-    parsed.conditional.into_iter().filter(|c| c.source.is_some()).collect()
+    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML)
+        .expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    parsed
+        .conditional
+        .into_iter()
+        .filter(|c| c.source.is_some())
+        .collect()
 }
 
 /// `source`付きconditionalの生データ(P4)。`build_catalog`(mod.rs)が`operator_combat`/
@@ -331,8 +349,13 @@ pub(crate) fn raw_conditional_sourced() -> &'static [RawConditional] {
 static INDIVIDUAL_SOURCED_RAW: OnceLock<Vec<RawIndividual>> = OnceLock::new();
 
 fn build_individual_sourced_raw() -> Vec<RawIndividual> {
-    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
-    parsed.individual.into_iter().filter(|i| i.source.is_some()).collect()
+    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML)
+        .expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    parsed
+        .individual
+        .into_iter()
+        .filter(|i| i.source.is_some())
+        .collect()
 }
 
 /// `source`付きindividualの生データ(P5。`raw_conditional_sourced()`の個別バフ版)。
@@ -343,14 +366,19 @@ pub(crate) fn raw_individual_sourced() -> &'static [RawIndividual] {
 /// [`build_bonus`]のsource付き版を`mod.rs`から呼べるように公開する
 /// (固定値bonus(`pct`/`flat`)は`source`付きバフでも使えるため。`mult`のみのbonusは
 /// `mod.rs`側で直接組み立てる)。
-pub(crate) fn build_fixed_bonus(parent_id: &str, parent_kind: BufferKind, raw: &RawBonus) -> BufferBonus {
+pub(crate) fn build_fixed_bonus(
+    parent_id: &str,
+    parent_kind: BufferKind,
+    raw: &RawBonus,
+) -> BufferBonus {
     build_bonus(parent_id, parent_kind, raw)
 }
 
 static INSPIRE_RAW: OnceLock<Vec<RawInspireSource>> = OnceLock::new();
 
 fn build_inspire_raw() -> Vec<RawInspireSource> {
-    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML).expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
+    let parsed: BuffersYaml = serde_saphyr::from_str(BUFFERS_YAML)
+        .expect("buffers.yamlはビルド時埋め込みなので必ずパースできるはず");
     parsed.inspire
 }
 
@@ -384,7 +412,8 @@ mod tests {
         // P5時点で固定値(pct/flat)のバフはconditionalの一部(前衛アーミヤのtoggle等を除く
         // 全部がsource化済み)しか残っていないため、`global()`(非source)単体が空でも
         // おかしくない。source付き一覧を含めた合計が空でないことを確認する。
-        let total = global().len() + raw_conditional_sourced().len() + raw_individual_sourced().len();
+        let total =
+            global().len() + raw_conditional_sourced().len() + raw_individual_sourced().len();
         assert!(total > 0);
     }
 
@@ -393,19 +422,35 @@ mod tests {
         let buffers = global();
         let mut seen = std::collections::HashSet::new();
         for b in buffers {
-            assert!(seen.insert(b.id.as_str()), "buffers.yamlのid'{}'が重複している", b.id);
+            assert!(
+                seen.insert(b.id.as_str()),
+                "buffers.yamlのid'{}'が重複している",
+                b.id
+            );
         }
         // P4: source付きconditionalのidも同じ名前空間で重複しないこと(global()には含まれない)。
         for c in raw_conditional_sourced() {
-            assert!(seen.insert(c.id.as_str()), "buffers.yamlのconditional(source付き) id'{}'が既存のバフidと重複している", c.id);
+            assert!(
+                seen.insert(c.id.as_str()),
+                "buffers.yamlのconditional(source付き) id'{}'が既存のバフidと重複している",
+                c.id
+            );
         }
         // P5: source付きindividualのidも同じ名前空間で重複しないこと(global()には含まれない)。
         for i in raw_individual_sourced() {
-            assert!(seen.insert(i.id.as_str()), "buffers.yamlのindividual(source付き) id'{}'が既存のバフidと重複している", i.id);
+            assert!(
+                seen.insert(i.id.as_str()),
+                "buffers.yamlのindividual(source付き) id'{}'が既存のバフidと重複している",
+                i.id
+            );
         }
         // P3: 鼓舞ソースのidも同じ名前空間で重複しないこと。
         for s in raw_inspire_sources() {
-            assert!(seen.insert(s.id.as_str()), "buffers.yamlのinspire id'{}'が既存のバフidと重複している", s.id);
+            assert!(
+                seen.insert(s.id.as_str()),
+                "buffers.yamlのinspire id'{}'が既存のバフidと重複している",
+                s.id
+            );
         }
     }
 
@@ -413,7 +458,8 @@ mod tests {
     #[test]
     fn inspire_self_part_replaces_points_to_an_existing_part_in_the_same_source() {
         for s in raw_inspire_sources() {
-            let ids: std::collections::HashSet<&str> = s.self_parts.iter().map(|p| p.id.as_str()).collect();
+            let ids: std::collections::HashSet<&str> =
+                s.self_parts.iter().map(|p| p.id.as_str()).collect();
             for p in &s.self_parts {
                 if let Some(target) = &p.replaces {
                     assert!(ids.contains(target.as_str()), "buffers.yaml: inspire '{}'のパーツ'{}'のreplaces'{target}'が同じソース内に無い", s.id, p.id);
@@ -427,9 +473,17 @@ mod tests {
     #[test]
     fn inspire_sources_have_at_least_one_skill() {
         for s in raw_inspire_sources() {
-            assert!(!s.skills.is_empty(), "buffers.yaml: inspire '{}'にskillsが無い", s.id);
+            assert!(
+                !s.skills.is_empty(),
+                "buffers.yaml: inspire '{}'にskillsが無い",
+                s.id
+            );
             for sk in &s.skills {
-                assert!(!sk.skill_num.trim().is_empty(), "buffers.yaml: inspire '{}'のskill_numが空", s.id);
+                assert!(
+                    !sk.skill_num.trim().is_empty(),
+                    "buffers.yaml: inspire '{}'のskill_numが空",
+                    s.id
+                );
             }
         }
     }
@@ -440,12 +494,20 @@ mod tests {
         for b in global() {
             if let BufferScope::Conditional { target_tags } = &b.scope {
                 for t in target_tags {
-                    assert!(vocab.contains(&t.as_str()), "buffers.yaml: '{}'のtargetタグ'{t}'がtag_vocabulary()に無い", b.id);
+                    assert!(
+                        vocab.contains(&t.as_str()),
+                        "buffers.yaml: '{}'のtargetタグ'{t}'がtag_vocabulary()に無い",
+                        b.id
+                    );
                 }
             }
             if let Some(bonus) = &b.bonus {
                 for t in &bonus.target_tags {
-                    assert!(vocab.contains(&t.as_str()), "buffers.yaml: '{}'のbonus.tags'{t}'がtag_vocabulary()に無い", b.id);
+                    assert!(
+                        vocab.contains(&t.as_str()),
+                        "buffers.yaml: '{}'のbonus.tags'{t}'がtag_vocabulary()に無い",
+                        b.id
+                    );
                 }
             }
         }
@@ -453,11 +515,19 @@ mod tests {
         // (global()に含まれないため別途チェックが要る)。
         for c in raw_conditional_sourced() {
             for t in &c.targets {
-                assert!(vocab.contains(&t.as_str()), "buffers.yaml: '{}'のtargetタグ'{t}'がtag_vocabulary()に無い", c.id);
+                assert!(
+                    vocab.contains(&t.as_str()),
+                    "buffers.yaml: '{}'のtargetタグ'{t}'がtag_vocabulary()に無い",
+                    c.id
+                );
             }
             if let Some(bonus) = &c.bonus {
                 for t in &bonus.tags {
-                    assert!(vocab.contains(&t.as_str()), "buffers.yaml: '{}'のbonus.tags'{t}'がtag_vocabulary()に無い", c.id);
+                    assert!(
+                        vocab.contains(&t.as_str()),
+                        "buffers.yaml: '{}'のbonus.tags'{t}'がtag_vocabulary()に無い",
+                        c.id
+                    );
                 }
             }
         }
@@ -466,10 +536,19 @@ mod tests {
     #[test]
     fn values_are_in_a_sane_range() {
         for b in global() {
-            assert!(value_in_sane_range(b.kind, b.value), "buffers.yaml: '{}'の値{}が現実的な範囲外", b.id, b.value);
+            assert!(
+                value_in_sane_range(b.kind, b.value),
+                "buffers.yaml: '{}'の値{}が現実的な範囲外",
+                b.id,
+                b.value
+            );
             if let Some(bonus) = &b.bonus {
                 if let Some(v) = bonus.value {
-                    assert!(value_in_sane_range(b.kind, v), "buffers.yaml: '{}'のbonus値{v}が現実的な範囲外", b.id);
+                    assert!(
+                        value_in_sane_range(b.kind, v),
+                        "buffers.yaml: '{}'のbonus値{v}が現実的な範囲外",
+                        b.id
+                    );
                 }
             }
         }
@@ -481,12 +560,20 @@ mod tests {
             match &b.scope {
                 BufferScope::Individual => {}
                 BufferScope::Conditional { target_tags } => {
-                    assert!(!target_tags.is_empty(), "buffers.yaml: conditional '{}' はtargetsを1つ以上持つこと", b.id);
+                    assert!(
+                        !target_tags.is_empty(),
+                        "buffers.yaml: conditional '{}' はtargetsを1つ以上持つこと",
+                        b.id
+                    );
                 }
             }
         }
         for c in raw_conditional_sourced() {
-            assert!(!c.targets.is_empty(), "buffers.yaml: conditional '{}' はtargetsを1つ以上持つこと", c.id);
+            assert!(
+                !c.targets.is_empty(),
+                "buffers.yaml: conditional '{}' はtargetsを1つ以上持つこと",
+                c.id
+            );
         }
     }
 
@@ -499,7 +586,10 @@ mod tests {
                 source.talent.is_none() && source.skill_num.is_none() && source.base_pct.is_none(),
                 "buffers.yaml: '{id}'のsourceはstage_skill_idとtalent/skill_num/base_pctを併用できない"
             );
-            assert!(source.stage_keys.as_ref().is_some_and(|k| !k.is_empty()), "buffers.yaml: '{id}'のsourceはstage_keysが必要");
+            assert!(
+                source.stage_keys.as_ref().is_some_and(|k| !k.is_empty()),
+                "buffers.yaml: '{id}'のsourceはstage_keysが必要"
+            );
             assert_eq!(
                 source.stage_keys.as_ref().map(|k| k.len()),
                 source.stage_labels.as_ref().map(|l| l.len()),
@@ -507,7 +597,11 @@ mod tests {
             );
             return;
         }
-        let primaries = [source.talent.is_some(), source.skill_num.is_some(), source.base_pct.is_some()];
+        let primaries = [
+            source.talent.is_some(),
+            source.skill_num.is_some(),
+            source.base_pct.is_some(),
+        ];
         assert_eq!(
             primaries.iter().filter(|p| **p).count(),
             1,
@@ -518,7 +612,10 @@ mod tests {
     #[test]
     fn every_conditional_source_has_exactly_one_primary() {
         for c in raw_conditional_sourced() {
-            let source = c.source.as_ref().expect("raw_conditional_sourced()はsourceを持つはず");
+            let source = c
+                .source
+                .as_ref()
+                .expect("raw_conditional_sourced()はsourceを持つはず");
             assert_source_has_exactly_one_primary(&c.id, source);
         }
     }
@@ -527,7 +624,10 @@ mod tests {
     #[test]
     fn every_individual_source_has_exactly_one_primary() {
         for i in raw_individual_sourced() {
-            let source = i.source.as_ref().expect("raw_individual_sourced()はsourceを持つはず");
+            let source = i
+                .source
+                .as_ref()
+                .expect("raw_individual_sourced()はsourceを持つはず");
             assert_source_has_exactly_one_primary(&i.id, source);
         }
     }
@@ -551,7 +651,10 @@ mod tests {
     /// (ここではYAMLの生データのみ確認する)。
     #[test]
     fn exusiai_alter_conditional_buff_has_laterano_mult_bonus() {
-        let c = raw_conditional_sourced().iter().find(|c| c.id == "exusiai_alter").expect("exusiai_alterがbuffers.yamlに存在すること");
+        let c = raw_conditional_sourced()
+            .iter()
+            .find(|c| c.id == "exusiai_alter")
+            .expect("exusiai_alterがbuffers.yamlに存在すること");
         let bonus = c.bonus.as_ref().expect("exusiai_alterにbonusがあるはず");
         assert_eq!(bonus.mult, Some(2.0));
         assert_eq!(bonus.tags, vec!["ラテラーノ".to_string()]);

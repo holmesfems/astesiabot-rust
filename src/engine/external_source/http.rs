@@ -17,14 +17,20 @@ pub fn client() -> reqwest::Client {
 
 /// URLからJSONをfetchする共通ヘルパー。最大 [`FETCH_RETRIES`] 回まで
 /// リトライする（各回のタイムアウトは `client` 生成時に設定した7s）。
-pub async fn fetch_json_with_retry(client: &reqwest::Client, url: &str) -> Result<Value, FetchError> {
+pub async fn fetch_json_with_retry(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Value, FetchError> {
     fetch_with_retry(client, url, &[]).await
 }
 
 /// [`fetch_json_with_retry`] の型付き版。巨大なJSON（character_table.json等）から
 /// 一部のフィールドだけ使う場合、`Value`を経由せず必要な構造体へ直接デシリアライズして
 /// メモリを抑えるために使う（リトライ戦略は共通）。
-pub async fn fetch_typed_with_retry<T: DeserializeOwned>(client: &reqwest::Client, url: &str) -> Result<T, FetchError> {
+pub async fn fetch_typed_with_retry<T: DeserializeOwned>(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<T, FetchError> {
     fetch_with_retry(client, url, &[]).await
 }
 

@@ -132,7 +132,14 @@ pub const ITEM_RARITY3_NEW: &[&str] = &["聚能动力单元", "液化醚吸聚�
 
 /// 上級素材(Item_rarity4)。中級換算(`rare3and4ToRare2`)専用で、資格証効率表には出てこない
 /// （`_new`側は空のため定数を用意していない）。
-pub const ITEM_RARITY4: &[&str] = &["聚合剂", "双极纳米片", "D32钢", "晶体电子单元", "烧结核凝晶", "重相位对映体"];
+pub const ITEM_RARITY4: &[&str] = &[
+    "聚合剂",
+    "双极纳米片",
+    "D32钢",
+    "晶体电子单元",
+    "烧结核凝晶",
+    "重相位对映体",
+];
 
 /// 大陸版実装済み、グローバル版未実装のゾーン一覧。新章実装時にここへ追記し、
 /// グローバル版で実装され次第削除する運用。
@@ -187,7 +194,8 @@ pub struct StageCategoryFile {
 
 pub const STAGE_CATEGORY_PATH: &str = "data/risei/stage_category.json";
 
-pub fn load_stage_category_file() -> Result<StageCategoryFile, crate::engine::risei_calculator_engine::Error> {
+pub fn load_stage_category_file(
+) -> Result<StageCategoryFile, crate::engine::risei_calculator_engine::Error> {
     let s = std::fs::read_to_string(STAGE_CATEGORY_PATH)?;
     Ok(serde_json::from_str(&s)?)
 }

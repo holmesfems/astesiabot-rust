@@ -60,7 +60,11 @@ impl ToolFunction for RiseiStages {
             .map(|(_, code)| code)
             .unwrap_or(parsed.target);
 
-        match ctx.risei_calculator.stage_search(Server::Global, &resolved_code).await {
+        match ctx
+            .risei_calculator
+            .stage_search(Server::Global, &resolved_code)
+            .await
+        {
             Err(msg) => ToolResponse::Error(msg),
             Ok(result) => {
                 let stages: Vec<Value> = result

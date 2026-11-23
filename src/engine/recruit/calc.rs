@@ -2,10 +2,10 @@ use super::jp_release::JpReleaseSchedule;
 use super::model::{Tag, TagList, TagType};
 use super::Error;
 use crate::engine::external_source::recruit_pool::{PoolOperator, RecruitPool};
+use chrono::{LocalResult, NaiveDate, TimeZone, Utc};
+use chrono_tz::Asia::Tokyo;
 use itertools::Itertools;
 use std::collections::{BTreeSet, HashMap, HashSet};
-use chrono::{NaiveDate, LocalResult, TimeZone, Utc};
-use chrono_tz::Asia::Tokyo;
 use std::env;
 
 /// 入力タグ集合の上限件数（OCR誤検出・編集コマンドの両方で共通のガード）。
@@ -80,7 +80,11 @@ impl RecruitData {
         let schedule = JpReleaseSchedule::global();
         let data = Self::build_with(pool, schedule, tag_list, future_hour);
 
-        println!("[recruit] 公開求人プール: JP {}体 / CN追加分 {}体", pool.jp.len(), pool.cn_only.len());
+        println!(
+            "[recruit] 公開求人プール: JP {}体 / CN追加分 {}体",
+            pool.jp.len(),
+            pool.cn_only.len()
+        );
         let undated: Vec<String> = pool
             .cn_only
             .iter()
@@ -96,7 +100,12 @@ impl RecruitData {
         Ok(data)
     }
 
-    fn build_with(pool: &RecruitPool, schedule: &JpReleaseSchedule, tag_list: TagList, future_hour: u32) -> Self {
+    fn build_with(
+        pool: &RecruitPool,
+        schedule: &JpReleaseSchedule,
+        tag_list: TagList,
+        future_hour: u32,
+    ) -> Self {
         let mut tag_name_order = Vec::new();
         tag_name_order.extend(tag_list.job_tags.iter().cloned());
         tag_name_order.extend(tag_list.position_tags.iter().cloned());
@@ -106,7 +115,14 @@ impl RecruitData {
         let future_releases: Vec<(Option<chrono::DateTime<chrono_tz::Tz>>, &PoolOperator)> = pool
             .cn_only
             .iter()
-            .map(|op| (schedule.date_for(op).and_then(|d| Self::release_at(d, future_hour)), op))
+            .map(|op| {
+                (
+                    schedule
+                        .date_for(op)
+                        .and_then(|d| Self::release_at(d, future_hour)),
+                    op,
+                )
+            })
             .collect();
 
         // 全タグ（定義順）を Tag 化し、1〜3個の全組み合わせを組み立て時に1回だけ生成する。
@@ -337,7 +353,8 @@ impl RecruitData {
             if key.iter().any(|name| self.tag_type(name) == TagType::Elite) {
                 continue;
             }
-            let mut satisfied: Vec<OperatorRef> = self.main_map.get(&key).cloned().unwrap_or_default();
+            let mut satisfied: Vec<OperatorRef> =
+                self.main_map.get(&key).cloned().unwrap_or_default();
             if let Some(future_ops) = self.future_map.get(&key) {
                 for fop in future_ops {
                     if fop.is_available(&now, is_global) {
@@ -357,9 +374,17 @@ impl RecruitData {
             operators.sort();
             operators.dedup();
 
-            result.push(GuaranteedTagCombo { tags: key, operators });
+            result.push(GuaranteedTagCombo {
+                tags: key,
+                operators,
+            });
         }
-        result.sort_by(|a, b| a.tags.len().cmp(&b.tags.len()).then_with(|| a.tags.cmp(&b.tags)));
+        result.sort_by(|a, b| {
+            a.tags
+                .len()
+                .cmp(&b.tags.len())
+                .then_with(|| a.tags.cmp(&b.tags))
+        });
         result
     }
 }
@@ -452,7 +477,10 @@ mod guaranteed_star_tags_tests {
     fn make_data() -> RecruitData {
         let mut main_map: HashMap<Vec<String>, Vec<OperatorRef>> = HashMap::new();
         // 混在星: min_star_of は3以上の最小(=3)を返すため、★4/★5確定タグには該当しない。
-        main_map.insert(vec!["前衛".to_string()], vec![op("A", 3), op("B", 4), op("C", 5)]);
+        main_map.insert(
+            vec!["前衛".to_string()],
+            vec![op("A", 3), op("B", 4), op("C", 5)],
+        );
         // 単一星: ★4確定タグに該当する。
         main_map.insert(vec!["狙撃".to_string()], vec![op("D", 4)]);
         // ロボット(★1)のみ: min_star_of は3未満の最大(=1)を返す。
@@ -502,7 +530,10 @@ mod guaranteed_star_tags_tests {
         let date = NaiveDate::from_ymd_opt(2026, 10, 24).unwrap();
         let at = RecruitData::release_at(date, 16).unwrap();
         assert_eq!(at.to_rfc3339(), "2026-10-24T16:00:00+09:00");
-        assert_eq!(at.with_timezone(&Utc).to_rfc3339(), "2026-10-24T07:00:00+00:00");
+        assert_eq!(
+            at.with_timezone(&Utc).to_rfc3339(),
+            "2026-10-24T07:00:00+00:00"
+        );
     }
 }
 
@@ -524,7 +555,11 @@ mod jp_release_tests {
     fn names_for(data: &RecruitData, is_global: bool) -> Vec<String> {
         let results = data.calculate(&["火力".to_string()], is_global, 1, None);
         assert_eq!(results.len(), 1);
-        results[0].operators.iter().map(|o| o.name.clone()).collect()
+        results[0]
+            .operators
+            .iter()
+            .map(|o| o.name.clone())
+            .collect()
     }
 
     /// JP分は常に対象。CN追加分は、反映日を過ぎていればJPのゲームデータに無くても
@@ -549,14 +584,19 @@ mod jp_release_tests {
         let data = RecruitData::build_with(&pool, &schedule, tag_list, 16);
 
         assert_eq!(names_for(&data, true), vec!["JP分", "反映済み"]);
-        assert_eq!(names_for(&data, false), vec!["JP分", "反映済み", "反映前", "日付なし"]);
+        assert_eq!(
+            names_for(&data, false),
+            vec!["JP分", "反映済み", "反映前", "日付なし"]
+        );
     }
 
     /// Seedのプール + 埋め込みのjp_release.yamlで組み立てられること（tagList.jsonとの整合）。
     #[test]
     fn builds_from_seed_pool() {
         let engine = crate::engine::recruit::RecruitEngine::load_from_seed();
-        let results = engine.data().calculate(&["上級エリート".to_string()], true, 6, None);
+        let results = engine
+            .data()
+            .calculate(&["上級エリート".to_string()], true, 6, None);
         assert!(!results.is_empty());
     }
 }

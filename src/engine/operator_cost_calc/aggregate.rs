@@ -3,7 +3,11 @@ use crate::engine::external_source::operator_data::{RawModule, RawOperatorCost};
 
 /// 昇進1,2の消費素材合計。
 pub fn total_phase_cost(op: &RawOperatorCost) -> ItemCost {
-    let items: Vec<ItemCost> = op.phases.iter().map(|p| ItemCost::from_cost_entries(p)).collect();
+    let items: Vec<ItemCost> = op
+        .phases
+        .iter()
+        .map(|p| ItemCost::from_cost_entries(p))
+        .collect();
     ItemCost::sum(&items)
 }
 
@@ -13,7 +17,11 @@ pub fn total_skill_master_cost(op: &RawOperatorCost) -> ItemCost {
         .skills
         .iter()
         .map(|s| {
-            let costs: Vec<ItemCost> = s.masteries.iter().map(|m| ItemCost::from_cost_entries(m)).collect();
+            let costs: Vec<ItemCost> = s
+                .masteries
+                .iter()
+                .map(|m| ItemCost::from_cost_entries(m))
+                .collect();
             ItemCost::sum(&costs)
         })
         .collect();
@@ -22,12 +30,20 @@ pub fn total_skill_master_cost(op: &RawOperatorCost) -> ItemCost {
 
 /// スキルLv1→7の消費素材合計。
 pub fn total_skill_lv7_cost(op: &RawOperatorCost) -> ItemCost {
-    let items: Vec<ItemCost> = op.all_skill_lvlup.iter().map(|c| ItemCost::from_cost_entries(c)).collect();
+    let items: Vec<ItemCost> = op
+        .all_skill_lvlup
+        .iter()
+        .map(|c| ItemCost::from_cost_entries(c))
+        .collect();
     ItemCost::sum(&items)
 }
 
 fn module_total_cost(module: &RawModule) -> ItemCost {
-    let items: Vec<ItemCost> = module.phase_costs.iter().map(|c| ItemCost::from_cost_entries(c)).collect();
+    let items: Vec<ItemCost> = module
+        .phase_costs
+        .iter()
+        .map(|c| ItemCost::from_cost_entries(c))
+        .collect();
     ItemCost::sum(&items)
 }
 
@@ -39,13 +55,23 @@ pub fn total_unique_eq_cost(op: &RawOperatorCost) -> ItemCost {
 
 /// 大陸限定モジュールのみの合計。
 pub fn total_unique_eq_cost_cn_only(op: &RawOperatorCost) -> ItemCost {
-    let items: Vec<ItemCost> = op.modules.iter().filter(|m| m.cn_only).map(module_total_cost).collect();
+    let items: Vec<ItemCost> = op
+        .modules
+        .iter()
+        .filter(|m| m.cn_only)
+        .map(module_total_cost)
+        .collect();
     ItemCost::sum(&items)
 }
 
 /// 実装済み(非大陸限定)モジュールのみの合計。
 pub fn total_unique_eq_cost_global(op: &RawOperatorCost) -> ItemCost {
-    let items: Vec<ItemCost> = op.modules.iter().filter(|m| !m.cn_only).map(module_total_cost).collect();
+    let items: Vec<ItemCost> = op
+        .modules
+        .iter()
+        .filter(|m| !m.cn_only)
+        .map(module_total_cost)
+        .collect();
     ItemCost::sum(&items)
 }
 

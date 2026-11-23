@@ -1,5 +1,14 @@
 //! `/api/risei/*` のハンドラ（operators/* は `operator_cost`）。
 
+use super::operator_cost;
+use super::params::{
+    check_params, parse_limit, parse_server, parse_upcoming, required, rfc3339, truncate, ApiError,
+    ApiResult, Params,
+};
+use super::skill::SKILL_ZIP_PATH;
+use super::spec::{endpoint_usage, ListKind, ENDPOINTS, EVENTS, LISTS, MATERIALS, STAGES};
+use super::suggest::{stage_not_found, suggest, StageKind};
+use super::{RiseiApiState, PREFIX};
 use crate::engine::risei_calculator_engine::kakin::{jst_now, kakin_comparison};
 use crate::engine::risei_calculator_engine::{RiseiCalculatorEngine, Server};
 use axum::extract::{OriginalUri, Path, Query, State};
@@ -7,31 +16,19 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
-use super::operator_cost;
-use super::spec::{MATERIALS, STAGES, EVENTS, LISTS, ENDPOINTS, ListKind, endpoint_usage};
-use super::params::{
-    ApiError,
-    ApiResult,
-    Params,
-    rfc3339,
-    check_params,
-    required,
-    parse_server,
-    parse_upcoming,
-    parse_limit,
-    truncate,
-};
-use super::suggest::{StageKind, stage_not_found, suggest};
-use super::skill::SKILL_ZIP_PATH;
-use super::{RiseiApiState, PREFIX};
 
-pub(super) async fn index(State(RiseiApiState { risei: engine, .. }): State<RiseiApiState>) -> Json<Value> {
+pub(super) async fn index(
+    State(RiseiApiState { risei: engine, .. }): State<RiseiApiState>,
+) -> Json<Value> {
     let categories = engine.stage_category();
     let category_json = |group: &str, map: &std::collections::BTreeMap<String, _>| -> Vec<Value> {
         map.iter()
-            .map(|(key, info): (&String, &crate::engine::risei_calculator_engine::server::StageCategoryInfo)| {
-                json!({ "key": key, "name": info.to_ja, "group": group })
-            })
+            .map(
+                |(key, info): (
+                    &String,
+                    &crate::engine::risei_calculator_engine::server::StageCategoryInfo,
+                )| { json!({ "key": key, "name": info.to_ja, "group": group }) },
+            )
             .collect()
     };
     let mut material_categories = category_json("main", &categories.main);
@@ -65,7 +62,10 @@ pub(super) async fn index(State(RiseiApiState { risei: engine, .. }): State<Rise
     }))
 }
 
-pub(super) async fn materials(State(RiseiApiState { risei: engine, .. }): State<RiseiApiState>, Query(params): Params) -> ApiResult {
+pub(super) async fn materials(
+    State(RiseiApiState { risei: engine, .. }): State<RiseiApiState>,
+    Query(params): Params,
+) -> ApiResult {
     check_params(&params, &MATERIALS)?;
     let target = required(&params, "target", &MATERIALS)?;
     let server = parse_server(&params, &MATERIALS)?;
@@ -79,12 +79,20 @@ pub(super) async fn materials(State(RiseiApiState { risei: engine, .. }): State<
             .chain(file.new.iter())
             .map(|(key, info)| (key, info.to_ja.as_str()))
             .collect();
-        return Err(ApiError::new(StatusCode::NOT_FOUND, format!("不明な素材カテゴリです: {target}"))
-            .with("did_you_mean", suggest(target, all.iter().map(|(_, name)| *name)))
-            .with(
-                "available",
-                all.iter().map(|(key, name)| json!({ "key": key, "name": name })).collect::<Vec<_>>(),
-            ));
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            format!("不明な素材カテゴリです: {target}"),
+        )
+        .with(
+            "did_you_mean",
+            suggest(target, all.iter().map(|(_, name)| *name)),
+        )
+        .with(
+            "available",
+            all.iter()
+                .map(|(key, name)| json!({ "key": key, "name": name }))
+                .collect::<Vec<_>>(),
+        ));
     };
     let mut result = engine
         .material_search(server, &key)
@@ -92,10 +100,18 @@ pub(super) async fn materials(State(RiseiApiState { risei: engine, .. }): State<
         .map_err(|msg| ApiError::new(StatusCode::NOT_FOUND, msg))?;
     truncate(&mut result.stages, limit);
     let updated_at = engine.last_updated(result.effective_server).await;
-    Ok(Json(envelope(server, updated_at, json!({ "category_key": key }), &result)))
+    Ok(Json(envelope(
+        server,
+        updated_at,
+        json!({ "category_key": key }),
+        &result,
+    )))
 }
 
-pub(super) async fn stages(State(RiseiApiState { risei: engine, .. }): State<RiseiApiState>, Query(params): Params) -> ApiResult {
+pub(super) async fn stages(
+    State(RiseiApiState { risei: engine, .. }): State<RiseiApiState>,
+    Query(params): Params,
+) -> ApiResult {
     check_params(&params, &STAGES)?;
     let stage = required(&params, "stage", &STAGES)?;
     let server = parse_server(&params, &STAGES)?;
@@ -107,10 +123,18 @@ pub(super) async fn stages(State(RiseiApiState { risei: engine, .. }): State<Ris
     };
     truncate(&mut result.stages, limit);
     let updated_at = engine.last_updated(result.effective_server).await;
-    Ok(Json(envelope(server, updated_at, json!({ "query": stage }), &result)))
+    Ok(Json(envelope(
+        server,
+        updated_at,
+        json!({ "query": stage }),
+        &result,
+    )))
 }
 
-pub(super) async fn events(State(RiseiApiState { risei: engine, .. }): State<RiseiApiState>, Query(params): Params) -> ApiResult {
+pub(super) async fn events(
+    State(RiseiApiState { risei: engine, .. }): State<RiseiApiState>,
+    Query(params): Params,
+) -> ApiResult {
     check_params(&params, &EVENTS)?;
     let stage = required(&params, "stage", &EVENTS)?;
     let server = parse_server(&params, &EVENTS)?;
@@ -140,9 +164,15 @@ pub(super) async fn lists(
     Query(params): Params,
 ) -> ApiResult {
     let Some(kind) = ListKind::from_key(&kind) else {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, format!("不明な効率表の種類です: {kind}"))
-            .with("did_you_mean", suggest(&kind, ListKind::ALL.iter().map(|k| k.key())))
-            .with("list_kinds", list_kinds_json()));
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            format!("不明な効率表の種類です: {kind}"),
+        )
+        .with(
+            "did_you_mean",
+            suggest(&kind, ListKind::ALL.iter().map(|k| k.key())),
+        )
+        .with("list_kinds", list_kinds_json()));
     };
     check_params(&params, &LISTS)?;
     let server = parse_server(&params, &LISTS)?;
@@ -152,8 +182,11 @@ pub(super) async fn lists(
         return kakin(&engine, server, upcoming).await;
     }
     if params.contains_key("upcoming") {
-        return Err(ApiError::new(StatusCode::BAD_REQUEST, "upcoming は kind=kakin のみの引数です")
-            .with("usage", endpoint_usage(&LISTS)));
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "upcoming は kind=kakin のみの引数です",
+        )
+        .with("usage", endpoint_usage(&LISTS)));
     }
     let items = match kind {
         ListKind::BaseMaps => {
@@ -187,7 +220,11 @@ pub(super) async fn lists(
 
 /// `lists/kakin`。他の効率表と違い`items`ではなく`baselines`/`packs`を返す
 /// （`/riseikakin`の全体比較が「期間限定パック一覧＋参考用の恒常パック」の2部構成のため）。
-pub(super) async fn kakin(engine: &RiseiCalculatorEngine, server: Server, upcoming: bool) -> ApiResult {
+pub(super) async fn kakin(
+    engine: &RiseiCalculatorEngine,
+    server: Server,
+    upcoming: bool,
+) -> ApiResult {
     if server != Server::Global {
         return Err(ApiError::new(
             StatusCode::BAD_REQUEST,
@@ -216,16 +253,31 @@ pub(super) async fn not_found(OriginalUri(uri): OriginalUri) -> ApiError {
         .filter(|e| !e.path.contains('{'))
         .map(|e| e.path.to_string())
         .collect();
-    candidates.extend(ListKind::ALL.iter().map(|k| format!("{PREFIX}/lists/{}", k.key())));
+    candidates.extend(
+        ListKind::ALL
+            .iter()
+            .map(|k| format!("{PREFIX}/lists/{}", k.key())),
+    );
     candidates.extend(operator_cost::list_paths());
-    ApiError::new(StatusCode::NOT_FOUND, format!("存在しないエンドポイントです: {path}"))
-        .with("did_you_mean", suggest(path, candidates.iter().map(String::as_str)))
-        .with("index", PREFIX)
+    ApiError::new(
+        StatusCode::NOT_FOUND,
+        format!("存在しないエンドポイントです: {path}"),
+    )
+    .with(
+        "did_you_mean",
+        suggest(path, candidates.iter().map(String::as_str)),
+    )
+    .with("index", PREFIX)
 }
 
 /// 応答の共通ヘッダ部(server/updated_at + エンドポイント固有のメタ情報)の後ろに
 /// 結果本体(`body`。オブジェクト)のフィールドを並べる。
-fn envelope(server: Server, updated_at: chrono::DateTime<chrono::Utc>, meta: Value, body: &impl Serialize) -> Value {
+fn envelope(
+    server: Server,
+    updated_at: chrono::DateTime<chrono::Utc>,
+    meta: Value,
+    body: &impl Serialize,
+) -> Value {
     let mut out = Map::new();
     out.insert("server".to_string(), json!(server));
     out.insert("updated_at".to_string(), json!(rfc3339(updated_at)));

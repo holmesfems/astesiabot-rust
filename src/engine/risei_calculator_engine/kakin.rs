@@ -41,11 +41,17 @@ pub struct KakinPackDef {
 
 const SALE_TIME_FORMAT: &str = "%Y-%m-%d %H:%M";
 
-fn deserialize_jst<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<NaiveDateTime>, D::Error> {
+fn deserialize_jst<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<NaiveDateTime>, D::Error> {
     let s = String::deserialize(d)?;
     NaiveDateTime::parse_from_str(&s, SALE_TIME_FORMAT)
         .map(Some)
-        .map_err(|e| serde::de::Error::custom(format!("日時は「{SALE_TIME_FORMAT}」(日本時間)で書く: {s}: {e}")))
+        .map_err(|e| {
+            serde::de::Error::custom(format!(
+                "日時は「{SALE_TIME_FORMAT}」(日本時間)で書く: {s}: {e}"
+            ))
+        })
 }
 
 impl KakinPackDef {
@@ -63,7 +69,9 @@ impl KakinPackDef {
 
 /// 販売期間の判定に使う今の日本時間。
 pub fn jst_now() -> NaiveDateTime {
-    Utc::now().with_timezone(&FixedOffset::east_opt(9 * 3600).expect("valid JST offset")).naive_local()
+    Utc::now()
+        .with_timezone(&FixedOffset::east_opt(9 * 3600).expect("valid JST offset"))
+        .naive_local()
 }
 
 /// 軽量な価格表のみ依存。起動時ロードのStaticDataとは別に、初回アクセス時に一度だけ読み込む
@@ -179,7 +187,11 @@ pub fn limited_pack_defs(
 }
 
 /// 期間限定パック（`/riseikakin`の全体比較）。総合効率の降順。
-pub fn limited_packs(values: &RiseiValues, now: NaiveDateTime, include_upcoming: bool) -> Vec<KakinPack> {
+pub fn limited_packs(
+    values: &RiseiValues,
+    now: NaiveDateTime,
+    include_upcoming: bool,
+) -> Vec<KakinPack> {
     let mut packs: Vec<KakinPack> = limited_pack_defs(now, include_upcoming)
         .map(|(name, def)| build_kakin_pack(name, def, values))
         .collect();
@@ -234,10 +246,17 @@ fn to_iso_jst(t: NaiveDateTime) -> String {
     t.format("%Y-%m-%dT%H:%M:%S+09:00").to_string()
 }
 
-pub fn kakin_comparison(values: &RiseiValues, now: NaiveDateTime, include_upcoming: bool) -> KakinComparison {
+pub fn kakin_comparison(
+    values: &RiseiValues,
+    now: NaiveDateTime,
+    include_upcoming: bool,
+) -> KakinComparison {
     let baselines = constant_packs(values)
         .into_iter()
-        .map(|pack| KakinBaseline { name: pack.name, total_efficiency: pack.total_efficiency })
+        .map(|pack| KakinBaseline {
+            name: pack.name,
+            total_efficiency: pack.total_efficiency,
+        })
         .collect();
     let packs = limited_packs(values, now, include_upcoming)
         .into_iter()
@@ -293,7 +312,10 @@ mod tests {
         assert!(!def.is_on_sale(jst("2026-11-25 04:00")));
         assert!(def.is_upcoming(jst("2026-10-28 15:59")));
         assert!(!def.is_upcoming(jst("2026-10-28 16:00")));
-        assert!(!def.is_upcoming(jst("2026-11-25 04:00")), "終わったパックは予告ではない");
+        assert!(
+            !def.is_upcoming(jst("2026-11-25 04:00")),
+            "終わったパックは予告ではない"
+        );
     }
 
     /// 書き間違い(開始と終了の取り違え、恒常パックへの期限)で黙って消えないように。
@@ -301,7 +323,10 @@ mod tests {
     fn sale_periods_in_price_list_are_consistent() {
         for (name, def) in kakin_list() {
             if def.is_constant {
-                assert!(def.start.is_none() && def.end.is_none(), "{name}: 恒常パックに販売期間は書かない");
+                assert!(
+                    def.start.is_none() && def.end.is_none(),
+                    "{name}: 恒常パックに販売期間は書かない"
+                );
             }
             if let (Some(start), Some(end)) = (def.start, def.end) {
                 assert!(start < end, "{name}: start が end より後");
@@ -318,7 +343,9 @@ mod tests {
         )
         .expect("zero_value_items.yamlは文字列のリスト");
         let outer_source = ExternalSourceRegistry::load(true).await;
-        let engine = RiseiCalculatorEngine::load(&outer_source).await.expect("seedから理性価値表を計算できる");
+        let engine = RiseiCalculatorEngine::load(&outer_source)
+            .await
+            .expect("seedから理性価値表を計算できる");
         let values = engine.snapshot(Server::Global).await.values;
 
         let mut problems = Vec::new();
@@ -341,7 +368,9 @@ mod tests {
         for item in &zero_value_items {
             let value = values.get_value_from_ja(item);
             if value > 0.0 {
-                problems.push(format!("{ZERO_VALUE_ITEMS_PATH}: 「{item}」は理性価値{value}があるので一覧から消す"));
+                problems.push(format!(
+                    "{ZERO_VALUE_ITEMS_PATH}: 「{item}」は理性価値{value}があるので一覧から消す"
+                ));
             }
         }
         assert!(problems.is_empty(), "\n{}", problems.join("\n"));

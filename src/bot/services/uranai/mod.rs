@@ -63,7 +63,11 @@ impl UranaiState {
 
     /// 占い館と同じキャラ設定（system_prompt.txt）に`task`を足して、会話履歴なしで
     /// 1回だけアステシアに文章を書いてもらう。占い館の会話セッションには影響しない。
-    pub async fn write_in_character(&self, task: &str, user_message: &str) -> Result<String, Error> {
+    pub async fn write_in_character(
+        &self,
+        task: &str,
+        user_message: &str,
+    ) -> Result<String, Error> {
         let instructions = format!("{SYSTEM_PROMPT}\n\n{task}");
         self.client.generate_text(&instructions, user_message).await
     }
@@ -128,7 +132,10 @@ pub async fn handle(
     if attachments.is_empty() {
         println!("[uranai] GPT accepted");
     } else {
-        println!("[uranai] GPT accepted with {} attachment(s)", attachments.len());
+        println!(
+            "[uranai] GPT accepted with {} attachment(s)",
+            attachments.len()
+        );
     }
 
     let name = conversation::speaker_name(
@@ -156,8 +163,10 @@ pub async fn handle(
 /// AI に渡す発言か。ピン留め・ブースト通知などのシステムメッセージと、本文も添付も無い発言
 /// （スタンプだけ等）は渡さない。
 fn is_conversational(kind: serenity::MessageType, content: &str, attachment_count: usize) -> bool {
-    matches!(kind, serenity::MessageType::Regular | serenity::MessageType::InlineReply)
-        && (!content.trim().is_empty() || attachment_count > 0)
+    matches!(
+        kind,
+        serenity::MessageType::Regular | serenity::MessageType::InlineReply
+    ) && (!content.trim().is_empty() || attachment_count > 0)
 }
 
 /// ワーカーが panic・早期リターンで抜けたときに busy を下ろす。正常に抜けるときは
@@ -178,7 +187,10 @@ impl Drop for WorkerGuard {
 
 /// 貯まった発言をまとめて AI に渡し、返事を送る。空になるまで繰り返す。
 async fn run_worker(ctx: serenity::Context, channel_id: serenity::ChannelId, state: Arc<AppState>) {
-    let mut guard = WorkerGuard { state: state.clone(), armed: true };
+    let mut guard = WorkerGuard {
+        state: state.clone(),
+        armed: true,
+    };
     let uranai = &state.uranai;
     loop {
         let (batch, history_input) = {
@@ -209,7 +221,13 @@ async fn run_worker(ctx: serenity::Context, channel_id: serenity::ChannelId, sta
         let think_start = Instant::now();
         let result = uranai
             .client
-            .run_turn(SYSTEM_PROMPT, history_input, &batch.text, &batch.attachments, &state)
+            .run_turn(
+                SYSTEM_PROMPT,
+                history_input,
+                &batch.text,
+                &batch.attachments,
+                &state,
+            )
             .await;
         println!(
             "[uranai] Thinking completed. ({:.2}秒)",
@@ -219,7 +237,11 @@ async fn run_worker(ctx: serenity::Context, channel_id: serenity::ChannelId, sta
 
         let (reply_text, images) = match result {
             Ok(turn) => {
-                lock(&uranai.conversation).finish_turn(batch.generation, batch.text, turn.text.clone());
+                lock(&uranai.conversation).finish_turn(
+                    batch.generation,
+                    batch.text,
+                    turn.text.clone(),
+                );
                 (turn.text, turn.images)
             }
             Err(e) => {
@@ -237,7 +259,10 @@ async fn run_worker(ctx: serenity::Context, channel_id: serenity::ChannelId, sta
 
 /// 決まった文面を送る（失敗はログだけ）。
 async fn say(ctx: &serenity::Context, channel_id: serenity::ChannelId, text: &str) {
-    if let Err(e) = channel_id.send_message(&ctx.http, no_mention_message(text)).await {
+    if let Err(e) = channel_id
+        .send_message(&ctx.http, no_mention_message(text))
+        .await
+    {
         eprintln!("[uranai] 返信の送信に失敗しました: {e}");
     }
 }
@@ -245,7 +270,9 @@ async fn say(ctx: &serenity::Context, channel_id: serenity::ChannelId, text: &st
 /// `msg.attachments`を画像/PDFに分類する。非対応形式(画像/application-pdf以外)、または
 /// 合計サイズがOpenAI側の上限(50MB)を超える添付が1つでもあれば、そのファイル名一覧を
 /// `Err`で返す（呼び出し元はGPT呼び出しをせずファイル名を添えた一言で打ち切る）。
-fn classify_attachments(attachments: &[serenity::Attachment]) -> Result<Vec<UranaiAttachment>, Vec<String>> {
+fn classify_attachments(
+    attachments: &[serenity::Attachment],
+) -> Result<Vec<UranaiAttachment>, Vec<String>> {
     let (valid, rejected) = split_attachments(attachments);
     if rejected.is_empty() {
         Ok(valid)
@@ -261,7 +288,10 @@ fn split_attachments(attachments: &[serenity::Attachment]) -> (Vec<UranaiAttachm
     let mut total_size: u64 = 0;
 
     for a in attachments {
-        let is_image = a.content_type.as_deref().is_some_and(|ct| ct.starts_with("image/"));
+        let is_image = a
+            .content_type
+            .as_deref()
+            .is_some_and(|ct| ct.starts_with("image/"));
         let is_pdf = a.content_type.as_deref() == Some("application/pdf")
             || a.filename.to_lowercase().ends_with(".pdf");
 
@@ -333,7 +363,10 @@ async fn send_reply(
         println!("[uranai] 送信: channel={channel_id} (添付なし)");
     } else {
         let names: Vec<&str> = named_images.iter().map(|(n, _)| n.as_str()).collect();
-        println!("[uranai] 送信: channel={channel_id} 添付=[{}]", names.join(", "));
+        println!(
+            "[uranai] 送信: channel={channel_id} 添付=[{}]",
+            names.join(", ")
+        );
     }
 
     let mut attachments = Some(to_attachments(named_images)).filter(|a| !a.is_empty());
@@ -363,7 +396,10 @@ fn no_mention_message(content: impl Into<String>) -> serenity::CreateMessage {
 }
 
 /// 発言へのリプライの参照。発言が消されていてもエラーにせずふつうに送る。
-fn reply_reference(channel_id: serenity::ChannelId, message_id: serenity::MessageId) -> serenity::MessageReference {
+fn reply_reference(
+    channel_id: serenity::ChannelId,
+    message_id: serenity::MessageId,
+) -> serenity::MessageReference {
     let mut r = serenity::MessageReference::from((channel_id, message_id));
     r.fail_if_not_exists = Some(false);
     r
@@ -415,12 +451,22 @@ mod tests {
     #[test]
     fn session_commands_match_raw_content_only() {
         assert_eq!(session_command("reset"), Some(SessionCommand::Reset));
-        assert_eq!(session_command(" clear 
-"), Some(SessionCommand::Reset));
+        assert_eq!(
+            session_command(
+                " clear 
+"
+            ),
+            Some(SessionCommand::Reset)
+        );
         assert_eq!(session_command("continue"), Some(SessionCommand::Continue));
         assert_eq!(session_command("reset please"), None);
-        assert_eq!(session_command("from bob:
- reset"), None);
+        assert_eq!(
+            session_command(
+                "from bob:
+ reset"
+            ),
+            None
+        );
     }
 
     #[test]

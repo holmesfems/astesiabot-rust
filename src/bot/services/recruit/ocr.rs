@@ -140,7 +140,10 @@ mod tests {
     #[test]
     fn ocr_text_distinguishes_no_text_from_text() {
         assert_eq!(OcrText::from(None), OcrText::NoText);
-        assert_eq!(OcrText::from(Some("a".to_string())), OcrText::Text("a".to_string()));
+        assert_eq!(
+            OcrText::from(Some("a".to_string())),
+            OcrText::Text("a".to_string())
+        );
     }
 
     #[test]
@@ -157,7 +160,9 @@ mod tests {
         assert_eq!(full_text(&parse(r#"{"responses":[{}]}"#)), None);
         assert_eq!(full_text(&parse(r#"{"responses":[]}"#)), None);
         assert_eq!(
-            full_text(&parse(r#"{"responses":[{"textAnnotations":[{"description":""}]}]}"#)),
+            full_text(&parse(
+                r#"{"responses":[{"textAnnotations":[{"description":""}]}]}"#
+            )),
             None
         );
     }

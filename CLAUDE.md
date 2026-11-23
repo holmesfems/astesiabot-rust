@@ -13,6 +13,7 @@
 ```powershell
 cargo build
 cargo test
+cargo fmt                        # 整形（CI は cargo fmt --check で落とす）
 cargo run                        # bot + API（.env の環境変数が要る。下記）
 cargo run --bin serve_web        # Web UI だけ（bot・外部取得なし、.env 不要。WEB_UI_PORT 既定3001、127.0.0.1のみ）
 cargo run --bin regen_seeds      # data/seed/*.json を作り直す（週1で自動 PR が来るので、手で回すのは急ぐときだけ）
@@ -38,7 +39,7 @@ cargo run --release --bin fit_tag_templates  # 箱とタグの対応を決めて
 
 - 変更したら `cargo test`・`verify.mjs`（計算層。DOM 非依存のモジュールを import）・`e2e.mjs`
   （表現層。Playwright で実ブラウザ）を通し、必要なら実際に画面や Discord で触って確かめる。
-- PR と master への push で CI（`.github/workflows/ci.yml`。Ubuntu で clippy `-D warnings`・`cargo test`・
+- PR と master への push で CI（`.github/workflows/ci.yml`。Ubuntu で `cargo fmt --check`・clippy `-D warnings`・`cargo test`・
   verify.mjs）が回る。e2e.mjs は Windows 専用なので CI に無く、手元で回す。
 - 依存の脆弱性は `.github/workflows/audit.yml`（`cargo audit`。PR・master・週1）で見る。必須チェックではない。
   赤くなったらまず `cargo update -p <crate>` で直るか試し、直せないものだけ `.cargo/audit.toml` に

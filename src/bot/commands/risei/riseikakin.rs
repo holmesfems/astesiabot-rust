@@ -3,7 +3,8 @@ use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
 use crate::bot::utils::xlsx::{build_kakin_export_xlsx, KakinExportPack};
 use crate::engine::risei_calculator_engine::kakin::{
-    build_kakin_pack, constant_packs, jst_now, kakin_list, limited_pack_defs, limited_packs, KakinPack,
+    build_kakin_pack, constant_packs, jst_now, kakin_list, limited_pack_defs, limited_packs,
+    KakinPack,
 };
 use crate::engine::risei_calculator_engine::values::RiseiValues;
 use crate::engine::risei_calculator_engine::Server;
@@ -12,8 +13,15 @@ use std::collections::HashSet;
 
 const KAKIN_XLSX_FILENAME: &str = "kakinList.xlsx";
 /// [`value_block`]と同じ並び順。
-const KAKIN_TARGET_COLUMNS: [&str; 7] =
-    ["総合効率", "ガチャ効率", "パック値段", "合計理性価値", "純正源石換算", "マネー換算", "ガチャ数"];
+const KAKIN_TARGET_COLUMNS: [&str; 7] = [
+    "総合効率",
+    "ガチャ効率",
+    "パック値段",
+    "合計理性価値",
+    "純正源石換算",
+    "マネー換算",
+    "ガチャ数",
+];
 
 // 計算(価格表の読み込み・パック効率)は`engine/risei_calculator_engine/kakin.rs`にある
 // （REST API `GET /api/risei/lists/kakin` と共有するため）。ここは embed / xlsx への整形だけを持つ。
@@ -30,10 +38,7 @@ async fn autocomplete_kakin_target(
     const TOTAL_OPTION: (&str, &str) = ("全体比較(グローバル)", "Total_Global");
     let limited: Vec<(String, String)> =
         std::iter::once((TOTAL_OPTION.0.to_string(), TOTAL_OPTION.1.to_string()))
-            .chain(
-                limited_pack_defs(jst_now(), true)
-                    .map(|(name, _)| (name.clone(), name.clone())),
-            )
+            .chain(limited_pack_defs(jst_now(), true).map(|(name, _)| (name.clone(), name.clone())))
             .filter(|(name, _)| name.contains(partial))
             .take(25)
             .collect();
@@ -77,8 +82,15 @@ fn sale_period(pack: &KakinPack) -> Option<String> {
     if pack.start.is_none() && pack.end.is_none() {
         return None;
     }
-    let fmt = |t: Option<chrono::NaiveDateTime>| t.map(|t| t.format("%Y/%m/%d %H:%M").to_string()).unwrap_or_default();
-    let upcoming = if pack.start.is_some_and(|start| jst_now() < start) { "(販売前)" } else { "" };
+    let fmt = |t: Option<chrono::NaiveDateTime>| {
+        t.map(|t| t.format("%Y/%m/%d %H:%M").to_string())
+            .unwrap_or_default()
+    };
+    let upcoming = if pack.start.is_some_and(|start| jst_now() < start) {
+        "(販売前)"
+    } else {
+        ""
+    };
     Some(format!("{}〜{}{upcoming}", fmt(pack.start), fmt(pack.end)))
 }
 
@@ -150,12 +162,22 @@ fn material_columns(packs: &[KakinPack]) -> Vec<String> {
 }
 
 /// riseikakinのxlsx添付を組み立てる。
-fn build_kakin_attachment(packs: &[KakinPack], values: &RiseiValues) -> Result<serenity::CreateAttachment, Error> {
+fn build_kakin_attachment(
+    packs: &[KakinPack],
+    values: &RiseiValues,
+) -> Result<serenity::CreateAttachment, Error> {
     let columns = material_columns(packs);
-    let value_row: Vec<f64> = columns.iter().map(|ja| values.get_value_from_ja(ja)).collect();
+    let value_row: Vec<f64> = columns
+        .iter()
+        .map(|ja| values.get_value_from_ja(ja))
+        .collect();
     let export_packs: Vec<KakinExportPack> = packs.iter().map(to_export_pack).collect();
-    let bytes = build_kakin_export_xlsx(&columns, &KAKIN_TARGET_COLUMNS, &export_packs, &value_row)?;
-    Ok(serenity::CreateAttachment::bytes(bytes, KAKIN_XLSX_FILENAME))
+    let bytes =
+        build_kakin_export_xlsx(&columns, &KAKIN_TARGET_COLUMNS, &export_packs, &value_row)?;
+    Ok(serenity::CreateAttachment::bytes(
+        bytes,
+        KAKIN_XLSX_FILENAME,
+    ))
 }
 
 /// 課金理性効率表を出力します。
@@ -165,17 +187,12 @@ pub async fn riseikakin(
     #[description = "表示する効率表を選んでください"]
     #[autocomplete = "autocomplete_kakin_target"]
     target: String,
-    #[description = "true:パック内容をxlsxで添付"]
-    csv_file: Option<bool>,
-    #[description = "true:全体比較にまだ販売前のパックも含める"]
-    upcoming: Option<bool>,
+    #[description = "true:パック内容をxlsxで添付"] csv_file: Option<bool>,
+    #[description = "true:全体比較にまだ販売前のパックも含める"] upcoming: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let state = ctx.data().state.clone();
-    let snapshot = state
-        .risei_calculator
-        .snapshot(Server::Global)
-        .await;
+    let snapshot = state.risei_calculator.snapshot(Server::Global).await;
     let values = &snapshot.values;
     let want_csv = csv_file.unwrap_or(false);
 
@@ -185,7 +202,8 @@ pub async fn riseikakin(
         let limited = limited_packs(values, jst_now(), upcoming.unwrap_or(false));
         let chunks = total_comparison_chunks(&limited, &constants);
         let attachment = if want_csv {
-            let all_packs: Vec<KakinPack> = limited.iter().chain(constants.iter()).cloned().collect();
+            let all_packs: Vec<KakinPack> =
+                limited.iter().chain(constants.iter()).cloned().collect();
             Some(build_kakin_attachment(&all_packs, values)?)
         } else {
             None
@@ -199,7 +217,10 @@ pub async fn riseikakin(
         (reply, attachment)
     } else {
         match kakin_list().get(&target) {
-            None => (EmbedReply::error(&format!("存在しない課金パック：{target}")), None),
+            None => (
+                EmbedReply::error(&format!("存在しない課金パック：{target}")),
+                None,
+            ),
             Some(def) => {
                 let pack = build_kakin_pack(&target, def, values);
                 let chunks = vec![
@@ -255,11 +276,18 @@ mod tests {
 
     async fn compare(debug: bool) {
         let outer_source = Arc::new(ExternalSourceRegistry::load(debug).await);
-        let engine = Arc::new(RiseiCalculatorEngine::load(&outer_source).await.expect("理性価値表を計算できる"));
+        let engine = Arc::new(
+            RiseiCalculatorEngine::load(&outer_source)
+                .await
+                .expect("理性価値表を計算できる"),
+        );
 
         // Discord側: コマンドと同じ関数で本文を組み立てる
         let values = engine.snapshot(Server::Global).await.values;
-        let chunks = total_comparison_chunks(&limited_packs(&values, jst_now(), false), &constant_packs(&values));
+        let chunks = total_comparison_chunks(
+            &limited_packs(&values, jst_now(), false),
+            &constant_packs(&values),
+        );
         let (constant_chunk, pack_chunks) = chunks.split_last().unwrap();
 
         // API側: curlと同じくHTTPで叩く
@@ -267,16 +295,26 @@ mod tests {
             risei: engine.clone(),
             external_source: outer_source.clone(),
         })
-            .oneshot(Request::builder().uri("/api/risei/lists/kakin").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/api/risei/lists/kakin")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
-        assert_eq!(response.status(), axum::http::StatusCode::OK);
-        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let body: Value = serde_json::from_slice(&bytes).unwrap();
         let packs = body["packs"].as_array().unwrap();
         assert_eq!(packs.len(), pack_chunks.len(), "パック数");
 
-        println!("updated_at={} effective_server={}", body["updated_at"], body["effective_server"]);
+        println!(
+            "updated_at={} effective_server={}",
+            body["updated_at"], body["effective_server"]
+        );
         println!("| # | パック | 総合効率 bot / API | ガチャ効率 bot / API | 値段 bot / API | マネー換算 bot / API | 一致 |");
         println!("|---|---|---|---|---|---|---|");
         let pct = |v: &Value| format!("{:.2}%", v.as_f64().unwrap() * 100.0);
@@ -286,27 +324,55 @@ mod tests {
             let api = [
                 ("総合効率", pct(&pack["total_efficiency"])),
                 ("ガチャ効率", pct(&pack["gacha_efficiency"])),
-                ("パック値段", format!("{:.0}円", pack["price_jpy"].as_f64().unwrap())),
-                ("マネー換算", format!("{:.2}円", pack["value_jpy"].as_f64().unwrap())),
-                ("合計理性価値", format!("{:.2}", pack["total_value"].as_f64().unwrap())),
-                ("純正源石換算", format!("{:.2}", pack["total_originium"].as_f64().unwrap())),
-                ("ガチャ数", format!("{:.2}", pack["gacha_count"].as_f64().unwrap())),
+                (
+                    "パック値段",
+                    format!("{:.0}円", pack["price_jpy"].as_f64().unwrap()),
+                ),
+                (
+                    "マネー換算",
+                    format!("{:.2}円", pack["value_jpy"].as_f64().unwrap()),
+                ),
+                (
+                    "合計理性価値",
+                    format!("{:.2}", pack["total_value"].as_f64().unwrap()),
+                ),
+                (
+                    "純正源石換算",
+                    format!("{:.2}", pack["total_originium"].as_f64().unwrap()),
+                ),
+                (
+                    "ガチャ数",
+                    format!("{:.2}", pack["gacha_count"].as_f64().unwrap()),
+                ),
             ];
-            let ok = name == pack["name"].as_str().unwrap() && api.iter().all(|(k, v)| bot.get(*k) == Some(v));
+            let ok = name == pack["name"].as_str().unwrap()
+                && api.iter().all(|(k, v)| bot.get(*k) == Some(v));
             all_ok &= ok;
             println!(
                 "| {} | {} | {} / {} | {} / {} | {} / {} | {} / {} | {} |",
                 i + 1,
                 name,
-                bot["総合効率"], api[0].1,
-                bot["ガチャ効率"], api[1].1,
-                bot["パック値段"], api[2].1,
-                bot["マネー換算"], api[3].1,
+                bot["総合効率"],
+                api[0].1,
+                bot["ガチャ効率"],
+                api[1].1,
+                bot["パック値段"],
+                api[2].1,
+                bot["マネー換算"],
+                api[3].1,
                 if ok { "✅" } else { "❌" },
             );
             // contentsの換算額の合計はパックのマネー換算と一致する
-            let sum: f64 = pack["contents"].as_array().unwrap().iter().map(|c| c["value_jpy"].as_f64().unwrap()).sum();
-            assert!((sum - pack["value_jpy"].as_f64().unwrap()).abs() < 1e-6, "{name}: contents合計");
+            let sum: f64 = pack["contents"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c["value_jpy"].as_f64().unwrap())
+                .sum();
+            assert!(
+                (sum - pack["value_jpy"].as_f64().unwrap()).abs() < 1e-6,
+                "{name}: contents合計"
+            );
         }
 
         println!();
@@ -323,7 +389,10 @@ mod tests {
             let api_pct = pct(&base["total_efficiency"]);
             let ok = bot_name == base["name"].as_str().unwrap() && *bot_pct == api_pct;
             all_ok &= ok;
-            println!("| {bot_name} | {bot_pct} | {api_pct} | {} |", if ok { "✅" } else { "❌" });
+            println!(
+                "| {bot_name} | {bot_pct} | {api_pct} | {} |",
+                if ok { "✅" } else { "❌" }
+            );
         }
         assert!(all_ok, "/riseikakin と API が一致しない項目がある");
     }

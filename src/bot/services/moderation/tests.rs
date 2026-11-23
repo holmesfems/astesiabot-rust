@@ -1,32 +1,18 @@
+use super::action::{
+    ban_failed_report, build_report_content, neutralize_backticks, ReportSubject,
+    DISCORD_MESSAGE_MAX_CHARS, REPORT_EXCERPT_CHARS,
+};
+use super::detect::{
+    command_invoker, contains_link, countable_command_age, detect, detect_rate_spam,
+    first_sight_of_interaction, is_welcome_wave, Actor, SpamKind, MULTI_CH_WINDOW,
+    SAME_CH_THRESHOLD, SAME_CH_WINDOW, URL_PATTERN,
+};
 use super::*;
 use fancy_regex::Regex;
 use poise::serenity_prelude as serenity;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use super::detect::{
-    MULTI_CH_WINDOW,
-    SAME_CH_WINDOW,
-    SAME_CH_THRESHOLD,
-    URL_PATTERN,
-    contains_link,
-    SpamKind,
-    Actor,
-    command_invoker,
-    countable_command_age,
-    first_sight_of_interaction,
-    is_welcome_wave,
-    detect,
-    detect_rate_spam,
-};
-use super::action::{
-    neutralize_backticks,
-    build_report_content,
-    ban_failed_report,
-    ReportSubject,
-    REPORT_EXCERPT_CHARS,
-    DISCORD_MESSAGE_MAX_CHARS,
-};
 
 fn re() -> Regex {
     Regex::new(URL_PATTERN).unwrap()
@@ -115,13 +101,20 @@ fn actor_via_bot_matches_replies_to_its_own_commands_from_any_bot() {
     let other_bot_same_invoker = bot_reply(501, Some(metadata(2, 8, 42)));
     let other_invoker = bot_reply(500, Some(metadata(2, 9, 43)));
     let (_, invoker) = command_invoker(&reply).unwrap();
-    let actor = Actor { user: invoker, via_bot: Some(&reply.author) };
+    let actor = Actor {
+        user: invoker,
+        via_bot: Some(&reply.author),
+    };
 
     assert!(actor.caused(&reply));
     assert!(actor.caused(&other_bot_same_invoker));
     assert!(!actor.caused(&other_invoker));
     // 発言者本人として見た場合、bot の返信は本人の発言ではない
-    assert!(!Actor { user: invoker, via_bot: None }.caused(&reply));
+    assert!(!Actor {
+        user: invoker,
+        via_bot: None
+    }
+    .caused(&reply));
 }
 
 #[test]
@@ -131,10 +124,18 @@ fn one_slash_command_is_counted_once() {
     let id = serenity::InteractionId::new(7);
     assert!(first_sight_of_interaction(&seen, id, now));
     // 同じコマンドへのフォローアップ
-    assert!(!first_sight_of_interaction(&seen, id, now + Duration::from_secs(1)));
+    assert!(!first_sight_of_interaction(
+        &seen,
+        id,
+        now + Duration::from_secs(1)
+    ));
     // 窓を過ぎた古い記録は捨てる
     let later = now + MULTI_CH_WINDOW.max(SAME_CH_WINDOW) + Duration::from_secs(1);
-    assert!(first_sight_of_interaction(&seen, serenity::InteractionId::new(8), later));
+    assert!(first_sight_of_interaction(
+        &seen,
+        serenity::InteractionId::new(8),
+        later
+    ));
     assert_eq!(seen.lock().unwrap().len(), 1);
 }
 
@@ -142,7 +143,10 @@ fn one_slash_command_is_counted_once() {
 fn command_age_counts_fresh_and_ignores_stale_interactions() {
     let now = 1_700_000_000_000_i64;
     // 打ったばかり・窓の内側は経過時間つきで数える
-    assert_eq!(countable_command_age(now - 300, now), Some(Duration::from_millis(300)));
+    assert_eq!(
+        countable_command_age(now - 300, now),
+        Some(Duration::from_millis(300))
+    );
     let window = MULTI_CH_WINDOW.max(SAME_CH_WINDOW).as_millis() as i64;
     assert!(countable_command_age(now - window, now).is_some());
     // 窓を過ぎたもの（20秒前・15分前）は数えない
@@ -153,7 +157,10 @@ fn command_age_counts_fresh_and_ignores_stale_interactions() {
 #[test]
 fn command_age_treats_clock_skew_as_just_now() {
     let now = 1_700_000_000_000_i64;
-    assert_eq!(countable_command_age(now + 5_000, now), Some(Duration::ZERO));
+    assert_eq!(
+        countable_command_age(now + 5_000, now),
+        Some(Duration::ZERO)
+    );
 }
 
 #[test]
@@ -162,13 +169,28 @@ fn commands_in_three_channels_trip_multi_channel_for_the_invoker() {
     let invoker = serenity::UserId::new(42);
     let now = Instant::now();
     let kinds: Vec<_> = (0..3)
-        .map(|i| detect_rate_spam(&state, invoker, serenity::ChannelId::new(10 + i), now + Duration::from_secs(i)))
+        .map(|i| {
+            detect_rate_spam(
+                &state,
+                invoker,
+                serenity::ChannelId::new(10 + i),
+                now + Duration::from_secs(i),
+            )
+        })
         .collect();
-    assert_eq!(kinds, [SpamKind::None, SpamKind::None, SpamKind::MultiChannel]);
+    assert_eq!(
+        kinds,
+        [SpamKind::None, SpamKind::None, SpamKind::MultiChannel]
+    );
 }
 
 /// 人間（id 42）の発言。kind 19（リプライ）なら referenced_type の種類のメッセージへのリプライにする
-fn human_msg(id: u64, content: &str, sticker: bool, referenced_type: Option<u8>) -> serenity::Message {
+fn human_msg(
+    id: u64,
+    content: &str,
+    sticker: bool,
+    referenced_type: Option<u8>,
+) -> serenity::Message {
     let mut msg = serde_json::json!({
         "id": id.to_string(), "channel_id": "10", "author": user_json(42, false),
         "content": content, "timestamp": "2026-10-28T00:00:00.000000+00:00",
@@ -177,7 +199,8 @@ fn human_msg(id: u64, content: &str, sticker: bool, referenced_type: Option<u8>)
         "pinned": false, "type": if referenced_type.is_some() { 19 } else { 0 },
     });
     if sticker {
-        msg["sticker_items"] = serde_json::json!([{ "id": "749054660769218631", "name": "Wave", "format_type": 3 }]);
+        msg["sticker_items"] =
+            serde_json::json!([{ "id": "749054660769218631", "name": "Wave", "format_type": 3 }]);
     }
     if let Some(kind) = referenced_type {
         msg["message_reference"] = serde_json::json!({ "message_id": "1", "channel_id": "10" });
@@ -221,17 +244,27 @@ fn welcome_waves_do_not_trip_same_channel() {
 fn neutralize_backticks_prevents_code_block_breakout() {
     let echoed = neutralize_backticks("x```\n@everyone <@&1> `y`");
     assert!(!echoed.contains('`'));
-    assert_eq!(echoed, "x\u{02CB}\u{02CB}\u{02CB}\n@everyone <@&1> \u{02CB}y\u{02CB}");
+    assert_eq!(
+        echoed,
+        "x\u{02CB}\u{02CB}\u{02CB}\n@everyone <@&1> \u{02CB}y\u{02CB}"
+    );
 }
 
 fn subject(content: &str) -> ReportSubject<'_> {
-    ReportSubject { author: "spammer", via_bot: None, content }
+    ReportSubject {
+        author: "spammer",
+        via_bot: None,
+        content,
+    }
 }
 
 #[test]
 fn report_keeps_short_content_whole() {
     let content = build_report_content("連投を検知", Some(subject("buy now")), &[]);
-    assert_eq!(content, "連投を検知\nauthor:spammer\ncontent:```buy now```\n");
+    assert_eq!(
+        content,
+        "連投を検知\nauthor:spammer\ncontent:```buy now```\n"
+    );
 }
 
 #[test]
@@ -249,8 +282,9 @@ fn report_never_exceeds_discord_limit() {
     // Nitro の 4000 文字の本文に、長い理由と大量のチャンネルが付いても 2000 文字に収まる
     let spam = "x".repeat(4000);
     let report = "理".repeat(1500);
-    let channels: Vec<serenity::ChannelId> =
-        (1..=100u64).map(|i| serenity::ChannelId::new(100_000_000_000_000_000 + i)).collect();
+    let channels: Vec<serenity::ChannelId> = (1..=100u64)
+        .map(|i| serenity::ChannelId::new(100_000_000_000_000_000 + i))
+        .collect();
     let content = build_report_content(&report, Some(subject(&spam)), &channels);
     assert_eq!(content.chars().count(), DISCORD_MESSAGE_MAX_CHARS);
     assert!(content.ends_with('…'));
@@ -261,10 +295,16 @@ fn report_excerpt_still_neutralizes_backticks_and_links() {
     let spam = format!("```@everyone http://evil.example {}", "y".repeat(500));
     let content = build_report_content(
         "連投を検知",
-        Some(ReportSubject { author: "a`b", via_bot: Some("Other`Bot"), content: &spam }),
+        Some(ReportSubject {
+            author: "a`b",
+            via_bot: Some("Other`Bot"),
+            content: &spam,
+        }),
         &[],
     );
-    assert!(content.starts_with("連投を検知\nauthor:a\u{02CB}b（Other\u{02CB}Botのスラッシュコマンド経由）\n"));
+    assert!(content.starts_with(
+        "連投を検知\nauthor:a\u{02CB}b（Other\u{02CB}Botのスラッシュコマンド経由）\n"
+    ));
     // 本文の ` はすべて置き換わり、通報文が自分で付けた ``` の開きと閉じの2組だけが残る
     assert_eq!(content.matches("```").count(), 2);
     assert!(content.contains("ht tp://evil_example"));

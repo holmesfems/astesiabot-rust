@@ -35,7 +35,10 @@ fn mention_str(names: &[String]) -> String {
 }
 
 /// 該当者がいなければ None。
-pub fn check_birthday(birthdays: &OperatorBirthdays, now: DateTime<FixedOffset>) -> Option<EmbedReply> {
+pub fn check_birthday(
+    birthdays: &OperatorBirthdays,
+    now: DateTime<FixedOffset>,
+) -> Option<EmbedReply> {
     let reflected: Vec<String> = birthdays
         .on(now.month(), now.day())
         .map(|op| reflect_name(&op.name))
@@ -108,7 +111,10 @@ mod tests {
     }
 
     fn at(month: u32, day: u32) -> DateTime<FixedOffset> {
-        jst().with_ymd_and_hms(2026, month, day, 0, 0, 0).single().unwrap()
+        jst()
+            .with_ymd_and_hms(2026, month, day, 0, 0, 0)
+            .single()
+            .unwrap()
     }
 
     #[test]
@@ -139,7 +145,11 @@ mod tests {
     #[test]
     fn check_birthday_message_format() {
         let birthdays = OperatorBirthdays {
-            operators: vec![op("チョンユエ", 1, 1), op("オッダ", 1, 1), op("バブル", 1, 2)],
+            operators: vec![
+                op("チョンユエ", 1, 1),
+                op("オッダ", 1, 1),
+                op("バブル", 1, 2),
+            ],
         };
         let reply = check_birthday(&birthdays, at(1, 1)).expect("Jan 1 has birthdays");
         assert_eq!(
@@ -148,7 +158,10 @@ mod tests {
         );
         assert_eq!(
             reply.chunks,
-            vec!["今日はチョンユエさんとオッダさんの誕生日よ！みんなでお祝い:tada:しましょ！".to_string()]
+            vec![
+                "今日はチョンユエさんとオッダさんの誕生日よ！みんなでお祝い:tada:しましょ！"
+                    .to_string()
+            ]
         );
         let reply = check_birthday(&birthdays, at(1, 2)).expect("Jan 2 has birthdays");
         assert_eq!(
@@ -169,7 +182,10 @@ mod tests {
         let reply = check_birthday(&birthdays, at(1, 1)).expect("Jan 1 has birthdays");
         assert_eq!(
             reply.chunks,
-            vec!["今日はチョンユエさんとオッダさんの誕生日よ！みんなでお祝い:tada:しましょ！".to_string()]
+            vec![
+                "今日はチョンユエさんとオッダさんの誕生日よ！みんなでお祝い:tada:しましょ！"
+                    .to_string()
+            ]
         );
     }
 }

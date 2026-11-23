@@ -21,7 +21,11 @@ struct Args {
 /// `new`2件が含まれていなかったため、こちらの方が実際のカテゴリ一覧と一致する)。
 fn material_categories() -> Vec<String> {
     let file = load_stage_category_file().expect("data/risei/stage_category.json should parse");
-    file.main.values().chain(file.new.values()).map(|c| c.to_ja.clone()).collect()
+    file.main
+        .values()
+        .chain(file.new.values())
+        .map(|c| c.to_ja.clone())
+        .collect()
 }
 
 impl ToolArgs for Args {
@@ -67,7 +71,11 @@ impl ToolFunction for RiseiMaterials {
 
         // GPTからの呼び出しは常にグローバル版基準
         // (newカテゴリ指定時は material_search 内部で自動的に大陸版へ切り替わる)。
-        match ctx.risei_calculator.material_search(Server::Global, &key).await {
+        match ctx
+            .risei_calculator
+            .material_search(Server::Global, &key)
+            .await
+        {
             Err(msg) => ToolResponse::Error(msg),
             Ok(result) => {
                 let stages: Vec<Value> = result

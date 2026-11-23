@@ -8,13 +8,19 @@
 use serde::{Serialize, Serializer};
 
 /// `Vec<(名前, 個数)>`を`[{"name": .., "count": ..}]`として出す`serialize_with`用ヘルパー。
-fn serialize_items<S: Serializer>(items: &[(String, f64)], serializer: S) -> Result<S::Ok, S::Error> {
+fn serialize_items<S: Serializer>(
+    items: &[(String, f64)],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
     #[derive(Serialize)]
     struct Item<'a> {
         name: &'a str,
         count: f64,
     }
-    serializer.collect_seq(items.iter().map(|(name, count)| Item { name, count: *count }))
+    serializer.collect_seq(items.iter().map(|(name, count)| Item {
+        name,
+        count: *count,
+    }))
 }
 
 /// ランキング内での位置。表示文言は呼び出し側(bot/API)が決める。

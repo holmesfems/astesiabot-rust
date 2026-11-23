@@ -155,7 +155,12 @@ impl StageItem {
     }
 
     /// matrix由来のドロップ記録を1件追加する（value_targetに含まれる場合のみ）。
-    pub fn add_drop_record(&mut self, record: &RawDropRecord, value_target: &[&str], item_names: &ItemNames) {
+    pub fn add_drop_record(
+        &mut self,
+        record: &RawDropRecord,
+        value_target: &[&str],
+        item_names: &ItemNames,
+    ) {
         let zh = item_names.get_zh(&record.item_id);
         if value_target.contains(&zh) {
             self.drop_list.merge_from(DropList::from_record(record));
@@ -166,7 +171,12 @@ impl StageItem {
         self.drop_list.max_times()
     }
 
-    pub fn is_valid_for_show(&self, show_min_times: i64, value_target: &[&str], item_names: &ItemNames) -> bool {
+    pub fn is_valid_for_show(
+        &self,
+        show_min_times: i64,
+        value_target: &[&str],
+        item_names: &ItemNames,
+    ) -> bool {
         if self.max_times() < show_min_times {
             return false;
         }
@@ -208,7 +218,10 @@ impl StageItem {
     pub fn get_partial_efficiency(&self, values: &RiseiValues, items: &[&str]) -> f64 {
         let total_value: f64 = items
             .iter()
-            .map(|zh| values.get_value_from_zh(zh) * self.get_drop_rate(zh, &values.value_target, &values.item_names))
+            .map(|zh| {
+                values.get_value_from_zh(zh)
+                    * self.get_drop_rate(zh, &values.value_target, &values.item_names)
+            })
             .sum();
         total_value / self.ap_cost
     }

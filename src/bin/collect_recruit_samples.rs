@@ -109,7 +109,8 @@ struct TitleInfo {
 
 /// `tagList.json` の全タグ名。
 fn known_tags() -> HashSet<String> {
-    let v: serde_json::Value = serde_json::from_str(TAG_LIST_JSON).expect("tagList.json should be valid JSON");
+    let v: serde_json::Value =
+        serde_json::from_str(TAG_LIST_JSON).expect("tagList.json should be valid JSON");
     let obj = v.as_object().expect("tagList.json should be an object");
     ["eliteTags", "jobTags", "positionTags", "otherTags"]
         .iter()
@@ -143,14 +144,25 @@ fn parse_title(title: &str, known: &HashSet<String>) -> TitleInfo {
     let all_known = !tags.is_empty() && tags.iter().all(|t| known.contains(t));
     // エラー返信の title は「エラー」。既知タグではないので all_known で落ちる
     let usable = tags.len() == 5 && all_known && !lacking;
-    TitleInfo { tags, is_global, all_known, usable }
+    TitleInfo {
+        tags,
+        is_global,
+        all_known,
+        usable,
+    }
 }
 
 fn is_image_attachment(a: &Attachment) -> bool {
-    if a.content_type.as_deref().is_some_and(|c| c.starts_with("image/")) {
+    if a.content_type
+        .as_deref()
+        .is_some_and(|c| c.starts_with("image/"))
+    {
         return true;
     }
-    matches!(file_ext(&a.filename).as_deref(), Some("png" | "jpg" | "jpeg" | "webp"))
+    matches!(
+        file_ext(&a.filename).as_deref(),
+        Some("png" | "jpg" | "jpeg" | "webp")
+    )
 }
 
 fn file_ext(filename: &str) -> Option<String> {
@@ -161,7 +173,9 @@ fn file_ext(filename: &str) -> Option<String> {
 
 /// 保存時の拡張子。ファイル名優先、無ければ content_type から。
 fn pick_ext(a: &Attachment) -> String {
-    if let Some(e) = file_ext(&a.filename).filter(|e| matches!(e.as_str(), "png" | "jpg" | "jpeg" | "webp")) {
+    if let Some(e) =
+        file_ext(&a.filename).filter(|e| matches!(e.as_str(), "png" | "jpg" | "jpeg" | "webp"))
+    {
         return e;
     }
     match a.content_type.as_deref() {
@@ -188,16 +202,23 @@ fn rate_limit_wait(remaining: Option<&str>, reset_after: Option<&str>) -> Option
         return None;
     }
     let secs: f64 = reset_after?.trim().parse().ok()?;
-    secs.is_finite().then(|| Duration::from_secs_f64(secs.clamp(0.0, 60.0)))
+    secs.is_finite()
+        .then(|| Duration::from_secs_f64(secs.clamp(0.0, 60.0)))
 }
 
 /// 返信メッセージから (トリガーID → [(返信ID, title)]) を集める。
 fn collect_replies(msgs: &[Msg], bot_id: &str, replies: &mut HashMap<String, Vec<(u64, String)>>) {
     for m in msgs.iter().filter(|m| m.author.id == bot_id) {
-        let Some(trigger) = m.message_reference.as_ref().and_then(|r| r.message_id.clone()) else {
+        let Some(trigger) = m
+            .message_reference
+            .as_ref()
+            .and_then(|r| r.message_id.clone())
+        else {
             continue;
         };
-        let Ok(rid) = m.id.parse::<u64>() else { continue };
+        let Ok(rid) = m.id.parse::<u64>() else {
+            continue;
+        };
         for t in m.embeds.iter().filter_map(|e| e.title.clone()) {
             replies.entry(trigger.clone()).or_default().push((rid, t));
         }
@@ -229,11 +250,23 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
     let mut out = PathBuf::from("local/recruit_samples");
     let mut it = args.iter();
     while let Some(flag) = it.next() {
-        let mut val = || it.next().cloned().ok_or_else(|| format!("{flag} に値がありません"));
+        let mut val = || {
+            it.next()
+                .cloned()
+                .ok_or_else(|| format!("{flag} に値がありません"))
+        };
         match flag.as_str() {
             "--channel" => channel = Some(val()?),
-            "--limit" => limit = val()?.parse().map_err(|_| "--limit は整数で指定してください".to_string())?,
-            "--max-pages" => max_pages = val()?.parse().map_err(|_| "--max-pages は整数で指定してください".to_string())?,
+            "--limit" => {
+                limit = val()?
+                    .parse()
+                    .map_err(|_| "--limit は整数で指定してください".to_string())?
+            }
+            "--max-pages" => {
+                max_pages = val()?
+                    .parse()
+                    .map_err(|_| "--max-pages は整数で指定してください".to_string())?
+            }
             "--before" => before = Some(val()?),
             "--out" => out = PathBuf::from(val()?),
             other => return Err(format!("知らない引数です: {other}")),
@@ -243,7 +276,13 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
     if !channel.chars().all(|c| c.is_ascii_digit()) || channel.is_empty() {
         return Err("--channel は数字のIDで指定してください".into());
     }
-    Ok(Args { channel, limit, max_pages, before, out })
+    Ok(Args {
+        channel,
+        limit,
+        max_pages,
+        before,
+        out,
+    })
 }
 
 // ---- REST ----
@@ -256,7 +295,11 @@ struct Api {
 impl Api {
     /// GET してJSONを返す。429 は retry_after 待ちで再試行する。
     /// エラー文にはヘッダを入れない（トークンを出さないため）。
-    async fn get_json(&mut self, path: &str, query: &[(&str, String)]) -> Result<serde_json::Value, String> {
+    async fn get_json(
+        &mut self,
+        path: &str,
+        query: &[(&str, String)],
+    ) -> Result<serde_json::Value, String> {
         for _ in 0..8 {
             if let Some(d) = self.wait_next.take() {
                 tokio::time::sleep(d).await;
@@ -268,31 +311,54 @@ impl Api {
                 .send()
                 .await
                 .map_err(|e| format!("GET {path} に失敗: {}", e.without_url()))?;
-            let h = |k: &str| resp.headers().get(k).and_then(|v| v.to_str().ok()).map(str::to_string);
-            self.wait_next = rate_limit_wait(h("x-ratelimit-remaining").as_deref(), h("x-ratelimit-reset-after").as_deref());
+            let h = |k: &str| {
+                resp.headers()
+                    .get(k)
+                    .and_then(|v| v.to_str().ok())
+                    .map(str::to_string)
+            };
+            self.wait_next = rate_limit_wait(
+                h("x-ratelimit-remaining").as_deref(),
+                h("x-ratelimit-reset-after").as_deref(),
+            );
             let status = resp.status();
             if status.as_u16() == 429 {
                 let body: serde_json::Value = resp.json().await.unwrap_or_default();
-                let secs = body["retry_after"].as_f64().unwrap_or(5.0).clamp(0.0, 120.0);
+                let secs = body["retry_after"]
+                    .as_f64()
+                    .unwrap_or(5.0)
+                    .clamp(0.0, 120.0);
                 eprintln!("レート制限: {secs:.1} 秒待ちます");
                 tokio::time::sleep(Duration::from_secs_f64(secs)).await;
                 continue;
             }
             if !status.is_success() {
-                return Err(format!("GET {path} が {status} を返しました（トークン・チャンネルID・権限を確認）"));
+                return Err(format!(
+                    "GET {path} が {status} を返しました（トークン・チャンネルID・権限を確認）"
+                ));
             }
-            return resp.json().await.map_err(|e| format!("GET {path} の応答を読めません: {}", e.without_url()));
+            return resp
+                .json()
+                .await
+                .map_err(|e| format!("GET {path} の応答を読めません: {}", e.without_url()));
         }
         Err(format!("GET {path} がレート制限で進みません"))
     }
 }
 
 async fn download(plain: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> {
-    let resp = plain.get(url).send().await.map_err(|e| format!("画像の取得に失敗: {}", e.without_url()))?;
+    let resp = plain
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("画像の取得に失敗: {}", e.without_url()))?;
     if !resp.status().is_success() {
         return Err(format!("画像の取得が {} を返しました", resp.status()));
     }
-    resp.bytes().await.map(|b| b.to_vec()).map_err(|e| format!("画像の読み込みに失敗: {}", e.without_url()))
+    resp.bytes()
+        .await
+        .map(|b| b.to_vec())
+        .map_err(|e| format!("画像の読み込みに失敗: {}", e.without_url()))
 }
 
 fn load_index_keys(path: &Path) -> HashSet<(String, String)> {
@@ -301,12 +367,18 @@ fn load_index_keys(path: &Path) -> HashSet<(String, String)> {
     };
     text.lines()
         .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
-        .filter_map(|v| Some((v["message_id"].as_str()?.to_string(), v["attachment_id"].as_str()?.to_string())))
+        .filter_map(|v| {
+            Some((
+                v["message_id"].as_str()?.to_string(),
+                v["attachment_id"].as_str()?.to_string(),
+            ))
+        })
         .collect()
 }
 
 async fn run(args: Args, token: String) -> Result<(), String> {
-    let mut auth = reqwest::header::HeaderValue::from_str(&format!("Bot {token}")).map_err(|_| "トークンの形式が不正です".to_string())?;
+    let mut auth = reqwest::header::HeaderValue::from_str(&format!("Bot {token}"))
+        .map_err(|_| "トークンの形式が不正です".to_string())?;
     auth.set_sensitive(true);
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(reqwest::header::AUTHORIZATION, auth);
@@ -322,11 +394,19 @@ async fn run(args: Args, token: String) -> Result<(), String> {
         .timeout(Duration::from_secs(60))
         .build()
         .map_err(|e| format!("HTTPクライアントを作れません: {e}"))?;
-    let mut api = Api { http, wait_next: None };
+    let mut api = Api {
+        http,
+        wait_next: None,
+    };
 
     let me = api.get_json("/users/@me", &[]).await?;
-    let bot_id = me["id"].as_str().ok_or("/users/@me に id がありません")?.to_string();
-    let ch = api.get_json(&format!("/channels/{}", args.channel), &[]).await?;
+    let bot_id = me["id"]
+        .as_str()
+        .ok_or("/users/@me に id がありません")?
+        .to_string();
+    let ch = api
+        .get_json(&format!("/channels/{}", args.channel), &[])
+        .await?;
     println!(
         "bot: {} / チャンネル: #{}（本番の bot・チャンネルか確認してください）",
         me["username"].as_str().unwrap_or("?"),
@@ -335,7 +415,8 @@ async fn run(args: Args, token: String) -> Result<(), String> {
 
     let known = known_tags();
     let img_dir = args.out.join("images");
-    std::fs::create_dir_all(&img_dir).map_err(|e| format!("{} を作れません: {e}", img_dir.display()))?;
+    std::fs::create_dir_all(&img_dir)
+        .map_err(|e| format!("{} を作れません: {e}", img_dir.display()))?;
     let index_path = args.out.join("index.jsonl");
     let mut seen = load_index_keys(&index_path);
     let mut index = std::fs::OpenOptions::new()
@@ -346,7 +427,8 @@ async fn run(args: Args, token: String) -> Result<(), String> {
 
     let mut replies: HashMap<String, Vec<(u64, String)>> = HashMap::new();
     let mut before = args.before.clone();
-    let (mut pages, mut messages_seen, mut saved, mut skipped, mut usable_labels) = (0usize, 0usize, 0usize, 0usize, 0usize);
+    let (mut pages, mut messages_seen, mut saved, mut skipped, mut usable_labels) =
+        (0usize, 0usize, 0usize, 0usize, 0usize);
     let mut oldest: Option<String> = None;
 
     'pages: while pages < args.max_pages {
@@ -354,8 +436,11 @@ async fn run(args: Args, token: String) -> Result<(), String> {
         if let Some(b) = &before {
             q.push(("before", b.clone()));
         }
-        let v = api.get_json(&format!("/channels/{}/messages", args.channel), &q).await?;
-        let msgs: Vec<Msg> = serde_json::from_value(v).map_err(|e| format!("メッセージ一覧を解釈できません: {e}"))?;
+        let v = api
+            .get_json(&format!("/channels/{}/messages", args.channel), &q)
+            .await?;
+        let msgs: Vec<Msg> = serde_json::from_value(v)
+            .map_err(|e| format!("メッセージ一覧を解釈できません: {e}"))?;
         if msgs.is_empty() {
             break;
         }
@@ -369,8 +454,15 @@ async fn run(args: Args, token: String) -> Result<(), String> {
             before = Some(last.id.clone());
         }
 
-        for m in msgs.iter().filter(|m| m.author.id != bot_id && !m.author.bot) {
-            let images: Vec<&Attachment> = m.attachments.iter().filter(|a| is_image_attachment(a)).collect();
+        for m in msgs
+            .iter()
+            .filter(|m| m.author.id != bot_id && !m.author.bot)
+        {
+            let images: Vec<&Attachment> = m
+                .attachments
+                .iter()
+                .filter(|a| is_image_attachment(a))
+                .collect();
             if images.is_empty() {
                 continue;
             }
@@ -389,10 +481,16 @@ async fn run(args: Args, token: String) -> Result<(), String> {
                         continue;
                     }
                 };
-                std::fs::write(args.out.join(&rel), bytes).map_err(|e| format!("{rel} を保存できません: {e}"))?;
+                std::fs::write(args.out.join(&rel), bytes)
+                    .map_err(|e| format!("{rel} を保存できません: {e}"))?;
                 let label = title.map(|t| {
                     let info = parse_title(t, &known);
-                    Label { tags: info.tags, is_global: info.is_global, usable: info.usable, raw_title: t.clone() }
+                    Label {
+                        tags: info.tags,
+                        is_global: info.is_global,
+                        usable: info.usable,
+                        raw_title: t.clone(),
+                    }
                 });
                 if label.as_ref().is_some_and(|l| l.usable) {
                     usable_labels += 1;
@@ -410,7 +508,9 @@ async fn run(args: Args, token: String) -> Result<(), String> {
                 };
                 // 中断しても進捗が残るよう1件ずつ書く
                 let line = serde_json::to_string(&rec).map_err(|e| e.to_string())?;
-                writeln!(index, "{line}").and_then(|_| index.flush()).map_err(|e| format!("index.jsonl に書けません: {e}"))?;
+                writeln!(index, "{line}")
+                    .and_then(|_| index.flush())
+                    .map_err(|e| format!("index.jsonl に書けません: {e}"))?;
                 seen.insert((m.id.clone(), a.id.clone()));
                 saved += 1;
                 if saved >= args.limit {
@@ -422,7 +522,9 @@ async fn run(args: Args, token: String) -> Result<(), String> {
     }
 
     println!("読んだページ: {pages} / メッセージ: {messages_seen}");
-    println!("画像: 保存 {saved} / 既存で飛ばした {skipped} / うち usable なラベル付き {usable_labels}");
+    println!(
+        "画像: 保存 {saved} / 既存で飛ばした {skipped} / うち usable なラベル付き {usable_labels}"
+    );
     match oldest {
         Some(id) => println!("到達した最古のメッセージID: {id}（続きは --before {id}）"),
         None => println!("メッセージがありませんでした"),
@@ -507,14 +609,20 @@ mod tests {
     #[test]
     fn assignment_only_when_counts_match() {
         let titles = vec!["a".to_string(), "b".to_string()];
-        assert_eq!(assign_titles(2, &titles), vec![Some(&titles[0]), Some(&titles[1])]);
+        assert_eq!(
+            assign_titles(2, &titles),
+            vec![Some(&titles[0]), Some(&titles[1])]
+        );
         assert_eq!(assign_titles(3, &titles), vec![None, None, None]);
         assert_eq!(assign_titles(1, &[]), vec![None]);
     }
 
     #[test]
     fn rate_limit() {
-        assert_eq!(rate_limit_wait(Some("0"), Some("1.5")), Some(Duration::from_millis(1500)));
+        assert_eq!(
+            rate_limit_wait(Some("0"), Some("1.5")),
+            Some(Duration::from_millis(1500))
+        );
         assert_eq!(rate_limit_wait(Some("3"), Some("1.5")), None);
         assert_eq!(rate_limit_wait(None, Some("1.5")), None);
         assert_eq!(rate_limit_wait(Some("0"), Some("abc")), None);
@@ -523,9 +631,15 @@ mod tests {
     #[test]
     fn replies_paired_and_ordered() {
         let msgs = vec![
-            msg(json!({"id":"30","author":{"id":"B"},"embeds":[{"title":"second"}],"message_reference":{"message_id":"10"}})),
-            msg(json!({"id":"20","author":{"id":"B"},"embeds":[{"title":"first"},{"description":"no title"}],"message_reference":{"message_id":"10"}})),
-            msg(json!({"id":"21","author":{"id":"U"},"embeds":[{"title":"human"}],"message_reference":{"message_id":"10"}})),
+            msg(
+                json!({"id":"30","author":{"id":"B"},"embeds":[{"title":"second"}],"message_reference":{"message_id":"10"}}),
+            ),
+            msg(
+                json!({"id":"20","author":{"id":"B"},"embeds":[{"title":"first"},{"description":"no title"}],"message_reference":{"message_id":"10"}}),
+            ),
+            msg(
+                json!({"id":"21","author":{"id":"U"},"embeds":[{"title":"human"}],"message_reference":{"message_id":"10"}}),
+            ),
             msg(json!({"id":"22","author":{"id":"B"},"embeds":[{"title":"orphan"}]})),
         ];
         let mut r = HashMap::new();

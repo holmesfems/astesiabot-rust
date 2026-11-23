@@ -121,8 +121,15 @@ async fn fetch_impl() -> Result<OperatorBirthdays, FetchError> {
         fetch_typed_with_retry::<CharTable>(&client, CHAR_TABLE_URL_CN),
         fetch_typed_with_retry::<CharTable>(&client, CHAR_TABLE_URL_JP),
     )?;
-    let custom_names: Option<HashMap<String, String>> = serde_saphyr::from_str(CUSTOM_OPERATOR_ZH_TO_JA_YAML)?;
-    build(&handbook, &meta, &cn_chars, &jp_chars, &custom_names.unwrap_or_default())
+    let custom_names: Option<HashMap<String, String>> =
+        serde_saphyr::from_str(CUSTOM_OPERATOR_ZH_TO_JA_YAML)?;
+    build(
+        &handbook,
+        &meta,
+        &cn_chars,
+        &jp_chars,
+        &custom_names.unwrap_or_default(),
+    )
 }
 
 /// プロフィール本文から`【生日】`/`【出厂日】`の日付（月, 日）を読む。先頭の`M月D日`だけを見て、
@@ -162,7 +169,11 @@ fn build(
     let base_of: HashMap<&str, &str> = meta
         .sp_char_groups
         .iter()
-        .flat_map(|(base, ids)| ids.iter().filter(move |id| *id != base).map(move |id| (id.as_str(), base.as_str())))
+        .flat_map(|(base, ids)| {
+            ids.iter()
+                .filter(move |id| *id != base)
+                .map(move |id| (id.as_str(), base.as_str()))
+        })
         .collect();
 
     // char_id順に並べて処理する（同じ日の並び順とSeedの差分を安定させるため）。
@@ -187,7 +198,10 @@ fn build(
         let cn_name = cn.name.clone();
         let name = match jp_chars.get(char_id) {
             Some(jp) => jp.name.clone(),
-            None => custom_names.get(&cn_name).cloned().unwrap_or_else(|| cn_name.clone()),
+            None => custom_names
+                .get(&cn_name)
+                .cloned()
+                .unwrap_or_else(|| cn_name.clone()),
         };
         // 同名・同日の重複（予備隊員のようにIDが複数あるもの）は1件にする。
         if !seen.insert((name.clone(), month, day)) {
@@ -224,16 +238,32 @@ mod tests {
 
     #[test]
     fn ignores_annotation_after_date() {
-        assert_eq!(parse_birthday("【生日】5月4日（由凯尔希根据其骨骼样本推算）\n"), Some((5, 4)));
+        assert_eq!(
+            parse_birthday("【生日】5月4日（由凯尔希根据其骨骼样本推算）\n"),
+            Some((5, 4))
+        );
     }
 
     #[test]
     fn no_date_values_are_skipped() {
-        for value in ["未公开", "未知", "本人表示遗忘", "未录入", "本人表示无确切日期"] {
-            assert_eq!(parse_birthday(&format!("【生日】{value}\n")), None, "{value}");
+        for value in [
+            "未公开",
+            "未知",
+            "本人表示遗忘",
+            "未录入",
+            "本人表示无确切日期",
+        ] {
+            assert_eq!(
+                parse_birthday(&format!("【生日】{value}\n")),
+                None,
+                "{value}"
+            );
         }
         // イフリータのプロフィールは演出で文字化けしていて、項目名自体が崩れている。
-        assert_eq!(parse_birthday("【生日V 扙諴尙\n瓁誯Z锑b■苆兹\n【身高】1歸 #掅3"), None);
+        assert_eq!(
+            parse_birthday("【生日V 扙諴尙\n瓁誯Z锑b■苆兹\n【身高】1歸 #掅3"),
+            None
+        );
         assert_eq!(parse_birthday("【代号】W"), None);
     }
 
@@ -247,7 +277,9 @@ mod tests {
                         RawHandbook {
                             story_text_audio: vec![RawStorySection {
                                 story_title: BASIC_PROFILE_TITLE.to_string(),
-                                stories: vec![RawStory { story_text: text.to_string() }],
+                                stories: vec![RawStory {
+                                    story_text: text.to_string(),
+                                }],
                             }],
                         },
                     )
@@ -257,7 +289,17 @@ mod tests {
     }
 
     fn chars(entries: &[(&str, &str)]) -> CharTable {
-        entries.iter().map(|(id, name)| (id.to_string(), RawChar { name: name.to_string() })).collect()
+        entries
+            .iter()
+            .map(|(id, name)| {
+                (
+                    id.to_string(),
+                    RawChar {
+                        name: name.to_string(),
+                    },
+                )
+            })
+            .collect()
     }
 
     #[test]
@@ -267,12 +309,24 @@ mod tests {
             ("char_1030_noirc2", "【生日】8月30日"), // 元と同じ日付の異格 → まとめる
             ("char_003_kalts", "【生日】未公开"),
             ("char_1043_kalts2", "【生日】1月23日"), // 元に日付が無い異格 → 残す
-            ("char_4227_gallus", "【生日】5月4日（由凯尔希根据其骨骼样本推算）"),
+            (
+                "char_4227_gallus",
+                "【生日】5月4日（由凯尔希根据其骨骼样本推算）",
+            ),
         ]);
         let meta = RawCharMeta {
             sp_char_groups: HashMap::from([
-                ("char_130_doberm".to_string(), vec!["char_130_doberm".to_string(), "char_1030_noirc2".to_string()]),
-                ("char_003_kalts".to_string(), vec!["char_003_kalts".to_string(), "char_1043_kalts2".to_string()]),
+                (
+                    "char_130_doberm".to_string(),
+                    vec![
+                        "char_130_doberm".to_string(),
+                        "char_1030_noirc2".to_string(),
+                    ],
+                ),
+                (
+                    "char_003_kalts".to_string(),
+                    vec!["char_003_kalts".to_string(), "char_1043_kalts2".to_string()],
+                ),
             ]),
         };
         let cn = chars(&[
@@ -283,7 +337,10 @@ mod tests {
             ("char_4227_gallus", "GALLUS²"),
             ("token_10000_x", "召唤物"), // char_以外は対象外
         ]);
-        let jp = chars(&[("char_130_doberm", "ノイルホーン"), ("char_003_kalts", "ケルシー")]);
+        let jp = chars(&[
+            ("char_130_doberm", "ノイルホーン"),
+            ("char_003_kalts", "ケルシー"),
+        ]);
         let custom = HashMap::from([("GALLUS²".to_string(), "GALLUS²".to_string())]);
 
         let data = build(&hb, &meta, &cn, &jp, &custom).expect("should build");
@@ -300,14 +357,19 @@ mod tests {
                 ("ノイルホーン", "黑角", 8, 30),
             ]
         );
-        assert_eq!(data.on(8, 30).map(|o| o.name.as_str()).collect::<Vec<_>>(), vec!["ノイルホーン"]);
+        assert_eq!(
+            data.on(8, 30).map(|o| o.name.as_str()).collect::<Vec<_>>(),
+            vec!["ノイルホーン"]
+        );
         assert_eq!(data.on(8, 31).count(), 0);
     }
 
     #[test]
     fn zero_birthdays_fails() {
         let hb = handbook(&[("char_002_amiya", "【生日】未公开")]);
-        let meta = RawCharMeta { sp_char_groups: HashMap::new() };
+        let meta = RawCharMeta {
+            sp_char_groups: HashMap::new(),
+        };
         let cn = chars(&[("char_002_amiya", "阿米娅")]);
         assert!(build(&hb, &meta, &cn, &CharTable::new(), &HashMap::new()).is_err());
     }
@@ -316,8 +378,18 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn fetch_gets_real_birthdays() {
-        let data = fetch().await.expect("fetch should succeed against real network");
-        assert!(data.operators.len() > 300, "too few birthdays: {}", data.operators.len());
-        println!("{}件 / 1月1日: {:?}", data.operators.len(), data.on(1, 1).map(|o| &o.name).collect::<Vec<_>>());
+        let data = fetch()
+            .await
+            .expect("fetch should succeed against real network");
+        assert!(
+            data.operators.len() > 300,
+            "too few birthdays: {}",
+            data.operators.len()
+        );
+        println!(
+            "{}件 / 1月1日: {:?}",
+            data.operators.len(),
+            data.on(1, 1).map(|o| &o.name).collect::<Vec<_>>()
+        );
     }
 }

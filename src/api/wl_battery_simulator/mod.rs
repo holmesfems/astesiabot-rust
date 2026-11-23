@@ -63,7 +63,9 @@ mod tests {
         assert!(html.contains("toolnav-bar"));
         assert!(html.contains(r#"href="/WLBatterySimulator" aria-current="page""#));
         // 計算はブラウザの ES モジュールで行い、サーバーには送らない。
-        assert!(html.contains(r#"<script type="module" src="/WLBatterySimulator/static/app.js?v=1">"#));
+        assert!(
+            html.contains(r#"<script type="module" src="/WLBatterySimulator/static/app.js?v=1">"#)
+        );
         assert!(!html.contains("htmx"));
     }
 }

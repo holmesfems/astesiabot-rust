@@ -16,8 +16,13 @@
 //! - `--export <dir>` は、英語を除く全データで学習し直したテンプレートを本番の形式で <dir> に書く
 //!   （bot が読む `data/recruitment/tag_templates/` を作る。時系列分割のときだけ）。
 
-use astesiabot_rust::engine::recruit::tag_ocr::feature::{dot_shift, normalize, preprocess, similarity, ABS_MIN_DIFF, FH, FW, MIN_AREA, NPIX, P99_RATIO, SHIFT_X, SHIFT_Y};
-use astesiabot_rust::engine::recruit::tag_ocr::score::{accepts, score_box, BoxResult, Model, Template, TopScore, DIFF_DILATE, DIFF_THR, PAIR_SIM};
+use astesiabot_rust::engine::recruit::tag_ocr::feature::{
+    dot_shift, normalize, preprocess, similarity, ABS_MIN_DIFF, FH, FW, MIN_AREA, NPIX, P99_RATIO,
+    SHIFT_X, SHIFT_Y,
+};
+use astesiabot_rust::engine::recruit::tag_ocr::score::{
+    accepts, score_box, BoxResult, Model, Template, TopScore, DIFF_DILATE, DIFF_THR, PAIR_SIM,
+};
 use astesiabot_rust::engine::recruit::tag_ocr::{store, BoxScore, TagOcr};
 use image::{GrayImage, Luma};
 use serde::Deserialize;
@@ -82,13 +87,16 @@ struct TagList {
     other: Vec<String>,
 }
 
-
 // ---- テンプレート ----
 
 /// 画素ごとの刈り込み平均（両端を TRIM ずつ捨てる）。誤った割り当ての混入に強くする。
 fn build_template(feats: &[&[f32]]) -> Vec<f32> {
     let n = feats.len();
-    let cut = if n >= 10 { (n as f32 * TRIM) as usize } else { 0 };
+    let cut = if n >= 10 {
+        (n as f32 * TRIM) as usize
+    } else {
+        0
+    };
     let mut col = vec![0f32; n];
     (0..NPIX)
         .map(|i| {
@@ -102,10 +110,12 @@ fn build_template(feats: &[&[f32]]) -> Vec<f32> {
         .collect()
 }
 
-
 /// タグの類似度は、そのタグの代表（複数）のうち一番似ているもの。代表が無いタグは最低値。
 fn tag_sim(norm: &[f32], protos: &[Template]) -> f32 {
-    protos.iter().map(|p| similarity(norm, &p.norm)).fold(f32::MIN, f32::max)
+    protos
+        .iter()
+        .map(|p| similarity(norm, &p.norm))
+        .fold(f32::MIN, f32::max)
 }
 
 // ---- 1 タグの中を複数の代表に分ける ----
@@ -144,7 +154,12 @@ fn assign_protos(samples: &[(&[f32], &[f32])], protos: &[Template]) -> Vec<(usiz
 fn lloyd_step(samples: &[(&[f32], &[f32])], protos: &mut [Template]) -> Vec<(usize, f32)> {
     let a = assign_protos(samples, protos);
     for (k, p) in protos.iter_mut().enumerate() {
-        let members: Vec<&[f32]> = samples.iter().zip(&a).filter(|(_, x)| x.0 == k).map(|(s, _)| s.0).collect();
+        let members: Vec<&[f32]> = samples
+            .iter()
+            .zip(&a)
+            .filter(|(_, x)| x.0 == k)
+            .map(|(s, _)| s.0)
+            .collect();
         if !members.is_empty() {
             *p = Template::new(build_template(&members), members.len());
         }
@@ -154,9 +169,16 @@ fn lloyd_step(samples: &[(&[f32], &[f32])], protos: &mut [Template]) -> Vec<(usi
 
 /// 小さい塊（MIN_CLUSTER 未満）を落とす。全部落ちる場合は一番大きいものを残す。
 /// 落とした代表の種は `banned` に入れて二度と種にしない。
-fn drop_small(protos: &mut Vec<Template>, seeds: &mut Vec<Option<usize>>, banned: &mut [bool], sizes: &[usize]) {
+fn drop_small(
+    protos: &mut Vec<Template>,
+    seeds: &mut Vec<Option<usize>>,
+    banned: &mut [bool],
+    sizes: &[usize],
+) {
     let keep_max = (0..protos.len()).max_by_key(|&k| sizes[k]).unwrap();
-    let keep: Vec<bool> = (0..protos.len()).map(|k| sizes[k] >= MIN_CLUSTER || k == keep_max).collect();
+    let keep: Vec<bool> = (0..protos.len())
+        .map(|k| sizes[k] >= MIN_CLUSTER || k == keep_max)
+        .collect();
     for (k, sd) in seeds.iter().enumerate() {
         if !keep[k] {
             if let Some(sd) = sd {
@@ -200,7 +222,9 @@ fn cluster_tag(samples: &[(&[f32], &[f32])]) -> Vec<Template> {
             break;
         }
         let a = assign_protos(samples, &protos);
-        let far = (0..n).filter(|&i| !banned[i]).min_by(|&i, &j| a[i].1.total_cmp(&a[j].1));
+        let far = (0..n)
+            .filter(|&i| !banned[i])
+            .min_by(|&i, &j| a[i].1.total_cmp(&a[j].1));
         let Some(far) = far else { break };
         if a[far].1 >= SPLIT_T {
             break;
@@ -261,7 +285,6 @@ fn best_perm(s: &[[f32; 5]; 5], perms: &[[usize; 5]]) -> [usize; 5] {
     best.1
 }
 
-
 /// 正解（truth）から見た差。再判定した組に正解が入っていれば違う画素での差、そうでなければ全体の相関での差。
 fn truth_margin(r: &BoxResult, truth: usize, refined: bool) -> f32 {
     if refined {
@@ -274,10 +297,15 @@ fn truth_margin(r: &BoxResult, truth: usize, refined: bool) -> f32 {
             }
         }
     }
-    let w = r.scores.iter().enumerate().filter(|(i, _)| *i != truth).map(|(_, &s)| s).fold(f32::MIN, f32::max);
+    let w = r
+        .scores
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != truth)
+        .map(|(_, &s)| s)
+        .fold(f32::MIN, f32::max);
     r.scores[truth] - w
 }
-
 
 // ---- しきい値の評価と選択 ----
 
@@ -300,27 +328,48 @@ struct Metrics {
 
 impl Metrics {
     fn misid_rate(&self) -> f64 {
-        if self.accepted == 0 { 0.0 } else { self.misid as f64 / self.accepted as f64 }
+        if self.accepted == 0 {
+            0.0
+        } else {
+            self.misid as f64 / self.accepted as f64
+        }
     }
     fn full_rate(&self) -> f64 {
-        if self.images == 0 { 0.0 } else { self.fully_read as f64 / self.images as f64 }
+        if self.images == 0 {
+            0.0
+        } else {
+            self.fully_read as f64 / self.images as f64
+        }
     }
     fn wrong_rate(&self) -> f64 {
-        if self.fully_read == 0 { 0.0 } else { self.wrong_images as f64 / self.fully_read as f64 }
+        if self.fully_read == 0 {
+            0.0
+        } else {
+            self.wrong_images as f64 / self.fully_read as f64
+        }
     }
 }
 
 /// 1 枚を (T, M) で判定する。(受理した枠, 誤読の枠, 全部読めたか, 集合が違うか)
 fn judge(e: &ImgEval, t: f32, m: f32) -> (usize, usize, bool, bool) {
-    let Some(bs) = &e.boxes else { return (0, 0, false, false) };
-    let acc: Vec<usize> = (0..5).filter(|&i| accepts(&bs[i], t, m)).map(|i| bs[i].best_tag).collect();
+    let Some(bs) = &e.boxes else {
+        return (0, 0, false, false);
+    };
+    let acc: Vec<usize> = (0..5)
+        .filter(|&i| accepts(&bs[i], t, m))
+        .map(|i| bs[i].best_tag)
+        .collect();
     let mut counts: HashMap<usize, usize> = HashMap::new();
     for &t in &acc {
         *counts.entry(t).or_default() += 1;
     }
     // ラベルに無い枠 + 同じタグの 2 個目以降（ラベルは 5 個が全部違うので、重複は必ずどれかが誤り）
     let outside = acc.iter().filter(|t| !e.label.contains(t)).count();
-    let dups: usize = counts.iter().filter(|(t, _)| e.label.contains(t)).map(|(_, c)| c - 1).sum();
+    let dups: usize = counts
+        .iter()
+        .filter(|(t, _)| e.label.contains(t))
+        .map(|(_, c)| c - 1)
+        .sum();
     let misid = outside + dups;
     let full = acc.len() == 5 && counts.len() == 5;
     (acc.len(), misid, full, full && misid > 0)
@@ -381,7 +430,10 @@ fn select_tm(imgs: &[ImgEval], max_misid: f64) -> Option<(f32, f32, Metrics)> {
             }
             let better = match &best {
                 None => true,
-                Some((bt, bm, br)) => r.fully_read > br.fully_read || (r.fully_read == br.fully_read && t + m > bt + bm),
+                Some((bt, bm, br)) => {
+                    r.fully_read > br.fully_read
+                        || (r.fully_read == br.fully_read && t + m > bt + bm)
+                }
             };
             if better {
                 best = Some((t, m, r));
@@ -403,7 +455,10 @@ fn percentile(sorted: &[f32], q: f64) -> f32 {
 fn par_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
     let next = AtomicUsize::new(0);
     let out: Mutex<Vec<Option<R>>> = Mutex::new((0..items.len()).map(|_| None).collect());
-    let workers = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).min(16);
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .min(16);
     std::thread::scope(|s| {
         for _ in 0..workers {
             s.spawn(|| loop {
@@ -416,7 +471,11 @@ fn par_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> 
             });
         }
     });
-    out.into_inner().unwrap().into_iter().map(|o| o.expect("par_map")).collect()
+    out.into_inner()
+        .unwrap()
+        .into_iter()
+        .map(|o| o.expect("par_map"))
+        .collect()
 }
 
 // ---- データ ----
@@ -451,7 +510,14 @@ struct Args {
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { root: PathBuf::from("local/recruit_samples"), tags: PathBuf::from("data/recruitment/tagList.json"), center: true, shuffle: false, out_dir: "templates".into(), export: None };
+    let mut a = Args {
+        root: PathBuf::from("local/recruit_samples"),
+        tags: PathBuf::from("data/recruitment/tagList.json"),
+        center: true,
+        shuffle: false,
+        out_dir: "templates".into(),
+        export: None,
+    };
     let mut it = std::env::args().skip(1);
     while let Some(k) = it.next() {
         match k.as_str() {
@@ -469,7 +535,9 @@ fn parse_args() -> Args {
 
 /// 分割を毎回同じにするための単純なハッシュ。
 fn fnv1a(s: &str) -> u64 {
-    s.bytes().fold(0xcbf29ce484222325, |h, b| (h ^ b as u64).wrapping_mul(0x100000001b3))
+    s.bytes().fold(0xcbf29ce484222325, |h, b| {
+        (h ^ b as u64).wrapping_mul(0x100000001b3)
+    })
 }
 
 fn read_jsonl<T: for<'de> Deserialize<'de>>(path: &std::path::Path) -> Vec<T> {
@@ -497,7 +565,11 @@ fn color_sanity(items: &[(Vec<usize>, Vec<&str>)], elite: &[usize]) -> (usize, u
 }
 
 /// 学習サンプル（枠）をタグごとに集める。
-fn groups_of<'a>(set: &[&'a ImgData], assign: &[[usize; 5]], ntags: usize) -> Vec<Vec<&'a BoxData>> {
+fn groups_of<'a>(
+    set: &[&'a ImgData],
+    assign: &[[usize; 5]],
+    ntags: usize,
+) -> Vec<Vec<&'a BoxData>> {
     let mut groups: Vec<Vec<&BoxData>> = vec![Vec::new(); ntags];
     for (img, a) in set.iter().zip(assign) {
         for (b, &t) in img.boxes.as_ref().unwrap().iter().zip(a) {
@@ -508,7 +580,11 @@ fn groups_of<'a>(set: &[&'a ImgData], assign: &[[usize; 5]], ntags: usize) -> Ve
 }
 
 /// ラベルの 5 タグを 5 枠に割り当てる（類似度の合計が最大の順列）。戻りは枠ごとのタグ。
-fn assign_set(templates: &[Vec<Template>], set: &[&ImgData], perms: &[[usize; 5]]) -> Vec<[usize; 5]> {
+fn assign_set(
+    templates: &[Vec<Template>],
+    set: &[&ImgData],
+    perms: &[[usize; 5]],
+) -> Vec<[usize; 5]> {
     par_map(set, |img| {
         let bs = img.boxes.as_ref().unwrap();
         let mut s = [[f32::MIN; 5]; 5];
@@ -518,12 +594,23 @@ fn assign_set(templates: &[Vec<Template>], set: &[&ImgData], perms: &[[usize; 5]
             }
         }
         let p = best_perm(&s, perms);
-        [img.label[p[0]], img.label[p[1]], img.label[p[2]], img.label[p[3]], img.label[p[4]]]
+        [
+            img.label[p[0]],
+            img.label[p[1]],
+            img.label[p[2]],
+            img.label[p[3]],
+            img.label[p[4]],
+        ]
     })
 }
 
 /// EM でテンプレートを学習する。戻りは (タグごとの代表, 枠ごとの推定タグ)。経過は `log` に積む。
-fn fit(set: &[&ImgData], tags: &[String], perms: &[[usize; 5]], log: &mut Vec<String>) -> (Vec<Vec<Template>>, Vec<[usize; 5]>) {
+fn fit(
+    set: &[&ImgData],
+    tags: &[String],
+    perms: &[[usize; 5]],
+    log: &mut Vec<String>,
+) -> (Vec<Vec<Template>>, Vec<[usize; 5]>) {
     let ntags = tags.len();
     // 段階 1: 1 タグ 1 テンプレート。初期値はタイトルの順の位置のまま（多数派は正しい）
     let rebuild = |assign: &[[usize; 5]]| -> Vec<Vec<Template>> {
@@ -542,22 +629,36 @@ fn fit(set: &[&ImgData], tags: &[String], perms: &[[usize; 5]], log: &mut Vec<St
             if g.is_empty() {
                 Vec::new()
             } else {
-                let samples: Vec<(&[f32], &[f32])> = g.iter().map(|b| (b.raw.as_slice(), b.norm.as_slice())).collect();
+                let samples: Vec<(&[f32], &[f32])> = g
+                    .iter()
+                    .map(|b| (b.raw.as_slice(), b.norm.as_slice()))
+                    .collect();
                 cluster_tag(&samples)
             }
         })
     };
     let diff_count = |a: &[[usize; 5]], b: &[[usize; 5]]| -> (usize, usize) {
-        (a.iter().zip(b).map(|(x, y)| x.iter().zip(y).filter(|(p, q)| p != q).count()).sum(), a.iter().zip(b).filter(|(x, y)| x != y).count())
+        (
+            a.iter()
+                .zip(b)
+                .map(|(x, y)| x.iter().zip(y).filter(|(p, q)| p != q).count())
+                .sum(),
+            a.iter().zip(b).filter(|(x, y)| x != y).count(),
+        )
     };
 
     let mut assign: Vec<[usize; 5]> = set.iter().map(|i| i.label).collect();
     let mut templates = rebuild(&assign);
-    log.push(format!("EM stage 1: one template per tag ({} images):", set.len()));
+    log.push(format!(
+        "EM stage 1: one template per tag ({} images):",
+        set.len()
+    ));
     for it in 1..=EM_MAX_ITER {
         let next = assign_set(&templates, set, perms);
         let (changed, changed_imgs) = diff_count(&next, &assign);
-        log.push(format!("  iter {it}: changed boxes {changed} ({changed_imgs} images)"));
+        log.push(format!(
+            "  iter {it}: changed boxes {changed} ({changed_imgs} images)"
+        ));
         assign = next;
         templates = rebuild(&assign);
         if changed == 0 {
@@ -569,7 +670,10 @@ fn fit(set: &[&ImgData], tags: &[String], perms: &[[usize; 5]], log: &mut Vec<St
         templates = rebuild_multi(&assign);
         let next = assign_set(&templates, set, perms);
         let (changed, changed_imgs) = diff_count(&next, &assign);
-        log.push(format!("  round {round}: prototypes {}, changed boxes {changed} ({changed_imgs} images)", templates.iter().map(|t| t.len()).sum::<usize>()));
+        log.push(format!(
+            "  round {round}: prototypes {}, changed boxes {changed} ({changed_imgs} images)",
+            templates.iter().map(|t| t.len()).sum::<usize>()
+        ));
         assign = next;
     }
     templates = rebuild_multi(&assign);
@@ -577,17 +681,36 @@ fn fit(set: &[&ImgData], tags: &[String], perms: &[[usize; 5]], log: &mut Vec<St
         "  prototypes per tag (samples): {}",
         tags.iter()
             .zip(&templates)
-            .map(|(t, ps)| format!("{t}=[{}]", ps.iter().map(|p| p.count.to_string()).collect::<Vec<_>>().join(",")))
+            .map(|(t, ps)| format!(
+                "{t}=[{}]",
+                ps.iter()
+                    .map(|p| p.count.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ))
             .collect::<Vec<_>>()
             .join(" ")
     ));
-    let n_title_diff: usize = assign.iter().zip(set).filter(|(a, i)| **a != i.label).count();
-    log.push(format!("  images whose box order differs from title order: {n_title_diff}/{}", set.len()));
+    let n_title_diff: usize = assign
+        .iter()
+        .zip(set)
+        .filter(|(a, i)| **a != i.label)
+        .count();
+    log.push(format!(
+        "  images whose box order differs from title order: {n_title_diff}/{}",
+        set.len()
+    ));
     (templates, assign)
 }
 
 fn score_boxes(set: &[&ImgData], model: &Model) -> Vec<Option<Vec<BoxResult>>> {
-    par_map(set, |img| img.boxes.as_ref().map(|bs| bs.iter().map(|b| score_box(&b.raw, &b.norm, model)).collect()))
+    par_map(set, |img| {
+        img.boxes.as_ref().map(|bs| {
+            bs.iter()
+                .map(|b| score_box(&b.raw, &b.norm, model))
+                .collect()
+        })
+    })
 }
 
 /// `refined` が true なら紛らわしい組の再判定を使う。
@@ -598,7 +721,10 @@ fn to_evals(set: &[&ImgData], res: &[Option<Vec<BoxResult>>], refined: bool) -> 
             label: img.label,
             english: img.english,
             boxes: r.as_ref().map(|r| {
-                let v: Vec<TopScore> = r.iter().map(|x| if refined { x.refined } else { x.plain }).collect();
+                let v: Vec<TopScore> = r
+                    .iter()
+                    .map(|x| if refined { x.refined } else { x.plain })
+                    .collect();
                 [v[0], v[1], v[2], v[3], v[4]]
             }),
         })
@@ -606,19 +732,32 @@ fn to_evals(set: &[&ImgData], res: &[Option<Vec<BoxResult>>], refined: bool) -> 
 }
 
 /// テンプレートの PNG（4 倍）と templates.json を書く。ディレクトリは作り直す。
-fn write_templates(dir: &std::path::Path, tags: &[String], templates: &[Vec<Template>], extra: serde_json::Value, center: bool) {
+fn write_templates(
+    dir: &std::path::Path,
+    tags: &[String],
+    templates: &[Vec<Template>],
+    extra: serde_json::Value,
+    center: bool,
+) {
     let _ = std::fs::remove_dir_all(dir);
     std::fs::create_dir_all(dir).expect("templates dir");
     let mut tmpl_json = BTreeMap::new();
     for (ti, protos) in templates.iter().enumerate() {
         let mut list = Vec::new();
-        let name: String = tags[ti].chars().map(|c| if "/\\:*?\"<>|".contains(c) { '_' } else { c }).collect();
+        let name: String = tags[ti]
+            .chars()
+            .map(|c| if "/\\:*?\"<>|".contains(c) { '_' } else { c })
+            .collect();
         for (k, tp) in protos.iter().enumerate() {
             let mut g = GrayImage::new(FW as u32 * 4, FH as u32 * 4);
             for (x, y, p) in g.enumerate_pixels_mut() {
-                *p = Luma([(tp.raw[(y as usize / 4) * FW + x as usize / 4].clamp(0.0, 1.0) * 255.0).round() as u8]);
+                *p = Luma([
+                    (tp.raw[(y as usize / 4) * FW + x as usize / 4].clamp(0.0, 1.0) * 255.0).round()
+                        as u8,
+                ]);
             }
-            g.save(dir.join(format!("{name}_{}.png", k + 1))).expect("template png");
+            g.save(dir.join(format!("{name}_{}.png", k + 1)))
+                .expect("template png");
             list.push(json!({"count": tp.count, "values": tp.raw.iter().map(|v| (v * 1000.0).round() / 1000.0).collect::<Vec<f32>>()}));
         }
         tmpl_json.insert(tags[ti].clone(), list);
@@ -636,7 +775,11 @@ fn write_templates(dir: &std::path::Path, tags: &[String], templates: &[Vec<Temp
     for (k, v) in extra.as_object().expect("extra object") {
         doc[k] = v.clone();
     }
-    std::fs::write(dir.join("templates.json"), serde_json::to_string(&doc).unwrap()).expect("templates.json");
+    std::fs::write(
+        dir.join("templates.json"),
+        serde_json::to_string(&doc).unwrap(),
+    )
+    .expect("templates.json");
 }
 
 fn metrics_line(name: &str, r: &Metrics) -> String {
@@ -678,10 +821,19 @@ fn pct_line(name: &str, v: &mut [f32]) -> String {
 
 fn main() {
     let args = parse_args();
-    assert!(args.export.is_none() || !args.shuffle, "--export は時系列分割（--shuffle なし）でだけ使える");
-    let tl: TagList = serde_json::from_str(&std::fs::read_to_string(&args.tags).expect("tagList.json")).expect("tagList.json の形");
+    assert!(
+        args.export.is_none() || !args.shuffle,
+        "--export は時系列分割（--shuffle なし）でだけ使える"
+    );
+    let tl: TagList =
+        serde_json::from_str(&std::fs::read_to_string(&args.tags).expect("tagList.json"))
+            .expect("tagList.json の形");
     let tags: Vec<String> = [tl.elite.clone(), tl.job, tl.position, tl.other].concat();
-    let tag_idx: HashMap<&str, usize> = tags.iter().enumerate().map(|(i, t)| (t.as_str(), i)).collect();
+    let tag_idx: HashMap<&str, usize> = tags
+        .iter()
+        .enumerate()
+        .map(|(i, t)| (t.as_str(), i))
+        .collect();
     let elite: Vec<usize> = tl.elite.iter().map(|t| tag_idx[t.as_str()]).collect();
 
     let mut report = String::new();
@@ -696,7 +848,11 @@ fn main() {
 
     // ---- 画像の選別と時系列の分割 ----
     let records: Vec<Record> = read_jsonl(&args.root.join("index.jsonl"));
-    let detect: HashMap<String, bool> = read_jsonl::<DetectRec>(&args.root.join("detect_report.jsonl")).into_iter().map(|d| (d.file, d.found)).collect();
+    let detect: HashMap<String, bool> =
+        read_jsonl::<DetectRec>(&args.root.join("detect_report.jsonl"))
+            .into_iter()
+            .map(|d| (d.file, d.found))
+            .collect();
     let crops: Vec<CropRec> = read_jsonl(&args.root.join("crops/index.jsonl"));
     let mut by_source: HashMap<&str, [Option<&CropRec>; 5]> = HashMap::new();
     for c in &crops {
@@ -706,7 +862,13 @@ fn main() {
     }
     // 英語クライアントの画像（Google に回す対象）。目で確認した手書きの一覧（1 行 1 ファイル、# 始まりはコメント）。
     let english: HashSet<String> = std::fs::read_to_string(args.root.join("english_images.txt"))
-        .map(|t| t.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).map(String::from).collect())
+        .map(|t| {
+            t.lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty() && !l.starts_with('#'))
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
 
     struct Target<'a> {
@@ -717,20 +879,36 @@ fn main() {
     let mut targets: Vec<Target> = Vec::new();
     let mut skipped_label = 0;
     for r in &records {
-        let Some(l) = r.label.as_ref().filter(|l| l.usable && l.is_global) else { continue };
-        let idx: Vec<usize> = l.tags.iter().filter_map(|t| tag_idx.get(t.as_str()).copied()).collect();
+        let Some(l) = r.label.as_ref().filter(|l| l.usable && l.is_global) else {
+            continue;
+        };
+        let idx: Vec<usize> = l
+            .tags
+            .iter()
+            .filter_map(|t| tag_idx.get(t.as_str()).copied())
+            .collect();
         if l.tags.len() != 5 || idx.len() != 5 {
             skipped_label += 1;
             continue;
         }
         let cs = by_source.get(r.file.as_str()).and_then(|a| {
             if a.iter().all(|c| c.is_some()) && detect.get(&r.file).copied().unwrap_or(false) {
-                Some([a[0].unwrap(), a[1].unwrap(), a[2].unwrap(), a[3].unwrap(), a[4].unwrap()])
+                Some([
+                    a[0].unwrap(),
+                    a[1].unwrap(),
+                    a[2].unwrap(),
+                    a[3].unwrap(),
+                    a[4].unwrap(),
+                ])
             } else {
                 None
             }
         });
-        targets.push(Target { rec: r, label: [idx[0], idx[1], idx[2], idx[3], idx[4]], crops: cs });
+        targets.push(Target {
+            rec: r,
+            label: [idx[0], idx[1], idx[2], idx[3], idx[4]],
+            crops: cs,
+        });
     }
     if args.shuffle {
         targets.sort_by_key(|t| fnv1a(&t.rec.file));
@@ -738,17 +916,46 @@ fn main() {
         targets.sort_by(|a, b| a.rec.posted_at.cmp(&b.rec.posted_at));
     }
     let n_train = (targets.len() as f64 * TRAIN_RATIO) as usize;
-    out!("split: {}", if args.shuffle { "hash order (not chronological)" } else { "chronological (oldest 80% train)" });
-    out!("usable JP-label images: {} (label skipped {skipped_label}), train {n_train}, test {}", targets.len(), targets.len() - n_train);
+    out!(
+        "split: {}",
+        if args.shuffle {
+            "hash order (not chronological)"
+        } else {
+            "chronological (oldest 80% train)"
+        }
+    );
+    out!(
+        "usable JP-label images: {} (label skipped {skipped_label}), train {n_train}, test {}",
+        targets.len(),
+        targets.len() - n_train
+    );
     out!(
         "train {} .. {}, test {} .. {}",
-        targets.first().map(|t| t.rec.posted_at.as_str()).unwrap_or(""),
-        targets.get(n_train.saturating_sub(1)).map(|t| t.rec.posted_at.as_str()).unwrap_or(""),
-        targets.get(n_train).map(|t| t.rec.posted_at.as_str()).unwrap_or(""),
-        targets.last().map(|t| t.rec.posted_at.as_str()).unwrap_or("")
+        targets
+            .first()
+            .map(|t| t.rec.posted_at.as_str())
+            .unwrap_or(""),
+        targets
+            .get(n_train.saturating_sub(1))
+            .map(|t| t.rec.posted_at.as_str())
+            .unwrap_or(""),
+        targets
+            .get(n_train)
+            .map(|t| t.rec.posted_at.as_str())
+            .unwrap_or(""),
+        targets
+            .last()
+            .map(|t| t.rec.posted_at.as_str())
+            .unwrap_or("")
     );
-    out!("preprocess: {FW}x{FH}, center={}, min_area={MIN_AREA}, shift=±{SHIFT_X},±{SHIFT_Y}", args.center);
-    out!("English list: {} files (excluded from fitting; kept in evaluation as must-not-read)", english.len());
+    out!(
+        "preprocess: {FW}x{FH}, center={}, min_area={MIN_AREA}, shift=±{SHIFT_X},±{SHIFT_Y}",
+        args.center
+    );
+    out!(
+        "English list: {} files (excluded from fitting; kept in evaluation as must-not-read)",
+        english.len()
+    );
 
     // ---- 前処理 ----
     let root = &args.root;
@@ -757,14 +964,27 @@ fn main() {
         let boxes = t.crops.map(|cs| {
             cs.iter()
                 .map(|c| {
-                    let img = image::open(root.join("crops").join(&c.file)).expect("crop が開けない").to_rgb8();
+                    let img = image::open(root.join("crops").join(&c.file))
+                        .expect("crop が開けない")
+                        .to_rgb8();
                     let raw = preprocess(&img, center);
                     let norm = normalize(&raw);
-                    BoxData { raw, norm, color: c.color.clone(), crop_file: c.file.clone() }
+                    BoxData {
+                        raw,
+                        norm,
+                        color: c.color.clone(),
+                        crop_file: c.file.clone(),
+                    }
                 })
                 .collect::<Vec<_>>()
         });
-        ImgData { file: t.rec.file.clone(), posted_at: t.rec.posted_at.clone(), english: english.contains(&t.rec.file), label: t.label, boxes }
+        ImgData {
+            file: t.rec.file.clone(),
+            posted_at: t.rec.posted_at.clone(),
+            english: english.contains(&t.rec.file),
+            label: t.label,
+            boxes,
+        }
     });
     let (train, test) = imgs.split_at(n_train);
     let n_en = |s: &[ImgData]| s.iter().filter(|i| i.english).count();
@@ -829,13 +1049,33 @@ fn main() {
         }
         (n, ex)
     };
-    out!("confusable tag pairs (template NCC >= {PAIR_SIM}): {} {}", confusable.0, confusable.1.join(" "));
+    out!(
+        "confusable tag pairs (template NCC >= {PAIR_SIM}): {} {}",
+        confusable.0,
+        confusable.1.join(" ")
+    );
 
     // ---- 色の検算 ----
     let test_assign = assign_set(&templates, &test_found, &perms);
-    for (name, set, asg) in [("train", &train_found, &assign), ("test", &test_found, &test_assign)] {
-        let items: Vec<(Vec<usize>, Vec<&str>)> =
-            set.iter().zip(asg.iter()).map(|(img, a)| (a.to_vec(), img.boxes.as_ref().unwrap().iter().map(|b| b.color.as_str()).collect())).collect();
+    for (name, set, asg) in [
+        ("train", &train_found, &assign),
+        ("test", &test_found, &test_assign),
+    ] {
+        let items: Vec<(Vec<usize>, Vec<&str>)> = set
+            .iter()
+            .zip(asg.iter())
+            .map(|(img, a)| {
+                (
+                    a.to_vec(),
+                    img.boxes
+                        .as_ref()
+                        .unwrap()
+                        .iter()
+                        .map(|b| b.color.as_str())
+                        .collect(),
+                )
+            })
+            .collect();
         let (e, ey, y) = color_sanity(&items, &elite);
         out!(
             "color sanity ({name}, non-English): elite boxes yellow {ey}/{e} ({:.1}%), yellow boxes elite {ey}/{y} ({:.1}%)",
@@ -853,30 +1093,106 @@ fn main() {
 
     // ---- T, M の選択（検証側だけ）と評価 ----
     let Some((t, m, va)) = select_tm(&val_pair, SPEC_VAL_MISID) else {
-        out!("no (T, M) satisfies validation misidentification <= {:.2}%", SPEC_VAL_MISID * 100.0);
+        out!(
+            "no (T, M) satisfies validation misidentification <= {:.2}%",
+            SPEC_VAL_MISID * 100.0
+        );
         std::fs::create_dir_all(args.root.join(&args.out_dir)).unwrap();
-        std::fs::write(args.root.join(&args.out_dir).join("eval_report.txt"), &report).unwrap();
+        std::fs::write(
+            args.root.join(&args.out_dir).join("eval_report.txt"),
+            &report,
+        )
+        .unwrap();
         return;
     };
     out!("CHOSEN (pair re-scoring on): T={t:.2} M={m:.2}");
     out!("  {}", metrics_line("validation", &va));
-    out!("  {}", metrics_line("train (self-fit, optimistic, non-English)", &evaluate_filtered(&tr_pair, t, m, |e| !e.english)));
-    out!("  {}", metrics_line("TEST including English", &evaluate(&te_pair, t, m)));
-    out!("  {}", metrics_line("TEST excluding English", &evaluate_filtered(&te_pair, t, m, |e| !e.english)));
-    out!("  {}", english_line("English safety, train part (never fitted)", &english_stats(&tr_pair, t, m)));
-    out!("  {}", english_line("English safety, test part", &english_stats(&te_pair, t, m)));
+    out!(
+        "  {}",
+        metrics_line(
+            "train (self-fit, optimistic, non-English)",
+            &evaluate_filtered(&tr_pair, t, m, |e| !e.english)
+        )
+    );
+    out!(
+        "  {}",
+        metrics_line("TEST including English", &evaluate(&te_pair, t, m))
+    );
+    out!(
+        "  {}",
+        metrics_line(
+            "TEST excluding English",
+            &evaluate_filtered(&te_pair, t, m, |e| !e.english)
+        )
+    );
+    out!(
+        "  {}",
+        english_line(
+            "English safety, train part (never fitted)",
+            &english_stats(&tr_pair, t, m)
+        )
+    );
+    out!(
+        "  {}",
+        english_line("English safety, test part", &english_stats(&te_pair, t, m))
+    );
     if let Some((tp, mp, vap)) = select_tm(&val_plain, SPEC_VAL_MISID) {
         out!("for comparison, same rule WITHOUT pair re-scoring: T={tp:.2} M={mp:.2}");
         out!("  {}", metrics_line("validation", &vap));
-        out!("  {}", metrics_line("TEST including English", &evaluate(&te_plain, tp, mp)));
-        out!("  {}", metrics_line("TEST excluding English", &evaluate_filtered(&te_plain, tp, mp, |e| !e.english)));
-        out!("  {}", english_line("English safety, test part", &english_stats(&te_plain, tp, mp)));
+        out!(
+            "  {}",
+            metrics_line("TEST including English", &evaluate(&te_plain, tp, mp))
+        );
+        out!(
+            "  {}",
+            metrics_line(
+                "TEST excluding English",
+                &evaluate_filtered(&te_plain, tp, mp, |e| !e.english)
+            )
+        );
+        out!(
+            "  {}",
+            english_line(
+                "English safety, test part",
+                &english_stats(&te_plain, tp, mp)
+            )
+        );
     }
-    for (title, v, te) in [("pair re-scoring ON", &val_pair, &te_pair), ("pair re-scoring OFF", &val_plain, &te_plain)] {
-        out!("(T, M) alternatives, {title} (validation | test excl. English | test incl. English):");
-        out!("  {:>5} {:>5} | {:>8} {:>8} | {:>8} {:>8} | {:>8} {:>8}", "T", "M", "va_misid", "va_full", "te_misid", "te_full", "all_misid", "all_full");
-        for (ta, ma) in [(0.6, 0.0), (0.7, 0.0), (0.8, 0.0), (0.6, 0.05), (0.7, 0.05), (0.7, 0.1), (0.7, 0.2), (0.7, 0.3), (0.7, 0.5), (t, m)] {
-            let (a, b, c) = (evaluate(v, ta, ma), evaluate_filtered(te, ta, ma, |e| !e.english), evaluate(te, ta, ma));
+    for (title, v, te) in [
+        ("pair re-scoring ON", &val_pair, &te_pair),
+        ("pair re-scoring OFF", &val_plain, &te_plain),
+    ] {
+        out!(
+            "(T, M) alternatives, {title} (validation | test excl. English | test incl. English):"
+        );
+        out!(
+            "  {:>5} {:>5} | {:>8} {:>8} | {:>8} {:>8} | {:>8} {:>8}",
+            "T",
+            "M",
+            "va_misid",
+            "va_full",
+            "te_misid",
+            "te_full",
+            "all_misid",
+            "all_full"
+        );
+        for (ta, ma) in [
+            (0.6, 0.0),
+            (0.7, 0.0),
+            (0.8, 0.0),
+            (0.6, 0.05),
+            (0.7, 0.05),
+            (0.7, 0.1),
+            (0.7, 0.2),
+            (0.7, 0.3),
+            (0.7, 0.5),
+            (t, m),
+        ] {
+            let (a, b, c) = (
+                evaluate(v, ta, ma),
+                evaluate_filtered(te, ta, ma, |e| !e.english),
+                evaluate(te, ta, ma),
+            );
             out!(
                 "  {ta:>5.2} {ma:>5.2} | {:>7.3}% {:>7.2}% | {:>7.3}% {:>7.2}% | {:>7.3}% {:>7.2}%",
                 100.0 * a.misid_rate(),
@@ -893,9 +1209,22 @@ fn main() {
     // 同じ T, M、同じテスト画像。切り抜きの PNG を経由する上の評価との差は、量子化と、切り抜きから検出までの経路だけ。
     {
         let qdir = args.root.join(&args.out_dir).join("quantized_train");
-        store::write(&qdir, &tags, &templates, t, m, args.center, "train-only fit, for the quantized evaluation").expect("量子化テンプレートの書き出し");
+        store::write(
+            &qdir,
+            &tags,
+            &templates,
+            t,
+            m,
+            args.center,
+            "train-only fit, for the quantized evaluation",
+        )
+        .expect("量子化テンプレートの書き出し");
         let ocr = TagOcr::load(&qdir).expect("量子化テンプレートの読み込み");
-        assert_eq!(ocr.thresholds(), (t, m), "meta.json の T, M が往復で変わった");
+        assert_eq!(
+            ocr.thresholds(),
+            (t, m),
+            "meta.json の T, M が往復で変わった"
+        );
         let to_top = |b: &BoxScore| TopScore {
             best_tag: tag_idx[b.best_tag.as_str()],
             best: b.best,
@@ -904,16 +1233,35 @@ fn main() {
             margin: b.margin,
         };
         let q_evals: Vec<ImgEval> = par_map(&test_set, |img| {
-            let boxes = image::open(root.join(&img.file)).ok().and_then(|im| ocr.analyze(&im)).map(|v| {
-                let v: Vec<TopScore> = v.iter().map(to_top).collect();
-                [v[0], v[1], v[2], v[3], v[4]]
-            });
-            ImgEval { label: img.label, english: img.english, boxes }
+            let boxes = image::open(root.join(&img.file))
+                .ok()
+                .and_then(|im| ocr.analyze(&im))
+                .map(|v| {
+                    let v: Vec<TopScore> = v.iter().map(to_top).collect();
+                    [v[0], v[1], v[2], v[3], v[4]]
+                });
+            ImgEval {
+                label: img.label,
+                english: img.english,
+                boxes,
+            }
         });
         out!("QUANTIZED templates (PNG via TagOcr::load + analyze on the original screenshots, same T={t:.2} M={m:.2}):");
-        out!("  {}", metrics_line("TEST including English", &evaluate(&q_evals, t, m)));
-        out!("  {}", metrics_line("TEST excluding English", &evaluate_filtered(&q_evals, t, m, |e| !e.english)));
-        out!("  {}", english_line("English safety, test part", &english_stats(&q_evals, t, m)));
+        out!(
+            "  {}",
+            metrics_line("TEST including English", &evaluate(&q_evals, t, m))
+        );
+        out!(
+            "  {}",
+            metrics_line(
+                "TEST excluding English",
+                &evaluate_filtered(&q_evals, t, m, |e| !e.english)
+            )
+        );
+        out!(
+            "  {}",
+            english_line("English safety, test part", &english_stats(&q_evals, t, m))
+        );
     }
 
     // ---- 類似度の分布（テスト、英語を除く。正解は EM の割り当て）----
@@ -923,7 +1271,9 @@ fn main() {
     let (mut before_c, mut after_c) = (Vec::new(), Vec::new());
     let mut asg_iter = test_assign.iter();
     for (img, r) in test_set.iter().zip(&te_res) {
-        let Some(r) = r.as_ref().filter(|_| usable(img)) else { continue };
+        let Some(r) = r.as_ref().filter(|_| usable(img)) else {
+            continue;
+        };
         let asg = asg_iter.next().unwrap();
         for (b, &truth) in r.iter().zip(asg) {
             let mb = truth_margin(b, truth, false);
@@ -941,9 +1291,26 @@ fn main() {
     out!("test similarity (non-English, EM-assigned truth):");
     out!("  {}", pct_line("correct template   ", &mut correct));
     out!("  {}", pct_line("best wrong template", &mut wrong));
-    out!("  {}", pct_line("margin before (plain NCC difference)       ", &mut before.clone()));
-    out!("  {}", pct_line("margin after  (pair re-scored where gated) ", &mut after.clone()));
-    out!("  boxes with a wrong template beating/tying the truth: before {}, after {} of {}", before.iter().filter(|&&x| x <= 0.0).count(), after.iter().filter(|&&x| x <= 0.0).count(), before.len());
+    out!(
+        "  {}",
+        pct_line(
+            "margin before (plain NCC difference)       ",
+            &mut before.clone()
+        )
+    );
+    out!(
+        "  {}",
+        pct_line(
+            "margin after  (pair re-scored where gated) ",
+            &mut after.clone()
+        )
+    );
+    out!(
+        "  boxes with a wrong template beating/tying the truth: before {}, after {} of {}",
+        before.iter().filter(|&&x| x <= 0.0).count(),
+        after.iter().filter(|&&x| x <= 0.0).count(),
+        before.len()
+    );
     out!("  confusable-pair boxes only ({} boxes):", before_c.len());
     out!("  {}", pct_line("margin before", &mut before_c.clone()));
     out!("  {}", pct_line("margin after ", &mut after_c.clone()));
@@ -988,7 +1355,11 @@ fn main() {
     let (mut n_mis, mut n_unread, mut n_en_read) = (0, 0, 0);
     let mut asg_iter = test_assign.iter();
     for ((img, ev), r) in test_set.iter().zip(&te_pair).zip(&te_res) {
-        let truth = if usable(img) { Some(*asg_iter.next().unwrap()) } else { None };
+        let truth = if usable(img) {
+            Some(*asg_iter.next().unwrap())
+        } else {
+            None
+        };
         let (_, misid, full, _) = judge(ev, t, m);
         if img.english && !full {
             continue;
@@ -1036,17 +1407,32 @@ fn main() {
 
     // ---- 本番用: 英語を除く全データ（学習+テスト）で学習し直す ----
     if !args.shuffle {
-        let all_found: Vec<&ImgData> = imgs.iter().filter(|i| i.boxes.is_some() && !i.english).collect();
+        let all_found: Vec<&ImgData> = imgs
+            .iter()
+            .filter(|i| i.boxes.is_some() && !i.english)
+            .collect();
         let mut all_log = Vec::new();
         let (all_templates, _) = fit(&all_found, &tags, &perms, &mut all_log);
-        out!("PRODUCTION fit on all {} non-English found images (not evaluable: includes test):", all_found.len());
-        for l in all_log.iter().filter(|l| l.contains("prototypes per tag") || l.contains("differs")) {
+        out!(
+            "PRODUCTION fit on all {} non-English found images (not evaluable: includes test):",
+            all_found.len()
+        );
+        for l in all_log
+            .iter()
+            .filter(|l| l.contains("prototypes per tag") || l.contains("differs"))
+        {
             out!("{l}");
         }
         let all_model = Model::new(&all_templates);
         let all_set: Vec<&ImgData> = imgs.iter().collect();
         let all_en = to_evals(&all_set, &score_boxes(&all_set, &all_model), true);
-        out!("  {}", english_line("English safety with production templates, all splits", &english_stats(&all_en, t, m)));
+        out!(
+            "  {}",
+            english_line(
+                "English safety with production templates, all splits",
+                &english_stats(&all_en, t, m)
+            )
+        );
         if let Some(dir) = &args.export {
             store::write(
                 dir,
@@ -1061,7 +1447,17 @@ fn main() {
             // 書き出したものを本番と同じ読み方で読み直し、英語の画像が読み切られないことを確かめる
             let ocr = TagOcr::load(dir).expect("--export したテンプレートの読み込み");
             let en: Vec<&ImgData> = imgs.iter().filter(|i| i.english).collect();
-            let read = par_map(&en, |img| image::open(root.join(&img.file)).ok().is_some_and(|im| matches!(ocr.read(&im), astesiabot_rust::engine::recruit::tag_ocr::TagOcrResult::Read { .. }))).into_iter().filter(|&r| r).count();
+            let read = par_map(&en, |img| {
+                image::open(root.join(&img.file)).ok().is_some_and(|im| {
+                    matches!(
+                        ocr.read(&im),
+                        astesiabot_rust::engine::recruit::tag_ocr::TagOcrResult::Read { .. }
+                    )
+                })
+            })
+            .into_iter()
+            .filter(|&r| r)
+            .count();
             out!("EXPORTED production templates to {} (T={t:.2} M={m:.2}); English images fully read through TagOcr::read: {read}/{}", dir.display(), en.len());
         }
         write_templates(
@@ -1100,7 +1496,6 @@ mod tests {
     const BARS_A: [(u32, u32); 3] = [(40, 12), (80, 12), (120, 12)];
     const BARS_B: [(u32, u32); 4] = [(30, 10), (60, 30), (110, 10), (140, 20)];
 
-
     #[test]
     fn perm_assignment_on_toy() {
         // 枠 0 は label 2、枠 1 は label 0、…と入れ替わっている
@@ -1126,35 +1521,122 @@ mod tests {
     }
 
     fn bs(best_tag: usize, best: f32, second: f32) -> TopScore {
-        TopScore { best_tag, best, second_tag: 9, second, margin: best - second }
+        TopScore {
+            best_tag,
+            best,
+            second_tag: 9,
+            second,
+            margin: best - second,
+        }
     }
 
     #[test]
     fn judge_counts_misid_and_duplicates() {
         let label = [0, 1, 2, 3, 4];
-        let ok = ImgEval { english: false, label, boxes: Some([bs(0, 0.9, 0.2), bs(1, 0.9, 0.2), bs(2, 0.9, 0.2), bs(3, 0.9, 0.2), bs(4, 0.9, 0.2)]) };
+        let ok = ImgEval {
+            english: false,
+            label,
+            boxes: Some([
+                bs(0, 0.9, 0.2),
+                bs(1, 0.9, 0.2),
+                bs(2, 0.9, 0.2),
+                bs(3, 0.9, 0.2),
+                bs(4, 0.9, 0.2),
+            ]),
+        };
         assert_eq!(judge(&ok, 0.8, 0.1), (5, 0, true, false));
         // 5 枠目だけ自信がない → 読み切れない
-        let weak = ImgEval { english: false, label, boxes: Some([bs(0, 0.9, 0.2), bs(1, 0.9, 0.2), bs(2, 0.9, 0.2), bs(3, 0.9, 0.2), bs(4, 0.5, 0.2)]) };
+        let weak = ImgEval {
+            english: false,
+            label,
+            boxes: Some([
+                bs(0, 0.9, 0.2),
+                bs(1, 0.9, 0.2),
+                bs(2, 0.9, 0.2),
+                bs(3, 0.9, 0.2),
+                bs(4, 0.5, 0.2),
+            ]),
+        };
         assert_eq!(judge(&weak, 0.8, 0.1), (4, 0, false, false));
         // 差が小さい → 受理しない
-        let close = ImgEval { english: false, label, boxes: Some([bs(0, 0.9, 0.85), bs(1, 0.9, 0.2), bs(2, 0.9, 0.2), bs(3, 0.9, 0.2), bs(4, 0.9, 0.2)]) };
+        let close = ImgEval {
+            english: false,
+            label,
+            boxes: Some([
+                bs(0, 0.9, 0.85),
+                bs(1, 0.9, 0.2),
+                bs(2, 0.9, 0.2),
+                bs(3, 0.9, 0.2),
+                bs(4, 0.9, 0.2),
+            ]),
+        };
         assert!(!judge(&close, 0.8, 0.1).2);
         // ラベルに無いタグを受理 → 誤読
-        let wrong = ImgEval { english: false, label, boxes: Some([bs(7, 0.9, 0.2), bs(1, 0.9, 0.2), bs(2, 0.9, 0.2), bs(3, 0.9, 0.2), bs(4, 0.9, 0.2)]) };
+        let wrong = ImgEval {
+            english: false,
+            label,
+            boxes: Some([
+                bs(7, 0.9, 0.2),
+                bs(1, 0.9, 0.2),
+                bs(2, 0.9, 0.2),
+                bs(3, 0.9, 0.2),
+                bs(4, 0.9, 0.2),
+            ]),
+        };
         assert_eq!(judge(&wrong, 0.8, 0.1), (5, 1, true, true));
         // 同じタグが 2 枠 → 重複（読み切りにしない・誤読 1）
-        let dup = ImgEval { english: false, label, boxes: Some([bs(0, 0.9, 0.2), bs(0, 0.9, 0.2), bs(2, 0.9, 0.2), bs(3, 0.9, 0.2), bs(4, 0.9, 0.2)]) };
+        let dup = ImgEval {
+            english: false,
+            label,
+            boxes: Some([
+                bs(0, 0.9, 0.2),
+                bs(0, 0.9, 0.2),
+                bs(2, 0.9, 0.2),
+                bs(3, 0.9, 0.2),
+                bs(4, 0.9, 0.2),
+            ]),
+        };
         assert_eq!(judge(&dup, 0.8, 0.1), (5, 1, false, false));
         // 枠が見つからない画像
-        assert_eq!(judge(&ImgEval { english: false, label, boxes: None }, 0.8, 0.1), (0, 0, false, false));
+        assert_eq!(
+            judge(
+                &ImgEval {
+                    english: false,
+                    label,
+                    boxes: None
+                },
+                0.8,
+                0.1
+            ),
+            (0, 0, false, false)
+        );
     }
 
     #[test]
     fn select_tm_prefers_most_reads_within_misid_limit() {
         let label = [0, 1, 2, 3, 4];
-        let good = |s: f32| ImgEval { english: false, label, boxes: Some([bs(0, s, 0.1), bs(1, s, 0.1), bs(2, s, 0.1), bs(3, s, 0.1), bs(4, s, 0.1)]) };
-        let bad = ImgEval { english: false, label, boxes: Some([bs(7, 0.7, 0.1), bs(1, 0.95, 0.1), bs(2, 0.95, 0.1), bs(3, 0.95, 0.1), bs(4, 0.95, 0.1)]) };
+        let good = |s: f32| ImgEval {
+            english: false,
+            label,
+            boxes: Some([
+                bs(0, s, 0.1),
+                bs(1, s, 0.1),
+                bs(2, s, 0.1),
+                bs(3, s, 0.1),
+                bs(4, s, 0.1),
+            ]),
+        };
+        let bad = ImgEval {
+            english: false,
+            label,
+            boxes: Some([
+                bs(7, 0.7, 0.1),
+                bs(1, 0.95, 0.1),
+                bs(2, 0.95, 0.1),
+                bs(3, 0.95, 0.1),
+                bs(4, 0.95, 0.1),
+            ]),
+        };
         let mut imgs: Vec<ImgEval> = (0..50).map(|_| good(0.95)).collect();
         imgs.extend((0..50).map(|_| good(0.6)));
         imgs.push(bad);
@@ -1176,36 +1658,61 @@ mod tests {
 
     #[test]
     fn color_sanity_counts() {
-        let items = vec![(vec![0, 5, 6, 7, 8], vec!["yellow", "dark", "dark", "yellow", "dark"])];
+        let items = vec![(
+            vec![0, 5, 6, 7, 8],
+            vec!["yellow", "dark", "dark", "yellow", "dark"],
+        )];
         // タグ 0・1 がエリート。黄色の枠は 0 番目と 3 番目
         assert_eq!(color_sanity(&items, &[0, 1]), (1, 1, 2));
     }
 
     #[test]
     fn cluster_splits_variants_and_drops_junk() {
-        let a = preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), true);
-        let b = preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_B, 200, 64), true);
-        let junk = preprocess(&synth_box([48, 48, 48], [255, 255, 255], &[(10, 40)], 200, 64), true);
+        let a = preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64),
+            true,
+        );
+        let b = preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_B, 200, 64),
+            true,
+        );
+        let junk = preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &[(10, 40)], 200, 64),
+            true,
+        );
         let mut raws: Vec<Vec<f32>> = vec![a.clone(); 20];
         raws.extend(vec![b.clone(); 12]);
         raws.push(junk); // 1 個だけの外れ値は代表にならない
         let norms: Vec<Vec<f32>> = raws.iter().map(|r| normalize(r)).collect();
-        let samples: Vec<(&[f32], &[f32])> = raws.iter().zip(&norms).map(|(r, n)| (r.as_slice(), n.as_slice())).collect();
+        let samples: Vec<(&[f32], &[f32])> = raws
+            .iter()
+            .zip(&norms)
+            .map(|(r, n)| (r.as_slice(), n.as_slice()))
+            .collect();
         let protos = cluster_tag(&samples);
-        assert_eq!(protos.len(), 2, "{:?}", protos.iter().map(|p| p.count).collect::<Vec<_>>());
+        assert_eq!(
+            protos.len(),
+            2,
+            "{:?}",
+            protos.iter().map(|p| p.count).collect::<Vec<_>>()
+        );
         let mut counts: Vec<usize> = protos.iter().map(|p| p.count).collect();
         counts.sort();
         assert_eq!(counts, vec![13, 20]); // 外れ値は近い方の代表に入る
-        // どちらの見た目も、どれかの代表と一致する
+                                          // どちらの見た目も、どれかの代表と一致する
         assert!(tag_sim(&normalize(&a), &protos) > 0.99);
         assert!(tag_sim(&normalize(&b), &protos) > 0.99);
     }
 
     #[test]
     fn cluster_keeps_single_prototype_for_uniform_samples() {
-        let a = preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), true);
+        let a = preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64),
+            true,
+        );
         let norm = normalize(&a);
-        let samples: Vec<(&[f32], &[f32])> = (0..30).map(|_| (a.as_slice(), norm.as_slice())).collect();
+        let samples: Vec<(&[f32], &[f32])> =
+            (0..30).map(|_| (a.as_slice(), norm.as_slice())).collect();
         assert_eq!(cluster_tag(&samples).len(), 1);
     }
 
@@ -1215,13 +1722,24 @@ mod tests {
         assert_ne!(fnv1a("images/1_2.jpg"), fnv1a("images/1_3.jpg"));
     }
 
-
     #[test]
     fn truth_margin_uses_pair_only_when_truth_is_in_it() {
         let r = BoxResult {
             scores: vec![0.9, 0.88, 0.2],
-            plain: TopScore { best_tag: 0, best: 0.9, second_tag: 1, second: 0.88, margin: 0.02 },
-            refined: TopScore { best_tag: 0, best: 0.9, second_tag: 1, second: 0.88, margin: 0.6 },
+            plain: TopScore {
+                best_tag: 0,
+                best: 0.9,
+                second_tag: 1,
+                second: 0.88,
+                margin: 0.02,
+            },
+            refined: TopScore {
+                best_tag: 0,
+                best: 0.9,
+                second_tag: 1,
+                second: 0.88,
+                margin: 0.6,
+            },
             best_proto: 0,
             pair: Some((0, 1, 0.8, 0.2)),
         };
@@ -1233,16 +1751,55 @@ mod tests {
 
     #[test]
     fn english_stats_counts_reads_and_accepted_boxes() {
-        let good = |s: f32| [bs(0, s, 0.1), bs(1, s, 0.1), bs(2, s, 0.1), bs(3, s, 0.1), bs(4, s, 0.1)];
+        let good = |s: f32| {
+            [
+                bs(0, s, 0.1),
+                bs(1, s, 0.1),
+                bs(2, s, 0.1),
+                bs(3, s, 0.1),
+                bs(4, s, 0.1),
+            ]
+        };
         let label = [0, 1, 2, 3, 4];
         let imgs = vec![
-            ImgEval { english: true, label, boxes: Some(good(0.9)) }, // 読まれてしまった英語
-            ImgEval { english: true, label, boxes: Some([bs(0, 0.9, 0.1), bs(1, 0.3, 0.1), bs(2, 0.3, 0.1), bs(3, 0.3, 0.1), bs(4, 0.3, 0.1)]) },
-            ImgEval { english: true, label, boxes: None },
-            ImgEval { english: false, label, boxes: Some(good(0.9)) },
+            ImgEval {
+                english: true,
+                label,
+                boxes: Some(good(0.9)),
+            }, // 読まれてしまった英語
+            ImgEval {
+                english: true,
+                label,
+                boxes: Some([
+                    bs(0, 0.9, 0.1),
+                    bs(1, 0.3, 0.1),
+                    bs(2, 0.3, 0.1),
+                    bs(3, 0.3, 0.1),
+                    bs(4, 0.3, 0.1),
+                ]),
+            },
+            ImgEval {
+                english: true,
+                label,
+                boxes: None,
+            },
+            ImgEval {
+                english: false,
+                label,
+                boxes: Some(good(0.9)),
+            },
         ];
         let s = english_stats(&imgs, 0.6, 0.0);
-        assert_eq!((s.images, s.grid_not_found, s.fully_read, s.boxes, s.accepted_boxes), (3, 1, 1, 10, 6));
+        assert_eq!(
+            (
+                s.images,
+                s.grid_not_found,
+                s.fully_read,
+                s.boxes,
+                s.accepted_boxes
+            ),
+            (3, 1, 1, 10, 6)
+        );
         let m = evaluate_filtered(&imgs, 0.6, 0.0, |e| !e.english);
         assert_eq!((m.images, m.fully_read), (1, 1));
     }

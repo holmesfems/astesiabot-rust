@@ -48,12 +48,16 @@ pub fn update_seed() -> BoxFuture<'static, Result<(), FetchError>> {
 
 async fn fetch_impl() -> Result<FkSheetData, FetchError> {
     let api_key = std::env::var("FK_SHEETS_API_KEY").map_err(|_| "FK_SHEETS_API_KEY not set")?;
-    let spreadsheet_id = std::env::var("FK_SHEETS_SPREADSHEET_ID").map_err(|_| "FK_SHEETS_SPREADSHEET_ID not set")?;
+    let spreadsheet_id = std::env::var("FK_SHEETS_SPREADSHEET_ID")
+        .map_err(|_| "FK_SHEETS_SPREADSHEET_ID not set")?;
     // APIキーはURLに載せずヘッダーで渡す（URLはfetchログやエラー文言に出るため）。
-    let url = format!("https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{SHEET_NAME}");
+    let url = format!(
+        "https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{SHEET_NAME}"
+    );
 
     let client = client();
-    let json = fetch_json_with_retry_headers(&client, &url, &[("X-goog-api-key", &api_key)]).await?;
+    let json =
+        fetch_json_with_retry_headers(&client, &url, &[("X-goog-api-key", &api_key)]).await?;
 
     let mut by_operator: IndexMap<String, Vec<FkSheetRow>> = IndexMap::new();
     let Some(rows) = json.get("values").and_then(Value::as_array) else {
@@ -62,7 +66,9 @@ async fn fetch_impl() -> Result<FkSheetData, FetchError> {
 
     // 先頭2行はヘッダのため除外。
     for row in rows.iter().skip(2) {
-        let Some(cells) = row.as_array() else { continue };
+        let Some(cells) = row.as_array() else {
+            continue;
+        };
         // 列L(index11)までアクセスするため、それより短い行は対象外。
         if cells.len() < 12 {
             continue;
@@ -81,7 +87,10 @@ async fn fetch_impl() -> Result<FkSheetData, FetchError> {
         if sheet_row.last_edited.is_empty() {
             continue;
         }
-        by_operator.entry(operator_name).or_default().push(sheet_row);
+        by_operator
+            .entry(operator_name)
+            .or_default()
+            .push(sheet_row);
     }
 
     Ok(FkSheetData { by_operator })
@@ -97,7 +106,9 @@ mod tests {
     #[ignore]
     async fn fetch_gets_real_sheet_data() {
         dotenvy::dotenv().ok();
-        let data = fetch().await.expect("fetch should succeed against real network");
+        let data = fetch()
+            .await
+            .expect("fetch should succeed against real network");
         assert!(!data.by_operator.is_empty());
     }
 }

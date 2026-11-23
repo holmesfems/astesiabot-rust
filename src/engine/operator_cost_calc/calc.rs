@@ -1,34 +1,51 @@
 //! 各コマンドに対応する計算関数。DTOを返すのみで、
 //! Discord embed整形は`bot/commands/operator_cost_calc`側の責務。
 
+use super::aggregate;
 use super::dto::{
-    CostSummaryDto, EliteCostDto, EliteRankingDto, ItemCostView, MasterStatsDto, MasterStatsFullDto,
-    MasterStatsRecentDto, ModuleCostDto, ModuleEntryDto, ModulePhaseView, OperatorCostError, RankedEntry,
-    RankingPosition, SkillMasterCostDto,
+    CostSummaryDto, EliteCostDto, EliteRankingDto, ItemCostView, MasterStatsDto,
+    MasterStatsFullDto, MasterStatsRecentDto, ModuleCostDto, ModuleEntryDto, ModulePhaseView,
+    OperatorCostError, RankedEntry, RankingPosition, SkillMasterCostDto,
 };
 use super::model::ItemCost;
 use super::{AllOperatorsInfo, SkillCostInfo, ValueSet, EPSILON};
 use crate::engine::external_source::operator_data::RawOperatorCost;
-use super::aggregate;
 
 /// 特化コスト（指定スキルの特化1〜3と合計）。
-pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str, skill_num: u32) -> Result<SkillMasterCostDto, OperatorCostError> {
+pub fn skill_master_cost(
+    info: &AllOperatorsInfo,
+    values: &ValueSet,
+    operator_name: &str,
+    skill_num: u32,
+) -> Result<SkillMasterCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
-        return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
+        return Err(OperatorCostError::OperatorNotFound(format!(
+            "オペレーター【{operator_name}】は存在しません"
+        )));
     };
     if op.skills.is_empty() {
-        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】はスキルが存在しません")));
+        return Err(OperatorCostError::Other(format!(
+            "オペレーター【{operator_name}】はスキルが存在しません"
+        )));
     }
     if skill_num == 0 || skill_num as usize > op.skills.len() {
-        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】のスキル{skill_num}は存在しません")));
+        return Err(OperatorCostError::Other(format!(
+            "オペレーター【{operator_name}】のスキル{skill_num}は存在しません"
+        )));
     }
     if op.stars <= 3 {
-        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】はスキルの特化は存在しません")));
+        return Err(OperatorCostError::Other(format!(
+            "オペレーター【{operator_name}】はスキルの特化は存在しません"
+        )));
     }
 
     let skill = &op.skills[(skill_num - 1) as usize];
     let values_for_op = values.for_cn_only(op.cn_only);
-    let mastery_costs: Vec<ItemCost> = skill.masteries.iter().map(|m| ItemCost::from_cost_entries(m)).collect();
+    let mastery_costs: Vec<ItemCost> = skill
+        .masteries
+        .iter()
+        .map(|m| ItemCost::from_cost_entries(m))
+        .collect();
     let masteries: Vec<ItemCostView> = mastery_costs
         .iter()
         .map(|c| ItemCostView {
@@ -49,7 +66,11 @@ pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_na
     let ranking = ranking
         .iter()
         .position(|c| c.operator_id == op.id && c.skill_id == skill.skill_id)
-        .map(|idx| RankingPosition { star: op.stars, rank: idx + 1, total: ranking.len() });
+        .map(|idx| RankingPosition {
+            star: op.stars,
+            rank: idx + 1,
+            total: ranking.len(),
+        });
 
     let description = info.skill_data.get_description(&skill.skill_id).to_string();
     Ok(SkillMasterCostDto {
@@ -66,16 +87,28 @@ pub fn skill_master_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_na
 }
 
 /// 昇進コスト（昇進1・2と合計）。
-pub fn operator_elite_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str) -> Result<EliteCostDto, OperatorCostError> {
+pub fn operator_elite_cost(
+    info: &AllOperatorsInfo,
+    values: &ValueSet,
+    operator_name: &str,
+) -> Result<EliteCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
-        return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
+        return Err(OperatorCostError::OperatorNotFound(format!(
+            "オペレーター【{operator_name}】は存在しません"
+        )));
     };
     if op.phases.is_empty() {
-        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】の昇進は存在しません")));
+        return Err(OperatorCostError::Other(format!(
+            "オペレーター【{operator_name}】の昇進は存在しません"
+        )));
     }
 
     let values_for_op = values.for_cn_only(op.cn_only);
-    let phase_costs: Vec<ItemCost> = op.phases.iter().map(|p| ItemCost::from_cost_entries(p)).collect();
+    let phase_costs: Vec<ItemCost> = op
+        .phases
+        .iter()
+        .map(|p| ItemCost::from_cost_entries(p))
+        .collect();
     let phases: Vec<ItemCostView> = phase_costs
         .iter()
         .map(|c| ItemCostView {
@@ -97,7 +130,11 @@ pub fn operator_elite_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_
         ranking
             .iter()
             .position(|(candidate, _)| candidate.id == op.id)
-            .map(|idx| RankingPosition { star: op.stars, rank: idx + 1, total: ranking.len() })
+            .map(|idx| RankingPosition {
+                star: op.stars,
+                rank: idx + 1,
+                total: ranking.len(),
+            })
     } else {
         None
     };
@@ -113,12 +150,20 @@ pub fn operator_elite_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_
 }
 
 /// モジュールコスト。
-pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator_name: &str) -> Result<ModuleCostDto, OperatorCostError> {
+pub fn operator_module_cost(
+    info: &AllOperatorsInfo,
+    values: &ValueSet,
+    operator_name: &str,
+) -> Result<ModuleCostDto, OperatorCostError> {
     let Some(op) = info.get_by_name(operator_name) else {
-        return Err(OperatorCostError::OperatorNotFound(format!("オペレーター【{operator_name}】は存在しません")));
+        return Err(OperatorCostError::OperatorNotFound(format!(
+            "オペレーター【{operator_name}】は存在しません"
+        )));
     };
     if op.modules.is_empty() {
-        return Err(OperatorCostError::Other(format!("オペレーター【{operator_name}】のモジュールは存在しません")));
+        return Err(OperatorCostError::Other(format!(
+            "オペレーター【{operator_name}】のモジュールは存在しません"
+        )));
     }
 
     let modules = op
@@ -132,13 +177,18 @@ pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator
             } else {
                 module.eq_type.clone()
             };
-            let phase_costs: Vec<ItemCost> = module.phase_costs.iter().map(|c| ItemCost::from_cost_entries(c)).collect();
+            let phase_costs: Vec<ItemCost> = module
+                .phase_costs
+                .iter()
+                .map(|c| ItemCost::from_cost_entries(c))
+                .collect();
             let phases: Vec<ModulePhaseView> = phase_costs
                 .iter()
                 .enumerate()
                 .map(|(i, c)| ModulePhaseView {
                     stage: (i + 1) as u32,
-                    risei_value: c.to_risei_value_only_value_target(values_for_module, &info.item_names),
+                    risei_value: c
+                        .to_risei_value_only_value_target(values_for_module, &info.item_names),
                     items: c.ordered_name_counts(&info.item_names),
                 })
                 .collect();
@@ -147,7 +197,8 @@ pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator
                 header,
                 cn_only: module.cn_only,
                 phases,
-                total_risei_value: total_cost.to_risei_value_only_value_target(values_for_module, &info.item_names),
+                total_risei_value: total_cost
+                    .to_risei_value_only_value_target(values_for_module, &info.item_names),
                 total_items: total_cost.ordered_name_counts(&info.item_names),
                 total_r2_items: total_cost
                     .rare3and4_to_rare2(&info.item_names, &info.formulas)
@@ -164,7 +215,12 @@ pub fn operator_module_cost(info: &AllOperatorsInfo, values: &ValueSet, operator
 }
 
 /// 星4/5/6の昇進コストランキング。
-pub fn cost_list_by_elite(info: &AllOperatorsInfo, values: &ValueSet, star: u32, only_recent: bool) -> EliteRankingDto {
+pub fn cost_list_by_elite(
+    info: &AllOperatorsInfo,
+    values: &ValueSet,
+    star: u32,
+    only_recent: bool,
+) -> EliteRankingDto {
     let ranking = info.sorted_by_elite_cost(star, values);
     let total_count = ranking.len();
     let entries = ranking
@@ -177,15 +233,29 @@ pub fn cost_list_by_elite(info: &AllOperatorsInfo, values: &ValueSet, star: u32,
             risei_value: *risei,
         })
         .collect();
-    EliteRankingDto { star, total_count, entries }
+    EliteRankingDto {
+        star,
+        total_count,
+        entries,
+    }
 }
 
 /// 大陸限定オペレーターの消費合計。
 pub fn cost_list_cost_of_cn_only(info: &AllOperatorsInfo, values: &ValueSet) -> CostSummaryDto {
-    let cn_only_ops: Vec<&RawOperatorCost> = info.data.operators.values().filter(|op| op.cn_only).collect();
+    let cn_only_ops: Vec<&RawOperatorCost> = info
+        .data
+        .operators
+        .values()
+        .filter(|op| op.cn_only)
+        .collect();
     let operator_names = cn_only_ops.iter().map(|op| op.name.clone()).collect();
 
-    let total_cost = ItemCost::sum(&cn_only_ops.iter().map(|op| aggregate::all_cost_except_eq(op)).collect::<Vec<_>>());
+    let total_cost = ItemCost::sum(
+        &cn_only_ops
+            .iter()
+            .map(|op| aggregate::all_cost_except_eq(op))
+            .collect::<Vec<_>>(),
+    );
     let eq_cost = ItemCost::sum(
         &info
             .data
@@ -195,9 +265,11 @@ pub fn cost_list_cost_of_cn_only(info: &AllOperatorsInfo, values: &ValueSet) -> 
             .map(aggregate::total_unique_eq_cost_cn_only)
             .collect::<Vec<_>>(),
     );
-    let combined_r2 = total_cost.add(&eq_cost).rare3and4_to_rare2(&info.item_names, &info.formulas);
-    let total_risei_value =
-        total_cost.to_risei_value(&values.mainland, &info.item_names) + eq_cost.to_risei_value(&values.mainland, &info.item_names);
+    let combined_r2 = total_cost
+        .add(&eq_cost)
+        .rare3and4_to_rare2(&info.item_names, &info.formulas);
+    let total_risei_value = total_cost.to_risei_value(&values.mainland, &info.item_names)
+        + eq_cost.to_risei_value(&values.mainland, &info.item_names);
 
     CostSummaryDto {
         operator_names,
@@ -210,9 +282,19 @@ pub fn cost_list_cost_of_cn_only(info: &AllOperatorsInfo, values: &ValueSet) -> 
 
 /// 実装済みオペレーターの消費合計。
 pub fn cost_list_cost_of_global(info: &AllOperatorsInfo, values: &ValueSet) -> CostSummaryDto {
-    let global_ops: Vec<&RawOperatorCost> = info.data.operators.values().filter(|op| !op.cn_only).collect();
+    let global_ops: Vec<&RawOperatorCost> = info
+        .data
+        .operators
+        .values()
+        .filter(|op| !op.cn_only)
+        .collect();
 
-    let total_cost = ItemCost::sum(&global_ops.iter().map(|op| aggregate::all_cost_except_eq(op)).collect::<Vec<_>>());
+    let total_cost = ItemCost::sum(
+        &global_ops
+            .iter()
+            .map(|op| aggregate::all_cost_except_eq(op))
+            .collect::<Vec<_>>(),
+    );
     let eq_cost = ItemCost::sum(
         &global_ops
             .iter()
@@ -220,9 +302,11 @@ pub fn cost_list_cost_of_global(info: &AllOperatorsInfo, values: &ValueSet) -> C
             .map(|op| aggregate::total_unique_eq_cost_global(op))
             .collect::<Vec<_>>(),
     );
-    let combined_r2 = total_cost.add(&eq_cost).rare3and4_to_rare2(&info.item_names, &info.formulas);
-    let total_risei_value =
-        total_cost.to_risei_value(&values.global, &info.item_names) + eq_cost.to_risei_value(&values.global, &info.item_names);
+    let combined_r2 = total_cost
+        .add(&eq_cost)
+        .rare3and4_to_rare2(&info.item_names, &info.formulas);
+    let total_risei_value = total_cost.to_risei_value(&values.global, &info.item_names)
+        + eq_cost.to_risei_value(&values.global, &info.item_names);
 
     CostSummaryDto {
         operator_names: Vec::new(),
@@ -233,7 +317,11 @@ pub fn cost_list_cost_of_global(info: &AllOperatorsInfo, values: &ValueSet) -> C
     }
 }
 
-fn skill_cost_item_view(item: &SkillCostInfo, values: &ValueSet, info: &AllOperatorsInfo) -> ItemCostView {
+fn skill_cost_item_view(
+    item: &SkillCostInfo,
+    values: &ValueSet,
+    info: &AllOperatorsInfo,
+) -> ItemCostView {
     ItemCostView {
         risei_value: item.total_risei(values, &info.item_names),
         items: item.total_cost.ordered_name_counts(&info.item_names),
@@ -241,7 +329,12 @@ fn skill_cost_item_view(item: &SkillCostInfo, values: &ValueSet, info: &AllOpera
 }
 
 /// 特化コストの統計（`only_recent`で直近実装のオペレーターに絞る）。
-pub fn cost_list_master_stats(info: &AllOperatorsInfo, values: &ValueSet, star: u32, only_recent: bool) -> Result<MasterStatsDto, OperatorCostError> {
+pub fn cost_list_master_stats(
+    info: &AllOperatorsInfo,
+    values: &ValueSet,
+    star: u32,
+    only_recent: bool,
+) -> Result<MasterStatsDto, OperatorCostError> {
     let ranking = info.sorted_skill_cost(star, values);
 
     if only_recent {
@@ -264,7 +357,9 @@ pub fn cost_list_master_stats(info: &AllOperatorsInfo, values: &ValueSet, star: 
 
     let skill_nums = ranking.len();
     if skill_nums == 0 {
-        return Err(OperatorCostError::Other(format!("星{star}の特化データがありません")));
+        return Err(OperatorCostError::Other(format!(
+            "星{star}の特化データがありません"
+        )));
     }
 
     let heaviest = &ranking[0];
@@ -287,7 +382,11 @@ pub fn cost_list_master_stats(info: &AllOperatorsInfo, values: &ValueSet, star: 
             risei_value: ranking[i].total_risei(values, &info.item_names),
         })
         .collect();
-    let average_risei = ranking.iter().map(|item| item.total_risei(values, &info.item_names)).sum::<f64>() / skill_nums as f64;
+    let average_risei = ranking
+        .iter()
+        .map(|item| item.total_risei(values, &info.item_names))
+        .sum::<f64>()
+        / skill_nums as f64;
 
     Ok(MasterStatsDto::Full(MasterStatsFullDto {
         star,

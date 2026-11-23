@@ -67,17 +67,71 @@ impl ExternalSourceRegistry {
     /// 各機能側のTTL駆動更新）も同様にno-opになる（[`Source::refresh`]参照）。
     pub async fn load(debug: bool) -> Self {
         Self {
-            operator_data: Source::load("operator_data", Some(operator_data::SEED_PATH), operator_data::fetch, debug).await,
-            operator_combat: Source::load("operator_combat", Some(operator_combat::SEED_PATH), operator_combat::fetch, debug).await,
-            skill_data: Source::load("skill_data", Some(skill_data::SEED_PATH), skill_data::fetch, debug).await,
-            item_names: Source::load("item_names", Some(item_names::SEED_PATH), item_names::fetch, debug).await,
+            operator_data: Source::load(
+                "operator_data",
+                Some(operator_data::SEED_PATH),
+                operator_data::fetch,
+                debug,
+            )
+            .await,
+            operator_combat: Source::load(
+                "operator_combat",
+                Some(operator_combat::SEED_PATH),
+                operator_combat::fetch,
+                debug,
+            )
+            .await,
+            skill_data: Source::load(
+                "skill_data",
+                Some(skill_data::SEED_PATH),
+                skill_data::fetch,
+                debug,
+            )
+            .await,
+            item_names: Source::load(
+                "item_names",
+                Some(item_names::SEED_PATH),
+                item_names::fetch,
+                debug,
+            )
+            .await,
             zones: Source::load("zones", Some(zones::SEED_PATH), zones::fetch, debug).await,
-            ark_stages: Source::load("ark_stages", Some(ark_stages::SEED_PATH), ark_stages::fetch, debug).await,
-            ark_matrix: Source::load("ark_matrix", Some(ark_matrix::SEED_PATH), ark_matrix::fetch, debug).await,
-            formulas: Source::load("formulas", Some(formulas::SEED_PATH), formulas::fetch, debug).await,
+            ark_stages: Source::load(
+                "ark_stages",
+                Some(ark_stages::SEED_PATH),
+                ark_stages::fetch,
+                debug,
+            )
+            .await,
+            ark_matrix: Source::load(
+                "ark_matrix",
+                Some(ark_matrix::SEED_PATH),
+                ark_matrix::fetch,
+                debug,
+            )
+            .await,
+            formulas: Source::load(
+                "formulas",
+                Some(formulas::SEED_PATH),
+                formulas::fetch,
+                debug,
+            )
+            .await,
             fk_data: Source::load("fk_data", Some(fk_data::SEED_PATH), fk_data::fetch, debug).await,
-            recruit_pool: Source::load("recruit_pool", Some(recruit_pool::SEED_PATH), recruit_pool::fetch, debug).await,
-            operator_birthdays: Source::load("operator_birthdays", Some(operator_birthdays::SEED_PATH), operator_birthdays::fetch, debug).await,
+            recruit_pool: Source::load(
+                "recruit_pool",
+                Some(recruit_pool::SEED_PATH),
+                recruit_pool::fetch,
+                debug,
+            )
+            .await,
+            operator_birthdays: Source::load(
+                "operator_birthdays",
+                Some(operator_birthdays::SEED_PATH),
+                operator_birthdays::fetch,
+                debug,
+            )
+            .await,
         }
     }
 

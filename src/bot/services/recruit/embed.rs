@@ -44,7 +44,12 @@ pub fn build_embed_reply_from_tags(engine: &RecruitEngine, tags: &[String]) -> O
 }
 
 /// タグ集合 → 計算 → EmbedReply（OCR テキスト経由でもローカル OCR 経由でも共通の後半）。
-fn reply_from_matches(engine: &RecruitEngine, mut matches: Vec<String>, is_global: bool, tag_count_illegal: bool) -> OcrEmbedResult {
+fn reply_from_matches(
+    engine: &RecruitEngine,
+    mut matches: Vec<String>,
+    is_global: bool,
+    tag_count_illegal: bool,
+) -> OcrEmbedResult {
     if matches.len() > MAX_TAG_COUNT {
         matches.truncate(MAX_TAG_COUNT);
     }
@@ -80,13 +85,21 @@ mod tests {
     #[test]
     fn from_tags_matches_ocr_text_path() {
         let engine = RecruitEngine::load_from_seed();
-        let tags: Vec<String> = ["近距離", "上級エリート", "牽制", "治療", "火力"].iter().map(|s| s.to_string()).collect();
+        let tags: Vec<String> = ["近距離", "上級エリート", "牽制", "治療", "火力"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let from_tags = build_embed_reply_from_tags(&engine, &tags);
         assert!(!from_tags.tag_count_illegal);
         assert!(!from_tags.reply.chunks.is_empty());
         // 同じタグを OCR テキストで渡した場合と同じ計算結果になる
-        let from_text = build_embed_reply(&engine, &tags.join("
-"));
+        let from_text = build_embed_reply(
+            &engine,
+            &tags.join(
+                "
+",
+            ),
+        );
         assert_eq!(from_tags.reply.title, from_text.reply.title);
         assert_eq!(from_tags.reply.chunks, from_text.reply.chunks);
         assert!(!from_text.tag_count_illegal);
@@ -95,7 +108,10 @@ mod tests {
     #[test]
     fn from_tags_flags_illegal_count() {
         let engine = RecruitEngine::load_from_seed();
-        let tags: Vec<String> = ["近距離", "牽制", "治療", "火力"].iter().map(|s| s.to_string()).collect();
+        let tags: Vec<String> = ["近距離", "牽制", "治療", "火力"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         assert!(build_embed_reply_from_tags(&engine, &tags).tag_count_illegal);
     }
 }

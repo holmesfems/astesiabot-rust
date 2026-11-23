@@ -166,9 +166,10 @@ mod tests {
         let outer_source = engine::external_source::ExternalSourceRegistry::load(false).await;
         let recruit = engine::recruit::RecruitEngine::load(&*outer_source.recruit_pool.get().await)
             .expect("recruit data should load");
-        let risei_calculator = engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
-            .await
-            .expect("risei engine should build against real network data");
+        let risei_calculator =
+            engine::risei_calculator_engine::RiseiCalculatorEngine::load(&outer_source)
+                .await
+                .expect("risei engine should build against real network data");
         let fk_data_search = engine::fk_data_search::FkDataSearchEngine::new();
         let uranai = crate::bot::services::uranai::UranaiState::from_env();
         AppState {
@@ -183,7 +184,10 @@ mod tests {
     }
 
     fn to_args(value: Value) -> Map<String, Value> {
-        value.as_object().expect("test args must be a JSON object").clone()
+        value
+            .as_object()
+            .expect("test args must be a JSON object")
+            .clone()
     }
 
     async fn run(name: &str, arguments: Value, state: &AppState) -> ToolResponse {
@@ -207,7 +211,10 @@ mod tests {
     async fn risei_materials_returns_stages() {
         let state = build_state().await;
         let value = unwrap_ok(run("riseiMaterials", json!({ "target": "糖" }), &state).await);
-        let stages = value.get("top_stages").and_then(Value::as_array).expect("top_stages array");
+        let stages = value
+            .get("top_stages")
+            .and_then(Value::as_array)
+            .expect("top_stages array");
         assert!(!stages.is_empty());
     }
 
@@ -216,7 +223,10 @@ mod tests {
     async fn risei_stages_returns_stages() {
         let state = build_state().await;
         let value = unwrap_ok(run("riseiStages", json!({ "target": "1-7" }), &state).await);
-        let stages = value.get("stages").and_then(Value::as_array).expect("stages array");
+        let stages = value
+            .get("stages")
+            .and_then(Value::as_array)
+            .expect("stages array");
         assert!(!stages.is_empty());
     }
 
@@ -225,7 +235,10 @@ mod tests {
     async fn risei_lists_returns_contents() {
         let state = build_state().await;
         let value = unwrap_ok(run("riseiLists", json!({ "target": "理性価値表" }), &state).await);
-        let contents = value.get("contents").and_then(Value::as_array).expect("contents array");
+        let contents = value
+            .get("contents")
+            .and_then(Value::as_array)
+            .expect("contents array");
         assert!(!contents.is_empty());
     }
 
@@ -233,8 +246,18 @@ mod tests {
     #[ignore]
     async fn operator_elite_cost_returns_phases() {
         let state = build_state().await;
-        let value = unwrap_ok(run("operatorEliteCost", json!({ "target": "ケルシー・エスペランタ" }), &state).await);
-        let phases = value.get("phases").and_then(Value::as_array).expect("phases array");
+        let value = unwrap_ok(
+            run(
+                "operatorEliteCost",
+                json!({ "target": "ケルシー・エスペランタ" }),
+                &state,
+            )
+            .await,
+        );
+        let phases = value
+            .get("phases")
+            .and_then(Value::as_array)
+            .expect("phases array");
         assert!(!phases.is_empty());
     }
 
@@ -242,8 +265,18 @@ mod tests {
     #[ignore]
     async fn operator_skill_info_returns_masteries() {
         let state = build_state().await;
-        let value = unwrap_ok(run("operatorSkillInfo", json!({ "target": "アーミヤ(前衛)", "skillnum": 1 }), &state).await);
-        let masteries = value.get("masteries").and_then(Value::as_array).expect("masteries array");
+        let value = unwrap_ok(
+            run(
+                "operatorSkillInfo",
+                json!({ "target": "アーミヤ(前衛)", "skillnum": 1 }),
+                &state,
+            )
+            .await,
+        );
+        let masteries = value
+            .get("masteries")
+            .and_then(Value::as_array)
+            .expect("masteries array");
         assert!(!masteries.is_empty());
     }
 
@@ -251,8 +284,18 @@ mod tests {
     #[ignore]
     async fn operator_module_cost_returns_modules() {
         let state = build_state().await;
-        let value = unwrap_ok(run("operatorModuleCost", json!({ "target": "アステシア" }), &state).await);
-        let modules = value.get("modules").and_then(Value::as_array).expect("modules array");
+        let value = unwrap_ok(
+            run(
+                "operatorModuleCost",
+                json!({ "target": "アステシア" }),
+                &state,
+            )
+            .await,
+        );
+        let modules = value
+            .get("modules")
+            .and_then(Value::as_array)
+            .expect("modules array");
         assert!(!modules.is_empty());
     }
 
@@ -260,7 +303,14 @@ mod tests {
     #[ignore]
     async fn operator_fk_info_resolves_single_skill_operator() {
         let state = build_state().await;
-        let value = unwrap_ok(run("operatorFKInfo", json!({ "target": "アイリス", "skillnum": "" }), &state).await);
+        let value = unwrap_ok(
+            run(
+                "operatorFKInfo",
+                json!({ "target": "アイリス", "skillnum": "" }),
+                &state,
+            )
+            .await,
+        );
         assert_eq!(value.get("status").and_then(Value::as_str), Some("found"));
     }
 
@@ -268,8 +318,18 @@ mod tests {
     #[ignore]
     async fn get_recruitment_list_returns_combos_for_star5() {
         let state = build_state().await;
-        let value = unwrap_ok(run("getRecruitmentList", json!({ "star": 5, "isGlobal": true }), &state).await);
-        let combos = value.get("combos").and_then(Value::as_array).expect("combos array");
+        let value = unwrap_ok(
+            run(
+                "getRecruitmentList",
+                json!({ "star": 5, "isGlobal": true }),
+                &state,
+            )
+            .await,
+        );
+        let combos = value
+            .get("combos")
+            .and_then(Value::as_array)
+            .expect("combos array");
         assert!(!combos.is_empty());
     }
 }

@@ -1,14 +1,14 @@
+use super::skill::{SKILL_MD_PATH, SKILL_ZIP_PATH};
+use super::spec::{ListKind, ENDPOINTS};
+use super::suggest::suggest;
 use super::*;
+use crate::engine::external_source::ExternalSourceRegistry;
 use crate::engine::risei_calculator_engine::{RiseiCalculatorEngine, Server};
+use axum::body::Body;
+use axum::http::Request;
 use axum::http::{header, StatusCode};
 use serde_json::{json, Value};
 use std::sync::Arc;
-use super::spec::{ENDPOINTS, ListKind};
-use super::suggest::suggest;
-use super::skill::{SKILL_MD_PATH, SKILL_ZIP_PATH};
-use crate::engine::external_source::ExternalSourceRegistry;
-use axum::body::Body;
-use axum::http::Request;
 use tokio::sync::OnceCell;
 use tower::ServiceExt;
 
@@ -18,8 +18,15 @@ async fn state() -> RiseiApiState {
     STATE
         .get_or_init(|| async {
             let outer_source = Arc::new(ExternalSourceRegistry::load(true).await);
-            let risei = Arc::new(RiseiCalculatorEngine::load(&outer_source).await.expect("seedから理性価値表を計算できる"));
-            RiseiApiState { risei, external_source: outer_source }
+            let risei = Arc::new(
+                RiseiCalculatorEngine::load(&outer_source)
+                    .await
+                    .expect("seedから理性価値表を計算できる"),
+            );
+            RiseiApiState {
+                risei,
+                external_source: outer_source,
+            }
         })
         .await
         .clone()
@@ -35,7 +42,9 @@ async fn get(uri: &str) -> (StatusCode, Value) {
         .await
         .unwrap();
     let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let body = serde_json::from_slice(&bytes).unwrap_or_else(|_| panic!("{uri}: JSONではない応答"));
     (status, body)
 }
@@ -51,9 +60,17 @@ async fn index_lists_every_endpoint_and_category() {
         assert_eq!(status, StatusCode::OK, "{path}");
         assert_eq!(body["endpoints"].as_array().unwrap().len(), ENDPOINTS.len());
         assert!(!body["material_categories"].as_array().unwrap().is_empty());
-        assert_eq!(body["list_kinds"].as_array().unwrap().len(), ListKind::ALL.len());
+        assert_eq!(
+            body["list_kinds"].as_array().unwrap().len(),
+            ListKind::ALL.len()
+        );
         assert_eq!(body["operator_list_kinds"].as_array().unwrap().len(), 4);
-        let paths: Vec<&str> = body["endpoints"].as_array().unwrap().iter().map(|e| e["path"].as_str().unwrap()).collect();
+        let paths: Vec<&str> = body["endpoints"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["path"].as_str().unwrap())
+            .collect();
         for path in [
             "/api/risei/operators/mastery",
             "/api/risei/operators/elite",
@@ -75,7 +92,11 @@ async fn materials_accepts_key_and_japanese_name() {
     assert_eq!(by_name["server"], "global");
 
     let key = by_name["category_key"].as_str().unwrap();
-    let (status, by_key) = get(&uri("/api/risei/materials", &format!("target={key}&limit=3"))).await;
+    let (status, by_key) = get(&uri(
+        "/api/risei/materials",
+        &format!("target={key}&limit=3"),
+    ))
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(by_key["stages"], by_name["stages"]);
 }
@@ -107,7 +128,12 @@ async fn misspelled_stage_suggests_candidates() {
     // 大文字小文字違い → 候補に正しい表記が出る
     let (status, body) = get(&uri("/api/risei/events", "stage=sv-8")).await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-    let suggestions: Vec<&str> = body["did_you_mean"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let suggestions: Vec<&str> = body["did_you_mean"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(suggestions.iter().any(|s| s.starts_with("SV-8")), "{body}");
 
     // 恒常/イベントの取り違え → 正しいエンドポイントを案内する
@@ -119,13 +145,17 @@ async fn misspelled_stage_suggests_candidates() {
         .keys()
         .filter(|code| code.is_ascii() && !code.contains(' '))
         .find(|code| {
-            !snapshot.search_event_stage(code).is_empty() && snapshot.search_main_stage(code).is_empty()
+            !snapshot.search_event_stage(code).is_empty()
+                && snapshot.search_main_stage(code).is_empty()
         })
         .expect("イベント専用ステージがSeedにある")
         .clone();
     let (status, body) = get(&uri("/api/risei/stages", &format!("stage={event_only}"))).await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-    assert!(body["hint"].as_str().unwrap().contains("/api/risei/events"), "{body}");
+    assert!(
+        body["hint"].as_str().unwrap().contains("/api/risei/events"),
+        "{body}"
+    );
 }
 
 #[tokio::test]
@@ -136,11 +166,18 @@ async fn lists_return_every_kind() {
         }
         let (status, body) = get(&format!("/api/risei/lists/{}", kind.key())).await;
         assert_eq!(status, StatusCode::OK, "{}", kind.key());
-        assert!(!body["items"].as_array().unwrap().is_empty(), "{}", kind.key());
+        assert!(
+            !body["items"].as_array().unwrap().is_empty(),
+            "{}",
+            kind.key()
+        );
     }
     let (status, body) = get("/api/risei/lists/te").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["did_you_mean"].as_array().unwrap().contains(&json!("te2")));
+    assert!(body["did_you_mean"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("te2")));
 }
 
 #[tokio::test]
@@ -154,11 +191,22 @@ async fn kakin_returns_global_comparison() {
     // 期間限定パックは販売状況次第で0件もあり得る(販売期間外・price_kakin.yamlから削除)ので、
     // 件数には依存しない
     let packs = body["packs"].as_array().unwrap();
-    let efficiencies: Vec<f64> = packs.iter().map(|p| p["total_efficiency"].as_f64().unwrap()).collect();
-    assert!(efficiencies.windows(2).all(|w| w[0] >= w[1]), "総合効率の降順");
-    assert!(packs.iter().all(|p| p["contents"].as_array().is_some_and(|c| !c.is_empty())));
+    let efficiencies: Vec<f64> = packs
+        .iter()
+        .map(|p| p["total_efficiency"].as_f64().unwrap())
+        .collect();
+    assert!(
+        efficiencies.windows(2).all(|w| w[0] >= w[1]),
+        "総合効率の降順"
+    );
+    assert!(packs
+        .iter()
+        .all(|p| p["contents"].as_array().is_some_and(|c| !c.is_empty())));
     assert!(packs.iter().all(|p| p.get("note").is_none()));
-    assert!(packs.iter().all(|p| p["upcoming"] == false), "既定では販売前のパックを出さない");
+    assert!(
+        packs.iter().all(|p| p["upcoming"] == false),
+        "既定では販売前のパックを出さない"
+    );
 
     let (status, body) = get(&uri("/api/risei/lists/kakin", "upcoming=true")).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -166,7 +214,11 @@ async fn kakin_returns_global_comparison() {
     let (status, _) = get(&uri("/api/risei/lists/kakin", "upcoming=yes")).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, _) = get(&uri("/api/risei/lists/values", "upcoming=true")).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "kakin 以外では受け付けない");
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "kakin 以外では受け付けない"
+    );
 
     let (status, body) = get(&uri("/api/risei/lists/kakin", "server=mainland")).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
@@ -195,12 +247,20 @@ async fn bad_params_are_rejected_with_usage() {
 // -- オペレーター消費素材 --------------------------------------------------
 
 fn has_items(v: &Value) -> bool {
-    v.as_array().is_some_and(|a| !a.is_empty() && a.iter().all(|i| i["name"].is_string() && i["count"].is_number()))
+    v.as_array().is_some_and(|a| {
+        !a.is_empty()
+            && a.iter()
+                .all(|i| i["name"].is_string() && i["count"].is_number())
+    })
 }
 
 #[tokio::test]
 async fn operator_mastery_returns_three_masteries_and_ranking() {
-    let (status, body) = get(&uri("/api/risei/operators/mastery", "operator=ブレイズ&skill=2")).await;
+    let (status, body) = get(&uri(
+        "/api/risei/operators/mastery",
+        "operator=ブレイズ&skill=2",
+    ))
+    .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["operator_name"], "ブレイズ");
     assert_eq!(body["skill_num"], 2);
@@ -209,14 +269,22 @@ async fn operator_mastery_returns_three_masteries_and_ranking() {
     assert!(body["updated_at"].is_string());
     let masteries = body["masteries"].as_array().unwrap();
     assert_eq!(masteries.len(), 3);
-    assert!(masteries.iter().all(|m| has_items(&m["items"]) && m["risei_value"].as_f64().unwrap() > 0.0));
+    assert!(masteries
+        .iter()
+        .all(|m| has_items(&m["items"]) && m["risei_value"].as_f64().unwrap() > 0.0));
     assert!(has_items(&body["total"]["items"]) && has_items(&body["total_r2_items"]));
     assert_eq!(body["ranking"]["star"], 6);
     assert!(body["ranking"]["rank"].as_u64().unwrap() >= 1);
-    assert!(body["ranking"]["total"].as_u64().unwrap() >= body["ranking"]["rank"].as_u64().unwrap());
+    assert!(
+        body["ranking"]["total"].as_u64().unwrap() >= body["ranking"]["rank"].as_u64().unwrap()
+    );
 
     // 大陸版限定オペレーターは大陸版の理性価値で換算する
-    let (status, body) = get(&uri("/api/risei/operators/mastery", "operator=タルラ&skill=1")).await;
+    let (status, body) = get(&uri(
+        "/api/risei/operators/mastery",
+        "operator=タルラ&skill=1",
+    ))
+    .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["cn_only"], true);
     assert_eq!(body["values_server"], "mainland");
@@ -245,7 +313,11 @@ async fn operator_elite_and_module_return_costs() {
 #[tokio::test]
 async fn unknown_operator_suggests_names() {
     for path in ["mastery", "elite", "module"] {
-        let q = if path == "mastery" { "operator=ブレズ&skill=1" } else { "operator=ブレズ" };
+        let q = if path == "mastery" {
+            "operator=ブレズ&skill=1"
+        } else {
+            "operator=ブレズ"
+        };
         let (status, body) = get(&uri(&format!("/api/risei/operators/{path}"), q)).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}: {body}");
         let suggestions = body["did_you_mean"].as_array().unwrap();
@@ -256,18 +328,37 @@ async fn unknown_operator_suggests_names() {
 
 #[tokio::test]
 async fn operator_bad_args_return_json_errors() {
-    let (status, body) = get(&uri("/api/risei/operators/mastery", "operator=ブレイズ&skill=4")).await;
+    let (status, body) = get(&uri(
+        "/api/risei/operators/mastery",
+        "operator=ブレイズ&skill=4",
+    ))
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
-    let (status, _) = get(&uri("/api/risei/operators/mastery", "operator=ブレイズ&skill=abc")).await;
+    let (status, _) = get(&uri(
+        "/api/risei/operators/mastery",
+        "operator=ブレイズ&skill=abc",
+    ))
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, _) = get(&uri("/api/risei/operators/mastery", "operator=ブレイズ")).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (status, _) = get(&uri("/api/risei/operators/elite", "operator=ブレイズ&server=global")).await;
+    let (status, _) = get(&uri(
+        "/api/risei/operators/elite",
+        "operator=ブレイズ&server=global",
+    ))
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     // ★3は特化が無い(エンジン側のエラー。botと同じ文言)
-    let (status, body) = get(&uri("/api/risei/operators/mastery", "operator=ハイビスカス&skill=1")).await;
+    let (status, body) = get(&uri(
+        "/api/risei/operators/mastery",
+        "operator=ハイビスカス&skill=1",
+    ))
+    .await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-    assert!(body["error"].as_str().unwrap().contains("特化は存在しません"));
+    assert!(body["error"]
+        .as_str()
+        .unwrap()
+        .contains("特化は存在しません"));
     assert!(body.get("did_you_mean").is_none());
 }
 
@@ -285,7 +376,11 @@ async fn operator_lists_return_every_kind() {
     assert_eq!(body["mode"], "full");
     assert_eq!(body["top10_heaviest"].as_array().unwrap().len(), 10);
 
-    let (status, body) = get(&uri("/api/risei/operators/lists/mastery", "star=5&only_recent=true")).await;
+    let (status, body) = get(&uri(
+        "/api/risei/operators/lists/mastery",
+        "star=5&only_recent=true",
+    ))
+    .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["mode"], "recent");
     assert_eq!(body["only_recent"], true);
@@ -315,17 +410,32 @@ async fn operator_lists_reject_bad_args() {
     assert!(body["usage"]["params"].is_array());
     let (status, _) = get(&uri("/api/risei/operators/lists/elite", "star=3")).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (status, _) = get(&uri("/api/risei/operators/lists/elite", "star=6&only_recent=maybe")).await;
+    let (status, _) = get(&uri(
+        "/api/risei/operators/lists/elite",
+        "star=6&only_recent=maybe",
+    ))
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     // 引数を取らない種類にstar/only_recentを付けても黙って無視しない
-    let (status, _) = get(&uri("/api/risei/operators/lists/implemented_total", "star=6")).await;
+    let (status, _) = get(&uri(
+        "/api/risei/operators/lists/implemented_total",
+        "star=6",
+    ))
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (status, _) = get(&uri("/api/risei/operators/lists/unimplemented_total", "only_recent=true")).await;
+    let (status, _) = get(&uri(
+        "/api/risei/operators/lists/unimplemented_total",
+        "only_recent=true",
+    ))
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     let (status, body) = get("/api/risei/operators/lists/eli").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["did_you_mean"].as_array().unwrap().contains(&json!("elite")));
+    assert!(body["did_you_mean"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("elite")));
 
     let (status, body) = get("/api/risei/operators/mastry").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -346,7 +456,12 @@ async fn skill_zip_coexists_with_api_router() {
     let app = crate::api::web_ui_router::<()>().merge(router::<()>(state().await));
     let response = app
         .clone()
-        .oneshot(Request::builder().uri(SKILL_ZIP_PATH).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(SKILL_ZIP_PATH)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -355,16 +470,28 @@ async fn skill_zip_coexists_with_api_router() {
         response.headers()[header::CONTENT_DISPOSITION],
         "attachment; filename=\"arknights-risei-api.zip\""
     );
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec())).expect("valid zip");
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec())).expect("valid zip");
     assert_eq!(archive.len(), 1);
     let mut entry = archive.by_name("arknights-risei-api/SKILL.md").unwrap();
     let mut in_zip = Vec::new();
     std::io::Read::read_to_end(&mut entry, &mut in_zip).unwrap();
-    assert_eq!(in_zip, std::fs::read(SKILL_MD_PATH).unwrap(), "zip内のSKILL.mdは正本とバイト一致する");
+    assert_eq!(
+        in_zip,
+        std::fs::read(SKILL_MD_PATH).unwrap(),
+        "zip内のSKILL.mdは正本とバイト一致する"
+    );
 
     let response = app
-        .oneshot(Request::builder().uri("/api/risei/stages?stage=1-7").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/api/risei/stages?stage=1-7")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);

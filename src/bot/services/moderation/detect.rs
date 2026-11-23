@@ -1,12 +1,11 @@
 //! 検知層: スパムと禁止内容の判定（純粋なロジック。`detect_rate_spam` の履歴更新以外は副作用なし）。
 
+use super::ModerationState;
 use fancy_regex::Regex;
 use poise::serenity_prelude as serenity;
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use super::ModerationState;
-
 
 pub(super) const MULTI_CH_WINDOW: Duration = Duration::from_millis(7_000);
 
@@ -88,7 +87,10 @@ pub(super) struct Actor<'a> {
 
 impl<'a> Actor<'a> {
     pub(super) fn author_of(msg: &'a serenity::Message) -> Self {
-        Self { user: &msg.author, via_bot: None }
+        Self {
+            user: &msg.author,
+            via_bot: None,
+        }
     }
 
     /// 遡及削除の対象か: 本人の発言、または本人が打ったスラッシュコマンドへの返信

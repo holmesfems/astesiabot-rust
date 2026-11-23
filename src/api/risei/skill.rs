@@ -5,7 +5,6 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 
-
 pub const SKILL_ZIP_PATH: &str = "/api/risei/skill.zip";
 
 /// zip内のフォルダ名(=skill名)。展開してそのまま`.claude/skills/`に置ける形にする。
@@ -46,7 +45,10 @@ async fn skill_zip() -> Response {
             StatusCode::OK,
             [
                 (header::CONTENT_TYPE, "application/zip".to_string()),
-                (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{SKILL_NAME}.zip\"")),
+                (
+                    header::CONTENT_DISPOSITION,
+                    format!("attachment; filename=\"{SKILL_NAME}.zip\""),
+                ),
             ],
             bytes,
         )
@@ -54,7 +56,11 @@ async fn skill_zip() -> Response {
         Err(e) => {
             // デプロイ事故（ファイル欠落等）を黙って隠さない。
             eprintln!("risei skill.zip の組み立てに失敗しました: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "failed to build skill.zip").into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to build skill.zip",
+            )
+                .into_response()
         }
     }
 }

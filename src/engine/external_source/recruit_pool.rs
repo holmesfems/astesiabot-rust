@@ -120,7 +120,12 @@ async fn fetch_impl() -> Result<RecruitPool, FetchError> {
         fetch_typed_with_retry::<CharTable>(&client, CHAR_TABLE_URL_CN),
         fetch_typed_with_retry::<CharTable>(&client, CHAR_TABLE_URL_JP),
     )?;
-    build(&cn_gacha.recruit_detail, &jp_gacha.recruit_detail, &cn_chars, &jp_chars)
+    build(
+        &cn_gacha.recruit_detail,
+        &jp_gacha.recruit_detail,
+        &cn_chars,
+        &jp_chars,
+    )
 }
 
 /// `recruitDetail`から（★, 名前）を掲載順に取り出す。
@@ -193,22 +198,37 @@ impl Dictionaries {
     fn embedded() -> Result<Self, FetchError> {
         let tag_list: TagListJson = serde_json::from_str(TAG_LIST_JSON)?;
         let tag_zh_to_ja: HashMap<String, String> = serde_saphyr::from_str(TAG_ZH_TO_JA_YAML)?;
-        let custom_names: Option<HashMap<String, String>> = serde_saphyr::from_str(CUSTOM_OPERATOR_ZH_TO_JA_YAML)?;
+        let custom_names: Option<HashMap<String, String>> =
+            serde_saphyr::from_str(CUSTOM_OPERATOR_ZH_TO_JA_YAML)?;
         Ok(Self {
             job_tags: tag_list.job_tags.into_iter().collect(),
-            operator_tags: tag_list.position_tags.into_iter().chain(tag_list.other_tags).collect(),
+            operator_tags: tag_list
+                .position_tags
+                .into_iter()
+                .chain(tag_list.other_tags)
+                .collect(),
             tag_zh_to_ja,
             custom_names: custom_names.unwrap_or_default(),
         })
     }
 }
 
-fn build(cn_detail: &str, jp_detail: &str, cn_chars: &CharTable, jp_chars: &CharTable) -> Result<RecruitPool, FetchError> {
+fn build(
+    cn_detail: &str,
+    jp_detail: &str,
+    cn_chars: &CharTable,
+    jp_chars: &CharTable,
+) -> Result<RecruitPool, FetchError> {
     let dict = Dictionaries::embedded()?;
     let jp_ids = resolve_ids(&parse_recruit_detail(jp_detail), jp_chars, "JP")?;
     let cn_ids = resolve_ids(&parse_recruit_detail(cn_detail), cn_chars, "CN")?;
     if jp_ids.is_empty() || cn_ids.is_empty() {
-        return Err(format!("recruitDetailからオペレーターを読み取れませんでした（JP {}体 / CN {}体）", jp_ids.len(), cn_ids.len()).into());
+        return Err(format!(
+            "recruitDetailからオペレーターを読み取れませんでした（JP {}体 / CN {}体）",
+            jp_ids.len(),
+            cn_ids.len()
+        )
+        .into());
     }
 
     let jp_set: HashSet<&str> = jp_ids.iter().map(|(id, _)| id.as_str()).collect();
@@ -227,11 +247,18 @@ fn build(cn_detail: &str, jp_detail: &str, cn_chars: &CharTable, jp_chars: &Char
 /// `recruitDetail`の名前をcharacter_tableのIDへ解決する（CN/JPの突き合わせをIDで行うため。
 /// 名前で突き合わせると「THRM-EX」→「サーマル-EX」のような表記変更で別人扱いになる）。
 /// 入手不可（`isNotObtainable`）のエントリは予備隊員等の同名が重複するので除外する。
-fn resolve_ids(entries: &[(u8, String)], chars: &CharTable, region: &str) -> Result<Vec<(String, u8)>, FetchError> {
+fn resolve_ids(
+    entries: &[(u8, String)],
+    chars: &CharTable,
+    region: &str,
+) -> Result<Vec<(String, u8)>, FetchError> {
     let mut name_to_ids: HashMap<&str, Vec<&str>> = HashMap::new();
     for (id, c) in chars {
         if id.starts_with("char_") && !c.is_not_obtainable {
-            name_to_ids.entry(c.name.as_str()).or_default().push(id.as_str());
+            name_to_ids
+                .entry(c.name.as_str())
+                .or_default()
+                .push(id.as_str());
         }
     }
     let mut seen: HashSet<&str> = HashSet::new();
@@ -249,13 +276,23 @@ fn resolve_ids(entries: &[(u8, String)], chars: &CharTable, region: &str) -> Res
     Ok(out)
 }
 
-fn make_operator(id: &str, listed_star: u8, cn_chars: &CharTable, jp_chars: &CharTable, dict: &Dictionaries) -> Result<PoolOperator, FetchError> {
+fn make_operator(
+    id: &str,
+    listed_star: u8,
+    cn_chars: &CharTable,
+    jp_chars: &CharTable,
+    dict: &Dictionaries,
+) -> Result<PoolOperator, FetchError> {
     let cn = cn_chars.get(id);
     let jp = jp_chars.get(id);
     let cn_name = cn.or(jp).map(|c| c.name.clone()).unwrap_or_default();
     let name = match jp {
         Some(jp) => jp.name.clone(),
-        None => dict.custom_names.get(&cn_name).cloned().unwrap_or_else(|| cn_name.clone()),
+        None => dict
+            .custom_names
+            .get(&cn_name)
+            .cloned()
+            .unwrap_or_else(|| cn_name.clone()),
     };
 
     // JPのcharacter_tableにあればJPのタグ（そのまま日本語）、無ければCNのタグを訳す。
@@ -289,9 +326,13 @@ fn make_operator(id: &str, listed_star: u8, cn_chars: &CharTable, jp_chars: &Cha
         tags.push(tag);
     }
 
-    let stars = parse_stars(&source.rarity).ok_or_else(|| format!("{name}: rarityを解釈できません: {}", source.rarity))?;
+    let stars = parse_stars(&source.rarity)
+        .ok_or_else(|| format!("{name}: rarityを解釈できません: {}", source.rarity))?;
     if stars != listed_star {
-        return Err(format!("{name}: recruitDetailでは★{listed_star}なのにcharacter_tableでは★{stars}です").into());
+        return Err(format!(
+            "{name}: recruitDetailでは★{listed_star}なのにcharacter_tableでは★{stars}です"
+        )
+        .into());
     }
 
     Ok(PoolOperator {
@@ -362,11 +403,22 @@ mod tests {
                     ★★★★★★\\n能天使 / 帕拉斯";
         assert_eq!(
             names(&parse_recruit_detail(text)),
-            vec![(1, "Lancet-2"), (1, "GALLUS²"), (6, "能天使"), (6, "帕拉斯")]
+            vec![
+                (1, "Lancet-2"),
+                (1, "GALLUS²"),
+                (6, "能天使"),
+                (6, "帕拉斯")
+            ]
         );
     }
 
-    fn char_entry(name: &str, rarity: Value, profession: &str, position: &str, tags: &[&str]) -> RawChar {
+    fn char_entry(
+        name: &str,
+        rarity: Value,
+        profession: &str,
+        position: &str,
+        tags: &[&str],
+    ) -> RawChar {
         RawChar {
             name: name.to_string(),
             rarity,
@@ -381,17 +433,44 @@ mod tests {
     /// GALLUS²はJP未実装）。
     fn sample_tables() -> (CharTable, CharTable) {
         let mut cn = CharTable::new();
-        cn.insert("char_103_angel".into(), char_entry("能天使", json!("TIER_6"), "SNIPER", "RANGED", &["输出"]));
-        cn.insert("char_485_pallas".into(), char_entry("帕拉斯", json!("TIER_6"), "WARRIOR", "MELEE", &["输出", "支援"]));
-        cn.insert("char_4227_gallus".into(), char_entry("GALLUS²", json!("TIER_1"), "CASTER", "RANGED", &["支援机械", "削弱"]));
+        cn.insert(
+            "char_103_angel".into(),
+            char_entry("能天使", json!("TIER_6"), "SNIPER", "RANGED", &["输出"]),
+        );
+        cn.insert(
+            "char_485_pallas".into(),
+            char_entry(
+                "帕拉斯",
+                json!("TIER_6"),
+                "WARRIOR",
+                "MELEE",
+                &["输出", "支援"],
+            ),
+        );
+        cn.insert(
+            "char_4227_gallus".into(),
+            char_entry(
+                "GALLUS²",
+                json!("TIER_1"),
+                "CASTER",
+                "RANGED",
+                &["支援机械", "削弱"],
+            ),
+        );
         // 同名の入手不可エントリ（予備隊員等）は名前解決から除外されること。
         let mut dummy = char_entry("能天使", json!("TIER_1"), "SNIPER", "RANGED", &[]);
         dummy.is_not_obtainable = true;
         cn.insert("char_999_dummy".into(), dummy);
 
         let mut jp = CharTable::new();
-        jp.insert("char_103_angel".into(), char_entry("エクシア", json!("TIER_6"), "SNIPER", "RANGED", &["火力"]));
-        jp.insert("char_485_pallas".into(), char_entry("パラス", json!(5), "WARRIOR", "MELEE", &["火力", "支援"]));
+        jp.insert(
+            "char_103_angel".into(),
+            char_entry("エクシア", json!("TIER_6"), "SNIPER", "RANGED", &["火力"]),
+        );
+        jp.insert(
+            "char_485_pallas".into(),
+            char_entry("パラス", json!(5), "WARRIOR", "MELEE", &["火力", "支援"]),
+        );
         (cn, jp)
     }
 
@@ -449,7 +528,10 @@ mod tests {
     #[test]
     fn unknown_tag_fails() {
         let (cn, mut jp) = sample_tables();
-        jp.insert("char_103_angel".into(), char_entry("エクシア", json!("TIER_6"), "SNIPER", "RANGED", &["新タグ"]));
+        jp.insert(
+            "char_103_angel".into(),
+            char_entry("エクシア", json!("TIER_6"), "SNIPER", "RANGED", &["新タグ"]),
+        );
         let err = build(CN_DETAIL, JP_DETAIL, &cn, &jp).unwrap_err();
         assert!(err.to_string().contains("新タグ"), "{err}");
     }
@@ -465,8 +547,14 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn fetch_gets_real_pool() {
-        let pool = fetch().await.expect("fetch should succeed against real network");
+        let pool = fetch()
+            .await
+            .expect("fetch should succeed against real network");
         assert!(pool.jp.len() > 100, "JP pool too small: {}", pool.jp.len());
-        println!("JP {}体 / CN追加分 {:?}", pool.jp.len(), pool.cn_only.iter().map(|o| &o.name).collect::<Vec<_>>());
+        println!(
+            "JP {}体 / CN追加分 {:?}",
+            pool.jp.len(),
+            pool.cn_only.iter().map(|o| &o.name).collect::<Vec<_>>()
+        );
     }
 }

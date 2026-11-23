@@ -25,11 +25,17 @@ pub struct Valued<T> {
 
 impl<T> Valued<T> {
     pub fn auto(value: T) -> Self {
-        Self { value, source: ValueSource::Auto }
+        Self {
+            value,
+            source: ValueSource::Auto,
+        }
     }
 
     pub fn manual(value: T) -> Self {
-        Self { value, source: ValueSource::Manual }
+        Self {
+            value,
+            source: ValueSource::Manual,
+        }
     }
 
     /// `override_value`が`Some`ならManual、`None`なら`default`をAutoとして採用する

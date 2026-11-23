@@ -11,14 +11,14 @@ mod wl_battery_simulator;
 
 use crate::bot::services::moderation::ModerationState;
 use crate::bot::services::uranai::UranaiState;
-use crate::engine::fk_data_search::FkDataSearchEngine;
 use crate::engine::external_source::ExternalSourceRegistry;
+use crate::engine::fk_data_search::FkDataSearchEngine;
 use crate::engine::fk_kill_calc::{self, Overrides};
 use crate::engine::recruit::RecruitEngine;
 use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
+use axum::extract::DefaultBodyLimit;
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Redirect};
-use axum::extract::DefaultBodyLimit;
 use axum::{routing::get, routing::post, Router};
 use std::sync::Arc;
 use utoipa::OpenApi;
@@ -207,7 +207,8 @@ fn catalog_provider_for(state: Arc<AppState>) -> fk_kill_calculator::CatalogProv
             let ops = state.external_source.operator_data.get().await;
             let combat = state.external_source.operator_combat.get().await;
             let skills = state.external_source.skill_data.get().await;
-            let build = fk_kill_calc::build_catalog(&fk, &ops, &combat, &skills, Overrides::global());
+            let build =
+                fk_kill_calc::build_catalog(&fk, &ops, &combat, &skills, Overrides::global());
             Arc::new(build.catalog)
         })
     })
@@ -216,7 +217,9 @@ fn catalog_provider_for(state: Arc<AppState>) -> fk_kill_calculator::CatalogProv
 pub async fn run_api(state: Arc<AppState>) {
     let catalog_provider = catalog_provider_for(state.clone());
     let mut app = web_ui_router::<Arc<AppState>>()
-        .merge(fk_kill_calculator::catalog_router::<Arc<AppState>>(catalog_provider))
+        .merge(fk_kill_calculator::catalog_router::<Arc<AppState>>(
+            catalog_provider,
+        ))
         // 既存のクライアントが使っているパスなので変えない。認証なしで叩けるので本文の大きさを絞る（recruitment.rs 参照）
         .route(
             "/recruitment/",
@@ -257,14 +260,15 @@ pub async fn run_api(state: Arc<AppState>) {
         .parse::<u16>()
         .expect("PORT must be a number");
     let address = std::net::SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = tokio::net::TcpListener::bind(address)
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind(address).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
 /// ORIGIN_SECRET が有効なのに旧ホストの層（PUBLIC_BASE_URL）が無い構成を弾く。
-fn check_origin_layers(origin_secret_enabled: bool, canonical_base_enabled: bool) -> Result<(), &'static str> {
+fn check_origin_layers(
+    origin_secret_enabled: bool,
+    canonical_base_enabled: bool,
+) -> Result<(), &'static str> {
     if origin_secret_enabled && !canonical_base_enabled {
         return Err(
             "ORIGIN_SECRET が設定されていますが PUBLIC_BASE_URL が未設定または不正です。*.herokuapp.com 宛てが Cloudflare を素通りするので、PUBLIC_BASE_URL を正しく設定してください",
@@ -277,7 +281,6 @@ async fn not_found() -> (StatusCode, &'static str) {
     (StatusCode::NOT_FOUND, "404 Not Found")
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -287,10 +290,20 @@ mod tests {
 
     #[test]
     fn plain_http_only_for_localhost_and_ip_hosts() {
-        for host in ["localhost:3000", "127.0.0.1:3000", "192.168.11.39:3000", "[::1]:3000", "10.0.0.5"] {
+        for host in [
+            "localhost:3000",
+            "127.0.0.1:3000",
+            "192.168.11.39:3000",
+            "[::1]:3000",
+            "10.0.0.5",
+        ] {
             assert!(is_plain_http_host(host), "{host}");
         }
-        for host in ["astesiabot.com", "discordbot-riseicalculator.herokuapp.com", "localhost.example.com"] {
+        for host in [
+            "astesiabot.com",
+            "discordbot-riseicalculator.herokuapp.com",
+            "localhost.example.com",
+        ] {
             assert!(!is_plain_http_host(host), "{host}");
         }
     }
@@ -326,9 +339,18 @@ mod tests {
         ] {
             let html = get_html(path).await;
             let head = &html[..html.find("</head>").expect(path)];
-            assert!(head.contains(r#"<link rel="icon" href="/favicon.svg""#), "{path}");
-            assert!(head.contains(r#"<link rel="apple-touch-icon" href="/apple-touch-icon.png">"#), "{path}");
-            assert!(head.contains(r#"<link rel="manifest" href="/site.webmanifest">"#), "{path}");
+            assert!(
+                head.contains(r#"<link rel="icon" href="/favicon.svg""#),
+                "{path}"
+            );
+            assert!(
+                head.contains(r#"<link rel="apple-touch-icon" href="/apple-touch-icon.png">"#),
+                "{path}"
+            );
+            assert!(
+                head.contains(r#"<link rel="manifest" href="/site.webmanifest">"#),
+                "{path}"
+            );
         }
     }
 
@@ -343,16 +365,28 @@ mod tests {
         assert!(response.status().is_redirection(), "{}", response.status());
         assert_eq!(response.headers()[header::LOCATION], "/docs/");
         let response = app()
-            .oneshot(Request::builder().uri("/docs/").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/docs/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let response = app()
-            .oneshot(Request::builder().uri("/api-docs/openapi.json").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api-docs/openapi.json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let doc: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert!(doc["paths"]["/recruitment/"]["post"].is_object(), "{doc}");
         for schema in ["OcrRawData", "TagReplyData", "ShortcutUpdate"] {
@@ -375,13 +409,20 @@ mod tests {
         ] {
             let html = get_html(path).await;
             assert!(
-                html.contains(&format!(r#"<meta property="og:image" content="{base}/icon-512.png">"#)),
+                html.contains(&format!(
+                    r#"<meta property="og:image" content="{base}/icon-512.png">"#
+                )),
                 "{path}"
             );
-            assert!(html.contains(r#"<meta name="twitter:card" content="summary">"#), "{path}");
+            assert!(
+                html.contains(r#"<meta name="twitter:card" content="summary">"#),
+                "{path}"
+            );
         }
         let home = get_html("/").await;
-        assert!(home.contains(&format!(r#"<meta property="og:image" content="{base}/static/ogp.png">"#)));
+        assert!(home.contains(&format!(
+            r#"<meta property="og:image" content="{base}/static/ogp.png">"#
+        )));
         assert!(!home.contains("icon-512.png"));
     }
 }

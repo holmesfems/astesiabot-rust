@@ -27,7 +27,11 @@ impl ItemArray {
 
     pub fn scaled(&self, factor: f64) -> ItemArray {
         ItemArray {
-            dict: self.dict.iter().map(|(k, v)| (k.clone(), v * factor)).collect(),
+            dict: self
+                .dict
+                .iter()
+                .map(|(k, v)| (k.clone(), v * factor))
+                .collect(),
         }
     }
 
@@ -38,7 +42,10 @@ impl ItemArray {
     }
 
     pub fn filter_by_zh(&self, zh_list: &[&str], item_names: &ItemNames) -> ItemArray {
-        let ids: HashSet<&str> = zh_list.iter().filter_map(|zh| item_names.zh_to_id(zh)).collect();
+        let ids: HashSet<&str> = zh_list
+            .iter()
+            .filter_map(|zh| item_names.zh_to_id(zh))
+            .collect();
         ItemArray {
             dict: self
                 .dict

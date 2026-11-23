@@ -61,7 +61,15 @@ pub struct Loaded {
 }
 
 fn file_stem(tag: &str) -> String {
-    tag.chars().map(|c| if "/\\:*?\"<>|".contains(c) || c.is_control() { '_' } else { c }).collect()
+    tag.chars()
+        .map(|c| {
+            if "/\\:*?\"<>|".contains(c) || c.is_control() {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect()
 }
 
 fn quantize(v: f32) -> u8 {
@@ -80,11 +88,21 @@ fn dequantize(px: &[u8]) -> Vec<f32> {
 /// `tags`（全タグ。テンプレートの添字と同じ並び）の `templates` を `dir` に書き出す。
 /// 量子化したあとの特徴で紛らわしい組を計算して meta.json に書く（読み込んだ結果と一致させるため）。
 /// `dir` の既存の PNG と meta.json は消す（他のファイルには触らない）。
-pub fn write(dir: &Path, tags: &[String], templates: &[Vec<Template>], t: f32, m: f32, center: bool, note: &str) -> Result<(), Error> {
+pub fn write(
+    dir: &Path,
+    tags: &[String],
+    templates: &[Vec<Template>],
+    t: f32,
+    m: f32,
+    center: bool,
+    note: &str,
+) -> Result<(), Error> {
     std::fs::create_dir_all(dir)?;
     for e in std::fs::read_dir(dir)? {
         let p = e?.path();
-        if p.extension().is_some_and(|x| x == "png") || p.file_name().is_some_and(|n| n == "meta.json") {
+        if p.extension().is_some_and(|x| x == "png")
+            || p.file_name().is_some_and(|n| n == "meta.json")
+        {
             std::fs::remove_file(p)?;
         }
     }
@@ -98,20 +116,34 @@ pub fn write(dir: &Path, tags: &[String], templates: &[Vec<Template>], t: f32, m
         let mut qs = Vec::new();
         for (k, tp) in protos.iter().enumerate() {
             let px: Vec<u8> = tp.raw.iter().map(|&v| quantize(v)).collect();
-            let img = GrayImage::from_fn(FW as u32, FH as u32, |x, y| Luma([px[y as usize * FW + x as usize]]));
+            let img = GrayImage::from_fn(FW as u32, FH as u32, |x, y| {
+                Luma([px[y as usize * FW + x as usize]])
+            });
             let file = format!("{}_{}.png", file_stem(name), k + 1);
             img.save(dir.join(&file))?;
-            files.push(Prototype { file, count: tp.count });
+            files.push(Prototype {
+                file,
+                count: tp.count,
+            });
             qs.push(Template::new(dequantize(&px), tp.count));
         }
-        entries.push(TagEntry { name: name.clone(), prototypes: files });
+        entries.push(TagEntry {
+            name: name.clone(),
+            prototypes: files,
+        });
         quantized.push(qs);
     }
     let model = Model::new(&quantized);
     let confusable_pairs = model
         .confusable_pairs()
         .into_iter()
-        .map(|(a, b, v)| (entries[a].name.clone(), entries[b].name.clone(), (v * 1000.0).round() / 1000.0))
+        .map(|(a, b, v)| {
+            (
+                entries[a].name.clone(),
+                entries[b].name.clone(),
+                (v * 1000.0).round() / 1000.0,
+            )
+        })
         .collect();
     let meta = Meta {
         format_version: FORMAT_VERSION,
@@ -151,7 +183,10 @@ pub fn load(dir: &Path) -> Result<Loaded, Error> {
         || !near(meta.diff_threshold, DIFF_THR)
         || meta.diff_dilate != DIFF_DILATE;
     if mismatch {
-        return Err("tag_templates/meta.json の形式・定数がコードと合わない（テンプレートを書き出し直す）".into());
+        return Err(
+            "tag_templates/meta.json の形式・定数がコードと合わない（テンプレートを書き出し直す）"
+                .into(),
+        );
     }
     let mut names = Vec::new();
     let mut templates = Vec::new();
@@ -174,10 +209,21 @@ pub fn load(dir: &Path) -> Result<Loaded, Error> {
         names.push(tag.name.clone());
         templates.push(protos);
     }
-    let index = |n: &str| names.iter().position(|x| x == n).ok_or_else(|| format!("confusable_pairs に未知のタグ: {n}"));
+    let index = |n: &str| {
+        names
+            .iter()
+            .position(|x| x == n)
+            .ok_or_else(|| format!("confusable_pairs に未知のタグ: {n}"))
+    };
     let mut pairs = Vec::new();
     for (a, b, v) in &meta.confusable_pairs {
         pairs.push((index(a)?, index(b)?, *v));
     }
-    Ok(Loaded { names, model: Model::with_confusable(templates, &pairs), t: meta.threshold_t, m: meta.threshold_m, center: meta.center })
+    Ok(Loaded {
+        names,
+        model: Model::with_confusable(templates, &pairs),
+        t: meta.threshold_t,
+        m: meta.threshold_m,
+        center: meta.center,
+    })
 }
