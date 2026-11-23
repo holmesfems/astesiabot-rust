@@ -20,6 +20,8 @@ pub struct UranaiAttachment {
     pub url: String,
     pub filename: String,
     pub kind: AttachmentKind,
+    /// バイト数（まとめて送るときの合計サイズの上限に使う）。
+    pub size: u64,
 }
 
 pub enum AttachmentKind {
@@ -169,9 +171,12 @@ impl OpenAiClient {
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_string();
+            // `previous_response_id` では `instructions` は引き継がれないので、毎回送り直す
+            // （送らないとツールを使った後の返事でキャラ設定が抜ける）。
             response = self
                 .call(&json!({
                     "model": self.model,
+                    "instructions": instructions,
                     "previous_response_id": response_id,
                     "input": tool_outputs,
                     "tools": tools,
@@ -229,7 +234,8 @@ async fn run_tool_call(item: &Value, state: &AppState) -> Value {
     let call_id = item.get("call_id").and_then(Value::as_str).unwrap_or_default();
     let name = item.get("name").and_then(Value::as_str).unwrap_or_default();
     let arguments = item.get("arguments").and_then(Value::as_str).unwrap_or("{}");
-    println!("[uranai] tool called: {name}({arguments})");
+    // 引数はユーザーの発言から作られるので、ログには関数名だけ出す。
+    println!("[uranai] tool called: {name}");
     let result = super::tools::dispatch(name, arguments, state).await;
     json!({
         "type": "function_call_output",

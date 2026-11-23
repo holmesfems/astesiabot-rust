@@ -34,6 +34,12 @@ services/
 - **占い館の function calling**: `data/uranai/toolList.yaml` は `build_tool_list_entries()` と一致して
   いる必要がある（`tool_list_yaml_matches_registered_functions`）。関数を足したり description /
   parameters を変えたら `cargo run --bin regen_uranai_tools` で作り直して commit する。
+- **占い館の会話**（`uranai/conversation.rs` が純粋ロジック、`mod.rs` がワーカー）: 考え中に来た発言は捨てずに貯め、
+  返事を送ったあとにまとめて1回で AI に渡す（最大10件・4000字・添付10件/50MB。超えたら古い方から落とす）。
+  会話は `std::sync::Mutex` で持ち `.await` をまたいで握らない。ワーカーが panic しても `WorkerGuard` が busy を下ろす。
+  reset は世代を進め、考え中だった返事は送るが新しい履歴には積まない。AI の呼び出しは1日（JST）`CHAT_DAILY_CALL_LIMIT`
+  回まで（任意。既定200）。ツールのログに引数（ユーザー由来）を出さない。ツールの往復の2回目以降も `instructions` を送る
+  （`previous_response_id` では引き継がれない）。メンション会話を足すときはこのエンジンを共有する。
 - **fksearch のオートコンプリート**は1時間 TTL のチェックを通さず fk_data を直接読む（コマンド本体は TTL 付き）。
 
 ## YouTube のお知らせ（youtube_notify.rs）
