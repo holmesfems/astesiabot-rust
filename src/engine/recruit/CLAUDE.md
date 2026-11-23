@@ -42,7 +42,7 @@ bot にも api にも依存しない。入力のプールは `external_source::r
   `collect_recruit_samples`（スクショと bot の返信のタグを集める）→ `cut_tag_boxes`（枠を検出して切り抜く）→
   `fit_tag_templates --export data/recruitment/tag_templates`（時系列で古い 80% で学習・T, M を検証側で選び、
   量子化した PNG を `TagOcr::load` し元のスクショから読み直した評価も出す。`--export` は英語を除く全データで学習し直して書き出す）。
-  目安: テスト誤読率 ≤ 1%（現在 0.101%）・全部読み切れる率 ≥ 95%（現在 97.32%）、英語の画像の読み切りは 0。
+  目安: テスト誤読率 ≤ 1%・全部読み切れる率 ≥ 95%（今の値は fit_tag_templates が出す）、英語の画像の読み切りは 0。
   英語の画像は `local/recruit_samples/english_images.txt`（目で確認した手書きの一覧）。
 - 検出・特徴・採点のコードは lib にだけある（`cut_tag_boxes`・`fit_tag_templates` もこれを呼ぶ）。
   学習側（EM・代表の分割・T, M の選択・評価）は `fit_tag_templates` にだけある。
