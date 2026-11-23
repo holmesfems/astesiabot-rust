@@ -1,0 +1,7 @@
+---
+source: src/bot/services/recruit/local_ocr.rs
+expression: "miss_alert_message(3, &links)"
+---
+[local_ocr] 日本語版の画像をローカルで読めないのが 3 枚続きました。画面が変わったかもしれません。
+https://discord.com/channels/1/2/3
+https://discord.com/channels/1/2/4

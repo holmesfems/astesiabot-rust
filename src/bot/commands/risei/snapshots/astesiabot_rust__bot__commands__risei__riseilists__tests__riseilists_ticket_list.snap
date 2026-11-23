@@ -1,0 +1,8 @@
+---
+source: src/bot/commands/risei/riseilists.rs
+expression: "ticket_list_chunks(list).join(\"\n----- chunk -----\n\")"
+---
+```
+上級作戦記録: 123.4% ± 2.5%
+とても長い名前の昇進素材: 50.0% ± 0.0%
+```

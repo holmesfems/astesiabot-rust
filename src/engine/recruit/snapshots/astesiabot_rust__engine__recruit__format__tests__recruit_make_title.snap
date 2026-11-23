@@ -1,0 +1,9 @@
+---
+source: src/engine/recruit/format.rs
+expression: text
+---
+上級エリート 近距離 治療(タグ不足)
+上級エリート 近距離 治療 (大陸版)(タグ不足)
+上級エリート 近距離 治療 (大陸版)
+a b c d e f(タグ過多)
+a b c d e f

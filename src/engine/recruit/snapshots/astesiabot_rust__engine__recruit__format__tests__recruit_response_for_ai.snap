@@ -1,0 +1,11 @@
+---
+source: src/engine/recruit/format.rs
+expression: response_for_ai(sample_items())
+---
+遠距離+火力 ->★3,5,6
+エクシア(他★5が1人)
+上級エリート ->★6
+アーミヤ, ロスモンティス
+近距離+治療 ->★4,5
+ロボット ->★1
+Lancet-2, Castle-3

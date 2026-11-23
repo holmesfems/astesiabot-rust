@@ -1,0 +1,28 @@
+---
+source: src/bot/commands/operator_cost_calc/operatorcostlist.rs
+expression: "cost_summary_chunks(&summary(), false).join(SEP)"
+---
+全昇進、全特化の合計消費:```
+龍門幣 × 12000
+上級作戦記録 × 24.500
+技巧概論 × 0```
+
+----- chunk -----
+実装済モジュールの合計消費:```
+モジュールデータ × 3
+データ増幅装置 × 1.500```
+
+----- chunk -----
+全合計の中級素材換算:```
+ポリケトン × 18.250
+RMA70-12 × 9
+糖 × 4```
+
+----- chunk -----
+合計理性価値(補完チップ系抜き):12345.678
+
+----- chunk -----
+源石換算 : 91.449
+
+----- chunk -----
+日本円換算 : 5226 円

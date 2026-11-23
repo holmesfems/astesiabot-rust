@@ -1,0 +1,5 @@
+---
+source: src/bot/services/recruit/local_ocr.rs
+expression: "summary_message(&sample_stats(), LocalOcrMode::Off)"
+---
+[local_ocr] 直近の集計（off）: 日本語版 読めた 8/10

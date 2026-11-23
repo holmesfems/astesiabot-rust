@@ -22,6 +22,8 @@ cargo run                        # bot + API（.env の環境変数が要る。�
 cargo run --bin serve_web        # Web UI だけ（bot・外部取得なし、.env 不要。WEB_UI_PORT 既定3001、127.0.0.1のみ）
 cargo run --bin regen_seeds      # data/seed/*.json を作り直す（週1で自動 PR が来るので、手で回すのは急ぐときだけ）
 $env:UPDATE_GOLDEN=1; cargo test risei_golden; Remove-Item Env:UPDATE_GOLDEN  # Seed を作り直したら理性価値表の golden も出し直す
+$env:INSTA_UPDATE="always"; cargo test; Remove-Item Env:INSTA_UPDATE  # bot の文面の snapshot（snapshots/*.snap）を出し直す。差分を見てから commit
+cargo mutants --file <ファイル> -j 4 -o $env:TEMP -- --lib  # テストが変化に気づけない所を探す（手元専用・時間がかかる。リファクタリングの前に）
 cargo run --bin regen_uranai_tools  # 占い館の data/uranai/toolList.yaml を作り直す
 # 公開求人のローカル OCR のテンプレート作り直し（手元のスクショが要る。詳しくは src/engine/recruit/CLAUDE.md）
 cargo run --release --bin cut_tag_boxes; cargo run --release --bin fit_tag_templates -- --export data/recruitment/tag_templates
@@ -102,6 +104,11 @@ bot と api が engine に依存する。だから同じ計算を Discord でも
   レビューを受け、承認されてから実装する。
 - **計算と表示を分ける**: 計算関数は DTO を返し、整形（Discord embed、AI 向け文字列、JSON 応答）は
   呼び出し側に置く。
+- **リファクタリングでは挙動を変えない**: 既存のテスト・golden・snapshot は書き換えない（足すのはよい）。
+  書き換えが要るなら挙動が変わっているので、リファクタリングと分けて理由を書く。整形（`cargo fmt`）・
+  `cargo clippy --fix`・コードの移動だけの変更は、ロジックの変更と別の commit にする。触る前に
+  `cargo mutants` でその範囲を調べ、生き残った変異（壊してもテストが落ちない所）にテストを足してから始める。
+  bot の文面の snapshot は手で作った DTO から作る（Seed を使うと週1の Seed の PR が毎回落ちる）。
 - **挙動はコード、意図はテストで守る**: コメントには、コードから読み取れない「なぜ」だけを書く。
   中で完結して結果を確かめられる約束（並び順・分割位置・丸め方など）はコメントでなくテストにする。
   外の制約（Heroku・Discord の API・OCR のクセなど）と、速さ・設計の判断はコメントに残す。

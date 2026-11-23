@@ -1,0 +1,5 @@
+---
+source: src/bot/services/recruit/local_ocr.rs
+expression: "summary_message(&sample_stats(), LocalOcrMode::Shadow)"
+---
+[local_ocr] 直近の shadow 集計: 6 枚 / 一致 2 / 不一致 1 / Googleがタグ無し 1 / ローカル不確か 2（download_failed=1, grid_not_found=1） / 日本語版 読めた 8/10

@@ -745,6 +745,44 @@ mod tests {
         );
     }
 
+    fn sample_stats() -> ShadowStats {
+        let mut s = ShadowStats::default();
+        for c in [
+            Comparison::Agree,
+            Comparison::Agree,
+            Comparison::Disagree,
+            Comparison::GoogleNoTags,
+            Comparison::LocalUnsure(LocalUnsure::Ocr(UnsureReason::GridNotFound)),
+            Comparison::LocalUnsure(LocalUnsure::Download),
+        ] {
+            s.record(&c);
+        }
+        s.jp_read = 8;
+        s.jp_miss = 2;
+        s
+    }
+
+    #[test]
+    fn snapshot_summary_messages() {
+        insta::assert_snapshot!(
+            "local_ocr_summary_shadow",
+            summary_message(&sample_stats(), LocalOcrMode::Shadow)
+        );
+        insta::assert_snapshot!(
+            "local_ocr_summary_off",
+            summary_message(&sample_stats(), LocalOcrMode::Off)
+        );
+    }
+
+    #[test]
+    fn snapshot_miss_alert_message() {
+        let links = vec![
+            "https://discord.com/channels/1/2/3".to_string(),
+            "https://discord.com/channels/1/2/4".to_string(),
+        ];
+        insta::assert_snapshot!("local_ocr_miss_alert", miss_alert_message(3, &links));
+    }
+
     #[test]
     fn miss_watch_alerts_once_per_streak() {
         let mut w = MissWatch::new();

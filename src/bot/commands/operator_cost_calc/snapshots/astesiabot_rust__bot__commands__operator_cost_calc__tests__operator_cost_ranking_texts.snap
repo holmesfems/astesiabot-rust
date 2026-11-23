@@ -1,0 +1,6 @@
+---
+source: src/bot/commands/operator_cost_calc/mod.rs
+expression: "format!(\"{}\n{}\", mastery_ranking_text(&pos), elite_ranking_text(&pos))"
+---
+星6スキル87個中、第12位の消費です
+星6オペレーター87名中、第12位の消費です

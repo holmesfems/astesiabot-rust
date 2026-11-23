@@ -217,3 +217,107 @@ pub async fn operatorcostlist(
     let reply = cost_list_reply(&state, &selection, only_recent.unwrap_or(false)).await;
     send_reply(ctx, reply).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::operator_cost_calc::dto::ItemCostView;
+
+    const SEP: &str = "\n----- chunk -----\n";
+
+    fn items(list: &[(&str, f64)]) -> Vec<(String, f64)> {
+        list.iter().map(|(n, c)| (n.to_string(), *c)).collect()
+    }
+
+    fn entry(rank: usize, name: &str, risei_value: f64) -> RankedEntry {
+        RankedEntry {
+            rank,
+            name: name.to_string(),
+            risei_value,
+        }
+    }
+
+    fn view(risei_value: f64, list: &[(&str, f64)]) -> ItemCostView {
+        ItemCostView {
+            risei_value,
+            items: items(list),
+        }
+    }
+
+    fn summary() -> CostSummaryDto {
+        CostSummaryDto {
+            operator_names: vec!["アーミヤ".into(), "ロスモンティス".into(), "ケルシー".into()],
+            total_items: items(&[("龍門幣", 12000.0), ("上級作戦記録", 24.5), ("技巧概論", 0.0)]),
+            eq_items: items(&[("モジュールデータ", 3.0), ("データ増幅装置", 1.5)]),
+            combined_r2_items: items(&[("RMA70-12", 9.0), ("ポリケトン", 18.25), ("糖", 4.0)]),
+            total_risei_value: 12345.678,
+        }
+    }
+
+    fn ranking() -> Vec<RankedEntry> {
+        vec![
+            entry(1, "アーミヤ S3", 812.3456),
+            entry(2, "とても長い名前のオペレーターのスキル三", 700.0),
+            entry(3, "ケルシー S2", 0.0),
+        ]
+    }
+
+    #[test]
+    fn snapshot_elite_ranking_chunks() {
+        let dto = EliteRankingDto {
+            star: 6,
+            total_count: 3,
+            entries: ranking(),
+        };
+        insta::assert_snapshot!(
+            "operatorcostlist_elite_ranking",
+            elite_ranking_chunks(&dto).join(SEP)
+        );
+    }
+
+    #[test]
+    fn snapshot_cost_summary_chunks() {
+        insta::assert_snapshot!(
+            "operatorcostlist_cost_summary_unimplemented",
+            cost_summary_chunks(&summary(), true).join(SEP)
+        );
+        insta::assert_snapshot!(
+            "operatorcostlist_cost_summary_implemented",
+            cost_summary_chunks(&summary(), false).join(SEP)
+        );
+    }
+
+    #[test]
+    fn snapshot_master_stats_full_chunks() {
+        let dto = MasterStatsFullDto {
+            star: 6,
+            skill_nums: 3,
+            heaviest_name: "アーミヤ S3".into(),
+            heaviest: view(812.3456, &[("技巧概論", 6.0), ("龍門幣", 2.5)]),
+            top10_heaviest: ranking(),
+            lightest_name: "ケルシー S2".into(),
+            lightest: view(10.0, &[("戦術演習", 3.0)]),
+            top10_lightest: vec![entry(3, "ケルシー S2", 10.0), entry(2, "ホシグマ S1", 20.55)],
+            average_risei: 340.125,
+        };
+        insta::assert_snapshot!(
+            "operatorcostlist_master_stats_full",
+            master_stats_full_chunks(&dto).join(SEP)
+        );
+    }
+
+    #[test]
+    fn snapshot_master_stats_recent_chunks() {
+        let dto = MasterStatsRecentDto {
+            star: 5,
+            skill_nums: 51,
+            entries: (1..=51)
+                .map(|i| entry(i, &format!("オペレーター{i} S1"), 1000.0 / i as f64))
+                .collect(),
+        };
+        insta::assert_snapshot!(
+            "operatorcostlist_master_stats_recent",
+            master_stats_recent_chunks(&dto).join(SEP)
+        );
+    }
+}

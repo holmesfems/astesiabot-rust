@@ -1,0 +1,11 @@
+---
+source: src/bot/commands/operator_cost_calc/operatorcostlist.rs
+expression: elite_ranking_chunks(&dto).join(SEP)
+---
+オペレーター総数:3
+SoCは以下の計算に含まれません:
+----- chunk -----
+```
+1. アーミヤ S3 : 812.346
+2. とても長い名前のオペレーターのスキル三 : 700.000
+3. ケルシー S2 : 0.000```

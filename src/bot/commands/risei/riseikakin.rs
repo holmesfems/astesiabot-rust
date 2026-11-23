@@ -263,6 +263,73 @@ mod tests {
     use std::sync::Arc;
     use tower::ServiceExt;
 
+    fn jst(s: &str) -> Option<chrono::NaiveDateTime> {
+        chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn pack(
+        name: &str,
+        price: f64,
+        period: (Option<&str>, Option<&str>),
+        total_value: f64,
+        total_originium: f64,
+        total_real_money: f64,
+        total_efficiency: f64,
+        gacha_count: f64,
+        gacha_efficiency: f64,
+    ) -> KakinPack {
+        KakinPack {
+            name: name.to_string(),
+            price,
+            start: period.0.and_then(jst),
+            end: period.1.and_then(jst),
+            contents: vec![("龍門幣".to_string(), 12000.0)],
+            total_value,
+            total_originium,
+            total_real_money,
+            total_efficiency,
+            gacha_count,
+            gacha_efficiency,
+        }
+    }
+
+    fn sample_limited() -> Vec<KakinPack> {
+        vec![
+            pack("新年限定パック", 6000.0, (Some("2020-01-01 16:00"), Some("2099-01-15 03:59")), 5432.1, 40.25, 9876.54, 1.6459, 12.5, 0.8123),
+            pack("開催前の予告パック", 3000.0, (Some("2099-01-01 16:00"), Some("2099-02-01 03:59")), 1000.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            pack("期間なしの極めて長い名前のスペシャルアニバーサリーパック", 9800.0, (None, None), 10000.0, 100.0, 12345.678, 1.2599, 30.0, 1.0),
+        ]
+    }
+
+    fn sample_constants() -> Vec<KakinPack> {
+        vec![
+            pack("10000円恒常パック", 10000.0, (None, None), 8000.0, 80.0, 10000.0, 1.0, 20.0, 1.0),
+            pack("月パック", 600.0, (None, None), 700.5, 6.0, 920.0, 1.5333, 0.0, 0.0),
+        ]
+    }
+
+    #[test]
+    fn snapshot_value_block() {
+        let text = sample_limited()
+            .iter()
+            .map(value_block)
+            .collect::<Vec<_>>()
+            .join("
+----- block -----
+");
+        insta::assert_snapshot!("riseikakin_value_block", text);
+    }
+
+    #[test]
+    fn snapshot_total_comparison_chunks() {
+        let text = total_comparison_chunks(&sample_limited(), &sample_constants())
+            .join("
+----- chunk -----
+");
+        insta::assert_snapshot!("riseikakin_total_comparison", text);
+    }
+
     /// embedの1チャンク(`name:```...```\n`)→(パック名, 項目名→値文字列)。
     fn parse_pack_chunk(chunk: &str) -> (String, HashMap<String, String>) {
         let (name, block) = chunk.split_once(":```\n").expect("パックのチャンク");

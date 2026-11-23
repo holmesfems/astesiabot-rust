@@ -111,3 +111,30 @@ pub async fn riseilists(
     )
     .await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snapshot_ticket_list_chunks() {
+        let list = vec![
+            TicketEfficiency {
+                name_ja: "上級作戦記録".into(),
+                efficiency: 1.2345,
+                std_dev: 0.0123,
+            },
+            TicketEfficiency {
+                name_ja: "とても長い名前の昇進素材".into(),
+                efficiency: 0.5,
+                std_dev: 0.0,
+            },
+        ];
+        insta::assert_snapshot!(
+            "riseilists_ticket_list",
+            ticket_list_chunks(list).join("
+----- chunk -----
+")
+        );
+    }
+}
