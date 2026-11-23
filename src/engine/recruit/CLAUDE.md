@@ -4,16 +4,12 @@ OCR の生テキストからタグを抜き出し、組み合わせごとの確�
 bot にも api にも依存しない。入力のプールは `external_source::recruit_pool` の DTO
 （作り方は `src/engine/external_source/CLAUDE.md`）。
 
-| ファイル | 役割 |
-|---|---|
-| `mod.rs` | `RecruitEngine`。`data()` で Arc のスナップショット、日次更新で `rebuild(pool)` して丸ごと差し替え |
-| `matcher.rs` | OCR 生テキスト → タグ（fancy-regex、3言語辞書＋誤字補正） |
-| `calc.rs` | タグ計算（ピックアップ対応。プールの jp = main、cn_only = future） |
-| `format.rs` | 出力整形（`display_chunks` / `response_for_ai` / `make_title` / 分割） |
-| `tag_ocr/` | ローカルのタグ枠 OCR（下記）。画像 → 枠 5 個のタグ（`TagOcr::read`）。bot の `local_ocr.rs` から使う |
-| `jp_release.rs` | CN 追加分の JP 反映日（`data/recruitment/jp_release.yaml`。`include_str!`） |
+流れは OCR の生テキスト → `matcher.rs`（タグ）→ `calc.rs`（計算）→ `format.rs`（整形）。
+画像から直接タグを読むローカル OCR は `tag_ocr/`（下記）。
 
 ## 守ること
+
+- **データは丸ごと差し替える**: `RecruitEngine` は Arc のスナップショットを返し、日次更新では作り直したものと入れ替える。
 
 - **matcher の補正辞書は資産**: Google Vision と Apple OCR の実データで調整してあり、99%以上通る。
   辞書や正規表現を変えるときは既存の挙動を崩さない。
@@ -35,13 +31,7 @@ bot にも api にも依存しない。入力のプールは `external_source::r
 `TagOcrResult::Read`、それ以外は `Unsure { reason, boxes }`（グリッド無し・低スコア・重複）で Google Vision に回す。
 英語・大陸版・モニターを撮った写真は枠が見つからないか自信が出ないので、自然に Google に落ちる。
 
-| ファイル | 役割 |
-|---|---|
-| `detect.rs` | 枠 5 個の検出（縮小コピーで色の候補 → 等間隔グリッド）と切り抜き |
-| `feature.rs` | 枠 → 文字だけの特徴（192x64）と類似度（位置ずれを許す正規化相互相関） |
-| `score.rs` | テンプレートとの採点。紛らわしい組（近距離/遠距離など）は違う画素だけで再判定 |
-| `store.rs` | テンプレートの保存形式の読み書き。書き出しは手元ツールだけ |
-| `mod.rs` | `TagOcr::load` / `read` / `analyze` と DTO（`TagOcrResult`・`BoxScore`・`UnsureReason`） |
+入口は `tag_ocr/mod.rs` の `TagOcr::read`。処理は検出（`detect.rs`）→ 特徴（`feature.rs`）→ 採点（`score.rs`）の順。
 
 - テンプレートは `data/recruitment/tag_templates/`（コミットする。約 140KB）。代表（prototype）1 つにつき
   グレースケール PNG 1 枚（`<タグ>_<番号>.png`、画素値 = 特徴値を 0..255 に量子化）と `meta.json`

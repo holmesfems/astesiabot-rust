@@ -14,17 +14,10 @@ bot にも api にも依存しない。fetch 失敗の扱いと Seed の運用�
 
 ## 情報源
 
-| ファイル | 中身 | Seed |
-|---|---|---|
-| `ark_stages.rs` / `ark_matrix.rs` | penguin-stats の `/stages` / `/result/matrix`（matrix は CN 固定）。集計は risei_calculator_engine 側 | `ark_stages.json` / `ark_matrix.json` |
-| `formulas.rs` / `item_names.rs` / `zones.rs` | 合成レシピ / アイテムの id・中国語名・日本語名 / zoneId → 日本語名 | 同名 `.json` |
-| `operator_data.rs` | オペレーター CN→JA 名＋昇進/特化/モジュールの消費素材（character_table / uniequip_table / char_patch_table を1回で） | `operator_data.json` |
-| `operator_combat.rs` | フレームキル計算機用の戦闘データ（ATK・信頼度・潜在ランク別 ATK・モジュール・素質・昇進ごとの Lv/ATK・nationId・スキル解放昇進） | `operator_combat.json` |
-| `skill_data/` | スキル名・説明文・blackboard（最大Lv / Lv別）・`is_ammo_skill` | `skill_data.json` |
-| `fk_data.rs` | FK 情報スプレッドシート（Google Sheets API v4）の行データ。`FK_SHEETS_*` を使う | `fk_data.json` |
-| `recruit_pool.rs` | 公開求人のプール（`jp` / `cn_only`） | `recruit_pool.json` |
-| `operator_birthdays.rs` | オペレーターの誕生日 | `operator_birthdays.json` |
-| `jp_first_seen.rs` | JP に初めて現れた日の記録（Source ではない。下記） | `jp_first_seen.json` |
+一覧は `mod.rs` の `SEED_JOBS`。情報源ごとに1ファイル（または1フォルダ）で、Seed は `data/seed/` の同じ名前の `.json`。
+
+- penguin-stats の matrix は CN 固定で取る。ステージごとの集計は risei_calculator_engine 側でする。
+- `jp_first_seen` は Source ではない（下記）。
 
 `data/seed/operator_names.json` は統合前の古い Seed。regen_seeds では更新しないが、
 名前解決が壊れていないかのゴールデン参照として意図的に残している。

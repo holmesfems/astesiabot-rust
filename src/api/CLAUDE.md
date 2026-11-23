@@ -40,8 +40,8 @@
   理性効率動画づくりで Claude が叩く）。engine の DTO をそのまま JSON で返し、エラーは常に JSON で
   `did_you_mean` / `usage` を添える。`GET /api/risei` が使い方一覧（`ENDPOINTS` 表）。
   `router(RiseiApiState { risei, external_source })` を run_api が merge する（serve_web には無い）。
-  `operators/*` は `server` 引数を持たず、bot と同じく `cn_only` で換算サーバを切り替える。
-  `lists/kakin` はグローバル版のみ（mainland は400）で、`baselines` / `packs` を返す
+  `/api/risei/operators/*` は `server` 引数を持たず、bot と同じく `cn_only` で換算サーバを切り替える。
+  `/api/risei/lists/kakin` はグローバル版のみ（mainland は400）で、`baselines` / `packs` を返す
   （計算は `engine/risei_calculator_engine/kakin.rs` を bot と共有）。
 - `risei_skill/SKILL.md` … API の使い方スキルの正本。`GET /api/risei/skill.zip`（`skill_router()`。
   状態不要なので web_ui_router に載せる）がリクエスト毎に zip にする。
@@ -52,7 +52,7 @@
   ＝全ページの `<head>` に必須 / `og_square_image.html` ＝ home 以外が使う正方形 og:image。
   include 先の struct に `base` が要る）。
 - **askama の `dirs` はフラットに解決される**ので、テンプレート名はモジュールごとに前置する
-  （`ef_*` / `wl_*` / `lod_*` / `fkc_*` / `home_*`）。素の `index.html` などは他と衝突する。
+  （`ef_*` / `wl_*` / `lod_*` / `fkc_*` / `home_*`）。前置の無い名前（index.html など）は他と衝突する。
 - **lod_chest_solver は言語ごとに別 URL・別 HTML**（1URL=1言語）。クローラに両言語の
   中身を見せるため、静的ラベルは各言語テンプレートに直書きし、JS で差し替えない
   （localStorage / navigator.language / Accept-Language での振り分けもしない。重複扱いされ得る）。

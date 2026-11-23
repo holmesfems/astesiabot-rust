@@ -17,20 +17,15 @@ bot にも api にも依存しない。画面側（engine.js / ui.js）は
 持つなど、機械的に正しく判定できない実データがあるため。DTO の `Valued<T>{value,source}` が
 各値の出所（`Auto` / `Manual`）を持ち、画面の「補正」バッジに使う。
 
-## ファイル
+## どこから読むか
 
-| ファイル | 役割 |
-|---|---|
-| `mod.rs` | `build_catalog` |
-| `entry.rs` | `build_entry`、`build_combined_entry`、`resolve_multiplier_defaults` |
-| `inspire.rs` | `build_inspire_sources` |
-| `validate.rs` | 各種 `validate_*`（ドリフト検知） |
-| `conditional_source.rs` | バフの値をゲームデータから解決して値テーブルを作る（`build_conditional_sourced_buffers` / `build_individual_sourced_buffers` → 共通の `build_source`）。アルゴリズムはファイル冒頭コメント |
-| `dto.rs` | `Catalog` / `CatalogOperator` / `FkEntry` / `FkPart` / `Buffer` / `InspireSource` / `Conditional*Source` 等。JSON は camelCase |
-| `tags.rs` | profession/position/nationId からタグ・ダメージ種別の初期値を推測。`tag_vocabulary()`（全タグ語彙。YAML のタグのドリフト検知用）、`faction_tag_for`（今はラテラーノのみ） |
-| `overrides.rs` / `buffers.rs` | 上記 YAML のロード。`buffers.rs` の `raw_conditional_sourced()` / `raw_individual_sourced()` / `raw_inspire_sources()` は生データだけ返し、ゲームデータとのマージは `mod.rs` / `conditional_source.rs` 側（2段構え） |
+入口は `mod.rs` の `build_catalog`。バフの値をゲームデータから解決する手順は `conditional_source.rs` の冒頭コメント。
 
 ## 守ること
+
+- **YAML の読み込みとマージを分ける**: `buffers.rs` / `overrides.rs` は YAML の生データだけを返し、
+  ゲームデータとのマージは `mod.rs` / `conditional_source.rs` でする。
+- **DTO の JSON は camelCase**（画面の JS がその名前で読む）。
 
 - **名前解決**: fk_data シート → ゲームデータは、全角/半角括弧と前後空白を
   `normalize_operator_name` で正規化してから引く。解決できない名前は `skipped` に集める。

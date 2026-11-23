@@ -3,19 +3,18 @@
 `/FrameKillCalculator`。日本語専用（/en 無し）。カタログを組み立てるデータ層は
 `src/engine/fk_kill_calc/CLAUDE.md` を参照。
 
-## ファイル
+## どこから読むか
 
-| ファイル | 役割 |
-|---|---|
-| `mod.rs` | `page_router()`（ページ本体＋`/static` と版つきの `/static/v2`。どちらも `Cache-Control: no-cache`）と `catalog_router(provider)`（`GET .../catalog.json`） |
-| `templates/fkc_index.html` | toolnav / head_icons / og_square_image を include。SEO タグは `base_url()` から |
-| `static/engine.js` | 計算層の入口。公開する名前の一覧と、単位の約束（冒頭コメント）だけを持つ |
-| `static/engine/` | 計算層の実体。`document` / `window` を参照しない（verify.mjs が確かめる）。`entry`（カタログの引き方・スキルLv別の値・特殊強化・行の初期値）/ `stats`（ATK・昇進・モジュール）/ `buffs` / `inspire` / `damage` / `stone_board` / `sanitize`（`dropStaleRows`）/ `suggest` |
-| `static/ui.js` | 表現層の入口。`initUi` だけを持つ |
-| `static/ui/` | 表現層の実体。`store`（状態・保存・共有 URL）/ `dom`（小道具）/ `page_view`（敵欄・折りたたみ行・全体バフ・判定欄・`render`）/ `row_view`（行の展開ビュー）/ `formula_view` / `inspire_view` / `buff_view` / `events`。engine は入口の `../engine.js` から import する |
-| `static/style.css` | 420px 想定の縦長1カラム、ダーク固定（配色トークンは `home_index.html` の `:root`） |
-| `static/lz-string.min.js` | 1.5.0, MIT |
-| `verify.mjs` / `e2e.mjs` | 計算層の検証 / Playwright での実機テスト。実行方法はルートの CLAUDE.md |
+- 計算層は `static/engine.js`（入口。公開する名前と単位の約束を冒頭コメントに持つ）と `static/engine/`。
+- 表現層は `static/ui.js`（入口）と `static/ui/`。状態・保存・共有 URL は `static/ui/store.js`。
+- ルーターは `mod.rs`。計算層は `verify.mjs`、画面は `e2e.mjs` で確かめる（実行方法はルートの CLAUDE.md）。
+
+## 層の約束
+
+- **計算層は `document` / `window` を参照しない**（verify.mjs が node で読み込むため）。
+- **表現層は計算層を入口の `../engine.js` からだけ import する**。
+- 画面は 420px 想定の縦長1カラム・ダーク固定。配色トークンは `home_index.html` の `:root` にある。
+- `static/lz-string.min.js` は外から持ってきたもの（1.5.0, MIT）。手で直さない。
 
 ## static の版つき URL と no-cache
 
