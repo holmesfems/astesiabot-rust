@@ -1,0 +1,34 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
+  "files": {
+    "includes": [
+      "src/api/ef_recipe_calculator/**/*.{js,mjs}",
+      "src/api/wl_battery_simulator/**/*.{js,mjs}",
+      "src/api/lod_chest_solver/**/*.{js,mjs}",
+      "src/api/fk_kill_calculator/**/*.{js,mjs}",
+      "!**/*.min.js"
+    ]
+  },
+  "formatter": {
+    "enabled": false
+  },
+  "assist": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "performance": {
+        "useDomNodeTextContent": "off"
+      },
+      "complexity": {
+        "useOptionalChain": "off",
+        "noUselessLoneBlockStatements": "off"
+      },
+      "style": {
+        "useTemplate": "off"
+      }
+    }
+  }
+}

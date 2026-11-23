@@ -41,12 +41,16 @@ cargo run --release --bin fit_tag_templates  # 箱とタグの対応を決めて
 & "C:\Program Files\nodejs\node.exe" src/api/ef_recipe_calculator/e2e.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/wl_battery_simulator/verify.mjs
 & "C:\Program Files\nodejs\node.exe" src/api/wl_battery_simulator/e2e.mjs
+& "$env:LOCALAPPDATA\biome-2.6.6\biome-win32-x64.exe" lint   # JS の lint（設定は biome.json。CI は biome ci --error-on-warnings）
 ```
 
 - 変更したら `cargo test`・`verify.mjs`（計算層。DOM 非依存のモジュールを import）・`e2e.mjs`
   （表現層。Playwright で実ブラウザ）を通し、必要なら実際に画面や Discord で触って確かめる。
-- PR と master への push で CI（`.github/workflows/ci.yml`。Ubuntu で `cargo fmt --check`・clippy `-D warnings`・`cargo test`・
+- PR と master への push で CI（`.github/workflows/ci.yml`。Ubuntu で `cargo fmt --check`・clippy `-D warnings`・`cargo test`・Biome・
   verify.mjs）が回る。e2e.mjs は Windows 専用なので CI に無く、手元で回す。
+- JS の lint は Biome（単体の実行ファイル。node_modules は要らない）。版は CI（`setup-biome` の version）と
+  `biome.json` の `$schema` に揃え、手元は GitHub の公式リリースの `biome-win32-x64.exe` を上の場所に置く。
+  整形（formatter）はかけない。見た目だけのルールは切ってあり、使っていない変数・import などを拾う。
 - 依存の脆弱性は `.github/workflows/audit.yml`（`cargo audit`。PR・master・週1）で見る。必須チェックではない。
   赤くなったらまず `cargo update -p <crate>` で直るか試し、直せないものだけ `.cargo/audit.toml` に
   理由と外せる条件を書いて ignore する。
