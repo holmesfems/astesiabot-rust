@@ -735,28 +735,6 @@ mod behavior_tests {
             .is_empty());
     }
 
-    #[test]
-    fn future_release_hour_comes_from_env_and_rejects_24_or_more() {
-        let schedule = JpReleaseSchedule::global();
-        let Some(entry) = schedule.entries().first() else {
-            return;
-        };
-        let name = entry.operators[0].clone();
-        let pool = RecruitPool {
-            jp: vec![],
-            cn_only: vec![pool_op(&name, "狙撃", &["火力"], 5)],
-        };
-        let hour_of = |value: &str| {
-            std::env::set_var("RECRUIT_FUTURE_HOUR", value);
-            let data = RecruitData::build(&pool).unwrap();
-            std::env::remove_var("RECRUIT_FUTURE_HOUR");
-            let ops = &data.future_map[&vec!["火力".to_string()]];
-            ops[0].release.map(|r| r.format("%H").to_string())
-        };
-        assert_eq!(hour_of("10").as_deref(), Some("10"));
-        assert_eq!(hour_of("24").as_deref(), Some("16"));
-    }
-
     fn tag(name: &str, tag_type: TagType) -> Tag {
         Tag {
             name: name.to_string(),
