@@ -50,11 +50,13 @@ async fn main() {
 
     let moderation = ModerationState::from_env();
     // 外部サイト情報を起動時に一括fetch（失敗時の扱いは Source::load 参照）。
-    let external_source = Arc::new(engine::external_source::ExternalSourceRegistry::load(debug).await);
+    let external_source =
+        Arc::new(engine::external_source::ExternalSourceRegistry::load(debug).await);
     // 求人データは公開求人のプール（external_source）から組み立てる。bot と api で共有し、
     // 日次更新のたびに作り直す（下の refresh ループ）。
-    let recruit_engine = engine::recruit::RecruitEngine::load(&*external_source.recruit_pool.get().await)
-        .expect("求人データのロードに失敗");
+    let recruit_engine =
+        engine::recruit::RecruitEngine::load(&*external_source.recruit_pool.get().await)
+            .expect("求人データのロードに失敗");
     // 理性価値表もここで一括計算（グローバル版・大陸版とも）。
     let risei_calculator = Arc::new(
         engine::risei_calculator_engine::RiseiCalculatorEngine::load_or_seed(&external_source)
@@ -83,7 +85,9 @@ async fn main() {
                 refresh_state.external_source.refresh_all().await;
                 let pool = refresh_state.external_source.recruit_pool.get().await;
                 if let Err(e) = refresh_state.recruit.rebuild(&pool) {
-                    eprintln!("[recruit] 公開求人プールからの再構築に失敗、直前のデータを保持します: {e}");
+                    eprintln!(
+                        "[recruit] 公開求人プールからの再構築に失敗、直前のデータを保持します: {e}"
+                    );
                 }
             }
         });
@@ -95,7 +99,10 @@ async fn main() {
             let interval = engine::risei_calculator_engine::REFRESH_INTERVAL;
             loop {
                 tokio::time::sleep(interval).await;
-                risei_state.risei_calculator.refresh(&risei_state.external_source).await;
+                risei_state
+                    .risei_calculator
+                    .refresh(&risei_state.external_source)
+                    .await;
             }
         });
     }

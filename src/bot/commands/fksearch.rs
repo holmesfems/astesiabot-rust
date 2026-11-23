@@ -26,7 +26,7 @@ fn display_name(skill_num: &str, skill_name: &str) -> String {
     }
 }
 
-pub async fn fk_parse_payload_reply(state: &AppState, payload: &str, reply: &str) -> EmbedReply{
+pub async fn fk_parse_payload_reply(state: &AppState, payload: &str, reply: &str) -> EmbedReply {
     let name = payload;
     let skill_num = reply.trim();
     println!("[fk_parse_payload_reply] operator_name={name:?} skill_num={skill_num:?}");
@@ -119,7 +119,11 @@ async fn autocomplete_operator_name(
 /// （`bot/commands/operator_cost_calc/mod.rs`の同名関数を参照）。
 async fn send_reply(ctx: Context<'_>, reply: EmbedReply) -> Result<(), Error> {
     for batch in to_embed_batches(&reply) {
-        ctx.send(poise::CreateReply { embeds: batch, ..Default::default() }).await?;
+        ctx.send(poise::CreateReply {
+            embeds: batch,
+            ..Default::default()
+        })
+        .await?;
     }
     Ok(())
 }

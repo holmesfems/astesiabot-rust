@@ -1,21 +1,20 @@
 //! FK エントリの組み立て（機械データと手動補正のマージ）。
 
+use super::conditional_source;
+use super::dto::{DamageType, FkEntry, FkPart, MultiplierCandidate, Special, StoneBoard, Valued};
+use super::{OverrideSpecial, OverrideStoneBoard, OverrideVariant};
 use crate::engine::external_source::fk_data::FkSheetRow;
 use crate::engine::external_source::operator_combat::RawOperatorCombat;
-use super::dto::{
-    DamageType, FkEntry, FkPart,
-    MultiplierCandidate, Special, StoneBoard, Valued,
-};
 use indexmap::IndexMap;
-use super::conditional_source;
-use super::{OverrideSpecial, OverrideStoneBoard, OverrideVariant};
 
 /// `overrides.yaml`の`special`(手動データ)をDTO(`dto::Special`)へ変換する。
 /// `mul_multiplier`(P8 follow-upで素質値テーブル参照になった)が実データ(`op.talents`)に
 /// 解決できない(talent_index範囲外)場合は`None`を返し、呼び出し側が`skipped`に記録する。
 pub(super) fn to_special_dto(special: &OverrideSpecial, op: &RawOperatorCombat) -> Option<Special> {
     let mul_multiplier = match &special.mul_multiplier {
-        Some(mm) => Some(conditional_source::build_talent_source(op, mm.talent, &mm.key)?),
+        Some(mm) => Some(conditional_source::build_talent_source(
+            op, mm.talent, &mm.key,
+        )?),
         None => None,
     };
     Some(Special {
@@ -29,7 +28,10 @@ pub(super) fn to_special_dto(special: &OverrideSpecial, op: &RawOperatorCombat) 
 
 /// `overrides.yaml`の`stone_board`をDTOへ変換する。`talent`が範囲外なら`None`
 /// (呼び出し側が`skipped`に記録する。`to_special_dto`と同じ方針)。
-pub(super) fn to_stone_board_dto(board: &OverrideStoneBoard, op: &RawOperatorCombat) -> Option<StoneBoard> {
+pub(super) fn to_stone_board_dto(
+    board: &OverrideStoneBoard,
+    op: &RawOperatorCombat,
+) -> Option<StoneBoard> {
     let table = |key: &str| conditional_source::build_talent_source(op, board.talent, key);
     Some(StoneBoard {
         damage_per_stack: table(&board.damage_per_stack_key)?,
@@ -109,8 +111,13 @@ pub(super) fn build_combined_entry(
     let parts: Vec<FkPart> = variants
         .iter()
         .map(|variant| {
-            let (multiplier, multiplier_by_level, multiplier_fixed) =
-                resolve_variant_multiplier(variant, default_multiplier_by_level, default_multiplier, blackboard_by_level, num_levels);
+            let (multiplier, multiplier_by_level, multiplier_fixed) = resolve_variant_multiplier(
+                variant,
+                default_multiplier_by_level,
+                default_multiplier,
+                blackboard_by_level,
+                num_levels,
+            );
             FkPart {
                 label: variant.label.clone().unwrap_or_default(),
                 multiplier,
@@ -126,16 +133,29 @@ pub(super) fn build_combined_entry(
     if let Some(extra) = &head.tags {
         tags_for_head.extend(extra.iter().cloned());
     }
-    let (self_atk_pct, self_atk_pct_by_level, self_atk_pct_fixed) =
-        resolve_variant_self_atk_pct(head, default_self_atk_pct_by_level, default_self_atk_pct, num_levels);
-    let special = head.special.as_ref().and_then(|s| match to_special_dto(s, combat_op) {
-        Some(dto) => Some(dto),
-        None => {
-            skipped.push(format!("special:{op_id}/{}", row.skill_num));
-            None
-        }
-    });
-    let variant_label = Some(variants.iter().filter_map(|v| v.label.clone()).collect::<Vec<_>>().join("+"));
+    let (self_atk_pct, self_atk_pct_by_level, self_atk_pct_fixed) = resolve_variant_self_atk_pct(
+        head,
+        default_self_atk_pct_by_level,
+        default_self_atk_pct,
+        num_levels,
+    );
+    let special = head
+        .special
+        .as_ref()
+        .and_then(|s| match to_special_dto(s, combat_op) {
+            Some(dto) => Some(dto),
+            None => {
+                skipped.push(format!("special:{op_id}/{}", row.skill_num));
+                None
+            }
+        });
+    let variant_label = Some(
+        variants
+            .iter()
+            .filter_map(|v| v.label.clone())
+            .collect::<Vec<_>>()
+            .join("+"),
+    );
     let head_part = parts[0].clone();
 
     let mut entry = build_entry(
@@ -182,9 +202,16 @@ pub(super) fn build_combined_entry(
 /// P7: `blackboard_by_level`の各レベルから`key`の値を取り出した配列を作る(無ければ0.0で
 /// 埋める)。`blackboard_by_level`自体が無ければ`num_levels`個(0なら1個)の0.0配列を返す
 /// (「スキルLv別データが無い＝単一値のフォールバック」を1箇所に集約する)。
-pub(super) fn values_by_level_for_key(blackboard_by_level: Option<&[IndexMap<String, f64>]>, key: &str, num_levels: usize) -> Vec<f64> {
+pub(super) fn values_by_level_for_key(
+    blackboard_by_level: Option<&[IndexMap<String, f64>]>,
+    key: &str,
+    num_levels: usize,
+) -> Vec<f64> {
     match blackboard_by_level {
-        Some(levels) => levels.iter().map(|lv| lv.get(key).copied().unwrap_or(0.0)).collect(),
+        Some(levels) => levels
+            .iter()
+            .map(|lv| lv.get(key).copied().unwrap_or(0.0))
+            .collect(),
         None => vec![0.0; num_levels.max(1)],
     }
 }
@@ -214,7 +241,11 @@ pub(super) fn resolve_variant_multiplier(
         let value = by_level.last().copied().unwrap_or(default_value);
         return (Valued::manual(value), by_level, false);
     }
-    (Valued::auto(default_value), default_by_level.to_vec(), false)
+    (
+        Valued::auto(default_value),
+        default_by_level.to_vec(),
+        false,
+    )
 }
 
 /// バリアントのセルフATK%(Valued値・スキルLv別配列・固定フラグ)を解決する(P7)。
@@ -230,23 +261,39 @@ pub(super) fn resolve_variant_self_atk_pct(
         return (Valued::manual(fixed), vec![fixed; num_levels.max(1)], true);
     }
     if let Some(factor) = variant.self_atk_pct_factor {
-        let by_level: Vec<f64> = default_by_level.iter().map(|v| round4(v * factor)).collect();
-        let value = by_level.last().copied().unwrap_or(round4(default_value * factor));
+        let by_level: Vec<f64> = default_by_level
+            .iter()
+            .map(|v| round4(v * factor))
+            .collect();
+        let value = by_level
+            .last()
+            .copied()
+            .unwrap_or(round4(default_value * factor));
         return (Valued::manual(value), by_level, false);
     }
-    (Valued::auto(default_value), default_by_level.to_vec(), false)
+    (
+        Valued::auto(default_value),
+        default_by_level.to_vec(),
+        false,
+    )
 }
 
 pub(super) fn resolve_multiplier_defaults(
     blackboard: Option<&IndexMap<String, f64>>,
     blackboard_by_level: Option<&[IndexMap<String, f64>]>,
 ) -> (f64, Vec<f64>, Vec<MultiplierCandidate>) {
-    let num_levels = blackboard_by_level.map(|levels| levels.len()).unwrap_or(1).max(1);
+    let num_levels = blackboard_by_level
+        .map(|levels| levels.len())
+        .unwrap_or(1)
+        .max(1);
     let Some(blackboard) = blackboard else {
         return (1.0, vec![1.0; num_levels], Vec::new());
     };
-    let mut candidates: Vec<(String, f64)> =
-        blackboard.iter().filter(|(k, _)| k.contains("scale")).map(|(k, v)| (k.clone(), *v)).collect();
+    let mut candidates: Vec<(String, f64)> = blackboard
+        .iter()
+        .filter(|(k, _)| k.contains("scale"))
+        .map(|(k, v)| (k.clone(), *v))
+        .collect();
     candidates.sort_by(|(a, _), (b, _)| a.cmp(b));
 
     // P7: `candidates`をこの後mutate(先頭への並び替え)するため、chosen_keyは所有権付き
@@ -287,9 +334,16 @@ pub(super) fn resolve_multiplier_defaults(
         .into_iter()
         .map(|(key, _)| {
             let values_by_level = values_by_level_for_key(blackboard_by_level, &key, num_levels);
-            MultiplierCandidate { key, values_by_level }
+            MultiplierCandidate {
+                key,
+                values_by_level,
+            }
         })
         .collect();
 
-    (default_multiplier, default_multiplier_by_level, multiplier_candidates)
+    (
+        default_multiplier,
+        default_multiplier_by_level,
+        multiplier_candidates,
+    )
 }

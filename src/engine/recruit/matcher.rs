@@ -177,8 +177,7 @@ impl Matcher {
                 continue;
             }
             let hit = result.iter().any(|text| {
-                matches_fully(re, text)
-                    || text.split(' ').any(|part| matches_fully(re, part))
+                matches_fully(re, text) || text.split(' ').any(|part| matches_fully(re, part))
             });
             if hit {
                 ret.insert(value.clone());
@@ -221,9 +220,17 @@ mod tests {
     fn lang_is_reported() {
         let m = Matcher::load().unwrap();
         let ja = m.match_tag("近距離\n遠距離\n治療\n火力\n牽制");
-        assert_eq!((ja.lang, ja.matches.len(), ja.is_global), (TagLang::Ja, 5, true));
+        assert_eq!(
+            (ja.lang, ja.matches.len(), ja.is_global),
+            (TagLang::Ja, 5, true)
+        );
         let zh = m.match_tag("近战位\n远程位\n治疗\n输出\n支援");
-        assert_eq!((zh.lang, zh.is_global), (TagLang::Zh, false), "{:?}", zh.matches);
+        assert_eq!(
+            (zh.lang, zh.is_global),
+            (TagLang::Zh, false),
+            "{:?}",
+            zh.matches
+        );
         let none = m.match_tag("hello");
         assert_eq!(none.lang, TagLang::Mixed);
     }

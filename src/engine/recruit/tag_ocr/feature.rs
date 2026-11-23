@@ -85,7 +85,13 @@ fn components(mask: &[bool]) -> Vec<Comp> {
         }
         seen[s] = true;
         stack.push(s);
-        let mut c = Comp { cells: Vec::new(), x0: FW, y0: FH, x1: 0, y1: 0 };
+        let mut c = Comp {
+            cells: Vec::new(),
+            x0: FW,
+            y0: FH,
+            x1: 0,
+            y1: 0,
+        };
         while let Some(i) = stack.pop() {
             c.cells.push(i);
             let (x, y) = (i % FW, i / FW);
@@ -188,7 +194,10 @@ fn blur3(mask: &[bool]) -> Vec<f32> {
             for dy in -1i32..=1 {
                 for dx in -1i32..=1 {
                     let (nx, ny) = (x as i32 + dx, y as i32 + dy);
-                    if (0..FW as i32).contains(&nx) && (0..FH as i32).contains(&ny) && mask[ny as usize * FW + nx as usize] {
+                    if (0..FW as i32).contains(&nx)
+                        && (0..FH as i32).contains(&ny)
+                        && mask[ny as usize * FW + nx as usize]
+                    {
                         s += 1;
                     }
                 }
@@ -210,7 +219,12 @@ pub fn preprocess(img: &RgbImage, center: bool) -> Vec<f32> {
     }
     let diff: Vec<f32> = small
         .pixels()
-        .map(|p| (0..3).map(|c| (p[c] as i32 - med[c] as i32).abs()).max().unwrap() as f32)
+        .map(|p| {
+            (0..3)
+                .map(|c| (p[c] as i32 - med[c] as i32).abs())
+                .max()
+                .unwrap() as f32
+        })
         .collect();
     let thr = text_threshold(&diff);
     let mut mask: Vec<bool> = diff.iter().map(|&d| d >= thr).collect();
@@ -226,7 +240,11 @@ pub fn preprocess(img: &RgbImage, center: bool) -> Vec<f32> {
 /// 平均を引いて長さ 1 にする。全部同じ値（文字なし）は零ベクトル（= 誰とも似ない）。
 pub fn normalize(raw: &[f32]) -> Vec<f32> {
     let mean = raw.iter().sum::<f32>() / raw.len() as f32;
-    let norm = raw.iter().map(|v| (v - mean) * (v - mean)).sum::<f32>().sqrt();
+    let norm = raw
+        .iter()
+        .map(|v| (v - mean) * (v - mean))
+        .sum::<f32>()
+        .sqrt();
     if norm < 1e-6 {
         return vec![0.0; raw.len()];
     }
@@ -289,9 +307,18 @@ mod tests {
 
     #[test]
     fn polarity_does_not_matter() {
-        let white_on_dark = preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), true);
-        let dark_on_yellow = preprocess(&synth_box([255, 216, 0], [20, 20, 20], &BARS_A, 200, 64), true);
-        let yellow_on_dark = preprocess(&synth_box([48, 48, 48], [255, 216, 0], &BARS_A, 200, 64), true);
+        let white_on_dark = preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64),
+            true,
+        );
+        let dark_on_yellow = preprocess(
+            &synth_box([255, 216, 0], [20, 20, 20], &BARS_A, 200, 64),
+            true,
+        );
+        let yellow_on_dark = preprocess(
+            &synth_box([48, 48, 48], [255, 216, 0], &BARS_A, 200, 64),
+            true,
+        );
         let a = normalize(&white_on_dark);
         assert!(similarity(&a, &normalize(&dark_on_yellow)) > 0.95);
         assert!(similarity(&a, &normalize(&yellow_on_dark)) > 0.95);
@@ -299,8 +326,14 @@ mod tests {
 
     #[test]
     fn different_text_is_dissimilar() {
-        let a = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), true));
-        let b = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_B, 200, 64), true));
+        let a = normalize(&preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64),
+            true,
+        ));
+        let b = normalize(&preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_B, 200, 64),
+            true,
+        ));
         assert!(similarity(&a, &b) < 0.6, "{}", similarity(&a, &b));
     }
 
@@ -327,16 +360,28 @@ mod tests {
 
     #[test]
     fn small_offset_is_tolerated_without_centering() {
-        let a = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), false));
+        let a = normalize(&preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64),
+            false,
+        ));
         let shifted: Vec<(u32, u32)> = BARS_A.iter().map(|&(x, w)| (x + 3, w)).collect(); // 縮小後 約 1.4px
-        let b = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &shifted, 200, 64), false));
+        let b = normalize(&preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &shifted, 200, 64),
+            false,
+        ));
         assert!(similarity(&a, &b) > 0.9);
     }
 
     #[test]
     fn similarity_properties() {
-        let a = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64), true));
-        let b = normalize(&preprocess(&synth_box([48, 48, 48], [255, 255, 255], &BARS_B, 200, 64), true));
+        let a = normalize(&preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_A, 200, 64),
+            true,
+        ));
+        let b = normalize(&preprocess(
+            &synth_box([48, 48, 48], [255, 255, 255], &BARS_B, 200, 64),
+            true,
+        ));
         assert!((similarity(&a, &a) - 1.0).abs() < 1e-4);
         assert!((similarity(&a, &b) - similarity(&b, &a)).abs() < 1e-5);
         assert!(similarity(&a, &b) <= 1.0 + 1e-5);

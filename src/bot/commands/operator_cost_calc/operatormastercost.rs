@@ -1,4 +1,4 @@
-use super::{build_context, mastery_ranking_text, fmt_item_block, send_reply};
+use super::{build_context, fmt_item_block, mastery_ranking_text, send_reply};
 use crate::api::AppState;
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};

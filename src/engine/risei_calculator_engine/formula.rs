@@ -52,7 +52,12 @@ impl FormulaItem {
 
     /// 合成時に副産物として得られるアイテムの期待値
     /// （`value_target` に含まれるものだけを対象に、重み比率×ドロップ率で換算）。
-    pub fn to_outcome_array(&self, drop_rate: f64, value_target: &[&str], item_names: &ItemNames) -> ItemArray {
+    pub fn to_outcome_array(
+        &self,
+        drop_rate: f64,
+        value_target: &[&str],
+        item_names: &ItemNames,
+    ) -> ItemArray {
         let filtered = self.outcome_array.filter_by_zh(value_target, item_names);
         let total = filtered.total_count();
         if total.abs() < f64::EPSILON {

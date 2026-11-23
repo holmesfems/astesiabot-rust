@@ -1,4 +1,7 @@
-use super::{build_reference_block, build_stage_export_row, fmt_percent, send_reply_with_attachment, server_from_bool};
+use super::{
+    build_reference_block, build_stage_export_row, fmt_percent, send_reply_with_attachment,
+    server_from_bool,
+};
 use crate::bot::data::{Context, Error};
 use crate::bot::reply::{EmbedReply, MsgType};
 use crate::bot::utils::xlsx::build_stage_export_xlsx;
@@ -13,10 +16,7 @@ const STAGE_XLSX_FILENAME: &str = "StageDrop.xlsx";
 /// (大陸版が最も先行しておりステージ数が多いため)。
 async fn autocomplete_stage(ctx: Context<'_>, partial: &str) -> Vec<serenity::AutocompleteChoice> {
     let state = ctx.data().state.clone();
-    let snapshot = state
-        .risei_calculator
-        .snapshot(Server::Mainland)
-        .await;
+    let snapshot = state.risei_calculator.snapshot(Server::Mainland).await;
     snapshot
         .auto_complete_main_stage(partial, 25)
         .into_iter()
@@ -33,8 +33,7 @@ pub async fn riseistages(
     stage: String,
     #[description = "True:グローバル版基準の計算(デフォルト)、False:大陸版の新ステージと新素材を入れた計算"]
     is_global: Option<bool>,
-    #[description = "true:ドロップ率データをxlsxで添付"]
-    csv_file: Option<bool>,
+    #[description = "true:ドロップ率データをxlsxで添付"] csv_file: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
     let requested_server = server_from_bool(is_global.unwrap_or(true));
@@ -95,17 +94,24 @@ pub async fn riseistages(
                     .risei_calculator
                     .snapshot(result.effective_server)
                     .await;
-                let category_dict =
-                    stage_category_dict(state.risei_calculator.stage_category(), result.effective_server);
-                let (columns, value_row, base_stage_row) = build_reference_block(&snapshot, &category_dict);
+                let category_dict = stage_category_dict(
+                    state.risei_calculator.stage_category(),
+                    result.effective_server,
+                );
+                let (columns, value_row, base_stage_row) =
+                    build_reference_block(&snapshot, &category_dict);
                 let column_refs: Vec<&str> = columns.iter().map(String::as_str).collect();
                 let rows: Vec<_> = result
                     .stages
                     .iter()
                     .map(|s| build_stage_export_row(&s.raw, &snapshot, s.name.clone()))
                     .collect();
-                let bytes = build_stage_export_xlsx(&column_refs, &value_row, &base_stage_row, &rows)?;
-                Some(serenity::CreateAttachment::bytes(bytes, STAGE_XLSX_FILENAME))
+                let bytes =
+                    build_stage_export_xlsx(&column_refs, &value_row, &base_stage_row, &rows)?;
+                Some(serenity::CreateAttachment::bytes(
+                    bytes,
+                    STAGE_XLSX_FILENAME,
+                ))
             } else {
                 None
             };

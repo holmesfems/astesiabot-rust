@@ -63,7 +63,8 @@ fn price() -> &'static HashMap<String, f64> {
 fn price_special() -> &'static HashMap<String, f64> {
     static PRICE_SPECIAL: OnceLock<HashMap<String, f64>> = OnceLock::new();
     PRICE_SPECIAL.get_or_init(|| {
-        let s = std::fs::read_to_string(PRICE_SPECIAL_PATH).expect("price_special.yamlの読み込みに失敗しました");
+        let s = std::fs::read_to_string(PRICE_SPECIAL_PATH)
+            .expect("price_special.yamlの読み込みに失敗しました");
         serde_saphyr::from_str(&s).expect("price_special.yamlのパースに失敗しました")
     })
 }
@@ -71,7 +72,8 @@ fn price_special() -> &'static HashMap<String, f64> {
 fn price_cc() -> &'static Vec<CCExchangeItem> {
     static PRICE_CC: OnceLock<Vec<CCExchangeItem>> = OnceLock::new();
     PRICE_CC.get_or_init(|| {
-        let s = std::fs::read_to_string(PRICE_CC_PATH).expect("price_cc.yamlの読み込みに失敗しました");
+        let s =
+            std::fs::read_to_string(PRICE_CC_PATH).expect("price_cc.yamlの読み込みに失敗しました");
         serde_saphyr::from_str(&s).expect("price_cc.yamlのパースに失敗しました")
     })
 }
@@ -95,7 +97,11 @@ pub struct TicketEfficiency {
 
 /// 対象アイテム集合＋価格表から交換効率一覧を計算する(te2/te3/special_list共通)。
 /// 総合効率の降順ソート済み。
-fn ticket_efficiency_list(items: &[&str], price: &HashMap<String, f64>, values: &RiseiValues) -> Vec<TicketEfficiency> {
+fn ticket_efficiency_list(
+    items: &[&str],
+    price: &HashMap<String, f64>,
+    values: &RiseiValues,
+) -> Vec<TicketEfficiency> {
     let mut list: Vec<TicketEfficiency> = items
         .iter()
         .filter_map(|zh| {
@@ -115,7 +121,10 @@ fn ticket_efficiency_list(items: &[&str], price: &HashMap<String, f64>, values: 
 }
 
 /// 契約賞金引換証(CC)の交換効率一覧を計算する。総合効率の降順ソート済み。
-fn exchange_efficiency_list(items: &[CCExchangeItem], values: &RiseiValues) -> Vec<TicketEfficiency> {
+fn exchange_efficiency_list(
+    items: &[CCExchangeItem],
+    values: &RiseiValues,
+) -> Vec<TicketEfficiency> {
     let mut list: Vec<TicketEfficiency> = items
         .iter()
         .map(|item| TicketEfficiency {

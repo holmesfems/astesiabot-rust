@@ -53,8 +53,10 @@ impl JpFirstSeen {
     pub fn embedded() -> &'static Self {
         static CELL: OnceLock<JpFirstSeen> = OnceLock::new();
         CELL.get_or_init(|| {
-            let record: JpFirstSeenRecord = serde_json::from_str(EMBEDDED_JSON).expect("data/seed/jp_first_seen.json should parse");
-            Self::from_record(&record).expect("data/seed/jp_first_seen.json should have YYYY-MM-DD dates")
+            let record: JpFirstSeenRecord = serde_json::from_str(EMBEDDED_JSON)
+                .expect("data/seed/jp_first_seen.json should parse");
+            Self::from_record(&record)
+                .expect("data/seed/jp_first_seen.json should have YYYY-MM-DD dates")
         })
     }
 
@@ -63,7 +65,8 @@ impl JpFirstSeen {
             .first_seen
             .iter()
             .map(|(id, date)| {
-                let date = NaiveDate::parse_from_str(date, "%Y-%m-%d").map_err(|e| format!("{id}: 日付「{date}」を解釈できません: {e}"))?;
+                let date = NaiveDate::parse_from_str(date, "%Y-%m-%d")
+                    .map_err(|e| format!("{id}: 日付「{date}」を解釈できません: {e}"))?;
                 Ok((id.clone(), date))
             })
             .collect::<Result<HashMap<_, _>, FetchError>>()?;
@@ -141,7 +144,10 @@ async fn update_record(record: &mut JpFirstSeenRecord) -> Result<(), FetchError>
     let dates: Vec<String> = commits.iter().map(|c| c.date.clone()).collect();
     let fetch = |idx: usize| {
         let client = client.clone();
-        let url = format!("https://raw.githubusercontent.com/{REPO}/{}/{CHAR_META_PATH}", commits[idx].sha);
+        let url = format!(
+            "https://raw.githubusercontent.com/{REPO}/{}/{CHAR_META_PATH}",
+            commits[idx].sha
+        );
         async move {
             let meta: RawCharMeta = fetch_typed_with_retry(&client, &url).await?;
             Ok(meta.sp_char_groups.into_values().flatten().collect())
@@ -149,7 +155,12 @@ async fn update_record(record: &mut JpFirstSeenRecord) -> Result<(), FetchError>
     };
     let mut snapshots = Snapshots::new(fetch);
     let added = assign_first_seen(&mut record.first_seen, &dates, &mut snapshots).await?;
-    println!("新しいコミット{}件 / 追加{}体 / ダウンロード{}回", commits.len(), added, snapshots.cache.len());
+    println!(
+        "新しいコミット{}件 / 追加{}体 / ダウンロード{}回",
+        commits.len(),
+        added,
+        snapshots.cache.len()
+    );
 
     record.checked_commit = Some(last.sha.clone());
     record.checked_at = Some(last.date.clone());
@@ -157,10 +168,18 @@ async fn update_record(record: &mut JpFirstSeenRecord) -> Result<(), FetchError>
 }
 
 /// `char_meta_table.json` のコミットのうち、前回調べたコミットより新しいものを古い順に返す。
-async fn fetch_new_commits(client: &reqwest::Client, record: &JpFirstSeenRecord) -> Result<Vec<Commit>, FetchError> {
+async fn fetch_new_commits(
+    client: &reqwest::Client,
+    record: &JpFirstSeenRecord,
+) -> Result<Vec<Commit>, FetchError> {
     // GitHub APIはUser-Agent必須。GITHUB_TOKENがあれば使う（無くても1時間60回まで使える）。
-    let token = std::env::var("GITHUB_TOKEN").ok().map(|t| format!("Bearer {t}"));
-    let mut headers: Vec<(&str, &str)> = vec![("User-Agent", "astesiabot-rust"), ("Accept", "application/vnd.github+json")];
+    let token = std::env::var("GITHUB_TOKEN")
+        .ok()
+        .map(|t| format!("Bearer {t}"));
+    let mut headers: Vec<(&str, &str)> = vec![
+        ("User-Agent", "astesiabot-rust"),
+        ("Accept", "application/vnd.github+json"),
+    ];
     if let Some(token) = &token {
         headers.push(("Authorization", token.as_str()));
     }
@@ -174,7 +193,10 @@ async fn fetch_new_commits(client: &reqwest::Client, record: &JpFirstSeenRecord)
         let json = fetch_json_with_retry_headers(client, &url, &headers).await?;
         let batch: Vec<RawCommit> = serde_json::from_value(json)?;
         let len = batch.len();
-        newest_first.extend(batch.into_iter().map(|c| Commit { sha: c.sha, date: c.commit.committer.date }));
+        newest_first.extend(batch.into_iter().map(|c| Commit {
+            sha: c.sha,
+            date: c.commit.committer.date,
+        }));
         if len < 100 {
             break;
         }
@@ -202,7 +224,10 @@ where
     Fut: Future<Output = Result<HashSet<String>, FetchError>>,
 {
     fn new(fetch: F) -> Self {
-        Self { fetch, cache: HashMap::new() }
+        Self {
+            fetch,
+            cache: HashMap::new(),
+        }
     }
 
     async fn ids_at(&mut self, idx: usize) -> Result<Arc<HashSet<String>>, FetchError> {
@@ -228,7 +253,10 @@ where
 {
     let last = dates.len() - 1;
     let latest = snapshots.ids_at(last).await?;
-    let mut new_ids: Vec<&String> = latest.iter().filter(|id| !first_seen.contains_key(*id)).collect();
+    let mut new_ids: Vec<&String> = latest
+        .iter()
+        .filter(|id| !first_seen.contains_key(*id))
+        .collect();
     new_ids.sort();
 
     for id in &new_ids {
@@ -277,7 +305,9 @@ mod tests {
 
     fn dates(n: usize) -> Vec<String> {
         // 日付だけでコミットを見分けられるよう、1コミット1年にずらす。
-        (0..n).map(|i| format!("{}-01-01T00:00:00Z", 2000 + i)).collect()
+        (0..n)
+            .map(|i| format!("{}-01-01T00:00:00Z", 2000 + i))
+            .collect()
     }
 
     #[tokio::test]
@@ -289,14 +319,24 @@ mod tests {
         };
         let mut snapshots = Snapshots::new(fetch);
         let mut first_seen = BTreeMap::new();
-        let added = assign_first_seen(&mut first_seen, &dates(history.len()), &mut snapshots).await.unwrap();
+        let added = assign_first_seen(&mut first_seen, &dates(history.len()), &mut snapshots)
+            .await
+            .unwrap();
 
         assert_eq!(added, 4);
-        assert_eq!(first_seen["old"], dates(32)[0][..10], "最初から載っているものは最初のコミットの日付");
+        assert_eq!(
+            first_seen["old"],
+            dates(32)[0][..10],
+            "最初から載っているものは最初のコミットの日付"
+        );
         assert_eq!(first_seen["a"], dates(32)[2][..10]);
         assert_eq!(first_seen["b"], dates(32)[19][..10]);
         assert_eq!(first_seen["c"], dates(32)[31][..10]);
-        assert!(snapshots.cache.len() < history.len(), "全コミットをダウンロードしないこと: {}", snapshots.cache.len());
+        assert!(
+            snapshots.cache.len() < history.len(),
+            "全コミットをダウンロードしないこと: {}",
+            snapshots.cache.len()
+        );
     }
 
     #[tokio::test]
@@ -312,7 +352,9 @@ mod tests {
             ("a".to_string(), "2025-12-02".to_string()),
             ("b".to_string(), "2025-12-03".to_string()),
         ]);
-        let added = assign_first_seen(&mut first_seen, &dates(history.len()), &mut snapshots).await.unwrap();
+        let added = assign_first_seen(&mut first_seen, &dates(history.len()), &mut snapshots)
+            .await
+            .unwrap();
 
         assert_eq!(added, 1);
         assert_eq!(first_seen["a"], "2025-12-02", "記録済みの日付は変えない");
@@ -332,8 +374,16 @@ mod tests {
     #[ignore]
     async fn builds_record_from_scratch_against_real_history() {
         let mut record = JpFirstSeenRecord::default();
-        update_record(&mut record).await.expect("should build against real network");
+        update_record(&mut record)
+            .await
+            .expect("should build against real network");
         assert!(record.first_seen.len() > 400);
-        assert_eq!(record.first_seen.get("char_4223_botany").map(String::as_str), Some("2026-09-16"));
+        assert_eq!(
+            record
+                .first_seen
+                .get("char_4223_botany")
+                .map(String::as_str),
+            Some("2026-09-16")
+        );
     }
 }

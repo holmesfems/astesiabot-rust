@@ -18,13 +18,41 @@ const CACHE_CONTROL: &str = "public, max-age=86400";
 
 /// (パス, Content-Type, 中身)
 const ICONS: &[(&str, &str, &[u8])] = &[
-    ("/favicon.ico", "image/x-icon", include_bytes!("static/favicon.ico")),
-    ("/favicon.svg", "image/svg+xml", include_bytes!("static/favicon.svg")),
-    ("/apple-touch-icon.png", "image/png", include_bytes!("static/apple-touch-icon.png")),
-    ("/icon-192.png", "image/png", include_bytes!("static/icon-192.png")),
-    ("/icon-512.png", "image/png", include_bytes!("static/icon-512.png")),
-    ("/icon-maskable-512.png", "image/png", include_bytes!("static/icon-maskable-512.png")),
-    ("/site.webmanifest", "application/manifest+json", include_bytes!("static/site.webmanifest")),
+    (
+        "/favicon.ico",
+        "image/x-icon",
+        include_bytes!("static/favicon.ico"),
+    ),
+    (
+        "/favicon.svg",
+        "image/svg+xml",
+        include_bytes!("static/favicon.svg"),
+    ),
+    (
+        "/apple-touch-icon.png",
+        "image/png",
+        include_bytes!("static/apple-touch-icon.png"),
+    ),
+    (
+        "/icon-192.png",
+        "image/png",
+        include_bytes!("static/icon-192.png"),
+    ),
+    (
+        "/icon-512.png",
+        "image/png",
+        include_bytes!("static/icon-512.png"),
+    ),
+    (
+        "/icon-maskable-512.png",
+        "image/png",
+        include_bytes!("static/icon-maskable-512.png"),
+    ),
+    (
+        "/site.webmanifest",
+        "application/manifest+json",
+        include_bytes!("static/site.webmanifest"),
+    ),
 ];
 
 pub fn router<S>() -> Router<S>
@@ -65,8 +93,16 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(response.status(), StatusCode::OK, "{path}");
-            assert_eq!(response.headers()[header::CONTENT_TYPE], content_type, "{path}");
-            assert_eq!(response.headers()[header::CACHE_CONTROL], CACHE_CONTROL, "{path}");
+            assert_eq!(
+                response.headers()[header::CONTENT_TYPE],
+                content_type,
+                "{path}"
+            );
+            assert_eq!(
+                response.headers()[header::CACHE_CONTROL],
+                CACHE_CONTROL,
+                "{path}"
+            );
             let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();

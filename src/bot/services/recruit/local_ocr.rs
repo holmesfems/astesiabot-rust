@@ -71,7 +71,9 @@ impl LocalOcrMode {
         let raw = std::env::var("LOCAL_OCR_MODE").ok();
         let (mode, unknown) = Self::parse(raw.as_deref());
         if unknown {
-            eprintln!("[local_ocr] LOCAL_OCR_MODE の値が不正なので off にします（off / shadow / on）");
+            eprintln!(
+                "[local_ocr] LOCAL_OCR_MODE の値が不正なので off にします（off / shadow / on）"
+            );
         }
         mode
     }
@@ -110,19 +112,31 @@ pub struct LocalRead {
 
 impl LocalRead {
     fn without_digest(outcome: LocalOutcome) -> Self {
-        Self { outcome, digest: None }
+        Self {
+            outcome,
+            digest: None,
+        }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LocalOutcome {
-    Read { tags: Vec<String>, boxes: Vec<BoxScore> },
-    Unsure { reason: LocalUnsure, boxes: Vec<BoxScore> },
+    Read {
+        tags: Vec<String>,
+        boxes: Vec<BoxScore>,
+    },
+    Unsure {
+        reason: LocalUnsure,
+        boxes: Vec<BoxScore>,
+    },
 }
 
 impl LocalOutcome {
     fn unsure(reason: LocalUnsure) -> Self {
-        LocalOutcome::Unsure { reason, boxes: Vec::new() }
+        LocalOutcome::Unsure {
+            reason,
+            boxes: Vec::new(),
+        }
     }
 
     pub fn boxes(&self) -> &[BoxScore] {
@@ -204,7 +218,10 @@ pub enum MissVerdict {
     /// 直近に同じ画像が来ていたので、何も数えない
     Duplicate,
     /// 数えた。`alert` が Some なら DM する（連続した画像へのリンク）
-    Counted { streak: usize, alert: Option<Vec<String>> },
+    Counted {
+        streak: usize,
+        alert: Option<Vec<String>>,
+    },
 }
 
 #[derive(Debug)]
@@ -218,7 +235,12 @@ pub struct MissWatch {
 /// 起動直後は DM を出せる状態（armed）で始める。
 impl Default for MissWatch {
     fn default() -> Self {
-        Self { recent: VecDeque::new(), streak: 0, armed: true, links: Vec::new() }
+        Self {
+            recent: VecDeque::new(),
+            streak: 0,
+            armed: true,
+            links: Vec::new(),
+        }
     }
 }
 
@@ -255,7 +277,10 @@ impl MissWatch {
         } else {
             None
         };
-        MissVerdict::Counted { streak: self.streak, alert }
+        MissVerdict::Counted {
+            streak: self.streak,
+            alert,
+        }
     }
 }
 
@@ -278,18 +303,40 @@ pub fn truncate_chars(s: &str, max: usize) -> String {
 }
 
 /// 元メッセージへのリンク。
-pub fn jump_link(guild: Option<serenity::GuildId>, channel: serenity::ChannelId, message: serenity::MessageId) -> String {
+pub fn jump_link(
+    guild: Option<serenity::GuildId>,
+    channel: serenity::ChannelId,
+    message: serenity::MessageId,
+) -> String {
     let g = guild.map_or("@me".to_string(), |g| g.to_string());
     format!("https://discord.com/channels/{g}/{channel}/{message}")
 }
 
 /// shadow で local と Google のタグ集合が食い違ったときの DM の本文。画像・投稿者の情報は入れない。
-pub fn disagreement_message(local_tags: &[String], google_tags: &HashSet<String>, boxes: &[BoxScore], link: &str) -> String {
+pub fn disagreement_message(
+    local_tags: &[String],
+    google_tags: &HashSet<String>,
+    boxes: &[BoxScore],
+    link: &str,
+) -> String {
     let mut s = String::from("[local_ocr] shadow: ローカルと Google のタグが食い違いました\n");
-    s += &format!("local : {}\n", sorted(local_tags.iter().cloned()).join("、"));
-    s += &format!("google: {}\n", sorted(google_tags.iter().cloned()).join("、"));
+    s += &format!(
+        "local : {}\n",
+        sorted(local_tags.iter().cloned()).join("、")
+    );
+    s += &format!(
+        "google: {}\n",
+        sorted(google_tags.iter().cloned()).join("、")
+    );
     for (i, b) in boxes.iter().enumerate() {
-        s += &format!("枠{}: {} {:.2} / {} {:.2}\n", i + 1, b.best_tag, b.best, b.second_tag, b.second);
+        s += &format!(
+            "枠{}: {} {:.2} / {} {:.2}\n",
+            i + 1,
+            b.best_tag,
+            b.best,
+            b.second_tag,
+            b.second
+        );
     }
     s += link;
     truncate_chars(&s, DISCORD_LIMIT)
@@ -306,14 +353,24 @@ pub fn miss_alert_message(streak: usize, links: &[String]) -> String {
 
 /// 日本語版を読めなかったときのログ行（URL は入れない）。
 pub fn jp_miss_log_line(streak: usize, reason: LocalUnsure) -> String {
-    format!("[local_ocr] jp_miss streak={streak} reason={}", reason.as_str())
+    format!(
+        "[local_ocr] jp_miss streak={streak} reason={}",
+        reason.as_str()
+    )
 }
 
 /// 日次まとめの 1 行。shadow は比較の集計に日本語版の行を足し、on は日本語版だけ。
 pub fn summary_message(stats: &ShadowStats, mode: LocalOcrMode) -> String {
-    let jp = format!("日本語版 読めた {}/{}", stats.jp_read, stats.jp_read + stats.jp_miss);
+    let jp = format!(
+        "日本語版 読めた {}/{}",
+        stats.jp_read,
+        stats.jp_read + stats.jp_miss
+    );
     if mode != LocalOcrMode::Shadow {
-        return truncate_chars(&format!("[local_ocr] 直近の集計（{}）: {jp}", mode.as_str()), DISCORD_LIMIT);
+        return truncate_chars(
+            &format!("[local_ocr] 直近の集計（{}）: {jp}", mode.as_str()),
+            DISCORD_LIMIT,
+        );
     }
     let unsure_total: u64 = stats.unsure.values().sum();
     let mut s = format!(
@@ -325,7 +382,11 @@ pub fn summary_message(stats: &ShadowStats, mode: LocalOcrMode) -> String {
         unsure_total
     );
     if unsure_total > 0 {
-        let detail: Vec<String> = stats.unsure.iter().map(|(k, v)| format!("{k}={v}")).collect();
+        let detail: Vec<String> = stats
+            .unsure
+            .iter()
+            .map(|(k, v)| format!("{k}={v}"))
+            .collect();
         s += &format!("（{}）", detail.join(", "));
     }
     s += &format!(" / {jp}");
@@ -337,7 +398,12 @@ fn fmt_min(min_best: Option<f32>) -> String {
 }
 
 /// shadow の 1 枚ぶんのログ行。
-pub fn shadow_log_line(c: &Comparison, local_tags: Option<&[String]>, google_tags: &HashSet<String>, min_best: Option<f32>) -> String {
+pub fn shadow_log_line(
+    c: &Comparison,
+    local_tags: Option<&[String]>,
+    google_tags: &HashSet<String>,
+    min_best: Option<f32>,
+) -> String {
     let min = fmt_min(min_best);
     match c {
         Comparison::Agree => format!("[local_ocr] shadow agree min_best={min}"),
@@ -346,8 +412,13 @@ pub fn shadow_log_line(c: &Comparison, local_tags: Option<&[String]>, google_tag
             sorted(local_tags.unwrap_or_default().iter().cloned()),
             sorted(google_tags.iter().cloned())
         ),
-        Comparison::GoogleNoTags => format!("[local_ocr] shadow local_read_google_no_tags min_best={min}"),
-        Comparison::LocalUnsure(r) => format!("[local_ocr] shadow local_unsure({}) min_best={min}", r.as_str()),
+        Comparison::GoogleNoTags => {
+            format!("[local_ocr] shadow local_read_google_no_tags min_best={min}")
+        }
+        Comparison::LocalUnsure(r) => format!(
+            "[local_ocr] shadow local_unsure({}) min_best={min}",
+            r.as_str()
+        ),
     }
 }
 
@@ -355,8 +426,13 @@ pub fn shadow_log_line(c: &Comparison, local_tags: Option<&[String]>, google_tag
 pub fn on_log_line(local: &LocalOutcome) -> String {
     let min = fmt_min(local.min_best());
     match local {
-        LocalOutcome::Read { .. } => format!("[local_ocr] on read min_best={min} -> local (google skipped)"),
-        LocalOutcome::Unsure { reason, .. } => format!("[local_ocr] on unsure({}) min_best={min} -> google", reason.as_str()),
+        LocalOutcome::Read { .. } => {
+            format!("[local_ocr] on read min_best={min} -> local (google skipped)")
+        }
+        LocalOutcome::Unsure { reason, .. } => format!(
+            "[local_ocr] on unsure({}) min_best={min} -> google",
+            reason.as_str()
+        ),
     }
 }
 
@@ -378,8 +454,13 @@ impl LocalOcr {
     pub fn from_env() -> Self {
         let mode = LocalOcrMode::from_env();
         let report_user = crate::bot::utils::optional_user_id_env("LOCAL_OCR_REPORT_USER_ID");
-        let tag_ocr = TagOcr::load(crate::engine::recruit::tag_ocr::TEMPLATE_DIR).expect("タグ枠のテンプレートのロードに失敗");
-        println!("[local_ocr] mode={} report_dm={}", mode.as_str(), report_user.is_some());
+        let tag_ocr = TagOcr::load(crate::engine::recruit::tag_ocr::TEMPLATE_DIR)
+            .expect("タグ枠のテンプレートのロードに失敗");
+        println!(
+            "[local_ocr] mode={} report_dm={}",
+            mode.as_str(),
+            report_user.is_some()
+        );
         Self::new(mode, tag_ocr, report_user)
     }
 
@@ -387,7 +468,10 @@ impl LocalOcr {
         Self {
             mode,
             tag_ocr: Arc::new(tag_ocr),
-            client: reqwest::Client::builder().timeout(DOWNLOAD_TIMEOUT).build().expect("reqwest client"),
+            client: reqwest::Client::builder()
+                .timeout(DOWNLOAD_TIMEOUT)
+                .build()
+                .expect("reqwest client"),
             permits: Arc::new(Semaphore::new(MAX_CONCURRENT)),
             report_user,
             stats: Mutex::new(ShadowStats::default()),
@@ -418,7 +502,10 @@ impl LocalOcr {
         .await;
         let outcome = match joined {
             Ok(Ok(TagOcrResult::Read { tags, boxes })) => LocalOutcome::Read { tags, boxes },
-            Ok(Ok(TagOcrResult::Unsure { reason, boxes })) => LocalOutcome::Unsure { reason: LocalUnsure::Ocr(reason), boxes },
+            Ok(Ok(TagOcrResult::Unsure { reason, boxes })) => LocalOutcome::Unsure {
+                reason: LocalUnsure::Ocr(reason),
+                boxes,
+            },
             Ok(Err(reason)) => LocalOutcome::unsure(reason),
             Err(_) => LocalOutcome::unsure(LocalUnsure::Internal),
         };
@@ -431,7 +518,13 @@ impl LocalOcr {
             eprintln!("[local_ocr] download failed: {}", e.without_url());
             LocalUnsure::Download
         };
-        let mut resp = self.client.get(url).send().await.and_then(|r| r.error_for_status()).map_err(fail)?;
+        let mut resp = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .and_then(|r| r.error_for_status())
+            .map_err(fail)?;
         if resp.content_length().is_some_and(|l| l > MAX_BYTES) {
             return Err(LocalUnsure::TooLarge);
         }
@@ -447,7 +540,10 @@ impl LocalOcr {
 
     /// shadow の結果を集計に足す。
     pub fn record(&self, c: &Comparison) {
-        self.stats.lock().unwrap_or_else(|e| e.into_inner()).record(c);
+        self.stats
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .record(c);
     }
 
     /// ローカルが 1 枚読めた（日本語版として数える）。監視の連続も戻す。
@@ -458,7 +554,11 @@ impl LocalOcr {
 
     /// 日本語版の画像をローカルが読めなかった。重複なら何も数えない。
     pub fn record_jp_miss(&self, digest: Option<u64>, link: String) -> MissVerdict {
-        let verdict = self.watch.lock().unwrap_or_else(|e| e.into_inner()).miss(digest, link);
+        let verdict = self
+            .watch
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .miss(digest, link);
         if matches!(verdict, MissVerdict::Counted { .. }) {
             self.stats.lock().unwrap_or_else(|e| e.into_inner()).jp_miss += 1;
         }
@@ -473,9 +573,15 @@ impl LocalOcr {
 
 /// 大きさ・メモリの上限つきでデコードする。
 fn decode_limited(bytes: &[u8]) -> Result<image::DynamicImage, LocalUnsure> {
-    let reader = || image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().map_err(|_| LocalUnsure::Decode);
+    let reader = || {
+        image::ImageReader::new(std::io::Cursor::new(bytes))
+            .with_guessed_format()
+            .map_err(|_| LocalUnsure::Decode)
+    };
     // 先に大きさだけ読んで、画素数が多すぎるものはデコードしない
-    let (w, h) = reader()?.into_dimensions().map_err(|_| LocalUnsure::Decode)?;
+    let (w, h) = reader()?
+        .into_dimensions()
+        .map_err(|_| LocalUnsure::Decode)?;
     if w > MAX_DIMENSION || h > MAX_DIMENSION || (w as u64) * (h as u64) > MAX_PIXELS {
         return Err(LocalUnsure::TooLarge);
     }
@@ -498,9 +604,15 @@ pub async fn send_dm(http: &serenity::Http, user: serenity::UserId, text: String
     }
 }
 
-async fn try_send_dm(http: &serenity::Http, user: serenity::UserId, text: String) -> Result<(), crate::bot::data::Error> {
+async fn try_send_dm(
+    http: &serenity::Http,
+    user: serenity::UserId,
+    text: String,
+) -> Result<(), crate::bot::data::Error> {
     let dm = user.create_dm_channel(http).await?;
-    let builder = serenity::CreateMessage::new().content(text).allowed_mentions(serenity::CreateAllowedMentions::new());
+    let builder = serenity::CreateMessage::new()
+        .content(text)
+        .allowed_mentions(serenity::CreateAllowedMentions::new());
     dm.send_message(http, builder).await?;
     Ok(())
 }
@@ -508,12 +620,20 @@ async fn try_send_dm(http: &serenity::Http, user: serenity::UserId, text: String
 /// 毎日 JST 0:00 に集計（shadow の比較・日本語版の読めた数）を DM する。前回から何も数えていなければ送らない。
 /// 集計は送るたびに 0 に戻す。bot 起動中ずっと動くので `tokio::spawn` すること。
 pub async fn run_daily_summary(ctx: serenity::Context, state: Arc<crate::api::AppState>) {
-    let Some(user) = state.local_ocr.report_user else { return };
+    let Some(user) = state.local_ocr.report_user else {
+        return;
+    };
     loop {
-        tokio::time::sleep(crate::bot::services::birthday::duration_until_next_midnight_jst()).await;
+        tokio::time::sleep(crate::bot::services::birthday::duration_until_next_midnight_jst())
+            .await;
         let stats = state.local_ocr.take_stats();
         if !stats.is_empty() {
-            send_dm(&ctx.http, user, summary_message(&stats, state.local_ocr.mode)).await;
+            send_dm(
+                &ctx.http,
+                user,
+                summary_message(&stats, state.local_ocr.mode),
+            )
+            .await;
         }
     }
 }
@@ -523,7 +643,14 @@ mod tests {
     use super::*;
 
     fn bx(best: &str, b: f32, second: &str, s: f32) -> BoxScore {
-        BoxScore { best_tag: best.into(), best: b, second_tag: second.into(), second: s, margin: b - s, accepted: true }
+        BoxScore {
+            best_tag: best.into(),
+            best: b,
+            second_tag: second.into(),
+            second: s,
+            margin: b - s,
+            accepted: true,
+        }
     }
 
     fn set(v: &[&str]) -> HashSet<String> {
@@ -531,7 +658,10 @@ mod tests {
     }
 
     fn read(tags: &[&str]) -> LocalOutcome {
-        LocalOutcome::Read { tags: tags.iter().map(|s| s.to_string()).collect(), boxes: tags.iter().map(|t| bx(t, 0.9, "x", 0.3)).collect() }
+        LocalOutcome::Read {
+            tags: tags.iter().map(|s| s.to_string()).collect(),
+            boxes: tags.iter().map(|t| bx(t, 0.9, "x", 0.3)).collect(),
+        }
     }
 
     #[test]
@@ -539,7 +669,10 @@ mod tests {
         assert_eq!(LocalOcrMode::parse(None), (LocalOcrMode::Off, false));
         assert_eq!(LocalOcrMode::parse(Some("")), (LocalOcrMode::Off, false));
         assert_eq!(LocalOcrMode::parse(Some("off")), (LocalOcrMode::Off, false));
-        assert_eq!(LocalOcrMode::parse(Some("shadow")), (LocalOcrMode::Shadow, false));
+        assert_eq!(
+            LocalOcrMode::parse(Some("shadow")),
+            (LocalOcrMode::Shadow, false)
+        );
         assert_eq!(LocalOcrMode::parse(Some(" ON ")), (LocalOcrMode::On, false));
         assert_eq!(LocalOcrMode::parse(Some("yes")), (LocalOcrMode::Off, true));
     }
@@ -548,10 +681,22 @@ mod tests {
     fn compare_cases() {
         let five = ["近距離", "遠距離", "治療", "火力", "牽制"];
         assert_eq!(compare(&read(&five), &set(&five)), Comparison::Agree);
-        assert_eq!(compare(&read(&five), &set(&["近距離", "遠距離", "治療", "火力", "支援"])), Comparison::Disagree);
+        assert_eq!(
+            compare(
+                &read(&five),
+                &set(&["近距離", "遠距離", "治療", "火力", "支援"])
+            ),
+            Comparison::Disagree
+        );
         assert_eq!(compare(&read(&five), &set(&[])), Comparison::GoogleNoTags);
-        let u = LocalOutcome::Unsure { reason: LocalUnsure::Ocr(UnsureReason::LowScore), boxes: vec![] };
-        assert_eq!(compare(&u, &set(&five)), Comparison::LocalUnsure(LocalUnsure::Ocr(UnsureReason::LowScore)));
+        let u = LocalOutcome::Unsure {
+            reason: LocalUnsure::Ocr(UnsureReason::LowScore),
+            boxes: vec![],
+        };
+        assert_eq!(
+            compare(&u, &set(&five)),
+            Comparison::LocalUnsure(LocalUnsure::Ocr(UnsureReason::LowScore))
+        );
     }
 
     #[test]
@@ -561,14 +706,24 @@ mod tests {
         s.record(&Comparison::Agree);
         s.record(&Comparison::Disagree);
         s.record(&Comparison::GoogleNoTags);
-        s.record(&Comparison::LocalUnsure(LocalUnsure::Ocr(UnsureReason::GridNotFound)));
-        s.record(&Comparison::LocalUnsure(LocalUnsure::Ocr(UnsureReason::GridNotFound)));
+        s.record(&Comparison::LocalUnsure(LocalUnsure::Ocr(
+            UnsureReason::GridNotFound,
+        )));
+        s.record(&Comparison::LocalUnsure(LocalUnsure::Ocr(
+            UnsureReason::GridNotFound,
+        )));
         s.record(&Comparison::LocalUnsure(LocalUnsure::Download));
         assert_eq!(s.total(), 7);
         let text = summary_message(&s, LocalOcrMode::Shadow);
         assert!(text.ends_with("日本語版 読めた 0/0"), "{text}");
-        assert!(text.contains("7 枚") && text.contains("一致 2") && text.contains("不一致 1"), "{text}");
-        assert!(text.contains("grid_not_found=2") && text.contains("download_failed=1"), "{text}");
+        assert!(
+            text.contains("7 枚") && text.contains("一致 2") && text.contains("不一致 1"),
+            "{text}"
+        );
+        assert!(
+            text.contains("grid_not_found=2") && text.contains("download_failed=1"),
+            "{text}"
+        );
     }
 
     #[test]
@@ -580,32 +735,86 @@ mod tests {
         assert!(!s.is_empty());
         s.record(&Comparison::Agree);
         let shadow = summary_message(&s, LocalOcrMode::Shadow);
-        assert!(shadow.contains("1 枚") && shadow.ends_with(" / 日本語版 読めた 8/10"), "{shadow}");
-        assert_eq!(summary_message(&s, LocalOcrMode::On), "[local_ocr] 直近の集計（on）: 日本語版 読めた 8/10");
+        assert!(
+            shadow.contains("1 枚") && shadow.ends_with(" / 日本語版 読めた 8/10"),
+            "{shadow}"
+        );
+        assert_eq!(
+            summary_message(&s, LocalOcrMode::On),
+            "[local_ocr] 直近の集計（on）: 日本語版 読めた 8/10"
+        );
     }
 
     #[test]
     fn miss_watch_alerts_once_per_streak() {
         let mut w = MissWatch::new();
         let l = |i: u64| format!("link{i}");
-        assert_eq!(w.miss(Some(1), l(1)), MissVerdict::Counted { streak: 1, alert: None });
-        assert_eq!(w.miss(Some(2), l(2)), MissVerdict::Counted { streak: 2, alert: None });
-        assert_eq!(w.miss(Some(3), l(3)), MissVerdict::Counted { streak: 3, alert: Some(vec![l(1), l(2), l(3)]) });
+        assert_eq!(
+            w.miss(Some(1), l(1)),
+            MissVerdict::Counted {
+                streak: 1,
+                alert: None
+            }
+        );
+        assert_eq!(
+            w.miss(Some(2), l(2)),
+            MissVerdict::Counted {
+                streak: 2,
+                alert: None
+            }
+        );
+        assert_eq!(
+            w.miss(Some(3), l(3)),
+            MissVerdict::Counted {
+                streak: 3,
+                alert: Some(vec![l(1), l(2), l(3)])
+            }
+        );
         // 以降は DM しない
-        assert_eq!(w.miss(Some(4), l(4)), MissVerdict::Counted { streak: 4, alert: None });
+        assert_eq!(
+            w.miss(Some(4), l(4)),
+            MissVerdict::Counted {
+                streak: 4,
+                alert: None
+            }
+        );
         // 読めたら再び出せる
         w.read();
-        assert_eq!(w.miss(Some(5), l(5)), MissVerdict::Counted { streak: 1, alert: None });
+        assert_eq!(
+            w.miss(Some(5), l(5)),
+            MissVerdict::Counted {
+                streak: 1,
+                alert: None
+            }
+        );
         w.miss(Some(6), l(6));
-        assert_eq!(w.miss(Some(7), l(7)), MissVerdict::Counted { streak: 3, alert: Some(vec![l(5), l(6), l(7)]) });
+        assert_eq!(
+            w.miss(Some(7), l(7)),
+            MissVerdict::Counted {
+                streak: 3,
+                alert: Some(vec![l(5), l(6), l(7)])
+            }
+        );
     }
 
     #[test]
     fn miss_watch_ignores_duplicates() {
         let mut w = MissWatch::new();
-        assert_eq!(w.miss(Some(1), "a".into()), MissVerdict::Counted { streak: 1, alert: None });
+        assert_eq!(
+            w.miss(Some(1), "a".into()),
+            MissVerdict::Counted {
+                streak: 1,
+                alert: None
+            }
+        );
         assert_eq!(w.miss(Some(1), "b".into()), MissVerdict::Duplicate);
-        assert_eq!(w.miss(Some(2), "c".into()), MissVerdict::Counted { streak: 2, alert: None });
+        assert_eq!(
+            w.miss(Some(2), "c".into()),
+            MissVerdict::Counted {
+                streak: 2,
+                alert: None
+            }
+        );
         // 読めても、覚えている重複は覚えたまま
         w.read();
         assert_eq!(w.miss(Some(2), "d".into()), MissVerdict::Duplicate);
@@ -613,7 +822,10 @@ mod tests {
         for i in 10..10 + MISS_RECENT as u64 {
             w.miss(Some(i), "x".into());
         }
-        assert!(matches!(w.miss(Some(1), "e".into()), MissVerdict::Counted { .. }));
+        assert!(matches!(
+            w.miss(Some(1), "e".into()),
+            MissVerdict::Counted { .. }
+        ));
     }
 
     #[test]
@@ -622,17 +834,31 @@ mod tests {
         let o = LocalOcr::new(LocalOcrMode::On, ocr, None);
         o.record_read();
         o.record_jp_miss(Some(1), "a".into());
-        assert_eq!(o.record_jp_miss(Some(1), "a".into()), MissVerdict::Duplicate);
+        assert_eq!(
+            o.record_jp_miss(Some(1), "a".into()),
+            MissVerdict::Duplicate
+        );
         let s = o.take_stats();
         assert_eq!((s.jp_read, s.jp_miss), (1, 1));
     }
 
     #[test]
     fn miss_alert_message_has_count_and_links() {
-        let links = vec!["https://discord.com/channels/1/2/3".to_string(), "https://discord.com/channels/1/2/4".to_string()];
+        let links = vec![
+            "https://discord.com/channels/1/2/3".to_string(),
+            "https://discord.com/channels/1/2/4".to_string(),
+        ];
         let m = miss_alert_message(3, &links);
-        assert!(m.starts_with("[local_ocr] 日本語版の画像をローカルで読めないのが 3 枚続きました") && m.ends_with(&links[1]) && m.contains(&links[0]), "{m}");
-        assert!(jp_miss_log_line(2, LocalUnsure::Ocr(UnsureReason::LowScore)).starts_with("[local_ocr] "));
+        assert!(
+            m.starts_with("[local_ocr] 日本語版の画像をローカルで読めないのが 3 枚続きました")
+                && m.ends_with(&links[1])
+                && m.contains(&links[0]),
+            "{m}"
+        );
+        assert!(
+            jp_miss_log_line(2, LocalUnsure::Ocr(UnsureReason::LowScore))
+                .starts_with("[local_ocr] ")
+        );
     }
 
     #[test]
@@ -646,18 +872,38 @@ mod tests {
 
     #[test]
     fn disagreement_message_has_both_sets_boxes_and_link() {
-        let local: Vec<String> = ["近距離", "遠距離", "治療", "火力", "牽制"].iter().map(|s| s.to_string()).collect();
+        let local: Vec<String> = ["近距離", "遠距離", "治療", "火力", "牽制"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let boxes: Vec<BoxScore> = local.iter().map(|t| bx(t, 0.912, "支援", 0.5)).collect();
-        let link = jump_link(Some(serenity::GuildId::new(1)), serenity::ChannelId::new(2), serenity::MessageId::new(3));
+        let link = jump_link(
+            Some(serenity::GuildId::new(1)),
+            serenity::ChannelId::new(2),
+            serenity::MessageId::new(3),
+        );
         assert_eq!(link, "https://discord.com/channels/1/2/3");
-        let m = disagreement_message(&local, &set(&["近距離", "遠距離", "治療", "火力", "支援"]), &boxes, &link);
-        assert!(m.contains("local :") && m.contains("google:") && m.contains("枠5: 牽制 0.91 / 支援 0.50") && m.ends_with(&link), "{m}");
+        let m = disagreement_message(
+            &local,
+            &set(&["近距離", "遠距離", "治療", "火力", "支援"]),
+            &boxes,
+            &link,
+        );
+        assert!(
+            m.contains("local :")
+                && m.contains("google:")
+                && m.contains("枠5: 牽制 0.91 / 支援 0.50")
+                && m.ends_with(&link),
+            "{m}"
+        );
         assert!(m.chars().count() <= DISCORD_LIMIT);
     }
 
     #[test]
     fn message_is_capped_at_2000_chars() {
-        let boxes: Vec<BoxScore> = (0..400).map(|_| bx("あああああああああ", 0.9, "いいいいいいいいいい", 0.1)).collect();
+        let boxes: Vec<BoxScore> = (0..400)
+            .map(|_| bx("あああああああああ", 0.9, "いいいいいいいいいい", 0.1))
+            .collect();
         let m = disagreement_message(&[], &set(&[]), &boxes, "https://discord.com/channels/1/2/3");
         assert_eq!(m.chars().count(), DISCORD_LIMIT);
         assert!(m.ends_with('…'));
@@ -683,13 +929,20 @@ mod tests {
 
     #[test]
     fn decode_rejects_garbage_and_oversized() {
-        assert_eq!(decode_limited(b"not an image").unwrap_err(), LocalUnsure::Decode);
+        assert_eq!(
+            decode_limited(b"not an image").unwrap_err(),
+            LocalUnsure::Decode
+        );
         // 幅が上限を超える PNG はデコード前に弾く
         let mut png = Vec::new();
-        image::DynamicImage::ImageLuma8(image::GrayImage::new(8001, 1)).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+        image::DynamicImage::ImageLuma8(image::GrayImage::new(8001, 1))
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .unwrap();
         assert_eq!(decode_limited(&png).unwrap_err(), LocalUnsure::TooLarge);
         let mut ok = Vec::new();
-        image::DynamicImage::ImageLuma8(image::GrayImage::new(10, 10)).write_to(&mut std::io::Cursor::new(&mut ok), image::ImageFormat::Png).unwrap();
+        image::DynamicImage::ImageLuma8(image::GrayImage::new(10, 10))
+            .write_to(&mut std::io::Cursor::new(&mut ok), image::ImageFormat::Png)
+            .unwrap();
         assert!(decode_limited(&ok).is_ok());
     }
 
@@ -708,8 +961,17 @@ mod tests {
         let http = serenity::Http::new(&token);
         let user = serenity::UserId::new(user);
 
-        let local = vec!["前衛".to_string(), "近距離".into(), "火力".into(), "生存".into(), "防御".into()];
-        let google: HashSet<String> = ["前衛", "遠距離", "火力", "生存", "防御"].iter().map(|s| s.to_string()).collect();
+        let local = vec![
+            "前衛".to_string(),
+            "近距離".into(),
+            "火力".into(),
+            "生存".into(),
+            "防御".into(),
+        ];
+        let google: HashSet<String> = ["前衛", "遠距離", "火力", "生存", "防御"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let boxes = vec![
             bx("前衛", 0.98, "重装", 0.80),
             bx("近距離", 0.86, "遠距離", 0.83),
@@ -718,18 +980,47 @@ mod tests {
             bx("防御", 0.95, "減速", 0.79),
         ];
         let text = disagreement_message(&local, &google, &boxes, "（テスト送信のためリンクなし）");
-        try_send_dm(&http, user, format!("【テスト】{text}")).await.expect("食い違いの DM を送れなかった");
+        try_send_dm(&http, user, format!("【テスト】{text}"))
+            .await
+            .expect("食い違いの DM を送れなかった");
 
         let mut stats = ShadowStats::default();
         stats.record(&Comparison::Agree);
         stats.record(&Comparison::Disagree);
-        stats.record(&Comparison::LocalUnsure(LocalUnsure::Ocr(UnsureReason::GridNotFound)));
+        stats.record(&Comparison::LocalUnsure(LocalUnsure::Ocr(
+            UnsureReason::GridNotFound,
+        )));
         stats.jp_read = 1;
         stats.jp_miss = 1;
-        try_send_dm(&http, user, format!("【テスト】{}", summary_message(&stats, LocalOcrMode::Shadow))).await.expect("まとめの DM を送れなかった");
-        try_send_dm(&http, user, format!("【テスト】{}", summary_message(&stats, LocalOcrMode::On))).await.expect("on のまとめの DM を送れなかった");
+        try_send_dm(
+            &http,
+            user,
+            format!(
+                "【テスト】{}",
+                summary_message(&stats, LocalOcrMode::Shadow)
+            ),
+        )
+        .await
+        .expect("まとめの DM を送れなかった");
+        try_send_dm(
+            &http,
+            user,
+            format!("【テスト】{}", summary_message(&stats, LocalOcrMode::On)),
+        )
+        .await
+        .expect("on のまとめの DM を送れなかった");
 
-        let links = vec!["（テスト送信のためリンクなし 1）".to_string(), "（2）".into(), "（3）".into()];
-        try_send_dm(&http, user, format!("【テスト】{}", miss_alert_message(3, &links))).await.expect("連続の DM を送れなかった");
+        let links = vec![
+            "（テスト送信のためリンクなし 1）".to_string(),
+            "（2）".into(),
+            "（3）".into(),
+        ];
+        try_send_dm(
+            &http,
+            user,
+            format!("【テスト】{}", miss_alert_message(3, &links)),
+        )
+        .await
+        .expect("連続の DM を送れなかった");
     }
 }

@@ -81,8 +81,11 @@ impl YoutubeNotifyConfig {
         let youtube_channel_id = std::env::var("YOUTUBE_CHANNEL_ID").ok()?;
         let api_key = std::env::var("YOUTUBE_API_KEY").ok()?;
         std::env::var("CHANNEL_ID_YOUTUBE_NOTIFY").ok()?;
-        let uploads_playlist_id = uploads_playlist_id(&youtube_channel_id)
-            .unwrap_or_else(|| panic!("YOUTUBE_CHANNEL_ID は UC で始まるチャンネルIDにしてください: {youtube_channel_id}"));
+        let uploads_playlist_id = uploads_playlist_id(&youtube_channel_id).unwrap_or_else(|| {
+            panic!(
+                "YOUTUBE_CHANNEL_ID は UC で始まるチャンネルIDにしてください: {youtube_channel_id}"
+            )
+        });
         let optional_channel = |key: &str| std::env::var(key).ok().map(|_| channel_id_env(key));
         let optional_role = |key: &str| std::env::var(key).ok().map(|_| role_id_env(key));
         Some(Self {
@@ -98,7 +101,9 @@ impl YoutubeNotifyConfig {
 
 /// チャンネルID（`UC…`）からアップロード一覧のプレイリストID（`UU…`）を作る。
 fn uploads_playlist_id(channel_id: &str) -> Option<String> {
-    channel_id.strip_prefix("UC").map(|rest| format!("UU{rest}"))
+    channel_id
+        .strip_prefix("UC")
+        .map(|rest| format!("UU{rest}"))
 }
 
 /// アップロード一覧の1動画分。
@@ -161,11 +166,17 @@ pub fn parse_playlist_items(json: &str) -> Result<Vec<FeedVideo>, String> {
         .into_iter()
         .filter_map(|item| {
             // 非公開・限定公開（公開予約の待ちを含む）はお知らせしない。公開されれば次の回に拾う
-            let privacy = item.status.as_ref().and_then(|s| s.privacy_status.as_deref());
+            let privacy = item
+                .status
+                .as_ref()
+                .and_then(|s| s.privacy_status.as_deref());
             if privacy != Some("public") {
                 return None;
             }
-            let published = item.content_details.video_published_at.or(item.snippet.published_at)?;
+            let published = item
+                .content_details
+                .video_published_at
+                .or(item.snippet.published_at)?;
             let video_id = item.content_details.video_id;
             Some(FeedVideo {
                 url: format!("https://www.youtube.com/watch?v={video_id}"),
@@ -180,7 +191,10 @@ pub fn parse_playlist_items(json: &str) -> Result<Vec<FeedVideo>, String> {
 
 /// アップロード一覧を Data API から読む。URL に API キーが入るので、エラーには URL を含めない
 /// （reqwest のエラーは既定で URL を表示し、ログにキーが残るため）。
-async fn fetch_uploads(client: &reqwest::Client, config: &YoutubeNotifyConfig) -> Result<Vec<FeedVideo>, Error> {
+async fn fetch_uploads(
+    client: &reqwest::Client,
+    config: &YoutubeNotifyConfig,
+) -> Result<Vec<FeedVideo>, Error> {
     let body = get_data_api(
         client,
         PLAYLIST_ITEMS_URL,
@@ -196,12 +210,25 @@ async fn fetch_uploads(client: &reqwest::Client, config: &YoutubeNotifyConfig) -
 }
 
 /// Data API を GET して本文を返す。URL に API キーが入るので、エラーには URL を含めない。
-async fn get_data_api(client: &reqwest::Client, url: &str, query: &[(&str, &str)]) -> Result<String, Error> {
-    let resp = client.get(url).query(query).send().await.map_err(|e| e.without_url())?;
+async fn get_data_api(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(&str, &str)],
+) -> Result<String, Error> {
+    let resp = client
+        .get(url)
+        .query(query)
+        .send()
+        .await
+        .map_err(|e| e.without_url())?;
     let status = resp.status();
     let body = resp.text().await.map_err(|e| e.without_url())?;
     if !status.is_success() {
-        return Err(format!("YouTube Data API が {status} を返した: {}", api_error_message(&body)).into());
+        return Err(format!(
+            "YouTube Data API が {status} を返した: {}",
+            api_error_message(&body)
+        )
+        .into());
     }
     Ok(body)
 }
@@ -238,7 +265,8 @@ struct VideoSnippet {
 /// `videos`（`part=snippet,liveStreamingDetails`）の応答を動画ID → 状態にする。
 /// 消された・非公開になった動画は応答に入らない。
 pub fn parse_videos(json: &str) -> Result<HashMap<String, ApiLive>, String> {
-    let parsed: VideoList = serde_json::from_str(json).map_err(|e| format!("動画の情報が読めない: {e}"))?;
+    let parsed: VideoList =
+        serde_json::from_str(json).map_err(|e| format!("動画の情報が読めない: {e}"))?;
     Ok(parsed
         .items
         .into_iter()
@@ -247,7 +275,13 @@ pub fn parse_videos(json: &str) -> Result<HashMap<String, ApiLive>, String> {
                 .snippet
                 .and_then(|s| s.live_broadcast_content)
                 .unwrap_or_else(|| "none".to_string());
-            (item.id, ApiLive { has_live_details: item.live_streaming_details.is_some(), broadcast })
+            (
+                item.id,
+                ApiLive {
+                    has_live_details: item.live_streaming_details.is_some(),
+                    broadcast,
+                },
+            )
         })
         .collect())
 }
@@ -262,7 +296,11 @@ async fn fetch_live(
     let body = get_data_api(
         client,
         VIDEOS_URL,
-        &[("part", "snippet,liveStreamingDetails"), ("id", ids.as_str()), ("key", config.api_key.as_str())],
+        &[
+            ("part", "snippet,liveStreamingDetails"),
+            ("id", ids.as_str()),
+            ("key", config.api_key.as_str()),
+        ],
     )
     .await?;
     Ok(parse_videos(&body)?)
@@ -272,13 +310,21 @@ async fn fetch_live(
 fn api_error_message(body: &str) -> String {
     serde_json::from_str::<Value>(body)
         .ok()
-        .and_then(|v| v.pointer("/error/message").and_then(Value::as_str).map(str::to_string))
+        .and_then(|v| {
+            v.pointer("/error/message")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
         .unwrap_or_else(|| body.chars().take(200).collect())
 }
 
 /// お知らせの本文。メンションの行（あれば）・宣伝文・タイトル（太字）・URL の順。
 /// URL を最後に置くと Discord が動画のカード（サムネと再生ボタン）を出す。
-pub fn build_message(mention_role: Option<serenity::RoleId>, pitch: &str, video: &FeedVideo) -> String {
+pub fn build_message(
+    mention_role: Option<serenity::RoleId>,
+    pitch: &str,
+    video: &FeedVideo,
+) -> String {
     let mut lines = Vec::new();
     if let Some(role) = mention_role {
         lines.push(format!("<@&{role}>"));
@@ -297,8 +343,15 @@ fn clean_pitch(raw: &str) -> Option<String> {
 }
 
 fn pitch_input(video: &FeedVideo) -> String {
-    let description: String = video.description.chars().take(DESCRIPTION_PROMPT_CHARS).collect();
-    format!("動画のタイトル: {}\n概要欄の冒頭:\n{description}", video.title)
+    let description: String = video
+        .description
+        .chars()
+        .take(DESCRIPTION_PROMPT_CHARS)
+        .collect();
+    format!(
+        "動画のタイトル: {}\n概要欄の冒頭:\n{description}",
+        video.title
+    )
 }
 
 /// 動画の種類。
@@ -317,7 +370,10 @@ pub enum VideoKind {
 impl VideoKind {
     /// これ以上変わらない種類か（覚えておいて、次からは動画ページを読まない）。
     fn is_final(self) -> bool {
-        matches!(self, VideoKind::Video | VideoKind::Short | VideoKind::PastStream)
+        matches!(
+            self,
+            VideoKind::Video | VideoKind::Short | VideoKind::PastStream
+        )
     }
 }
 
@@ -387,7 +443,11 @@ async fn classify(
             }
         }
     }
-    Ok(if is_short(no_redirect, video_id).await? { VideoKind::Short } else { VideoKind::Video })
+    Ok(if is_short(no_redirect, video_id).await? {
+        VideoKind::Short
+    } else {
+        VideoKind::Video
+    })
 }
 
 /// ショート動画か。`/shorts/<ID>` がショートなら 200、ふつうの動画なら `/watch` への
@@ -408,7 +468,11 @@ async fn is_short(no_redirect: &reqwest::Client, video_id: &str) -> Result<bool,
 }
 
 /// お知らせ用チャンネルの直近のメッセージに、bot がこの動画IDをもう貼っているか。
-async fn already_posted(ctx: &serenity::Context, channel: serenity::ChannelId, video_id: &str) -> Result<bool, Error> {
+async fn already_posted(
+    ctx: &serenity::Context,
+    channel: serenity::ChannelId,
+    video_id: &str,
+) -> Result<bool, Error> {
     let me = ctx.cache.current_user().id;
     let recent = channel
         .messages(&ctx.http, serenity::GetMessages::new().limit(HISTORY_LIMIT))
@@ -427,12 +491,16 @@ async fn post(
     pitch: &str,
     video: &FeedVideo,
 ) -> Result<(), Error> {
-    let allowed = serenity::CreateAllowedMentions::new().roles(role.into_iter().collect::<Vec<_>>());
+    let allowed =
+        serenity::CreateAllowedMentions::new().roles(role.into_iter().collect::<Vec<_>>());
     let message = serenity::CreateMessage::new()
         .content(build_message(role, pitch, video))
         .allowed_mentions(allowed);
     channel.send_message(&ctx.http, message).await?;
-    println!("[youtube_notify] お知らせしました: {} ({}) → {channel}", video.title, video.video_id);
+    println!(
+        "[youtube_notify] お知らせしました: {} ({}) → {channel}",
+        video.title, video.video_id
+    );
     Ok(())
 }
 
@@ -455,7 +523,11 @@ async fn check_once(
         .map(|v| v.video_id.as_str())
         .filter(|id| !kinds.contains_key(*id))
         .collect();
-    let live = if unsettled.is_empty() { HashMap::new() } else { fetch_live(feed_client, config, &unsettled).await? };
+    let live = if unsettled.is_empty() {
+        HashMap::new()
+    } else {
+        fetch_live(feed_client, config, &unsettled).await?
+    };
 
     for video in videos {
         // 配信は枠を立てた時（published）より後に始まるので、RECENT_WINDOW で絞る前に種類を決める
@@ -467,7 +539,10 @@ async fn check_once(
                     Ok(kind) => kind,
                     Err(e) => {
                         // この動画だけ次の回に回す
-                        eprintln!("[youtube_notify] {} の種類が分からないので次の回にまた確かめます: {e}", video.video_id);
+                        eprintln!(
+                            "[youtube_notify] {} の種類が分からないので次の回にまた確かめます: {e}",
+                            video.video_id
+                        );
                         continue;
                     }
                 };
@@ -482,17 +557,32 @@ async fn check_once(
                 if already_posted(ctx, config.discord_channel, &video.video_id).await? {
                     continue;
                 }
-                let pitch = match state.uranai.write_in_character(PITCH_TASK, &pitch_input(&video)).await {
+                let pitch = match state
+                    .uranai
+                    .write_in_character(PITCH_TASK, &pitch_input(&video))
+                    .await
+                {
                     Ok(raw) => clean_pitch(&raw).unwrap_or_else(|| FALLBACK_PITCH.to_string()),
                     Err(e) => {
-                        eprintln!("[youtube_notify] 宣伝文の生成に失敗したので決まった文面にします: {e}");
+                        eprintln!(
+                            "[youtube_notify] 宣伝文の生成に失敗したので決まった文面にします: {e}"
+                        );
                         FALLBACK_PITCH.to_string()
                     }
                 };
-                post(ctx, config.discord_channel, config.mention_role, &pitch, &video).await?;
+                post(
+                    ctx,
+                    config.discord_channel,
+                    config.mention_role,
+                    &pitch,
+                    &video,
+                )
+                .await?;
             }
             VideoKind::LiveNow => {
-                let Some(channel) = config.stream_channel else { continue };
+                let Some(channel) = config.stream_channel else {
+                    continue;
+                };
                 if already_posted(ctx, channel, &video.video_id).await? {
                     continue;
                 }
@@ -506,7 +596,11 @@ async fn check_once(
 
 /// Data API・動画ページ用と、ショート判定用（リダイレクトを追わない）の HTTP クライアント。
 fn http_clients() -> (reqwest::Client, reqwest::Client) {
-    let builder = || reqwest::Client::builder().timeout(HTTP_TIMEOUT).user_agent(USER_AGENT);
+    let builder = || {
+        reqwest::Client::builder()
+            .timeout(HTTP_TIMEOUT)
+            .user_agent(USER_AGENT)
+    };
     let feed_client = builder().build().expect("reqwest client should build");
     let no_redirect = builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -521,7 +615,16 @@ pub async fn run(ctx: serenity::Context, config: YoutubeNotifyConfig, state: Arc
     let (feed_client, no_redirect) = http_clients();
     let mut kinds = HashMap::new();
     loop {
-        if let Err(e) = check_once(&ctx, &config, &feed_client, &no_redirect, &mut kinds, &state).await {
+        if let Err(e) = check_once(
+            &ctx,
+            &config,
+            &feed_client,
+            &no_redirect,
+            &mut kinds,
+            &state,
+        )
+        .await
+        {
             eprintln!("[youtube_notify] 新着の確認に失敗しました（次の回にまた確かめます）: {e}");
         }
         tokio::time::sleep(POLL_INTERVAL).await;
@@ -573,36 +676,55 @@ mod tests {
     #[test]
     fn parse_playlist_items_reads_items() {
         let videos = parse_playlist_items(SAMPLE).expect("sample should parse");
-        assert_eq!(videos.len(), 2, "公開でない項目・公開時刻が読めない項目は飛ばす");
+        assert_eq!(
+            videos.len(),
+            2,
+            "公開でない項目・公開時刻が読めない項目は飛ばす"
+        );
         let v = &videos[0];
         assert_eq!(v.video_id, "XeOiPXCJyFA");
-        assert_eq!(v.title, "【天井交換 誰を選ぶ】ウィシャデルか新約エクシアか？ Q&A ★");
+        assert_eq!(
+            v.title,
+            "【天井交換 誰を選ぶ】ウィシャデルか新約エクシアか？ Q&A ★"
+        );
         assert_eq!(v.url, "https://www.youtube.com/watch?v=XeOiPXCJyFA");
         assert_eq!(v.description, "おすすめを解説します！\n・新約エクシア");
         // プレイリストに入った時刻ではなく、動画の公開時刻を使う
         assert_eq!(v.published.to_rfc3339(), "2026-10-19T07:34:29+00:00");
         assert_eq!(videos[1].video_id, "jgo3tHu1dZQ");
-        assert_eq!(videos[1].published.to_rfc3339(), "2026-10-13T10:56:06+00:00");
+        assert_eq!(
+            videos[1].published.to_rfc3339(),
+            "2026-10-13T10:56:06+00:00"
+        );
         assert_eq!(videos[1].description, "");
     }
 
     #[test]
     fn parse_playlist_items_accepts_empty_and_rejects_garbage() {
         assert_eq!(parse_playlist_items(r#"{"items":[]}"#).unwrap(), vec![]);
-        assert_eq!(parse_playlist_items(r#"{"kind":"youtube#playlistItemListResponse"}"#).unwrap(), vec![]);
+        assert_eq!(
+            parse_playlist_items(r#"{"kind":"youtube#playlistItemListResponse"}"#).unwrap(),
+            vec![]
+        );
         assert!(parse_playlist_items("<html>").is_err());
     }
 
     #[test]
     fn uploads_playlist_id_swaps_prefix() {
-        assert_eq!(uploads_playlist_id("UCqaaoz71ygYPrTrtApHGkZg").as_deref(), Some("UUqaaoz71ygYPrTrtApHGkZg"));
+        assert_eq!(
+            uploads_playlist_id("UCqaaoz71ygYPrTrtApHGkZg").as_deref(),
+            Some("UUqaaoz71ygYPrTrtApHGkZg")
+        );
         assert_eq!(uploads_playlist_id("@holmesfems"), None);
     }
 
     #[test]
     fn api_error_message_reads_reason() {
         let body = r#"{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","errors":[]}}"#;
-        assert_eq!(api_error_message(body), "API key not valid. Please pass a valid API key.");
+        assert_eq!(
+            api_error_message(body),
+            "API key not valid. Please pass a valid API key."
+        );
         assert_eq!(api_error_message("Not Found"), "Not Found");
     }
 
@@ -623,7 +745,10 @@ mod tests {
 
     #[test]
     fn clean_pitch_rejects_empty_and_too_long() {
-        assert_eq!(clean_pitch("  見に来てね \n").as_deref(), Some("見に来てね"));
+        assert_eq!(
+            clean_pitch("  見に来てね \n").as_deref(),
+            Some("見に来てね")
+        );
         assert_eq!(clean_pitch("   "), None);
         assert_eq!(clean_pitch(&"あ".repeat(MAX_PITCH_CHARS + 1)), None);
     }
@@ -676,14 +801,20 @@ mod tests {
         assert_eq!(api_kind(video), None);
         let past = &live["HX2CRfRKt8Y"];
         assert!(past.has_live_details);
-        assert_eq!(api_kind(past), None, "終わった配信はページでプレミアと見分ける");
+        assert_eq!(
+            api_kind(past),
+            None,
+            "終わった配信はページでプレミアと見分ける"
+        );
         assert_eq!(api_kind(&live["liveNow1111"]), Some(VideoKind::LiveNow));
         assert_eq!(api_kind(&live["upcoming111"]), Some(VideoKind::Upcoming));
         assert!(parse_videos("<html>").is_err());
     }
 
     fn player_page(player_json: &str) -> String {
-        format!(r#"<html><script>var ytInitialPlayerResponse = {player_json};var meta = document.createElement('meta');</script></html>"#)
+        format!(
+            r#"<html><script>var ytInitialPlayerResponse = {player_json};var meta = document.createElement('meta');</script></html>"#
+        )
     }
 
     #[test]
@@ -692,7 +823,8 @@ mod tests {
         let past = player_page(
             r#"{"videoDetails":{"isLiveContent":true},"microformat":{"playerMicroformatRenderer":{"liveBroadcastDetails":{"isLiveNow":false}}}}"#,
         );
-        let premiere = player_page(r#"{"videoDetails":{"videoId":"XeOiPXCJyFA","isLiveContent":false}}"#);
+        let premiere =
+            player_page(r#"{"videoDetails":{"videoId":"XeOiPXCJyFA","isLiveContent":false}}"#);
         assert_eq!(parse_is_live_content(&past), Ok(true));
         assert_eq!(parse_is_live_content(&premiere), Ok(false));
         // ボット確認のページなどで videoDetails が欠けていたら、動画とはみなさない

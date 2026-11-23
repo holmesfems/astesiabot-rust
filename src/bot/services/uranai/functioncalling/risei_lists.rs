@@ -17,7 +17,10 @@ struct Args {
 /// `RiseiListTarget`には存在しないため実態と食い違っていた。コマンド側の選択肢と
 /// 単一の情報源にすることでズレを防ぐ。
 fn risei_list_targets() -> Vec<String> {
-    RiseiListTarget::list().into_iter().map(|c| c.name).collect()
+    RiseiListTarget::list()
+        .into_iter()
+        .map(|c| c.name)
+        .collect()
 }
 
 impl ToolArgs for Args {

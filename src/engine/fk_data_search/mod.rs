@@ -52,7 +52,13 @@ pub struct FkDataView {
 
 impl FkDataView {
     pub fn search(&self, operator_name: &str, skill_num: &str) -> FkSearchResult {
-        search::resolve(&self.fk_data, &self.operator_data, &self.skill_data, operator_name, skill_num)
+        search::resolve(
+            &self.fk_data,
+            &self.operator_data,
+            &self.skill_data,
+            operator_name,
+            skill_num,
+        )
     }
 
     /// オペレーター名のオートコンプリート。TTLチェックは行わず、
@@ -73,9 +79,15 @@ mod tests {
     #[ignore]
     async fn resolves_real_single_skill_operator() {
         dotenvy::dotenv().ok();
-        let fk_sheet = fk_data::fetch().await.expect("fk_data fetch should succeed against real network");
-        let op_data = operator_data::fetch().await.expect("operator_data fetch should succeed against real network");
-        let sk_data = skill_data::fetch().await.expect("skill_data fetch should succeed against real network");
+        let fk_sheet = fk_data::fetch()
+            .await
+            .expect("fk_data fetch should succeed against real network");
+        let op_data = operator_data::fetch()
+            .await
+            .expect("operator_data fetch should succeed against real network");
+        let sk_data = skill_data::fetch()
+            .await
+            .expect("skill_data fetch should succeed against real network");
         let view = FkDataView {
             fk_data: Arc::new(fk_sheet),
             operator_data: Arc::new(op_data),
@@ -84,10 +96,15 @@ mod tests {
         match view.search("アイリス", "") {
             FkSearchResult::Found(v) => {
                 assert_eq!(v.fk_num, "1");
-                println!("resolved skill_name={:?} fk_err={:?}", v.skill_name, v.fk_err);
+                println!(
+                    "resolved skill_name={:?} fk_err={:?}",
+                    v.skill_name, v.fk_err
+                );
             }
             FkSearchResult::OperatorNotFound => panic!("expected Found, got OperatorNotFound"),
-            FkSearchResult::NeedsSkillSelection { .. } => panic!("expected Found, got NeedsSkillSelection"),
+            FkSearchResult::NeedsSkillSelection { .. } => {
+                panic!("expected Found, got NeedsSkillSelection")
+            }
             FkSearchResult::SkillNotFound { .. } => panic!("expected Found, got SkillNotFound"),
         }
     }
@@ -98,9 +115,15 @@ mod tests {
     #[ignore]
     async fn needs_selection_for_real_multi_skill_operator() {
         dotenvy::dotenv().ok();
-        let fk_sheet = fk_data::fetch().await.expect("fk_data fetch should succeed against real network");
-        let op_data = operator_data::fetch().await.expect("operator_data fetch should succeed against real network");
-        let sk_data = skill_data::fetch().await.expect("skill_data fetch should succeed against real network");
+        let fk_sheet = fk_data::fetch()
+            .await
+            .expect("fk_data fetch should succeed against real network");
+        let op_data = operator_data::fetch()
+            .await
+            .expect("operator_data fetch should succeed against real network");
+        let sk_data = skill_data::fetch()
+            .await
+            .expect("skill_data fetch should succeed against real network");
         let view = FkDataView {
             fk_data: Arc::new(fk_sheet),
             operator_data: Arc::new(op_data),
@@ -119,4 +142,3 @@ mod tests {
         }
     }
 }
-

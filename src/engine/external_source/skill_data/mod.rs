@@ -47,12 +47,18 @@ pub struct SkillData {
 impl SkillData {
     /// idから名前を解決する。無ければ"Missing"。
     pub fn get_str(&self, id: &str) -> &str {
-        self.id_to_item.get(id).map(|item| item.name.as_str()).unwrap_or("Missing")
+        self.id_to_item
+            .get(id)
+            .map(|item| item.name.as_str())
+            .unwrap_or("Missing")
     }
 
     /// idから説明文を解決する。無ければ空文字列。
     pub fn get_description(&self, id: &str) -> &str {
-        self.id_to_item.get(id).map(|item| item.description.as_str()).unwrap_or("")
+        self.id_to_item
+            .get(id)
+            .map(|item| item.description.as_str())
+            .unwrap_or("")
     }
 
     /// idから最大レベルのblackboardを解決する。無ければ`None`。
@@ -63,12 +69,17 @@ impl SkillData {
     /// idからレベル1〜(データに存在する数だけ)のblackboard一覧を解決する。無ければ`None`。
     /// P4: フレームキル計算機の「条件付きバフ」がスキルLv/特化段階から値を機械抽出するために使う。
     pub fn get_blackboard_by_level(&self, id: &str) -> Option<&Vec<IndexMap<String, f64>>> {
-        self.id_to_item.get(id).map(|item| &item.blackboard_by_level)
+        self.id_to_item
+            .get(id)
+            .map(|item| &item.blackboard_by_level)
     }
 
     /// idが「弾薬スキル」(`durationType == "AMMO"`)かどうか。無ければfalse。
     pub fn is_ammo_skill(&self, id: &str) -> bool {
-        self.id_to_item.get(id).map(|item| item.is_ammo_skill).unwrap_or(false)
+        self.id_to_item
+            .get(id)
+            .map(|item| item.is_ammo_skill)
+            .unwrap_or(false)
     }
 
     #[cfg(test)]
@@ -101,15 +112,22 @@ async fn fetch_impl() -> Result<SkillData, FetchError> {
             let jp_value = jp_table.get(id.as_str());
             let source = jp_value.unwrap_or(cn_value);
             // 最大レベル(`levels`の末尾)のデータから名前/説明文を組み立てる。
-            let Some(levels) = source.get("levels").and_then(Value::as_array) else { continue };
-            let Some(last_level) = levels.last() else { continue };
+            let Some(levels) = source.get("levels").and_then(Value::as_array) else {
+                continue;
+            };
+            let Some(last_level) = levels.last() else {
+                continue;
+            };
             let Ok(level) = serde_json::from_value::<RawSkillLevel>(last_level.clone()) else {
                 continue;
             };
             let description = description::build_description(&level);
             // `value`が`None`の項目は除外する。
-            let blackboard: IndexMap<String, f64> =
-                level.blackboard.iter().filter_map(|item| item.value.map(|v| (item.key.clone(), v))).collect();
+            let blackboard: IndexMap<String, f64> = level
+                .blackboard
+                .iter()
+                .filter_map(|item| item.value.map(|v| (item.key.clone(), v)))
+                .collect();
             let is_ammo_skill = level.duration_type == "AMMO";
             // P4: レベル1〜(データに存在する数だけ)のblackboardも保持する。1レベルでも
             // deserialize/構造が壊れているものは黙って空blackboardのまま積む
@@ -120,7 +138,11 @@ async fn fetch_impl() -> Result<SkillData, FetchError> {
                 .map(|lv| {
                     serde_json::from_value::<RawSkillLevel>(lv.clone())
                         .map(|parsed| {
-                            parsed.blackboard.iter().filter_map(|item| item.value.map(|v| (item.key.clone(), v))).collect()
+                            parsed
+                                .blackboard
+                                .iter()
+                                .filter_map(|item| item.value.map(|v| (item.key.clone(), v)))
+                                .collect()
                         })
                         .unwrap_or_default()
                 })
@@ -148,9 +170,17 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn fetch_gets_real_gamedata() {
-        let data = fetch().await.expect("fetch should succeed against real network");
+        let data = fetch()
+            .await
+            .expect("fetch should succeed against real network");
         assert!(!data.id_to_item.is_empty());
-        let has_description = data.id_to_item.values().any(|item| !item.description.is_empty());
-        assert!(has_description, "at least some skills should have a non-empty description");
+        let has_description = data
+            .id_to_item
+            .values()
+            .any(|item| !item.description.is_empty());
+        assert!(
+            has_description,
+            "at least some skills should have a non-empty description"
+        );
     }
 }

@@ -1,4 +1,6 @@
-use super::{items_to_json, operator_typo_correction, wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
+use super::{
+    items_to_json, operator_typo_correction, wrap_parameters, ToolArgs, ToolFunction, ToolResponse,
+};
 use crate::api::AppState;
 use crate::bot::commands::operator_cost_calc::build_context;
 use crate::engine::operator_cost_calc::calc::operator_module_cost;

@@ -54,7 +54,9 @@ fn strip_port(host: &str) -> &str {
 
 /// Host ヘッダの値が旧ホスト `*.herokuapp.com` か。
 pub(crate) fn is_herokuapp_host(host: &str) -> bool {
-    strip_port(host).to_ascii_lowercase().ends_with(".herokuapp.com")
+    strip_port(host)
+        .to_ascii_lowercase()
+        .ends_with(".herokuapp.com")
 }
 
 /// リダイレクトすべきなら飛び先の絶対URLを返す。
@@ -73,7 +75,8 @@ fn redirect_target(
     }
     let host = host?;
     let is_legacy = is_herokuapp_host(host)
-        || strip_port(host).to_ascii_lowercase().strip_prefix("www.") == Some(canonical.host.as_str());
+        || strip_port(host).to_ascii_lowercase().strip_prefix("www.")
+            == Some(canonical.host.as_str());
     is_legacy.then(|| format!("{}{}", canonical.base, path_and_query))
 }
 
@@ -148,9 +151,17 @@ mod tests {
 
     #[tokio::test]
     async fn herokuapp_get_redirects_with_path_and_query() {
-        let res = send(Method::GET, "foo-123.herokuapp.com", "/LodChestSolver/en?a=1&b=2").await;
+        let res = send(
+            Method::GET,
+            "foo-123.herokuapp.com",
+            "/LodChestSolver/en?a=1&b=2",
+        )
+        .await;
         assert_eq!(res.status(), StatusCode::MOVED_PERMANENTLY);
-        assert_eq!(location(&res), "https://astesiabot.com/LodChestSolver/en?a=1&b=2");
+        assert_eq!(
+            location(&res),
+            "https://astesiabot.com/LodChestSolver/en?a=1&b=2"
+        );
     }
 
     #[tokio::test]
@@ -164,20 +175,34 @@ mod tests {
     async fn www_redirects_to_bare_domain() {
         let res = send(Method::GET, "WWW.astesiabot.com", "/LodChestSolver/en?x=1").await;
         assert_eq!(res.status(), StatusCode::MOVED_PERMANENTLY);
-        assert_eq!(location(&res), "https://astesiabot.com/LodChestSolver/en?x=1");
+        assert_eq!(
+            location(&res),
+            "https://astesiabot.com/LodChestSolver/en?x=1"
+        );
     }
 
     #[tokio::test]
     async fn herokuapp_recruitment_returns_migration_notice_without_calculating() {
         let res = send(Method::POST, "foo-123.herokuapp.com", "/recruitment/").await;
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         // ルートの "api" ではなく、移行のお願いが返る
         assert_eq!(json["tagCount"], 0);
-        assert!(json["reply"].as_str().unwrap().contains("新しい版に入れ替えてください"));
-        assert!(json["reply"].as_str().unwrap().contains("https://astesiabot.com/shortcut/recruitment\n"));
-        assert!(json["reply"].as_str().unwrap().contains("https://astesiabot.com/shortcut/recruitment-lite"));
+        assert!(json["reply"]
+            .as_str()
+            .unwrap()
+            .contains("新しい版に入れ替えてください"));
+        assert!(json["reply"]
+            .as_str()
+            .unwrap()
+            .contains("https://astesiabot.com/shortcut/recruitment\n"));
+        assert!(json["reply"]
+            .as_str()
+            .unwrap()
+            .contains("https://astesiabot.com/shortcut/recruitment-lite"));
     }
 
     #[tokio::test]
@@ -192,7 +217,9 @@ mod tests {
     async fn canonical_recruitment_is_untouched() {
         let res = send(Method::POST, "astesiabot.com", "/recruitment/").await;
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(&body[..], b"api");
     }
 

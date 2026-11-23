@@ -71,7 +71,9 @@ const YELLOW_TAGS: [&str; 2] = ["上級エリート", "エリート"];
 
 /// タグと枠の色の食い違い（エリート系なのに黄色でない／そうでないのに黄色）が 1 つでもあるか。
 fn order_suspect(tags: &[String], colors: &[Color]) -> bool {
-    tags.iter().zip(colors).any(|(t, c)| YELLOW_TAGS.contains(&t.as_str()) != (*c == Color::Yellow))
+    tags.iter()
+        .zip(colors)
+        .any(|(t, c)| YELLOW_TAGS.contains(&t.as_str()) != (*c == Color::Yellow))
 }
 
 // ---- デバッグ描画 ----
@@ -113,7 +115,13 @@ fn write_debug(dir: &Path, name: &str, small: &RgbImage, det: &Detection) {
 
 fn safe_dir_name(tag: &str) -> String {
     tag.chars()
-        .map(|c| if "/\\:*?\"<>|".contains(c) || c.is_control() { '_' } else { c })
+        .map(|c| {
+            if "/\\:*?\"<>|".contains(c) || c.is_control() {
+                '_'
+            } else {
+                c
+            }
+        })
         .collect()
 }
 
@@ -127,7 +135,12 @@ struct Args {
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { root: PathBuf::from("local/recruit_samples"), limit: None, only: None, debug_dir: None };
+    let mut a = Args {
+        root: PathBuf::from("local/recruit_samples"),
+        limit: None,
+        only: None,
+        debug_dir: None,
+    };
     let mut it = std::env::args().skip(1);
     while let Some(k) = it.next() {
         let mut val = || it.next().unwrap_or_else(|| panic!("{k} に値が要る"));
@@ -164,7 +177,11 @@ fn process(rec: &Record, idx: usize, args: &Args) -> Outcome {
         Ok(i) => i.to_rgb8(),
         Err(e) => {
             report.reason = Some(format!("decode: {e}"));
-            return Outcome { report, crops: vec![], colors: vec![] };
+            return Outcome {
+                report,
+                crops: vec![],
+                colors: vec![],
+            };
         }
     };
     let (iw, ih) = img.dimensions();
@@ -180,7 +197,14 @@ fn process(rec: &Record, idx: usize, args: &Args) -> Outcome {
     let mut colors = Vec::new();
     match &det.grid {
         None => {
-            report.reason = Some(if det.candidates.is_empty() { "候補なし" } else { "グリッドなし" }.into());
+            report.reason = Some(
+                if det.candidates.is_empty() {
+                    "候補なし"
+                } else {
+                    "グリッドなし"
+                }
+                .into(),
+            );
         }
         Some(g) => {
             report.found = true;
@@ -193,10 +217,16 @@ fn process(rec: &Record, idx: usize, args: &Args) -> Outcome {
             report.box_size = Some([full[0][2], full[0][3]]);
             colors = g.boxes.iter().map(|r| r.color).collect();
 
-            if let Some(l) = rec.label.as_ref().filter(|l| l.usable && l.is_global && l.tags.len() == 5) {
+            if let Some(l) = rec
+                .label
+                .as_ref()
+                .filter(|l| l.usable && l.is_global && l.tags.len() == 5)
+            {
                 let suspect = order_suspect(&l.tags, &colors);
                 for (pos, b) in full.iter().enumerate() {
-                    let Some(crop) = crop_box(&img, b) else { continue };
+                    let Some(crop) = crop_box(&img, b) else {
+                        continue;
+                    };
                     let dir = args.root.join("crops").join(safe_dir_name(&l.tags[pos]));
                     std::fs::create_dir_all(&dir).expect("crops dir");
                     let name = format!("{}_{}_{}.png", rec.message_id, rec.attachment_id, pos);
@@ -220,17 +250,25 @@ fn process(rec: &Record, idx: usize, args: &Args) -> Outcome {
     if let Some(dir) = &args.debug_dir {
         // 見つからなかった画像は全部、見つかったものは 50 枚に 1 枚
         if !report.found || idx.is_multiple_of(50) {
-            let stem = Path::new(&rec.file).file_stem().and_then(|s| s.to_str()).unwrap_or("x");
+            let stem = Path::new(&rec.file)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("x");
             let tag = if report.found { "ok" } else { "ng" };
             write_debug(dir, &format!("{tag}_{stem}.png"), &small, &det);
         }
     }
-    Outcome { report, crops, colors }
+    Outcome {
+        report,
+        crops,
+        colors,
+    }
 }
 
 fn main() {
     let args = parse_args();
-    let index = std::fs::read_to_string(args.root.join("index.jsonl")).expect("index.jsonl が読めない");
+    let index =
+        std::fs::read_to_string(args.root.join("index.jsonl")).expect("index.jsonl が読めない");
     let mut records: Vec<Record> = index
         .lines()
         .filter(|l| !l.trim().is_empty())
@@ -251,8 +289,12 @@ fn main() {
     std::fs::create_dir_all(&crops_root).expect("crops dir");
 
     let next = AtomicUsize::new(0);
-    let results: Mutex<Vec<Option<Outcome>>> = Mutex::new((0..records.len()).map(|_| None).collect());
-    let workers = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).min(8);
+    let results: Mutex<Vec<Option<Outcome>>> =
+        Mutex::new((0..records.len()).map(|_| None).collect());
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .min(8);
     std::thread::scope(|s| {
         for _ in 0..workers {
             s.spawn(|| loop {
@@ -265,11 +307,19 @@ fn main() {
             });
         }
     });
-    let outcomes: Vec<Outcome> = results.into_inner().unwrap().into_iter().map(|o| o.expect("outcome")).collect();
+    let outcomes: Vec<Outcome> = results
+        .into_inner()
+        .unwrap()
+        .into_iter()
+        .map(|o| o.expect("outcome"))
+        .collect();
 
     // ---- 書き出し ----
-    let mut rep = std::io::BufWriter::new(std::fs::File::create(args.root.join("detect_report.jsonl")).unwrap());
-    let mut idx = std::io::BufWriter::new(std::fs::File::create(crops_root.join("index.jsonl")).unwrap());
+    let mut rep = std::io::BufWriter::new(
+        std::fs::File::create(args.root.join("detect_report.jsonl")).unwrap(),
+    );
+    let mut idx =
+        std::io::BufWriter::new(std::fs::File::create(crops_root.join("index.jsonl")).unwrap());
     for o in &outcomes {
         writeln!(rep, "{}", serde_json::to_string(&o.report).unwrap()).unwrap();
         for c in &o.crops {
@@ -301,7 +351,10 @@ fn main() {
             *tag_counts.entry(c.tag.as_str()).or_default() += 1;
         }
     }
-    println!("usable && global: {tt}, found {tf} ({:.1}%)", 100.0 * tf as f32 / tt.max(1) as f32);
+    println!(
+        "usable && global: {tt}, found {tf} ({:.1}%)",
+        100.0 * tf as f32 / tt.max(1) as f32
+    );
     let mut res: Vec<_> = by_res.into_iter().collect();
     res.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
     println!("by resolution (usable && global, top 10):");
@@ -310,7 +363,10 @@ fn main() {
     }
     println!("box colors (all found images): {color_counts:?}");
     let ncrops: usize = tag_counts.values().sum();
-    let suspect_imgs = outcomes.iter().filter(|o| o.crops.first().is_some_and(|c| c.order_suspect)).count();
+    let suspect_imgs = outcomes
+        .iter()
+        .filter(|o| o.crops.first().is_some_and(|c| c.order_suspect))
+        .count();
     let labeled_imgs = outcomes.iter().filter(|o| !o.crops.is_empty()).count();
     println!("order_suspect images: {suspect_imgs}/{labeled_imgs}");
     println!("crops {ncrops}, tags {}:", tag_counts.len());
@@ -327,10 +383,25 @@ mod tests {
 
     #[test]
     fn order_suspect_detects_color_mismatch() {
-        let tags: Vec<String> = ["近距離", "上級エリート", "牽制", "エリート", "治療"].iter().map(|s| s.to_string()).collect();
-        let ok = [Color::Dark, Color::Yellow, Color::Dark, Color::Yellow, Color::Dark];
+        let tags: Vec<String> = ["近距離", "上級エリート", "牽制", "エリート", "治療"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let ok = [
+            Color::Dark,
+            Color::Yellow,
+            Color::Dark,
+            Color::Yellow,
+            Color::Dark,
+        ];
         assert!(!order_suspect(&tags, &ok));
-        let swapped = [Color::Dark, Color::Yellow, Color::Yellow, Color::Dark, Color::Dark];
+        let swapped = [
+            Color::Dark,
+            Color::Yellow,
+            Color::Yellow,
+            Color::Dark,
+            Color::Dark,
+        ];
         assert!(order_suspect(&tags, &swapped));
     }
 

@@ -102,7 +102,8 @@ mod tests {
             "duration": 16.0,
             "blackboard": []
         });
-        let level: RawSkillLevel = serde_json::from_value(json).expect("numeric spType should not fail parsing");
+        let level: RawSkillLevel =
+            serde_json::from_value(json).expect("numeric spType should not fail parsing");
         assert_eq!(level.sp_data.sp_type, "8");
         assert_eq!(level.name, "孤影の帰路");
     }
@@ -121,7 +122,8 @@ mod tests {
             "duration": 0.0,
             "blackboard": []
         });
-        let level: RawSkillLevel = serde_json::from_value(json).expect("string spType should still parse");
+        let level: RawSkillLevel =
+            serde_json::from_value(json).expect("string spType should still parse");
         assert_eq!(level.sp_data.sp_type, "INCREASE_WITH_TIME");
     }
 }

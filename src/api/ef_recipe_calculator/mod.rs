@@ -62,7 +62,9 @@ mod tests {
         assert!(html.contains("toolnav-bar"));
         assert!(html.contains(r#"href="/EFRecipeCalculator" aria-current="page""#));
         // 計算はブラウザの ES モジュールで行い、サーバーには送らない。
-        assert!(html.contains(r#"<script type="module" src="/EFRecipeCalculator/static/app.js?v=2">"#));
+        assert!(
+            html.contains(r#"<script type="module" src="/EFRecipeCalculator/static/app.js?v=2">"#)
+        );
         assert!(!html.contains("htmx"));
     }
 }

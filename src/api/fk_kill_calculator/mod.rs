@@ -65,7 +65,10 @@ where
     let statics = Router::new()
         .nest_service("/static", ServeDir::new(STATIC_DIR))
         .nest_service(&versioned, ServeDir::new(STATIC_DIR))
-        .layer(SetResponseHeaderLayer::overriding(header::CACHE_CONTROL, HeaderValue::from_static("no-cache")));
+        .layer(SetResponseHeaderLayer::overriding(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("no-cache"),
+        ));
     Router::new().route("/", get(index)).merge(statics)
 }
 
@@ -108,11 +111,19 @@ mod tests {
     async fn index_page_renders_with_title_and_toolnav() {
         let app = page_router::<()>();
         let response = app
-            .oneshot(Request::builder().uri("/").header("host", "example.com").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .header("host", "example.com")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let html = String::from_utf8(bytes.to_vec()).unwrap();
         assert!(html.contains("<title>フレームキル計算機"));
         assert!(html.contains("toolnav-bar"));
@@ -126,11 +137,24 @@ mod tests {
 
     #[tokio::test]
     async fn static_files_are_served_with_no_cache_on_both_paths() {
-        for uri in ["/static/v2/ui.js", "/static/ui.js", "/static/v2/ui/row_view.js", "/static/v2/style.css"] {
+        for uri in [
+            "/static/v2/ui.js",
+            "/static/ui.js",
+            "/static/v2/ui/row_view.js",
+            "/static/v2/style.css",
+        ] {
             let app = page_router::<()>();
-            let response = app.oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap()).await.unwrap();
+            let response = app
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
             assert_eq!(response.status(), StatusCode::OK, "{uri}");
-            let cache_control = response.headers().get(header::CACHE_CONTROL).unwrap().to_str().unwrap();
+            let cache_control = response
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .unwrap()
+                .to_str()
+                .unwrap();
             assert_eq!(cache_control, "no-cache", "{uri}");
         }
     }
@@ -143,16 +167,34 @@ mod tests {
     async fn catalog_json_returns_200_with_cache_control_and_parseable_json() {
         let app = catalog_router::<()>(empty_provider());
         let response = app
-            .oneshot(Request::builder().uri("/FrameKillCalculator/catalog.json").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/FrameKillCalculator/catalog.json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let cache_control = response.headers().get(header::CACHE_CONTROL).unwrap().to_str().unwrap();
+        let cache_control = response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert_eq!(cache_control, "public, max-age=300");
-        let content_type = response.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap();
+        let content_type = response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert!(content_type.starts_with("application/json"));
-        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let parsed: serde_json::Value = serde_json::from_slice(&bytes).expect("catalog.jsonはJSONとしてparseできること");
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_slice(&bytes).expect("catalog.jsonはJSONとしてparseできること");
         assert!(parsed.get("operators").is_some());
         assert!(parsed.get("buffers").is_some());
     }

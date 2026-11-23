@@ -6,7 +6,9 @@
 //! (xlsx出力専用の`raw`は`#[serde(skip)]`)。
 
 use super::stage_info::DEFAULT_SHOW_MIN_TIMES;
-use super::{drop_per_minute, filter_stages_by_show_min_times, RiseiCalculatorEngine, Server, StageItem};
+use super::{
+    drop_per_minute, filter_stages_by_show_min_times, RiseiCalculatorEngine, Server, StageItem,
+};
 use serde::Serialize;
 use std::sync::Arc;
 
@@ -113,9 +115,9 @@ impl RiseiCalculatorEngine {
             .find(|(key, _)| key.as_str() == target)
             .or_else(|| entries.iter().find(|(_, to_ja)| *to_ja == target))
             .or_else(|| {
-                entries
-                    .iter()
-                    .find(|(_, to_ja)| !target.is_empty() && (target.contains(*to_ja) || to_ja.contains(target)))
+                entries.iter().find(|(_, to_ja)| {
+                    !target.is_empty() && (target.contains(*to_ja) || to_ja.contains(target))
+                })
             })
             .map(|(key, _)| (*key).clone())
     }
@@ -133,9 +135,14 @@ impl RiseiCalculatorEngine {
             server
         };
         let snapshot = self.snapshot(effective_server).await;
-        let cat = snapshot.category(category_key).ok_or_else(|| format!("無効なカテゴリ:{category_key}"))?;
+        let cat = snapshot
+            .category(category_key)
+            .ok_or_else(|| format!("無効なカテゴリ:{category_key}"))?;
         let info = cat.info.clone();
-        let stages = filter_stages_by_show_min_times(snapshot.category_stages(category_key), DEFAULT_SHOW_MIN_TIMES);
+        let stages = filter_stages_by_show_min_times(
+            snapshot.category_stages(category_key),
+            DEFAULT_SHOW_MIN_TIMES,
+        );
         let promotion_items: Vec<&str> = snapshot.values.value_target[4..].to_vec();
 
         let mut list: Vec<MaterialStageInfo> = stages
@@ -143,7 +150,10 @@ impl RiseiCalculatorEngine {
             .map(|stage| {
                 let items: Vec<&str> = info.items.iter().map(String::as_str).collect();
                 let (time_cost, drop_per_minute_value) = if stage.min_clear_time > 0.0 {
-                    (Some(stage.min_clear_time / 2.0), Some(drop_per_minute(stage, &info, &snapshot.values)))
+                    (
+                        Some(stage.min_clear_time / 2.0),
+                        Some(drop_per_minute(stage, &info, &snapshot.values)),
+                    )
                 } else {
                     (None, None)
                 };
@@ -155,7 +165,8 @@ impl RiseiCalculatorEngine {
                     drop_per_minute: drop_per_minute_value,
                     main_item_efficiency: stage.get_partial_efficiency(&snapshot.values, &items),
                     confidence_3sigma: snapshot.stage_dev(stage) * 3.0,
-                    promotion_efficiency: stage.get_partial_efficiency(&snapshot.values, &promotion_items),
+                    promotion_efficiency: stage
+                        .get_partial_efficiency(&snapshot.values, &promotion_items),
                     max_times: stage.max_times(),
                     raw: stage.clone(),
                 }
@@ -204,8 +215,8 @@ impl RiseiCalculatorEngine {
                         let info = snapshot.category(&key)?.info.clone();
                         let items: Vec<&str> = info.items.iter().map(String::as_str).collect();
                         let efficiency = stage.get_partial_efficiency(&snapshot.values, &items);
-                        let drop_per_minute_value =
-                            (stage.min_clear_time > 0.0).then(|| drop_per_minute(stage, &info, &snapshot.values));
+                        let drop_per_minute_value = (stage.min_clear_time > 0.0)
+                            .then(|| drop_per_minute(stage, &info, &snapshot.values));
                         Some(StageCategoryEfficiency {
                             category_ja: info.to_ja,
                             efficiency,
@@ -220,7 +231,8 @@ impl RiseiCalculatorEngine {
                     categories,
                     sanity_cost: stage.ap_cost,
                     time_cost: (stage.min_clear_time > 0.0).then_some(stage.min_clear_time / 2.0),
-                    promotion_efficiency: stage.get_partial_efficiency(&snapshot.values, &promotion_items),
+                    promotion_efficiency: stage
+                        .get_partial_efficiency(&snapshot.values, &promotion_items),
                     max_times: stage.max_times(),
                     raw: stage.clone(),
                 }
@@ -234,7 +246,11 @@ impl RiseiCalculatorEngine {
     }
 
     /// riseievents相当の計算のみを行う共通部。名前順にソート済み。整形は呼び出し側の責務。
-    pub async fn event_search(&self, server: Server, target_code: &str) -> Result<Vec<EventStageInfo>, String> {
+    pub async fn event_search(
+        &self,
+        server: Server,
+        target_code: &str,
+    ) -> Result<Vec<EventStageInfo>, String> {
         let snapshot = self.snapshot(server).await;
         let mut stages = snapshot.search_event_stage(target_code);
         if stages.is_empty() {
@@ -245,10 +261,11 @@ impl RiseiCalculatorEngine {
         Ok(stages
             .iter()
             .filter_map(|stage| {
-                let (main_drop_name, main_drop_rate) = stage.get_max_efficiency_item(&snapshot.values.item_names)?;
+                let (main_drop_name, main_drop_rate) =
+                    stage.get_max_efficiency_item(&snapshot.values.item_names)?;
                 let time_cost = (stage.min_clear_time > 0.0).then_some(stage.min_clear_time / 2.0);
-                let drop_per_minute_value =
-                    (stage.min_clear_time > 0.0).then(|| main_drop_rate / stage.min_clear_time * 120.0);
+                let drop_per_minute_value = (stage.min_clear_time > 0.0)
+                    .then(|| main_drop_rate / stage.min_clear_time * 120.0);
                 Some(EventStageInfo {
                     name: stage.name_with_replicate(),
                     zone_name: stage.zone_name.clone(),

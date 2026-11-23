@@ -49,7 +49,7 @@ pub enum MsgType {
 fn colour_for(msg_type: MsgType) -> u32 {
     match msg_type {
         MsgType::Ok => 0x8be02b,
-        MsgType::Err => 0xff00ff, // magenta
+        MsgType::Err => 0xff00ff,       // magenta
         MsgType::Rarity(6) => 0xff8c1a, // オレンジ
         MsgType::Rarity(5) => 0xffd700, // 黄色
         MsgType::Rarity(4) => 0xc9a0ff, // 薄紫

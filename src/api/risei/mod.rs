@@ -39,11 +39,11 @@ use axum::routing::get;
 use axum::Router;
 use std::sync::Arc;
 
-pub use skill::{SKILL_ZIP_PATH, skill_router};
-use spec::{ParamSpec, EndpointSpec, endpoint_usage};
-use params::{ApiError, ApiResult, Params, rfc3339, check_params, required};
+use handlers::{events, index, lists, lists_index, materials, not_found, stages};
+use params::{check_params, required, rfc3339, ApiError, ApiResult, Params};
+pub use skill::{skill_router, SKILL_ZIP_PATH};
+use spec::{endpoint_usage, EndpointSpec, ParamSpec};
 use suggest::suggest;
-use handlers::{index, materials, stages, events, lists_index, lists, not_found};
 
 pub const PREFIX: &str = "/api/risei";
 

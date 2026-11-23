@@ -191,8 +191,8 @@ static OVERRIDES: OnceLock<Overrides> = OnceLock::new();
 
 impl Overrides {
     fn load() -> Self {
-        let map: OverridesMap =
-            serde_saphyr::from_str(OVERRIDES_YAML).expect("overrides.yamlはビルド時埋め込みなので必ずパースできるはず");
+        let map: OverridesMap = serde_saphyr::from_str(OVERRIDES_YAML)
+            .expect("overrides.yamlはビルド時埋め込みなので必ずパースできるはず");
         Self { map }
     }
 
@@ -202,19 +202,29 @@ impl Overrides {
         OVERRIDES.get_or_init(Self::load)
     }
 
-    pub fn variants_for(&self, operator_id: &str, skill_num: &str) -> Option<&Vec<OverrideVariant>> {
+    pub fn variants_for(
+        &self,
+        operator_id: &str,
+        skill_num: &str,
+    ) -> Option<&Vec<OverrideVariant>> {
         self.map.get(operator_id)?.get(skill_num)
     }
 
     /// `(operator_id, skill_num)`の全キーを列挙する。ドリフト検知テスト
     /// (`build_catalog`側で実際のfk_data/operatorと突き合わせる)用。
     pub fn all_keys(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.map.iter().flat_map(|(op_id, by_skill)| by_skill.keys().map(move |skill_num| (op_id.as_str(), skill_num.as_str())))
+        self.map.iter().flat_map(|(op_id, by_skill)| {
+            by_skill
+                .keys()
+                .map(move |skill_num| (op_id.as_str(), skill_num.as_str()))
+        })
     }
 
     #[cfg(test)]
     pub fn empty_for_test() -> Self {
-        Self { map: OverridesMap::new() }
+        Self {
+            map: OverridesMap::new(),
+        }
     }
 }
 
@@ -227,7 +237,9 @@ mod tests {
     fn overrides_yaml_parses_and_is_not_empty() {
         let overrides = Overrides::global();
         assert!(!overrides.map.is_empty());
-        let ash_variants = overrides.variants_for("char_456_ash", "3").expect("Ashの上書きがあるはず");
+        let ash_variants = overrides
+            .variants_for("char_456_ash", "3")
+            .expect("Ashの上書きがあるはず");
         assert_eq!(ash_variants.len(), 3);
     }
 

@@ -59,12 +59,18 @@ impl ItemCost {
     }
 
     pub fn sum(items: &[ItemCost]) -> ItemCost {
-        items.iter().fold(ItemCost::empty(), |acc, item| acc.add(item))
+        items
+            .iter()
+            .fold(ItemCost::empty(), |acc, item| acc.add(item))
     }
 
     pub fn scaled(&self, factor: f64) -> ItemCost {
         Self {
-            dict: self.dict.iter().map(|(k, v)| (k.clone(), v * factor)).collect(),
+            dict: self
+                .dict
+                .iter()
+                .map(|(k, v)| (k.clone(), v * factor))
+                .collect(),
         }
     }
 
@@ -117,9 +123,24 @@ impl ItemCost {
     /// （表示(`ordered_name_counts`)には使わない）。
     fn normalize_soc(&self) -> ItemCost {
         const GROUPS: [(&[&str], &str); 3] = [
-            (&["3211", "3221", "3231", "3241", "3251", "3261", "3271", "3281"], "3201_CUSTOM"),
-            (&["3212", "3222", "3232", "3242", "3252", "3262", "3272", "3282"], "3202_CUSTOM"),
-            (&["3213", "3223", "3233", "3243", "3253", "3263", "3273", "3283"], "3203_CUSTOM"),
+            (
+                &[
+                    "3211", "3221", "3231", "3241", "3251", "3261", "3271", "3281",
+                ],
+                "3201_CUSTOM",
+            ),
+            (
+                &[
+                    "3212", "3222", "3232", "3242", "3252", "3262", "3272", "3282",
+                ],
+                "3202_CUSTOM",
+            ),
+            (
+                &[
+                    "3213", "3223", "3233", "3243", "3253", "3263", "3273", "3283",
+                ],
+                "3203_CUSTOM",
+            ),
         ];
         let mut result = ItemCost::empty();
         for (id, value) in &self.dict {
@@ -143,7 +164,11 @@ impl ItemCost {
     }
 
     /// SoC集約なし。normalize済みの上で`value_target(values.server)`内の素材のみ合計する。
-    pub fn to_risei_value_only_value_target(&self, values: &RiseiValues, item_names: &ItemNames) -> f64 {
+    pub fn to_risei_value_only_value_target(
+        &self,
+        values: &RiseiValues,
+        item_names: &ItemNames,
+    ) -> f64 {
         let target = server::value_target(values.server);
         self.normalized(item_names)
             .iter()
@@ -174,12 +199,16 @@ impl ItemCost {
         let mut targets: Vec<&str> = server::item_rarity4(Server::Mainland);
         targets.extend(server::item_rarity3(Server::Mainland));
         for zh in targets {
-            let Some(id) = item_names.zh_to_id(zh) else { continue };
+            let Some(id) = item_names.zh_to_id(zh) else {
+                continue;
+            };
             let count = result.get(id);
             if count == 0.0 {
                 continue;
             }
-            let Some(formula_item) = formulas.get(id) else { continue };
+            let Some(formula_item) = formulas.get(id) else {
+                continue;
+            };
             let scaled: IndexMap<String, f64> = formula_item
                 .to_formula_array()
                 .to_id_count_dict()

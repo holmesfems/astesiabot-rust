@@ -36,13 +36,18 @@ fn strip_tags(s: &str) -> String {
 
 /// タグ除去後に適用するリテラル置換（`chain.max_target`→`max_target`の統合は前述の理由で行わない）。
 fn apply_literal_fixups(s: &str) -> String {
-    s.replace("-{-", "{").replace("{-", "-{").replace("\\n", "\n").replace("AOE", "aoe")
+    s.replace("-{-", "{")
+        .replace("{-", "-{")
+        .replace("\\n", "\n")
+        .replace("AOE", "aoe")
 }
 
 /// プレースホルダのフィールド名部分だけに適用するクリーニング（`[`,`]`,`.`を除去する。
 /// フォーマット指定子には適用しない）。
 fn clean_field_name(s: &str) -> String {
-    s.chars().filter(|c| !matches!(c, '[' | ']' | '.')).collect()
+    s.chars()
+        .filter(|c| !matches!(c, '[' | ']' | '.'))
+        .collect()
 }
 
 /// 数学的に整数な値は小数点無しで表示する。
@@ -71,7 +76,9 @@ fn resolve_placeholder(inner: &str, values: &HashMap<String, f64>) -> Option<Str
         None => (inner, None),
     };
     let field = clean_field_name(field);
-    let value = *values.get(&field).or_else(|| values.get(&field.to_lowercase()))?;
+    let value = *values
+        .get(&field)
+        .or_else(|| values.get(&field.to_lowercase()))?;
     match spec {
         None | Some("0") => Some(number_str(value)),
         Some("0%") | Some(".0%") => Some(percent_str(value, 0)),
@@ -154,7 +161,11 @@ pub fn build_description(level: &RawSkillLevel) -> String {
     let mut header = if is_passive {
         skill_type_label(&level.skill_type)
     } else {
-        format!("{}/{}", sp_type_label(&level.sp_data.sp_type), skill_type_label(&level.skill_type))
+        format!(
+            "{}/{}",
+            sp_type_label(&level.sp_data.sp_type),
+            skill_type_label(&level.skill_type)
+        )
     };
     if level.duration > 0.0 {
         header.push_str(&format!(" ⌚{}秒", float_str_keep_point(level.duration)));
@@ -163,7 +174,10 @@ pub fn build_description(level: &RawSkillLevel) -> String {
     let pre_info = if is_passive {
         header
     } else {
-        format!("{header}\n▶{} ⚡{}", level.sp_data.init_sp, level.sp_data.sp_cost)
+        format!(
+            "{header}\n▶{} ⚡{}",
+            level.sp_data.init_sp, level.sp_data.sp_cost
+        )
     };
 
     format!("{pre_info}\n{body}")
@@ -311,7 +325,10 @@ mod tests {
             "最大生命值<@ba.vdown>-{-max_hp:0%}</>",
             &[("max_hp", -0.75)],
         );
-        assert_eq!(build_description(&lv), "自然回復/手動発動\n▶0 ⚡0\n最大生命值-75%");
+        assert_eq!(
+            build_description(&lv),
+            "自然回復/手動発動\n▶0 ⚡0\n最大生命值-75%"
+        );
     }
 
     /// skchr_yuki_2相当: `{-...}`は符号を反転してから`--`潰しで正の表示にする。
@@ -326,7 +343,10 @@ mod tests {
             "移动速度降低{-attack@move_speed:0%}",
             &[("attack@move_speed", -0.35)],
         );
-        assert_eq!(build_description(&lv), "自然回復/手動発動\n▶0 ⚡0\n移动速度降低35%");
+        assert_eq!(
+            build_description(&lv),
+            "自然回復/手動発動\n▶0 ⚡0\n移动速度降低35%"
+        );
     }
 
     /// skchr_zebra_1相当: blackboardに無い`{duration}`はレベル自身のdurationにフォールバックする。
@@ -341,13 +361,24 @@ mod tests {
             "持续<@ba.vup>{duration}</>秒",
             &[],
         );
-        assert_eq!(build_description(&lv), "自然回復/手動発動 ⌚4.0秒\n▶0 ⚡0\n持续4秒");
+        assert_eq!(
+            build_description(&lv),
+            "自然回復/手動発動 ⌚4.0秒\n▶0 ⚡0\n持续4秒"
+        );
     }
 
     /// 0.0%指定子(1桁小数パーセント)が壊れず表示できることの確認（実データで404件該当）。
     #[test]
     fn one_decimal_percent_spec_is_preserved() {
-        let lv = level("PASSIVE", "INCREASE_WITH_TIME", 0, 0, 0.0, "会心率+{crit:0.0%}", &[("crit", 0.155)]);
+        let lv = level(
+            "PASSIVE",
+            "INCREASE_WITH_TIME",
+            0,
+            0,
+            0.0,
+            "会心率+{crit:0.0%}",
+            &[("crit", 0.155)],
+        );
         assert_eq!(build_description(&lv), "パッシブ\n会心率+15.5%");
     }
 }

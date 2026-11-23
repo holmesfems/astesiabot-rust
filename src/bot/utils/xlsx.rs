@@ -147,7 +147,8 @@ mod tests {
             },
         ];
 
-        let bytes = build_stage_export_xlsx(&columns, &value_row, &base_stage_row, &stages).expect("build xlsx");
+        let bytes = build_stage_export_xlsx(&columns, &value_row, &base_stage_row, &stages)
+            .expect("build xlsx");
         let range = read_back(bytes);
 
         assert_eq!(range.get_value((0, 1)).unwrap().to_string(), "源岩");
@@ -160,7 +161,9 @@ mod tests {
 
         assert_eq!(range.get_value((2, 0)).unwrap().to_string(), "基準ステージ");
         assert_eq!(range.get_value((2, 1)).unwrap().to_string(), "1-7");
-        assert!(range.get_value((2, 2)).is_none_or(|c| matches!(c, Data::Empty)));
+        assert!(range
+            .get_value((2, 2))
+            .is_none_or(|c| matches!(c, Data::Empty)));
 
         assert_eq!(range.get_value((3, 0)).unwrap().to_string(), "1-7");
         assert_eq!(range.get_value((3, 1)).unwrap().as_f64(), Some(1.5));
@@ -193,7 +196,8 @@ mod tests {
         ];
         let value_row = [0.05, 0.2];
 
-        let bytes = build_kakin_export_xlsx(&material_columns, &target_columns, &packs, &value_row).expect("build xlsx");
+        let bytes = build_kakin_export_xlsx(&material_columns, &target_columns, &packs, &value_row)
+            .expect("build xlsx");
         let range = read_back(bytes);
 
         assert_eq!(range.get_value((0, 1)).unwrap().to_string(), "源岩");
@@ -213,6 +217,8 @@ mod tests {
         assert_eq!(range.get_value((3, 0)).unwrap().to_string(), "理性価値");
         assert_eq!(range.get_value((3, 1)).unwrap().as_f64(), Some(0.05));
         assert_eq!(range.get_value((3, 2)).unwrap().as_f64(), Some(0.2));
-        assert!(range.get_value((3, 3)).is_none_or(|c| matches!(c, Data::Empty)));
+        assert!(range
+            .get_value((3, 3))
+            .is_none_or(|c| matches!(c, Data::Empty)));
     }
 }

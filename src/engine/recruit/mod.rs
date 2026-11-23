@@ -48,7 +48,8 @@ impl RecruitEngine {
         use crate::engine::external_source::recruit_pool::SEED_PATH;
         let json = std::fs::read_to_string(SEED_PATH)
             .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
-        let pool: RecruitPool = serde_json::from_str(&json).expect("seed should parse as RecruitPool");
+        let pool: RecruitPool =
+            serde_json::from_str(&json).expect("seed should parse as RecruitPool");
         Self::load(&pool).expect("recruit data should load")
     }
 }

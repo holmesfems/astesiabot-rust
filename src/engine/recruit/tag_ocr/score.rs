@@ -41,7 +41,11 @@ pub fn tag_best(norm: &[f32], protos: &[Template]) -> (f32, usize, i32, i32) {
 
 /// 2 テンプレートの違う画素（太らせてある）。
 pub fn diff_mask(ta: &[f32], tb: &[f32]) -> Vec<bool> {
-    let raw: Vec<bool> = ta.iter().zip(tb).map(|(a, b)| (a - b).abs() > DIFF_THR).collect();
+    let raw: Vec<bool> = ta
+        .iter()
+        .zip(tb)
+        .map(|(a, b)| (a - b).abs() > DIFF_THR)
+        .collect();
     let mut out = vec![false; NPIX];
     for (i, &m) in raw.iter().enumerate() {
         if !m {
@@ -112,19 +116,28 @@ impl<'a> Model<'a> {
                 gate[b][a] = best;
             }
         }
-        Model { templates: Cow::Borrowed(templates), gate }
+        Model {
+            templates: Cow::Borrowed(templates),
+            gate,
+        }
     }
 
     /// 紛らわしい組（相関が PAIR_SIM 以上）だけを与えて作る（本番。全組の計算は起動が重いので
     /// テンプレートの書き出し時に済ませて meta.json に持つ）。他の組は 0 とみなす。
-    pub fn with_confusable(templates: Vec<Vec<Template>>, pairs: &[(usize, usize, f32)]) -> Model<'static> {
+    pub fn with_confusable(
+        templates: Vec<Vec<Template>>,
+        pairs: &[(usize, usize, f32)],
+    ) -> Model<'static> {
         let n = templates.len();
         let mut gate = vec![vec![0f32; n]; n];
         for &(a, b, v) in pairs {
             gate[a][b] = v;
             gate[b][a] = v;
         }
-        Model { templates: Cow::Owned(templates), gate }
+        Model {
+            templates: Cow::Owned(templates),
+            gate,
+        }
     }
 
     /// 相関が PAIR_SIM 以上の組: (a, b, 相関)。a < b。
@@ -154,7 +167,13 @@ pub struct TopScore {
 
 /// 全テンプレートとの類似度から、1 位と 2 位を取る。
 pub fn top2(scores: &[f32]) -> TopScore {
-    let mut b = TopScore { best_tag: 0, best: f32::MIN, second_tag: 0, second: f32::MIN, margin: 0.0 };
+    let mut b = TopScore {
+        best_tag: 0,
+        best: f32::MIN,
+        second_tag: 0,
+        second: f32::MIN,
+        margin: 0.0,
+    };
     for (t, &s) in scores.iter().enumerate() {
         if s > b.best {
             b.second = b.best;
@@ -185,25 +204,44 @@ pub struct BoxResult {
 }
 
 pub fn score_box(raw: &[f32], norm: &[f32], model: &Model) -> BoxResult {
-    let per: Vec<(f32, usize, i32, i32)> = model.templates.iter().map(|ps| tag_best(norm, ps)).collect();
+    let per: Vec<(f32, usize, i32, i32)> = model
+        .templates
+        .iter()
+        .map(|ps| tag_best(norm, ps))
+        .collect();
     let scores: Vec<f32> = per.iter().map(|p| p.0).collect();
     let plain = top2(&scores);
     let mut refined = plain;
     let mut pair = None;
     let (a, c) = (plain.best_tag, plain.second_tag);
     if plain.second > f32::MIN && model.gate[a][c] >= PAIR_SIM {
-        let (ta, tc) = (&model.templates[a][per[a].1].raw, &model.templates[c][per[c].1].raw);
+        let (ta, tc) = (
+            &model.templates[a][per[a].1].raw,
+            &model.templates[c][per[c].1].raw,
+        );
         let mask = diff_mask(ta, tc);
         let sa = masked_sim(raw, ta, &mask, per[a].2, per[a].3);
         let sc = masked_sim(raw, tc, &mask, per[c].2, per[c].3);
         pair = Some((a, c, sa, sc));
         if sc > sa {
-            refined = TopScore { best_tag: c, best: scores[c], second_tag: a, second: scores[a], margin: sc - sa };
+            refined = TopScore {
+                best_tag: c,
+                best: scores[c],
+                second_tag: a,
+                second: scores[a],
+                margin: sc - sa,
+            };
         } else {
             refined.margin = sa - sc;
         }
     }
-    BoxResult { scores, plain, refined, best_proto: per[plain.best_tag].1, pair }
+    BoxResult {
+        scores,
+        plain,
+        refined,
+        best_proto: per[plain.best_tag].1,
+        pair,
+    }
 }
 
 pub fn accepts(b: &TopScore, t: f32, m: f32) -> bool {
@@ -229,7 +267,10 @@ mod tests {
     /// 共通の大きな塊 + 違う位置の細い縦棒（近距離/遠距離のように、ほとんど同じで一部だけ違う 2 タグ）。
     fn pair_feats() -> (Vec<f32>, Vec<f32>) {
         let common = (60, 16, 70, 32);
-        (rect_feat(&[common, (140, 16, 4, 32)]), rect_feat(&[common, (40, 16, 4, 32)]))
+        (
+            rect_feat(&[common, (140, 16, 4, 32)]),
+            rect_feat(&[common, (40, 16, 4, 32)]),
+        )
     }
 
     #[test]
@@ -251,7 +292,10 @@ mod tests {
         let plain_margin = similarity(&na, &na) - similarity(&na, &nb);
         let mask = diff_mask(&a, &b);
         // A の特徴を、違う画素だけで A・B と比べる
-        let (sa, sb) = (masked_sim(&a, &a, &mask, 0, 0), masked_sim(&a, &b, &mask, 0, 0));
+        let (sa, sb) = (
+            masked_sim(&a, &a, &mask, 0, 0),
+            masked_sim(&a, &b, &mask, 0, 0),
+        );
         assert!(sa > 0.99 && sb < -0.2, "{sa} {sb}");
         assert!(sa - sb > 3.0 * plain_margin);
     }
@@ -269,7 +313,11 @@ mod tests {
         let (a, b) = pair_feats();
         // 3 つ目のタグは全然違う
         let other = rect_feat(&[(10, 5, 20, 10)]);
-        let templates: Vec<Vec<Template>> = vec![vec![Template::new(a.clone(), 10)], vec![Template::new(b.clone(), 10)], vec![Template::new(other, 10)]];
+        let templates: Vec<Vec<Template>> = vec![
+            vec![Template::new(a.clone(), 10)],
+            vec![Template::new(b.clone(), 10)],
+            vec![Template::new(other, 10)],
+        ];
         let model = Model::new(&templates);
         assert!(model.gate[0][1] >= PAIR_SIM && model.gate[0][2] < PAIR_SIM);
         // B の棒が薄く、A の棒も薄く出ている枠 → 全体の相関では差がほとんど付かないが、違う画素では B が勝つ

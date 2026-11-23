@@ -62,7 +62,11 @@ fn format_to_tag(command: &str) -> String {
 /// コマンドを "->" または "→" で分割する。
 /// "→" を "->" に置き換えてから分割することで、同じ分割位置を再現する。
 fn split_arrow(command: &str) -> Vec<String> {
-    command.replace('→', "->").split("->").map(str::to_string).collect()
+    command
+        .replace('→', "->")
+        .split("->")
+        .map(str::to_string)
+        .collect()
 }
 
 /// コマンド適用ループ。
@@ -76,8 +80,10 @@ pub fn apply_edit_commands(
     let mut result_tags: Vec<String> = existing.to_vec();
 
     for command in command_text.split_whitespace() {
-        let command_tags: Vec<String> =
-            split_arrow(command).iter().map(|t| format_to_tag(t)).collect();
+        let command_tags: Vec<String> = split_arrow(command)
+            .iter()
+            .map(|t| format_to_tag(t))
+            .collect();
 
         let illegal: Vec<String> = command_tags
             .iter()
@@ -142,8 +148,7 @@ mod tests {
     #[test]
     fn apply_edit_commands_adds_single_tag() {
         let data = make_data();
-        let result =
-            apply_edit_commands(&data, &["前衛".to_string()], "狙撃タイプ").unwrap();
+        let result = apply_edit_commands(&data, &["前衛".to_string()], "狙撃タイプ").unwrap();
         assert_eq!(result, vec!["前衛", "狙撃"]);
     }
 
@@ -179,7 +184,11 @@ mod tests {
             elite_tags: vec!["エリート".to_string(), "上級エリート".to_string()],
             job_tags: vec!["前衛".to_string(), "狙撃".to_string()],
             position_tags: vec!["近距離".to_string(), "遠距離".to_string()],
-            other_tags: vec!["COST回復".to_string(), "特殊".to_string(), "医療".to_string()],
+            other_tags: vec![
+                "COST回復".to_string(),
+                "特殊".to_string(),
+                "医療".to_string(),
+            ],
         });
         let existing: Vec<String> = vec![
             "前衛".to_string(),

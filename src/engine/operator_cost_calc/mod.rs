@@ -7,9 +7,9 @@ use crate::engine::external_source::item_names::ItemNames;
 use crate::engine::external_source::jp_first_seen::JpFirstSeen;
 use crate::engine::external_source::operator_data::{OperatorData, RawOperatorCost};
 use crate::engine::external_source::skill_data::SkillData;
+use crate::engine::external_source::ExternalSourceRegistry;
 use crate::engine::risei_calculator_engine::server::Server;
 use crate::engine::risei_calculator_engine::values::RiseiValues;
-use crate::engine::external_source::ExternalSourceRegistry;
 use crate::engine::risei_calculator_engine::RiseiCalculatorEngine;
 use chrono::{FixedOffset, NaiveDate, Utc};
 use model::{build_formula_map, FormulaMap, ItemCost};
@@ -32,7 +32,11 @@ fn is_recent_by(cn_only: bool, first_seen: Option<NaiveDate>, recent_since: Naiv
 /// 記録を更新した後に実装されたものなので、更新日（`checked_on`）で代用する
 /// （`regen_seeds`を回す前でも当日実装分を直近実装に入れるため）。
 /// 昇格オペレーターは記録の対象外なのでNoneのまま。
-fn jp_seen_on(first_seen: Option<NaiveDate>, is_patch: bool, checked_on: Option<NaiveDate>) -> Option<NaiveDate> {
+fn jp_seen_on(
+    first_seen: Option<NaiveDate>,
+    is_patch: bool,
+    checked_on: Option<NaiveDate>,
+) -> Option<NaiveDate> {
     first_seen.or(if is_patch { None } else { checked_on })
 }
 
@@ -80,7 +84,8 @@ impl SkillCostInfo {
     }
 
     pub fn total_risei(&self, values: &ValueSet, item_names: &ItemNames) -> f64 {
-        self.total_cost.to_risei_value(values.for_cn_only(self.cn_only), item_names)
+        self.total_cost
+            .to_risei_value(values.for_cn_only(self.cn_only), item_names)
     }
 }
 
@@ -112,9 +117,17 @@ impl AllOperatorsInfo {
         let skill_data = external_source.skill_data.get().await;
         let formulas_raw = external_source.formulas.get().await;
         let formulas = build_formula_map(&formulas_raw.formulas, &item_names);
-        let today_jst = Utc::now().with_timezone(&FixedOffset::east_opt(9 * 3600).expect("valid JST offset")).date_naive();
+        let today_jst = Utc::now()
+            .with_timezone(&FixedOffset::east_opt(9 * 3600).expect("valid JST offset"))
+            .date_naive();
         let recent_since = today_jst - chrono::Duration::days(RECENT_DAYS);
-        let info = AllOperatorsInfo { data, item_names, skill_data, formulas, recent_since };
+        let info = AllOperatorsInfo {
+            data,
+            item_names,
+            skill_data,
+            formulas,
+            recent_since,
+        };
 
         let global_snapshot = risei.snapshot(Server::Global).await;
         let mainland_snapshot = risei.snapshot(Server::Mainland).await;
@@ -139,7 +152,11 @@ impl AllOperatorsInfo {
 
     /// 指定した星の非昇格オペレーターを
     /// 昇進素材の理性価値(OnlyValueTarget)降順に並べる。
-    pub fn sorted_by_elite_cost(&self, star: u32, values: &ValueSet) -> Vec<(&RawOperatorCost, f64)> {
+    pub fn sorted_by_elite_cost(
+        &self,
+        star: u32,
+        values: &ValueSet,
+    ) -> Vec<(&RawOperatorCost, f64)> {
         let mut list: Vec<(&RawOperatorCost, f64)> = self
             .data
             .operators
@@ -148,7 +165,10 @@ impl AllOperatorsInfo {
             .map(|op| {
                 let cost = aggregate::total_phase_cost(op);
                 let v = values.for_cn_only(op.cn_only);
-                (op, cost.to_risei_value_only_value_target(v, &self.item_names))
+                (
+                    op,
+                    cost.to_risei_value_only_value_target(v, &self.item_names),
+                )
             })
             .collect();
         list.sort_by(|a, b| b.1.total_cmp(&a.1));
@@ -161,7 +181,11 @@ impl AllOperatorsInfo {
         let mut list = Vec::new();
         for op in self.data.operators.values().filter(|op| op.stars == star) {
             for (i, skill) in op.skills.iter().enumerate() {
-                let costs: Vec<ItemCost> = skill.masteries.iter().map(|m| ItemCost::from_cost_entries(m)).collect();
+                let costs: Vec<ItemCost> = skill
+                    .masteries
+                    .iter()
+                    .map(|m| ItemCost::from_cost_entries(m))
+                    .collect();
                 list.push(SkillCostInfo {
                     operator_id: op.id.clone(),
                     operator_name: op.name.clone(),
@@ -182,7 +206,12 @@ impl AllOperatorsInfo {
         list
     }
 
-    fn autocomplete<'b>(&'b self, partial: &'b str, limit: usize, pred: impl Fn(&RawOperatorCost) -> bool) -> Vec<String> {
+    fn autocomplete<'b>(
+        &'b self,
+        partial: &'b str,
+        limit: usize,
+        pred: impl Fn(&RawOperatorCost) -> bool,
+    ) -> Vec<String> {
         self.data
             .operators
             .values()
@@ -219,15 +248,33 @@ mod recent_tests {
         assert!(is_recent_by(true, None, since), "大陸版限定は常に直近実装");
         assert!(is_recent_by(false, day(4, 16), since), "境界の日は含む");
         assert!(is_recent_by(false, day(9, 16), since));
-        assert!(!is_recent_by(false, day(4, 15), since), "境界の前日は含まない");
-        assert!(!is_recent_by(false, None, since), "初登場日の記録が無いものは直近実装ではない");
+        assert!(
+            !is_recent_by(false, day(4, 15), since),
+            "境界の前日は含まない"
+        );
+        assert!(
+            !is_recent_by(false, None, since),
+            "初登場日の記録が無いものは直近実装ではない"
+        );
     }
 
     #[test]
     fn unrecorded_operator_is_seen_on_checked_date_unless_patch() {
         let day = |m, d| NaiveDate::from_ymd_opt(2026, m, d);
-        assert_eq!(jp_seen_on(day(6, 22), false, day(9, 16)), day(6, 22), "記録があればその日");
-        assert_eq!(jp_seen_on(None, false, day(9, 16)), day(9, 16), "記録の更新後に実装された");
-        assert_eq!(jp_seen_on(None, true, day(9, 16)), None, "昇格オペレーターは記録の対象外");
+        assert_eq!(
+            jp_seen_on(day(6, 22), false, day(9, 16)),
+            day(6, 22),
+            "記録があればその日"
+        );
+        assert_eq!(
+            jp_seen_on(None, false, day(9, 16)),
+            day(9, 16),
+            "記録の更新後に実装された"
+        );
+        assert_eq!(
+            jp_seen_on(None, true, day(9, 16)),
+            None,
+            "昇格オペレーターは記録の対象外"
+        );
     }
 }

@@ -105,9 +105,8 @@ fn attach_update_notice(
     if version.is_some_and(|v| v >= latest_version) {
         return;
     }
-    let message = format!(
-        "公開求人ショートカットの新しいバージョン(v{latest_version})があります。\n{link}"
-    );
+    let message =
+        format!("公開求人ショートカットの新しいバージョン(v{latest_version})があります。\n{link}");
     if version.is_none() {
         reply.reply = format!("{}\n\n{}", reply.reply, message);
     }
@@ -168,7 +167,10 @@ const MAX_TEXT_CHARS: usize = 2_000;
 /// `/recruitment/` のリクエスト本文の上限。text の上限＋pickupOperators 等に十分な大きさで、
 /// axum 既定の 2MB を丸ごと受け取ってから弾くのを避ける。超えると axum が 413 を返す。
 pub(super) const MAX_BODY_BYTES: usize = 64 * 1024;
-const _: () = assert!(MAX_BODY_BYTES > MAX_TEXT_CHARS * 4, "本文の上限はtextの上限(UTF-8最大4バイト/文字)より大きいこと");
+const _: () = assert!(
+    MAX_BODY_BYTES > MAX_TEXT_CHARS * 4,
+    "本文の上限はtextの上限(UTF-8最大4バイト/文字)より大きいこと"
+);
 
 /// `text` が長すぎる場合のエラー応答（ショートカットがそのまま表示できる通常の形）。
 fn reject_too_long_text(text: &str) -> Option<TagReplyData> {
@@ -180,7 +182,11 @@ fn reject_too_long_text(text: &str) -> Option<TagReplyData> {
     })
 }
 
-fn build_tag_reply(engine: &RecruitEngine, ocr_text: &str, pickup: Option<&[String]>) -> TagReplyData {
+fn build_tag_reply(
+    engine: &RecruitEngine,
+    ocr_text: &str,
+    pickup: Option<&[String]>,
+) -> TagReplyData {
     let matched = engine.matcher.match_tag(ocr_text);
 
     // タグが1つも見つからなければエラー応答
@@ -326,14 +332,25 @@ mod tests {
 
     #[test]
     fn pickup_alias_redirects_to_official_name() {
-        let names = vec!["GALLUS2".to_string(), " エクシア ".to_string(), "GALLUS²".to_string()];
-        assert_eq!(normalize_pickup_operators(names), vec!["GALLUS²", "エクシア", "GALLUS²"]);
+        let names = vec![
+            "GALLUS2".to_string(),
+            " エクシア ".to_string(),
+            "GALLUS²".to_string(),
+        ];
+        assert_eq!(
+            normalize_pickup_operators(names),
+            vec!["GALLUS²", "エクシア", "GALLUS²"]
+        );
     }
 
     #[test]
     fn shortcut_yaml_has_icloud_url() {
-        assert!(shortcut_info().url.starts_with("https://www.icloud.com/shortcuts/"));
-        assert!(shortcut_info().lite_url.starts_with("https://www.icloud.com/shortcuts/"));
+        assert!(shortcut_info()
+            .url
+            .starts_with("https://www.icloud.com/shortcuts/"));
+        assert!(shortcut_info()
+            .lite_url
+            .starts_with("https://www.icloud.com/shortcuts/"));
         assert_ne!(shortcut_info().url, shortcut_info().lite_url);
     }
 
@@ -425,7 +442,9 @@ mod tests {
     #[test]
     fn herokuapp_host_detection() {
         use super::super::legacy_host_redirect::is_herokuapp_host;
-        assert!(is_herokuapp_host("discordbot-riseicalculator.herokuapp.com"));
+        assert!(is_herokuapp_host(
+            "discordbot-riseicalculator.herokuapp.com"
+        ));
         assert!(is_herokuapp_host("Foo.HerokuApp.com:443"));
         assert!(!is_herokuapp_host("astesiabot.com"));
         assert!(!is_herokuapp_host("www.astesiabot.com"));

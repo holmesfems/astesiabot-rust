@@ -10,7 +10,11 @@ use std::collections::HashMap;
 /// `engine::fk_kill_calc`からも同じロジックで
 /// 再利用するため`pub(crate)`にして重複させない。
 pub(crate) fn skill_id_by_num(op: &RawOperatorCost) -> HashMap<String, &str> {
-    op.skills.iter().enumerate().map(|(i, s)| ((i + 1).to_string(), s.skill_id.as_str())).collect()
+    op.skills
+        .iter()
+        .enumerate()
+        .map(|(i, s)| ((i + 1).to_string(), s.skill_id.as_str()))
+        .collect()
 }
 
 /// オペレーター名・スキル指定からFK情報を解決する。
@@ -25,7 +29,10 @@ pub fn resolve(
         return FkSearchResult::OperatorNotFound;
     };
 
-    let skill_id_by_num: HashMap<String, &str> = operator_data.get_by_name(operator_name).map(skill_id_by_num).unwrap_or_default();
+    let skill_id_by_num: HashMap<String, &str> = operator_data
+        .get_by_name(operator_name)
+        .map(skill_id_by_num)
+        .unwrap_or_default();
 
     let resolve_name = |num: &str| -> String {
         skill_id_by_num
@@ -41,7 +48,11 @@ pub fn resolve(
         let mut choices: IndexMap<String, String> = IndexMap::new();
         for row in rows {
             let name = resolve_name(&row.skill_num);
-            let display = if name.is_empty() { row.skill_num.clone() } else { name };
+            let display = if name.is_empty() {
+                row.skill_num.clone()
+            } else {
+                name
+            };
             choices.insert(row.skill_num.clone(), display);
         }
         return FkSearchResult::NeedsSkillSelection { choices };

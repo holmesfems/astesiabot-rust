@@ -25,7 +25,11 @@ pub fn role_id_env(key: &str) -> serenity::RoleId {
 /// 任意のユーザーID。未設定・空なら None、値があって不正なら起動時に panic する。
 pub fn optional_user_id_env(key: &str) -> Option<serenity::UserId> {
     match std::env::var(key) {
-        Ok(v) if !v.trim().is_empty() => Some(v.trim().parse().unwrap_or_else(|_| panic!("{key} is not a valid id"))),
+        Ok(v) if !v.trim().is_empty() => Some(
+            v.trim()
+                .parse()
+                .unwrap_or_else(|_| panic!("{key} is not a valid id")),
+        ),
         _ => None,
     }
 }

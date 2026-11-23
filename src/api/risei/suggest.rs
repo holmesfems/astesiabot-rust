@@ -1,9 +1,9 @@
 //! 間違った入力への候補（did_you_mean）。
 
+use super::params::ApiError;
+use super::spec::{EVENTS, STAGES};
 use crate::engine::risei_calculator_engine::{RiseiCalculatorEngine, Server};
 use axum::http::StatusCode;
-use super::spec::{STAGES, EVENTS};
-use super::params::ApiError;
 
 const MAX_SUGGESTIONS: usize = 5;
 
@@ -16,15 +16,22 @@ pub(super) enum StageKind {
 /// ステージが見つからなかったときの404。候補は常に大陸版(最も先行していてステージ数が
 /// 最多。Discordのオートコンプリートと同じ)から出す。恒常/イベントを取り違えている場合は
 /// 正しい方のエンドポイントを`hint`で案内する。
-pub(super) async fn stage_not_found(engine: &RiseiCalculatorEngine, stage: &str, kind: StageKind, msg: String) -> ApiError {
+pub(super) async fn stage_not_found(
+    engine: &RiseiCalculatorEngine,
+    stage: &str,
+    kind: StageKind,
+    msg: String,
+) -> ApiError {
     let snapshot = engine.snapshot(Server::Mainland).await;
     let info = &snapshot.stage_info;
     let (own, other) = match kind {
         StageKind::Main => (&info.main_code_to_stage, &info.event_code_to_stage),
         StageKind::Event => (&info.event_code_to_stage, &info.main_code_to_stage),
     };
-    let mut error = ApiError::new(StatusCode::NOT_FOUND, msg)
-        .with("did_you_mean", suggest(stage, own.keys().map(String::as_str)));
+    let mut error = ApiError::new(StatusCode::NOT_FOUND, msg).with(
+        "did_you_mean",
+        suggest(stage, own.keys().map(String::as_str)),
+    );
     let found_in_other = match kind {
         StageKind::Main => !snapshot.search_event_stage(stage).is_empty(),
         StageKind::Event => !snapshot.search_main_stage(stage).is_empty(),
@@ -34,7 +41,10 @@ pub(super) async fn stage_not_found(engine: &RiseiCalculatorEngine, stage: &str,
             StageKind::Main => ("イベントステージ", EVENTS.path),
             StageKind::Event => ("恒常ステージ", STAGES.path),
         };
-        error = error.with("hint", format!("「{stage}」は{label}にあります: {path}?stage={stage}"));
+        error = error.with(
+            "hint",
+            format!("「{stage}」は{label}にあります: {path}?stage={stage}"),
+        );
     } else if !other.is_empty() {
         let other_suggestions = suggest(stage, other.keys().map(String::as_str));
         if !other_suggestions.is_empty() {
@@ -54,7 +64,10 @@ pub(super) async fn stage_not_found(engine: &RiseiCalculatorEngine, stage: &str,
 /// 入力は認証なしのクエリ/パスそのもので長さに上限が無いため、文字数の差(編集距離の下限)が
 /// 閾値を超える候補は編集距離を計算せずに落とす。結果は変わらず、計算量は入力長ではなく
 /// 候補側の長さで抑えられる(長大な入力でワーカースレッドを占有させないため)。
-pub(super) fn suggest<'a>(input: &str, candidates: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+pub(super) fn suggest<'a>(
+    input: &str,
+    candidates: impl IntoIterator<Item = &'a str>,
+) -> Vec<String> {
     let query = input.to_lowercase();
     let query_len = query.chars().count();
     let threshold = (query_len / 2).max(2);
@@ -74,7 +87,11 @@ pub(super) fn suggest<'a>(input: &str, candidates: impl IntoIterator<Item = &'a 
         .collect();
     scored.sort();
     scored.dedup_by(|a, b| a.2 == b.2);
-    scored.into_iter().take(MAX_SUGGESTIONS).map(|(_, _, c)| c.to_string()).collect()
+    scored
+        .into_iter()
+        .take(MAX_SUGGESTIONS)
+        .map(|(_, _, c)| c.to_string())
+        .collect()
 }
 
 fn levenshtein(a: &str, b: &str) -> usize {

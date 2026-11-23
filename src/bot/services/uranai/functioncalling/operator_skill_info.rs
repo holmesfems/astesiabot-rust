@@ -1,4 +1,6 @@
-use super::{items_to_json, operator_typo_correction, wrap_parameters, ToolArgs, ToolFunction, ToolResponse};
+use super::{
+    items_to_json, operator_typo_correction, wrap_parameters, ToolArgs, ToolFunction, ToolResponse,
+};
 use crate::api::AppState;
 use crate::bot::commands::operator_cost_calc::{build_context, mastery_ranking_text};
 use crate::engine::operator_cost_calc::calc::skill_master_cost;
@@ -53,7 +55,10 @@ impl ToolFunction for OperatorSkillInfo {
             Err(e) => return ToolResponse::Error(e),
         };
         if parsed.skillnum < 1 {
-            return ToolResponse::Error(format!("スキル番号は1以上を指定してください: {}", parsed.skillnum));
+            return ToolResponse::Error(format!(
+                "スキル番号は1以上を指定してください: {}",
+                parsed.skillnum
+            ));
         }
 
         let (info, values) = build_context(ctx).await;

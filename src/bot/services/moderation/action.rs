@@ -1,10 +1,10 @@
 //! ディスパッチ層（管理者分岐）と実行層: 処断（タイムアウト・BAN・削除）と通報。
 
+use super::detect::{Actor, AdminPolicy, Detection, SpamKind};
+use super::ModerationState;
 use crate::bot::data::Error;
 use poise::serenity_prelude as serenity;
 use std::collections::HashSet;
-use super::detect::{SpamKind, AdminPolicy, Actor, Detection};
-use super::ModerationState;
 
 const TIMEOUT_MINUTES: i64 = 30;
 
@@ -132,7 +132,11 @@ async fn mute_and_report(
     let builder = serenity::EditMember::new()
         .disable_communication_until_datetime(until)
         .audit_log_reason(&audit_reason);
-    if guild_id.edit_member(ctx, actor.user.id, builder).await.is_err() {
+    if guild_id
+        .edit_member(ctx, actor.user.id, builder)
+        .await
+        .is_err()
+    {
         // botの権限不足（Moderate Members権限が必要）や対象が上位ロールの場合
         create_report(
             ctx,
@@ -171,7 +175,12 @@ async fn ban_and_report(
 ) -> Result<(), Error> {
     if let Some(guild_id) = msg.guild_id {
         if let Err(e) = guild_id
-            .ban_with_reason(&ctx.http, actor.user.id, 7, &format!("Astesia bot: {reason}"))
+            .ban_with_reason(
+                &ctx.http,
+                actor.user.id,
+                7,
+                &format!("Astesia bot: {reason}"),
+            )
             .await
         {
             // BAN に失敗しても通報は出す（権限不足などで止まったことに管理者が気付けるように）。
@@ -356,8 +365,7 @@ pub(super) fn build_report_content(
         content += "\n";
         let total_chars = subject.content.chars().count();
         let excerpt: String = subject.content.chars().take(REPORT_EXCERPT_CHARS).collect();
-        let sanitized =
-            neutralize_backticks(&excerpt.replace('.', "_").replace("http", "ht tp"));
+        let sanitized = neutralize_backticks(&excerpt.replace('.', "_").replace("http", "ht tp"));
         content += &format!("content:```{sanitized}```");
         if total_chars > REPORT_EXCERPT_CHARS {
             content += &format!("…（全{total_chars}文字）");
@@ -373,7 +381,10 @@ pub(super) fn build_report_content(
         content += &format!("channel:{mentions}");
     }
     if content.chars().count() > DISCORD_MESSAGE_MAX_CHARS {
-        content = content.chars().take(DISCORD_MESSAGE_MAX_CHARS - 1).collect();
+        content = content
+            .chars()
+            .take(DISCORD_MESSAGE_MAX_CHARS - 1)
+            .collect();
         content.push('…');
     }
     content
@@ -397,6 +408,9 @@ async fn create_report(
     let builder = serenity::CreateMessage::new()
         .content(content)
         .allowed_mentions(serenity::CreateAllowedMentions::new());
-    state.report_channel.send_message(&ctx.http, builder).await?;
+    state
+        .report_channel
+        .send_message(&ctx.http, builder)
+        .await?;
     Ok(())
 }

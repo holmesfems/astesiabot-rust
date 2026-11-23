@@ -35,8 +35,14 @@ pub fn update_seed() -> BoxFuture<'static, Result<(), FetchError>> {
     Box::pin(async {
         let mut data = fetch_impl().await?;
         // penguin-stats は毎回違う順で返すので、並びを固定して Seed の差分を中身の変化だけにする
-        data.matrix
-            .sort_by(|a, b| (&a.stage_id, &a.item_id, a.start, a.end).cmp(&(&b.stage_id, &b.item_id, b.start, b.end)));
+        data.matrix.sort_by(|a, b| {
+            (&a.stage_id, &a.item_id, a.start, a.end).cmp(&(
+                &b.stage_id,
+                &b.item_id,
+                b.start,
+                b.end,
+            ))
+        });
         write_seed_file(SEED_PATH, &data)
     })
 }

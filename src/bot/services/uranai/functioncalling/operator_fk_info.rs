@@ -55,11 +55,17 @@ impl ToolFunction for OperatorFkInfo {
         };
 
         let view = build_view(ctx).await;
-        let resolved = view.autocomplete(&parsed.target, 1).into_iter().next().unwrap_or(parsed.target);
+        let resolved = view
+            .autocomplete(&parsed.target, 1)
+            .into_iter()
+            .next()
+            .unwrap_or(parsed.target);
         let resolved = operator_typo_correction(&resolved);
 
         match view.search(&resolved, &parsed.skillnum) {
-            FkSearchResult::OperatorNotFound => ToolResponse::Error(format!("オペレーター【{resolved}】のFK情報は見つかりませんでした")),
+            FkSearchResult::OperatorNotFound => ToolResponse::Error(format!(
+                "オペレーター【{resolved}】のFK情報は見つかりませんでした"
+            )),
             FkSearchResult::NeedsSkillSelection { choices } => ToolResponse::Ok(json!({
                 "status": "needs_skill_selection",
                 "operator_name": resolved,

@@ -1,4 +1,6 @@
-use super::server::{stage_category_dict, value_target, Server, StageCategoryFile, StageCategoryInfo};
+use super::server::{
+    stage_category_dict, value_target, Server, StageCategoryFile, StageCategoryInfo,
+};
 use super::stage::StageItem;
 use super::values::RiseiValues;
 use crate::engine::external_source::ark_matrix::ArkMatrix;
@@ -82,7 +84,8 @@ impl StageInfo {
 
         for raw in &ark_stages.stages {
             let is_main_or_sub = raw.stage_type == "MAIN" || raw.stage_type == "SUB";
-            let is_permanent_activity = raw.stage_type == "ACTIVITY" && raw.zone_id.contains("permanent");
+            let is_permanent_activity =
+                raw.stage_type == "ACTIVITY" && raw.zone_id.contains("permanent");
             if is_main_or_sub || is_permanent_activity {
                 let excluded = exclusion_zones.contains(&raw.zone_id.as_str())
                     || raw.zone_id == "recruit"
@@ -122,10 +125,14 @@ impl StageInfo {
             }
         }
 
-        let main_stage_dict: HashMap<String, Arc<StageItem>> =
-            main_stage_dict.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
-        let event_stage_dict: HashMap<String, Arc<StageItem>> =
-            event_stage_dict.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
+        let main_stage_dict: HashMap<String, Arc<StageItem>> = main_stage_dict
+            .into_iter()
+            .map(|(k, v)| (k, Arc::new(v)))
+            .collect();
+        let event_stage_dict: HashMap<String, Arc<StageItem>> = event_stage_dict
+            .into_iter()
+            .map(|(k, v)| (k, Arc::new(v)))
+            .collect();
 
         let main_code_to_stage: HashMap<String, Arc<StageItem>> = main_stage_dict
             .values()
@@ -162,7 +169,11 @@ impl StageInfo {
     }
 
     /// カテゴリに属する有効ステージ（試行数フィルター後、全滅した場合は無条件で全部返す）。
-    pub fn category_valid_stages(&self, category: &str, valid_base_min_times: i64) -> Vec<Arc<StageItem>> {
+    pub fn category_valid_stages(
+        &self,
+        category: &str,
+        valid_base_min_times: i64,
+    ) -> Vec<Arc<StageItem>> {
         let Some(cat) = self.category_instance_dict.get(category) else {
             return Vec::new();
         };
@@ -216,7 +227,9 @@ impl StageInfo {
                 }
             }
             let mut seen = HashSet::new();
-            let has_dup = ret.values().any(|stage| !seen.insert(stage.stage_id.clone()));
+            let has_dup = ret
+                .values()
+                .any(|stage| !seen.insert(stage.stage_id.clone()));
             if !has_dup {
                 return Ok(ret);
             }
@@ -259,7 +272,11 @@ impl StageInfo {
             .collect()
     }
 
-    pub fn search_event_stage(&self, target_code: &str, show_min_times: i64) -> Vec<Arc<StageItem>> {
+    pub fn search_event_stage(
+        &self,
+        target_code: &str,
+        show_min_times: i64,
+    ) -> Vec<Arc<StageItem>> {
         self.event_code_to_stage
             .iter()
             .filter(|(code, _)| code.starts_with(target_code))
@@ -268,26 +285,40 @@ impl StageInfo {
             .collect()
     }
 
-    pub fn auto_complete_main_stage(&self, target_code: &str, limit: usize) -> Vec<(String, String)> {
+    pub fn auto_complete_main_stage(
+        &self,
+        target_code: &str,
+        limit: usize,
+    ) -> Vec<(String, String)> {
         let mut result: Vec<(String, String)> = self
             .search_main_stage(target_code, DEFAULT_SHOW_MIN_TIMES)
             .into_iter()
             .map(|s| {
                 let code = s.name_with_replicate();
-                (format!("{code}{}", s.get_main_drop_ja_str(&self.item_names)), code)
+                (
+                    format!("{code}{}", s.get_main_drop_ja_str(&self.item_names)),
+                    code,
+                )
             })
             .collect();
         result.truncate(limit);
         result
     }
 
-    pub fn auto_complete_event_stage(&self, target_code: &str, limit: usize) -> Vec<(String, String)> {
+    pub fn auto_complete_event_stage(
+        &self,
+        target_code: &str,
+        limit: usize,
+    ) -> Vec<(String, String)> {
         let mut result: Vec<(String, String)> = self
             .search_event_stage(target_code, DEFAULT_SHOW_MIN_TIMES)
             .into_iter()
             .map(|s| {
                 let code = s.name_with_replicate();
-                (format!("{code}{}", s.get_main_drop_ja_str(&self.item_names)), code)
+                (
+                    format!("{code}{}", s.get_main_drop_ja_str(&self.item_names)),
+                    code,
+                )
             })
             .collect();
         result.truncate(limit);

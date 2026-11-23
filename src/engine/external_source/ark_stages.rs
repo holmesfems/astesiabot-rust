@@ -54,7 +54,8 @@ pub fn update_seed() -> BoxFuture<'static, Result<(), FetchError>> {
 
 async fn fetch_impl() -> Result<ArkStages, FetchError> {
     let client = client();
-    let json = fetch_json_with_retry_headers(&client, STAGE_LIST_URL, &[PENGUIN_USER_AGENT]).await?;
+    let json =
+        fetch_json_with_retry_headers(&client, STAGE_LIST_URL, &[PENGUIN_USER_AGENT]).await?;
     let stages: Vec<RawStage> = serde_json::from_value(json)?;
     Ok(ArkStages { stages })
 }

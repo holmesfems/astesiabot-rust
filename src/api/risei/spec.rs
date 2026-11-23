@@ -1,8 +1,8 @@
 //! エンドポイントの定義（`ENDPOINTS` が単一の正本）と lists の種類。
 
+use super::operator_cost;
 use crate::engine::risei_calculator_engine::CC_NUMBER;
 use serde_json::{json, Value};
-use super::operator_cost;
 
 pub(super) struct ParamSpec {
     pub(super) name: &'static str,
@@ -19,7 +19,8 @@ pub(super) struct EndpointSpec {
 const SERVER_PARAM: ParamSpec = ParamSpec {
     name: "server",
     required: false,
-    description: "global(既定。グローバル版=日本版基準) / mainland(大陸版基準。新ステージ・新素材込み)",
+    description:
+        "global(既定。グローバル版=日本版基準) / mainland(大陸版基準。新ステージ・新素材込み)",
 };
 
 const LIMIT_PARAM: ParamSpec = ParamSpec {
@@ -30,7 +31,8 @@ const LIMIT_PARAM: ParamSpec = ParamSpec {
 
 const INDEX: EndpointSpec = EndpointSpec {
     path: "/api/risei",
-    description: "このAPIの使い方一覧(エンドポイント・引数・素材カテゴリ・効率表の種類・最終更新時刻)",
+    description:
+        "このAPIの使い方一覧(エンドポイント・引数・素材カテゴリ・効率表の種類・最終更新時刻)",
     params: &[],
 };
 
@@ -51,7 +53,8 @@ pub(super) const MATERIALS: EndpointSpec = EndpointSpec {
 
 pub(super) const STAGES: EndpointSpec = EndpointSpec {
     path: "/api/risei/stages",
-    description: "恒常ステージ(メイン・恒常サイドストーリー)の効率(/riseistages)。stageは前方一致で名前順。\
+    description:
+        "恒常ステージ(メイン・恒常サイドストーリー)の効率(/riseistages)。stageは前方一致で名前順。\
                   グローバル版に無いステージは大陸版へフォールバックする(effective_serverで判別)",
     params: &[
         ParamSpec {
@@ -66,7 +69,8 @@ pub(super) const STAGES: EndpointSpec = EndpointSpec {
 
 pub(super) const EVENTS: EndpointSpec = EndpointSpec {
     path: "/api/risei/events",
-    description: "期間限定イベントステージの効率(/riseievents)。過去の開催済み・未開催イベントも対象。\
+    description:
+        "期間限定イベントステージの効率(/riseievents)。過去の開催済み・未開催イベントも対象。\
                   stageは前方一致で名前順",
     params: &[
         ParamSpec {
@@ -88,7 +92,8 @@ pub(super) const LISTS: EndpointSpec = EndpointSpec {
         ParamSpec {
             name: "upcoming",
             required: false,
-            description: "kind=kakin のみ。true でまだ販売前のパックも含める(既定 false=販売中だけ)",
+            description:
+                "kind=kakin のみ。true でまだ販売前のパックも含める(既定 false=販売中だけ)",
         },
     ],
 };
@@ -118,8 +123,15 @@ pub(super) enum ListKind {
 }
 
 impl ListKind {
-    pub(super) const ALL: [ListKind; 7] =
-        [Self::BaseMaps, Self::Values, Self::Te2, Self::Te3, Self::Special, Self::Cc, Self::Kakin];
+    pub(super) const ALL: [ListKind; 7] = [
+        Self::BaseMaps,
+        Self::Values,
+        Self::Te2,
+        Self::Te3,
+        Self::Special,
+        Self::Cc,
+        Self::Kakin,
+    ];
 
     pub(super) fn key(self) -> &'static str {
         match self {
@@ -141,7 +153,10 @@ impl ListKind {
             Self::Te3 => "上級資格証効率表".to_string(),
             Self::Special => "特別引換証効率表".to_string(),
             Self::Cc => format!("契約賞金引換効率表(CC#{CC_NUMBER})"),
-            Self::Kakin => "課金パック効率(グローバル版。期間限定パックを総合効率の降順＋比較用の恒常パック)".to_string(),
+            Self::Kakin => {
+                "課金パック効率(グローバル版。期間限定パックを総合効率の降順＋比較用の恒常パック)"
+                    .to_string()
+            }
         }
     }
 

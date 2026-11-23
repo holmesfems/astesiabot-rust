@@ -90,7 +90,9 @@ async fn fallback_search(
         .channel_id
         .messages(
             &ctx.http,
-            serenity::GetMessages::new().before(msg.id).limit(FALLBACK_HISTORY_LIMIT),
+            serenity::GetMessages::new()
+                .before(msg.id)
+                .limit(FALLBACK_HISTORY_LIMIT),
         )
         .await?;
 
@@ -108,7 +110,11 @@ async fn fallback_search(
         if candidate.author.id != bot_id {
             continue;
         }
-        let Some(ref_id) = candidate.message_reference.as_ref().and_then(|r| r.message_id) else {
+        let Some(ref_id) = candidate
+            .message_reference
+            .as_ref()
+            .and_then(|r| r.message_id)
+        else {
             continue;
         };
         if !own_ids.contains(&ref_id) {

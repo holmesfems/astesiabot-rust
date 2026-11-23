@@ -34,9 +34,16 @@ impl JpReleaseSchedule {
             .unwrap_or_default()
             .into_iter()
             .map(|e| {
-                let date = NaiveDate::parse_from_str(&e.date, "%Y-%m-%d")
-                    .map_err(|err| format!("jp_release.yaml: 日付「{}」を解釈できません（YYYY-MM-DD）: {err}", e.date))?;
-                Ok(JpReleaseEntry { date, operators: e.operators })
+                let date = NaiveDate::parse_from_str(&e.date, "%Y-%m-%d").map_err(|err| {
+                    format!(
+                        "jp_release.yaml: 日付「{}」を解釈できません（YYYY-MM-DD）: {err}",
+                        e.date
+                    )
+                })?;
+                Ok(JpReleaseEntry {
+                    date,
+                    operators: e.operators,
+                })
             })
             .collect::<Result<Vec<_>, Error>>()?;
         Ok(Self { entries })
@@ -46,14 +53,20 @@ impl JpReleaseSchedule {
     /// `embedded_schedule_parses`のテストで落ちる）。
     pub fn global() -> &'static Self {
         static CELL: OnceLock<JpReleaseSchedule> = OnceLock::new();
-        CELL.get_or_init(|| Self::parse(JP_RELEASE_YAML).expect("data/recruitment/jp_release.yaml should parse"))
+        CELL.get_or_init(|| {
+            Self::parse(JP_RELEASE_YAML).expect("data/recruitment/jp_release.yaml should parse")
+        })
     }
 
     /// 表示名かCN名が一致する最初のエントリの反映日。
     pub fn date_for(&self, op: &PoolOperator) -> Option<NaiveDate> {
         self.entries
             .iter()
-            .find(|e| e.operators.iter().any(|n| *n == op.name || *n == op.cn_name))
+            .find(|e| {
+                e.operators
+                    .iter()
+                    .any(|n| *n == op.name || *n == op.cn_name)
+            })
             .map(|e| e.date)
     }
 
@@ -85,8 +98,14 @@ mod tests {
             "- date: 2026-10-19\n  operators: [パラス]\n- date: 2027-01-20\n  comment: x\n  operators: [水月]\n",
         )
         .unwrap();
-        assert_eq!(schedule.date_for(&op("パラス", "帕拉斯")), NaiveDate::from_ymd_opt(2026, 10, 19));
-        assert_eq!(schedule.date_for(&op("ミヅキ", "水月")), NaiveDate::from_ymd_opt(2027, 1, 20));
+        assert_eq!(
+            schedule.date_for(&op("パラス", "帕拉斯")),
+            NaiveDate::from_ymd_opt(2026, 10, 19)
+        );
+        assert_eq!(
+            schedule.date_for(&op("ミヅキ", "水月")),
+            NaiveDate::from_ymd_opt(2027, 1, 20)
+        );
         assert_eq!(schedule.date_for(&op("ラ・プルマ", "羽毛笔")), None);
     }
 
@@ -103,7 +122,8 @@ mod tests {
 
     #[test]
     fn embedded_schedule_parses() {
-        JpReleaseSchedule::parse(JP_RELEASE_YAML).expect("data/recruitment/jp_release.yaml should parse");
+        JpReleaseSchedule::parse(JP_RELEASE_YAML)
+            .expect("data/recruitment/jp_release.yaml should parse");
     }
 
     /// jp_release.yamlの名前がSeedのプール（JP分かCN追加分）の誰かに当たること（タイプミス検出）と、
@@ -112,7 +132,8 @@ mod tests {
     fn every_scheduled_name_points_to_pool_operator() {
         let json = std::fs::read_to_string(SEED_PATH)
             .unwrap_or_else(|e| panic!("seed({SEED_PATH})の読み込みに失敗: {e}。先に`cargo run --bin regen_seeds`を実行すること"));
-        let pool: RecruitPool = serde_json::from_str(&json).expect("seed should parse as RecruitPool");
+        let pool: RecruitPool =
+            serde_json::from_str(&json).expect("seed should parse as RecruitPool");
         let all: Vec<&PoolOperator> = pool.jp.iter().chain(&pool.cn_only).collect();
 
         let mut seen_ids: HashSet<&str> = HashSet::new();
@@ -125,7 +146,10 @@ mod tests {
                         let pending: Vec<&str> = pool.cn_only.iter().map(|o| o.name.as_str()).collect();
                         panic!("jp_release.yamlの「{name}」が公開求人のプールにいません（CN追加分: {pending:?}）")
                     });
-                assert!(seen_ids.insert(&found.char_id), "jp_release.yamlに「{name}」が2回書かれています");
+                assert!(
+                    seen_ids.insert(&found.char_id),
+                    "jp_release.yamlに「{name}」が2回書かれています"
+                );
             }
         }
     }

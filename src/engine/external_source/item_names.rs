@@ -57,7 +57,10 @@ impl ItemNames {
 
     /// id→中国語名。無ければ"Missing"。
     pub fn get_zh(&self, id: &str) -> &str {
-        self.id_to_zh.get(id).map(AsRef::as_ref).unwrap_or("Missing")
+        self.id_to_zh
+            .get(id)
+            .map(AsRef::as_ref)
+            .unwrap_or("Missing")
     }
 }
 
@@ -87,13 +90,22 @@ async fn fetch_impl() -> Result<ItemNames, FetchError> {
         fetch_json_with_retry(&client, ITEM_TABLE_URL_CN),
         fetch_json_with_retry(&client, ITEM_TABLE_URL_JP),
     )?;
-    let cn_items = cn_table.get("items").and_then(Value::as_object).cloned().unwrap_or_default();
-    let jp_items = jp_table.get("items").and_then(Value::as_object).cloned().unwrap_or_default();
+    let cn_items = cn_table
+        .get("items")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let jp_items = jp_table
+        .get("items")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
 
-    let custom_zh_to_ja: HashMap<String, String> = match std::fs::read_to_string("data/customItemZhToJa.yaml") {
-        Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
-        Err(_) => HashMap::new(),
-    };
+    let custom_zh_to_ja: HashMap<String, String> =
+        match std::fs::read_to_string("data/customItemZhToJa.yaml") {
+            Ok(s) => serde_saphyr::from_str(&s).unwrap_or_default(),
+            Err(_) => HashMap::new(),
+        };
 
     let mut names = ItemNames::default();
 
@@ -208,9 +220,14 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn fetch_gets_real_gamedata_and_translates_known_item() {
-        let names = fetch().await.expect("fetch should succeed against real network");
+        let names = fetch()
+            .await
+            .expect("fetch should succeed against real network");
         let ja = names.zh_to_ja("龙门币");
-        assert_ne!(ja, "龙门币", "fetch/突き合わせに失敗している可能性: got {ja}");
+        assert_ne!(
+            ja, "龙门币",
+            "fetch/突き合わせに失敗している可能性: got {ja}"
+        );
         println!("龙门币 -> {ja}");
     }
 }

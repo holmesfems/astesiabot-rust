@@ -202,7 +202,8 @@ mod tests {
         );
         std::fs::write(path, "99").unwrap();
 
-        let source: Source<u32> = Source::load("test_seed", Some(path), fetch_always_fails, false).await;
+        let source: Source<u32> =
+            Source::load("test_seed", Some(path), fetch_always_fails, false).await;
         assert_eq!(*source.get().await, 99);
 
         std::fs::remove_file(path).ok();

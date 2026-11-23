@@ -65,15 +65,22 @@ pub struct OpenAiClient {
 
 impl OpenAiClient {
     pub fn from_env() -> Self {
-        let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| panic!("OPENAI_API_KEY not set"));
-        let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| panic!("OPENAI_MODEL not set"));
+        let api_key =
+            std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| panic!("OPENAI_API_KEY not set"));
+        let model =
+            std::env::var("OPENAI_MODEL").unwrap_or_else(|_| panic!("OPENAI_MODEL not set"));
         let http = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()
             .expect("failed to build reqwest client for OpenAI");
         let tools = super::tools::load_tool_definitions()
             .expect("data/uranai/toolList.yaml の読み込みに失敗しました");
-        Self { http, api_key, model, tools }
+        Self {
+            http,
+            api_key,
+            model,
+            tools,
+        }
     }
 
     async fn call(&self, body: &Value) -> Result<Value, Error> {
@@ -96,7 +103,11 @@ impl OpenAiClient {
     }
 
     /// 会話履歴もtoolも使わない、1往復だけの文章生成（YouTube新着のお知らせの宣伝文など）。
-    pub async fn generate_text(&self, instructions: &str, user_message: &str) -> Result<String, Error> {
+    pub async fn generate_text(
+        &self,
+        instructions: &str,
+        user_message: &str,
+    ) -> Result<String, Error> {
         let response = self
             .call(&json!({
                 "model": self.model,
@@ -127,9 +138,20 @@ impl OpenAiClient {
         state: &AppState,
     ) -> Result<TurnOutput, Error> {
         let out = self
-            .run_loop(instructions, history, user_message, attachments, &self.tools, None, state)
+            .run_loop(
+                instructions,
+                history,
+                user_message,
+                attachments,
+                &self.tools,
+                None,
+                state,
+            )
             .await?;
-        Ok(TurnOutput { text: out.all_text, images: out.images })
+        Ok(TurnOutput {
+            text: out.all_text,
+            images: out.images,
+        })
     }
 
     /// 返事の要否を AI に決めさせる1ターン（メンション会話）。出力を `REPLY_SCHEMA` の JSON に
@@ -148,7 +170,9 @@ impl OpenAiClient {
         let tools: Vec<Value> = self
             .tools
             .iter()
-            .filter(|t| allow_image || t.get("type").and_then(Value::as_str) != Some("image_generation"))
+            .filter(|t| {
+                allow_image || t.get("type").and_then(Value::as_str) != Some("image_generation")
+            })
             .cloned()
             .collect();
         let format = json!({
@@ -160,11 +184,26 @@ impl OpenAiClient {
             }
         });
         let out = self
-            .run_loop(instructions, history, user_message, attachments, &tools, Some(&format), state)
+            .run_loop(
+                instructions,
+                history,
+                user_message,
+                attachments,
+                &tools,
+                Some(&format),
+                state,
+            )
             .await?;
-        let reply = parse_structured_reply(&out.last_text)
-            .ok_or_else(|| format!("structured output could not be parsed ({} chars)", out.last_text.chars().count()))?;
-        Ok(StructuredTurn { reply, images: out.images })
+        let reply = parse_structured_reply(&out.last_text).ok_or_else(|| {
+            format!(
+                "structured output could not be parsed ({} chars)",
+                out.last_text.chars().count()
+            )
+        })?;
+        Ok(StructuredTurn {
+            reply,
+            images: out.images,
+        })
     }
 
     /// ツールの往復を含む1ターン。2回目以降も `instructions`・`tools`・`text`（出力の形）を毎回送る
@@ -181,7 +220,9 @@ impl OpenAiClient {
         state: &AppState,
     ) -> Result<LoopOutput, Error> {
         let mut input = history;
-        input.push(json!({"role": "user", "content": build_user_content(user_message, attachments)}));
+        input.push(
+            json!({"role": "user", "content": build_user_content(user_message, attachments)}),
+        );
 
         let mut body = json!({
             "model": self.model,
@@ -247,16 +288,24 @@ impl OpenAiClient {
 
         let images = images_b64
             .into_iter()
-            .filter_map(|b64| match base64::engine::general_purpose::STANDARD.decode(&b64) {
-                Ok(bytes) => Some(bytes),
-                Err(e) => {
-                    eprintln!("[uranai] image_generation_call の画像デコードに失敗しました: {e}");
-                    None
-                }
-            })
+            .filter_map(
+                |b64| match base64::engine::general_purpose::STANDARD.decode(&b64) {
+                    Ok(bytes) => Some(bytes),
+                    Err(e) => {
+                        eprintln!(
+                            "[uranai] image_generation_call の画像デコードに失敗しました: {e}"
+                        );
+                        None
+                    }
+                },
+            )
             .collect();
 
-        Ok(LoopOutput { all_text, last_text, images })
+        Ok(LoopOutput {
+            all_text,
+            last_text,
+            images,
+        })
     }
 }
 
@@ -344,9 +393,15 @@ fn extract_message_text(item: &Value) -> String {
 }
 
 async fn run_tool_call(item: &Value, state: &AppState) -> Value {
-    let call_id = item.get("call_id").and_then(Value::as_str).unwrap_or_default();
+    let call_id = item
+        .get("call_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let name = item.get("name").and_then(Value::as_str).unwrap_or_default();
-    let arguments = item.get("arguments").and_then(Value::as_str).unwrap_or("{}");
+    let arguments = item
+        .get("arguments")
+        .and_then(Value::as_str)
+        .unwrap_or("{}");
     // 引数はユーザーの発言から作られるので、ログには関数名だけ出す。
     println!("[uranai] tool called: {name}");
     let result = super::tools::dispatch(name, arguments, state).await;
@@ -378,9 +433,18 @@ mod tests {
             "format": {"type": "json_schema", "name": "astesia_reply", "strict": true, "schema": reply_schema()}
         });
         let cases = [
-            ("from ドクターA:\n アステシア、今日の星はどう？", Some(ReplyAction::Reply)),
-            ("from ドクターA:\n ありがとう、楽しかった！またね", Some(ReplyAction::End)),
-            ("from ドクターA:\n @ドクターB このあとご飯行く？\n\nfrom ドクターB:\n 行く行く！", None),
+            (
+                "from ドクターA:\n アステシア、今日の星はどう？",
+                Some(ReplyAction::Reply),
+            ),
+            (
+                "from ドクターA:\n ありがとう、楽しかった！またね",
+                Some(ReplyAction::End),
+            ),
+            (
+                "from ドクターA:\n @ドクターB このあとご飯行く？\n\nfrom ドクターB:\n 行く行く！",
+                None,
+            ),
         ];
         for (text, expected) in cases {
             let body = json!({
@@ -398,7 +462,8 @@ mod tests {
                 .filter(|i| i["type"] == "message")
                 .map(extract_message_text)
                 .collect();
-            let reply = parse_structured_reply(&last).unwrap_or_else(|| panic!("unparsable: {last}"));
+            let reply =
+                parse_structured_reply(&last).unwrap_or_else(|| panic!("unparsable: {last}"));
             println!("{text:?} => {reply:?}");
             if let Some(expected) = expected {
                 assert_eq!(reply.action, expected, "{text}");
@@ -410,15 +475,27 @@ mod tests {
     fn parses_structured_reply() {
         assert_eq!(
             parse_structured_reply(r#"{"action":"reply","message":"こんにちは"}"#),
-            Some(StructuredReply { action: ReplyAction::Reply, message: "こんにちは".into() })
+            Some(StructuredReply {
+                action: ReplyAction::Reply,
+                message: "こんにちは".into()
+            })
         );
         assert_eq!(
             parse_structured_reply(" {\"action\":\"silent\",\"message\":\"\"}\n").map(|r| r.action),
             Some(ReplyAction::Silent)
         );
-        assert_eq!(parse_structured_reply(r#"{"action":"end","message":"またね"}"#).map(|r| r.action), Some(ReplyAction::End));
-        assert_eq!(parse_structured_reply(r#"{"action":"dance","message":""}"#), None);
-        assert_eq!(parse_structured_reply("調べるわね{\"action\":\"reply\",\"message\":\"x\"}"), None);
+        assert_eq!(
+            parse_structured_reply(r#"{"action":"end","message":"またね"}"#).map(|r| r.action),
+            Some(ReplyAction::End)
+        );
+        assert_eq!(
+            parse_structured_reply(r#"{"action":"dance","message":""}"#),
+            None
+        );
+        assert_eq!(
+            parse_structured_reply("調べるわね{\"action\":\"reply\",\"message\":\"x\"}"),
+            None
+        );
         assert_eq!(parse_structured_reply(""), None);
     }
 }

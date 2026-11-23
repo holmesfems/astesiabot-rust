@@ -82,7 +82,9 @@ mod tests {
         assert!(html.contains(r#"<script src="/static/opening.js" defer></script>"#));
         assert!(html.contains(r#"<div id="opening" aria-hidden="true">"#));
         assert!(html.contains(r#"<svg id="emblem""#));
-        assert!(html.contains(r#"<div id="sky" aria-hidden="true"><canvas id="star-canvas"></canvas></div>"#));
+        assert!(html.contains(
+            r#"<div id="sky" aria-hidden="true"><canvas id="star-canvas"></canvas></div>"#
+        ));
         assert!(html.contains(r#"id="dial-glyphs""#));
         assert!(html.contains(r#"id="dial""#));
         assert!(html.contains(r#"id="dial-ring""#));
@@ -153,7 +155,12 @@ mod tests {
 
     #[tokio::test]
     async fn static_files_are_served() {
-        for uri in ["/static/planisphere.js", "/static/opening.js", "/static/stars.json", "/static/zodiac_lines.json"] {
+        for uri in [
+            "/static/planisphere.js",
+            "/static/opening.js",
+            "/static/stars.json",
+            "/static/zodiac_lines.json",
+        ] {
             let app = router::<()>();
             let response = app
                 .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())

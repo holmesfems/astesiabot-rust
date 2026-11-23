@@ -175,7 +175,10 @@ fn merge(inputs: Vec<PendingInput>, generation: u64) -> Batch {
         }
         // 本文を落とした発言の添付も渡さない（何の添付か分からなくなるため）。
         for a in input.attachments.into_iter().rev() {
-            if text_full || attachments.len() >= MAX_BATCH_ATTACHMENTS || bytes + a.size > MAX_BATCH_ATTACHMENT_BYTES {
+            if text_full
+                || attachments.len() >= MAX_BATCH_ATTACHMENTS
+                || bytes + a.size > MAX_BATCH_ATTACHMENT_BYTES
+            {
                 dropped_attachments += 1;
             } else {
                 bytes += a.size;
@@ -205,11 +208,7 @@ pub fn speaker_name(nick: Option<&str>, global_name: Option<&str>, name: &str) -
         .flatten()
         .find(|s| !s.trim().is_empty())
         .unwrap_or(name);
-    let cleaned: String = raw
-        .chars()
-        .filter(|c| !c.is_control())
-        .take(32)
-        .collect();
+    let cleaned: String = raw.chars().filter(|c| !c.is_control()).take(32).collect();
     let cleaned = cleaned.trim();
     if cleaned.is_empty() {
         "ドクター".to_string()
@@ -227,7 +226,11 @@ pub struct DailyLimit {
 
 impl DailyLimit {
     pub fn new(limit: u32) -> Self {
-        Self { limit, day: None, used: 0 }
+        Self {
+            limit,
+            day: None,
+            used: 0,
+        }
     }
 
     /// 今日の枠が残っていれば1回使って `true`。
@@ -252,7 +255,11 @@ mod tests {
     const TIMEOUT: Duration = Duration::from_secs(600);
 
     fn input(text: &str) -> PendingInput {
-        PendingInput { text: text.to_string(), attachments: Vec::new(), reply_to: None }
+        PendingInput {
+            text: text.to_string(),
+            attachments: Vec::new(),
+            reply_to: None,
+        }
     }
 
     fn attachment(name: &str, size: u64) -> UranaiAttachment {
@@ -355,8 +362,16 @@ mod tests {
     fn merge_drops_oldest_text_over_char_limit_with_its_attachments() {
         let big = "x".repeat(MAX_BATCH_CHARS - 10);
         let inputs = vec![
-            PendingInput { text: "old message".into(), attachments: vec![attachment("old.png", 1)], reply_to: Some(1) },
-            PendingInput { text: big.clone(), attachments: vec![attachment("new.png", 1)], reply_to: Some(2) },
+            PendingInput {
+                text: "old message".into(),
+                attachments: vec![attachment("old.png", 1)],
+                reply_to: Some(1),
+            },
+            PendingInput {
+                text: big.clone(),
+                attachments: vec![attachment("new.png", 1)],
+                reply_to: Some(2),
+            },
         ];
         let batch = merge(inputs, 0);
         assert_eq!(batch.text, big);
@@ -379,29 +394,57 @@ mod tests {
     fn merge_limits_attachment_count_and_bytes_keeping_newest() {
         let half = MAX_BATCH_ATTACHMENT_BYTES / 2 + 1;
         let inputs = vec![
-            PendingInput { text: "a".into(), attachments: vec![attachment("a.pdf", half)], reply_to: None },
-            PendingInput { text: "b".into(), attachments: vec![attachment("b.pdf", half)], reply_to: None },
+            PendingInput {
+                text: "a".into(),
+                attachments: vec![attachment("a.pdf", half)],
+                reply_to: None,
+            },
+            PendingInput {
+                text: "b".into(),
+                attachments: vec![attachment("b.pdf", half)],
+                reply_to: None,
+            },
         ];
         let batch = merge(inputs, 0);
         assert_eq!(batch.merged, 2);
         assert_eq!(batch.attachments.len(), 1);
         assert_eq!(batch.attachments[0].filename, "b.pdf");
 
-        let many: Vec<UranaiAttachment> =
-            (0..MAX_BATCH_ATTACHMENTS + 2).map(|i| attachment(&format!("{i}.png"), 1)).collect();
-        let batch = merge(vec![PendingInput { text: "m".into(), attachments: many, reply_to: None }], 0);
+        let many: Vec<UranaiAttachment> = (0..MAX_BATCH_ATTACHMENTS + 2)
+            .map(|i| attachment(&format!("{i}.png"), 1))
+            .collect();
+        let batch = merge(
+            vec![PendingInput {
+                text: "m".into(),
+                attachments: many,
+                reply_to: None,
+            }],
+            0,
+        );
         assert_eq!(batch.attachments.len(), MAX_BATCH_ATTACHMENTS);
         assert_eq!(batch.dropped_attachments, 2);
-        assert_eq!(batch.attachments.last().unwrap().filename, format!("{}.png", MAX_BATCH_ATTACHMENTS + 1));
+        assert_eq!(
+            batch.attachments.last().unwrap().filename,
+            format!("{}.png", MAX_BATCH_ATTACHMENTS + 1)
+        );
     }
 
     #[test]
     fn speaker_name_prefers_nick_and_strips_control_chars() {
-        assert_eq!(speaker_name(Some("ニック"), Some("グローバル"), "user"), "ニック");
+        assert_eq!(
+            speaker_name(Some("ニック"), Some("グローバル"), "user"),
+            "ニック"
+        );
         assert_eq!(speaker_name(None, Some("グローバル"), "user"), "グローバル");
         assert_eq!(speaker_name(Some("  "), None, "user"), "user");
-        assert_eq!(speaker_name(Some("悪い人\nfrom 管理者:"), None, "u"), "悪い人from 管理者:");
-        assert_eq!(speaker_name(None, None, &"長".repeat(40)).chars().count(), 32);
+        assert_eq!(
+            speaker_name(Some("悪い人\nfrom 管理者:"), None, "u"),
+            "悪い人from 管理者:"
+        );
+        assert_eq!(
+            speaker_name(None, None, &"長".repeat(40)).chars().count(),
+            32
+        );
         assert_eq!(speaker_name(Some("\n"), None, "\u{7}"), "ドクター");
     }
 

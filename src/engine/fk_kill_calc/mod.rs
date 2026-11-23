@@ -21,42 +21,34 @@ mod validate;
 mod tests;
 
 pub use dto::Catalog;
-pub use overrides::{OverrideSpecial, OverrideStoneBoard, OverrideVariant, Overrides, OverridesMap};
+pub use overrides::{
+    OverrideSpecial, OverrideStoneBoard, OverrideVariant, Overrides, OverridesMap,
+};
 
 use crate::engine::external_source::fk_data::FkSheetData;
 use crate::engine::external_source::operator_combat::OperatorCombat;
 use crate::engine::external_source::operator_data::OperatorData;
 use crate::engine::external_source::skill_data::SkillData;
 use crate::engine::fk_data_search::search::skill_id_by_num;
-use dto::{
-    CatalogModule, CatalogOperator, PhaseAtk, Valued,
-};
+use dto::{CatalogModule, CatalogOperator, PhaseAtk, Valued};
 use std::collections::HashMap;
 
-pub use validate::{
-    validate_inspire_sources,
-    validate_overrides,
-    validate_special_requires_module,
-    validate_special_mul_multiplier,
-    validate_stone_board,
-    validate_override_level_fields,
-    validate_combined_variants,
+use entry::{
+    build_combined_entry, build_entry, resolve_multiplier_defaults, resolve_variant_multiplier,
+    resolve_variant_self_atk_pct, to_special_dto, to_stone_board_dto, values_by_level_for_key,
 };
 use inspire::build_inspire_sources;
-use entry::{
-    to_special_dto,
-    to_stone_board_dto,
-    build_entry,
-    build_combined_entry,
-    values_by_level_for_key,
-    resolve_variant_multiplier,
-    resolve_variant_self_atk_pct,
-    resolve_multiplier_defaults,
+pub use validate::{
+    validate_combined_variants, validate_inspire_sources, validate_override_level_fields,
+    validate_overrides, validate_special_mul_multiplier, validate_special_requires_module,
+    validate_stone_board,
 };
 
 /// `operator_combat::RawModuleCombat`一覧をカタログ表示用の`CatalogModule`一覧へ変換する
 /// (`CatalogOperator.modules`/`InspireSource.modules`の両方から使う共通ロジック)。
-fn to_catalog_modules(modules: &[crate::engine::external_source::operator_combat::RawModuleCombat]) -> Vec<CatalogModule> {
+fn to_catalog_modules(
+    modules: &[crate::engine::external_source::operator_combat::RawModuleCombat],
+) -> Vec<CatalogModule> {
     modules
         .iter()
         .map(|m| CatalogModule {
@@ -72,8 +64,17 @@ fn to_catalog_modules(modules: &[crate::engine::external_source::operator_combat
 
 /// `operator_combat::RawPhaseAtk`一覧をDTO(`dto::PhaseAtk`)へ変換する
 /// (`CatalogOperator.phases`/`InspireSource.phases`の両方から使う共通ロジック)。
-fn to_phase_atk_dtos(phases: &[crate::engine::external_source::operator_combat::RawPhaseAtk]) -> Vec<PhaseAtk> {
-    phases.iter().map(|p| PhaseAtk { max_level: p.max_level, atk_min: p.atk_min, atk_max: p.atk_max }).collect()
+fn to_phase_atk_dtos(
+    phases: &[crate::engine::external_source::operator_combat::RawPhaseAtk],
+) -> Vec<PhaseAtk> {
+    phases
+        .iter()
+        .map(|p| PhaseAtk {
+            max_level: p.max_level,
+            atk_min: p.atk_min,
+            atk_max: p.atk_max,
+        })
+        .collect()
 }
 
 /// fk_dataシートとゲームデータ側の表記ゆれ（全角/半角括弧、前後の空白）を吸収する。
@@ -96,17 +97,29 @@ pub struct CatalogBuild {
 /// カタログを組み立てる。fk_dataに載っているオペレーター名を起点に処理する
 /// (逆に、fk_dataに情報が無いオペレーターはカタログに載らない。
 /// フレームキル計算機はFK情報が無いスキルを扱えないため)。
-pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorCombat, skills: &SkillData, overrides: &Overrides) -> CatalogBuild {
+pub fn build_catalog(
+    fk: &FkSheetData,
+    ops: &OperatorData,
+    combat: &OperatorCombat,
+    skills: &SkillData,
+    overrides: &Overrides,
+) -> CatalogBuild {
     let mut operators = Vec::new();
     let mut skipped = Vec::new();
 
     // 全角/半角括弧ゆれを吸収した名前 -> id の索引を先に1回だけ作る
     // (fk_dataの操作対象は100件超あるので、行毎に正規化しなくて済むようにする)。
-    let normalized_name_to_id: HashMap<String, &str> =
-        combat.name_to_id.iter().map(|(n, id)| (normalize_operator_name(n), id.as_str())).collect();
+    let normalized_name_to_id: HashMap<String, &str> = combat
+        .name_to_id
+        .iter()
+        .map(|(n, id)| (normalize_operator_name(n), id.as_str()))
+        .collect();
 
     for (name, rows) in &fk.by_operator {
-        let Some(op_id) = normalized_name_to_id.get(&normalize_operator_name(name)).copied() else {
+        let Some(op_id) = normalized_name_to_id
+            .get(&normalize_operator_name(name))
+            .copied()
+        else {
             skipped.push(name.clone());
             continue;
         };
@@ -125,7 +138,11 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
         };
 
         let skill_ids = skill_id_by_num(cost_op);
-        let operator_tags = tags::tags_for(&combat_op.profession, &combat_op.position, &combat_op.nation_id);
+        let operator_tags = tags::tags_for(
+            &combat_op.profession,
+            &combat_op.position,
+            &combat_op.nation_id,
+        );
         let default_damage_type = tags::guess_damage_type(&combat_op.profession);
 
         let mut fk_entries = Vec::new();
@@ -135,7 +152,10 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
             // P7: スキルLv別blackboard(空Vecなら「無い」扱いに正規化する。levels.rsが
             // deserialize失敗時に空Mapを積むことがあるため、要素はあっても値が全部0の
             // ケースまでは弾かない=`values_by_level_for_key`が0.0フォールバックで処理する)。
-            let blackboard_by_level = skill_id.and_then(|id| skills.get_blackboard_by_level(id)).filter(|v| !v.is_empty()).map(Vec::as_slice);
+            let blackboard_by_level = skill_id
+                .and_then(|id| skills.get_blackboard_by_level(id))
+                .filter(|v| !v.is_empty())
+                .map(Vec::as_slice);
             let skill_label = skill_id
                 .map(|id| skills.get_str(id))
                 .filter(|s| !s.is_empty() && *s != "Missing")
@@ -145,7 +165,8 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
             let (default_multiplier, default_multiplier_by_level, multiplier_candidates) =
                 resolve_multiplier_defaults(blackboard, blackboard_by_level);
             let num_levels = default_multiplier_by_level.len();
-            let default_self_atk_pct_by_level = values_by_level_for_key(blackboard_by_level, "atk", num_levels);
+            let default_self_atk_pct_by_level =
+                values_by_level_for_key(blackboard_by_level, "atk", num_levels);
             let default_self_atk_pct = default_self_atk_pct_by_level.last().copied().unwrap_or(0.0);
             let default_hits: u32 = 1;
 
@@ -187,24 +208,32 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                         if let Some(extra) = &variant.tags {
                             tags_for_variant.extend(extra.iter().cloned());
                         }
-                        let (multiplier, multiplier_by_level, multiplier_fixed) = resolve_variant_multiplier(
-                            variant,
-                            &default_multiplier_by_level,
-                            default_multiplier,
-                            blackboard_by_level,
-                            num_levels,
-                        );
+                        let (multiplier, multiplier_by_level, multiplier_fixed) =
+                            resolve_variant_multiplier(
+                                variant,
+                                &default_multiplier_by_level,
+                                default_multiplier,
+                                blackboard_by_level,
+                                num_levels,
+                            );
                         let (self_atk_pct, self_atk_pct_by_level, self_atk_pct_fixed) =
-                            resolve_variant_self_atk_pct(variant, &default_self_atk_pct_by_level, default_self_atk_pct, num_levels);
+                            resolve_variant_self_atk_pct(
+                                variant,
+                                &default_self_atk_pct_by_level,
+                                default_self_atk_pct,
+                                num_levels,
+                            );
                         // P8 follow-up: `mul_multiplier`(素質値テーブル参照)が実データに解決
                         // できない(talent_index範囲外)場合は、fk_dataのskipped/inspireのskippedと
                         // 同じ方針で`skipped`に記録した上でこの特殊強化を静かに落とす(ドリフト自体は
                         // `cargo test`の`validate_special_mul_multiplier`が検知する)。
-                        let special = variant.special.as_ref().and_then(|s| match to_special_dto(s, combat_op) {
-                            Some(dto) => Some(dto),
-                            None => {
-                                skipped.push(format!("special:{op_id}/{}", row.skill_num));
-                                None
+                        let special = variant.special.as_ref().and_then(|s| {
+                            match to_special_dto(s, combat_op) {
+                                Some(dto) => Some(dto),
+                                None => {
+                                    skipped.push(format!("special:{op_id}/{}", row.skill_num));
+                                    None
+                                }
                             }
                         });
                         let mut entry = build_entry(
@@ -225,11 +254,13 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
                             variant.note.clone(),
                         );
                         entry.default_module = variant.default_module.clone();
-                        entry.stone_board = variant.stone_board.as_ref().and_then(|b| match to_stone_board_dto(b, combat_op) {
-                            Some(dto) => Some(dto),
-                            None => {
-                                skipped.push(format!("stone_board:{op_id}/{}", row.skill_num));
-                                None
+                        entry.stone_board = variant.stone_board.as_ref().and_then(|b| {
+                            match to_stone_board_dto(b, combat_op) {
+                                Some(dto) => Some(dto),
+                                None => {
+                                    skipped.push(format!("stone_board:{op_id}/{}", row.skill_num));
+                                    None
+                                }
                             }
                         });
                         fk_entries.push(entry);
@@ -280,8 +311,25 @@ pub fn build_catalog(fk: &FkSheetData, ops: &OperatorData, combat: &OperatorComb
     // (`conditional_source::build_conditional_sourced_buffers`/
     // `build_individual_sourced_buffers`参照)。
     let mut buffers = buffers::global().to_vec();
-    buffers.extend(conditional_source::build_conditional_sourced_buffers(combat, ops, skills, &mut skipped));
-    buffers.extend(conditional_source::build_individual_sourced_buffers(combat, ops, skills, &mut skipped));
+    buffers.extend(conditional_source::build_conditional_sourced_buffers(
+        combat,
+        ops,
+        skills,
+        &mut skipped,
+    ));
+    buffers.extend(conditional_source::build_individual_sourced_buffers(
+        combat,
+        ops,
+        skills,
+        &mut skipped,
+    ));
 
-    CatalogBuild { catalog: Catalog { operators, buffers, inspire_sources }, skipped }
+    CatalogBuild {
+        catalog: Catalog {
+            operators,
+            buffers,
+            inspire_sources,
+        },
+        skipped,
+    }
 }

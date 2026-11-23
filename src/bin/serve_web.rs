@@ -19,7 +19,9 @@
 
 use astesiabot_rust::api::fk_kill_calculator::{self, CatalogProvider};
 use astesiabot_rust::api::web_ui_router;
-use astesiabot_rust::engine::external_source::{fk_data, operator_combat, operator_data, skill_data};
+use astesiabot_rust::engine::external_source::{
+    fk_data, operator_combat, operator_data, skill_data,
+};
 use astesiabot_rust::engine::fk_kill_calc::{self, Overrides};
 use axum::http::StatusCode;
 use std::sync::Arc;
@@ -31,7 +33,8 @@ async fn not_found() -> (StatusCode, &'static str) {
 /// `data/seed/*.json`を直接読んで`T`にdeserializeする（`serve_web`は起動時fetchも
 /// `.env`も要求しないため、`Source::load`は使わずSeedを直読みする）。
 fn load_seed<T: serde::de::DeserializeOwned>(path: &str) -> T {
-    let s = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("seed({path})の読み込みに失敗: {e}"));
+    let s = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("seed({path})の読み込みに失敗: {e}"));
     serde_json::from_str(&s).unwrap_or_else(|e| panic!("seed({path})のparseに失敗: {e}"))
 }
 
@@ -59,7 +62,9 @@ async fn main() {
         .expect("WEB_UI_PORT must be a number");
 
     let app = web_ui_router::<()>()
-        .merge(fk_kill_calculator::catalog_router::<()>(seed_based_catalog_provider()))
+        .merge(fk_kill_calculator::catalog_router::<()>(
+            seed_based_catalog_provider(),
+        ))
         .fallback(not_found);
 
     let address = std::net::SocketAddr::from(([127, 0, 0, 1], port));

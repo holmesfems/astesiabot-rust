@@ -8,23 +8,16 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 use std::time::Instant;
 
-mod detect;
 mod action;
+mod detect;
 #[cfg(test)]
 mod tests;
 
-use detect::{
-    URL_PATTERN,
-    SpamKind,
-    Actor,
-    command_invoker,
-    countable_command_age,
-    Detection,
-    first_sight_of_interaction,
-    detect,
-    detect_rate_spam,
-};
 use action::dispatch;
+use detect::{
+    command_invoker, countable_command_age, detect, detect_rate_spam, first_sight_of_interaction,
+    Actor, Detection, SpamKind, URL_PATTERN,
+};
 
 /// bot 起動中ずっと保持するモデレーション用の可変状態。AppState から共有される。
 pub struct ModerationState {
@@ -32,8 +25,7 @@ pub struct ModerationState {
     report_channel: serenity::ChannelId,
     url_re: Regex,
     multi_ch_history: Mutex<HashMap<serenity::UserId, VecDeque<(Instant, serenity::ChannelId)>>>,
-    same_ch_history:
-        Mutex<HashMap<(serenity::UserId, serenity::ChannelId), VecDeque<Instant>>>,
+    same_ch_history: Mutex<HashMap<(serenity::UserId, serenity::ChannelId), VecDeque<Instant>>>,
     /// 数え済みのスラッシュコマンド。1つのコマンドへの応答＋フォローアップを1回と数えるため
     seen_interactions: Mutex<HashMap<serenity::InteractionId, Instant>>,
 }
@@ -88,7 +80,15 @@ pub async fn handle(
     user_is_admin: bool,
 ) -> Result<bool, Error> {
     let detection = detect(state, msg);
-    dispatch(ctx, msg, state, Actor::author_of(msg), detection, user_is_admin).await
+    dispatch(
+        ctx,
+        msg,
+        state,
+        Actor::author_of(msg),
+        detection,
+        user_is_admin,
+    )
+    .await
 }
 
 /// bot の発言のうち、スラッシュコマンドへの返信だけを「コマンドを打った人の操作」として
@@ -126,8 +126,14 @@ pub async fn handle_command_reply(
     }
     // メンバー取得はAPI呼び出しになり得るので、検知が出た時だけ行う
     let invoker_is_admin = member_is_admin(ctx, guild_id, invoker.id).await;
-    let actor = Actor { user: invoker, via_bot: Some(&msg.author) };
-    let detection = Detection { delete: false, kind };
+    let actor = Actor {
+        user: invoker,
+        via_bot: Some(&msg.author),
+    };
+    let detection = Detection {
+        delete: false,
+        kind,
+    };
     dispatch(ctx, msg, state, actor, detection, invoker_is_admin).await?;
     Ok(())
 }

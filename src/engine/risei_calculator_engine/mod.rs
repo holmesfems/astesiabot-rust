@@ -11,7 +11,10 @@ pub mod static_data;
 pub mod values;
 
 pub use lists::{TicketEfficiency, ValueEntry, CC_NUMBER};
-pub use search::{EventStageInfo, MaterialSearchResult, MaterialStageInfo, StageCategoryEfficiency, StageEfficiencyInfo, StageSearchResult};
+pub use search::{
+    EventStageInfo, MaterialSearchResult, MaterialStageInfo, StageCategoryEfficiency,
+    StageEfficiencyInfo, StageSearchResult,
+};
 pub use server::Server;
 pub use stage::StageItem;
 
@@ -84,7 +87,10 @@ impl RiseiCalculatorEngine {
     /// 再計算に失敗したサーバは既存の値を保持したまま継続する（`outer_source::Source::refresh`と
     /// 同じ方針）。計算中もリクエストは旧スナップショットを読み続け、完成後に一瞬で差し替える。
     pub async fn refresh(&self, outer_source: &ExternalSourceRegistry) {
-        tokio::join!(outer_source.ark_stages.refresh(), outer_source.ark_matrix.refresh());
+        tokio::join!(
+            outer_source.ark_stages.refresh(),
+            outer_source.ark_matrix.refresh()
+        );
         for server in [Server::Global, Server::Mainland] {
             match build_calculator(server, outer_source, &self.static_data).await {
                 Ok(new_calc) => {
@@ -165,17 +171,30 @@ pub struct EngineSnapshot {
 
 /// カテゴリのmainItem/subItemドロップ率を`120秒`あたりの入手数に換算する。
 /// riseimaterials/riseistagesの両方が使う汎用計算のためengineに残す。
-pub fn drop_per_minute(stage: &StageItem, info: &server::StageCategoryInfo, values: &RiseiValues) -> f64 {
-    let mut drop_values = stage.get_drop_rate(&info.main_item, &values.value_target, &values.item_names);
+pub fn drop_per_minute(
+    stage: &StageItem,
+    info: &server::StageCategoryInfo,
+    values: &RiseiValues,
+) -> f64 {
+    let mut drop_values =
+        stage.get_drop_rate(&info.main_item, &values.value_target, &values.item_names);
     for (item, order) in info.sub_item.iter().zip(info.sub_order.iter()) {
-        drop_values += stage.get_drop_rate(item, &values.value_target, &values.item_names) / (*order as f64);
+        drop_values +=
+            stage.get_drop_rate(item, &values.value_target, &values.item_names) / (*order as f64);
     }
     drop_values / stage.min_clear_time * 120.0
 }
 
 /// 試行数が足りないステージを除外する。全滅した場合は無条件で全部返す。
-pub fn filter_stages_by_show_min_times(stages: Vec<Arc<StageItem>>, show_min_times: i64) -> Vec<Arc<StageItem>> {
-    let filtered: Vec<Arc<StageItem>> = stages.iter().filter(|s| s.max_times() >= show_min_times).cloned().collect();
+pub fn filter_stages_by_show_min_times(
+    stages: Vec<Arc<StageItem>>,
+    show_min_times: i64,
+) -> Vec<Arc<StageItem>> {
+    let filtered: Vec<Arc<StageItem>> = stages
+        .iter()
+        .filter(|s| s.max_times() >= show_min_times)
+        .cloned()
+        .collect();
     if filtered.is_empty() {
         stages
     } else {
@@ -188,7 +207,11 @@ impl EngineSnapshot {
         if self.base_stage_ids.contains(&stage.stage_id) {
             return 0.0;
         }
-        let cost = if stage.ap_cost > 0.0 { stage.ap_cost } else { 1.0 };
+        let cost = if stage.ap_cost > 0.0 {
+            stage.ap_cost
+        } else {
+            1.0
+        };
         stage.get_std_dev(&self.values) / cost
     }
 
@@ -208,19 +231,30 @@ impl EngineSnapshot {
     }
 
     pub fn search_main_stage(&self, target_code: &str) -> Vec<Arc<StageItem>> {
-        self.stage_info.search_main_stage(target_code, DEFAULT_SHOW_MIN_TIMES)
+        self.stage_info
+            .search_main_stage(target_code, DEFAULT_SHOW_MIN_TIMES)
     }
 
     pub fn search_event_stage(&self, target_code: &str) -> Vec<Arc<StageItem>> {
-        self.stage_info.search_event_stage(target_code, DEFAULT_SHOW_MIN_TIMES)
+        self.stage_info
+            .search_event_stage(target_code, DEFAULT_SHOW_MIN_TIMES)
     }
 
-    pub fn auto_complete_main_stage(&self, target_code: &str, limit: usize) -> Vec<(String, String)> {
+    pub fn auto_complete_main_stage(
+        &self,
+        target_code: &str,
+        limit: usize,
+    ) -> Vec<(String, String)> {
         self.stage_info.auto_complete_main_stage(target_code, limit)
     }
 
-    pub fn auto_complete_event_stage(&self, target_code: &str, limit: usize) -> Vec<(String, String)> {
-        self.stage_info.auto_complete_event_stage(target_code, limit)
+    pub fn auto_complete_event_stage(
+        &self,
+        target_code: &str,
+        limit: usize,
+    ) -> Vec<(String, String)> {
+        self.stage_info
+            .auto_complete_event_stage(target_code, limit)
     }
 }
 
@@ -235,13 +269,19 @@ mod tests {
 
     async fn seed_source() -> &'static ExternalSourceRegistry {
         static SOURCE: OnceCell<ExternalSourceRegistry> = OnceCell::const_new();
-        SOURCE.get_or_init(|| ExternalSourceRegistry::load(true)).await
+        SOURCE
+            .get_or_init(|| ExternalSourceRegistry::load(true))
+            .await
     }
 
     async fn seed_engine() -> &'static RiseiCalculatorEngine {
         static ENGINE: OnceCell<RiseiCalculatorEngine> = OnceCell::const_new();
         ENGINE
-            .get_or_init(|| async { RiseiCalculatorEngine::load(seed_source().await).await.expect("seedから理性価値表を計算できる") })
+            .get_or_init(|| async {
+                RiseiCalculatorEngine::load(seed_source().await)
+                    .await
+                    .expect("seedから理性価値表を計算できる")
+            })
             .await
     }
 
@@ -252,9 +292,17 @@ mod tests {
         let mut bad = Vec::new();
         for server in SERVERS {
             let calc = engine.lock_for(server).read().await;
-            bad.extend(calculator::check_invariants(&calc, &item_names, &formulas.formulas));
+            bad.extend(calculator::check_invariants(
+                &calc,
+                &item_names,
+                &formulas.formulas,
+            ));
         }
-        assert!(bad.is_empty(), "理性価値表の不変条件が破れている:\n{}", bad.join("\n"));
+        assert!(
+            bad.is_empty(),
+            "理性価値表の不変条件が破れている:\n{}",
+            bad.join("\n")
+        );
     }
 
     #[tokio::test]
@@ -281,8 +329,12 @@ mod tests {
             let target = || values.value_target.iter().enumerate();
             Self {
                 base_stages: snapshot.base_stage_display.clone(),
-                values: target().map(|(i, zh)| (zh.to_string(), values.value_array[i])).collect(),
-                std_devs: target().map(|(i, zh)| (zh.to_string(), values.dev_array[i])).collect(),
+                values: target()
+                    .map(|(i, zh)| (zh.to_string(), values.value_array[i]))
+                    .collect(),
+                std_devs: target()
+                    .map(|(i, zh)| (zh.to_string(), values.dev_array[i]))
+                    .collect(),
                 stage_efficiencies: snapshot
                     .stage_info
                     .main_stage_dict
@@ -305,7 +357,12 @@ mod tests {
     }
 
     /// 2つの表のキーが同じで、値が相対誤差1e-9以内で一致すること。違いは`bad`に足す。
-    fn diff_numbers(label: &str, expected: &BTreeMap<String, f64>, actual: &BTreeMap<String, f64>, bad: &mut Vec<String>) {
+    fn diff_numbers(
+        label: &str,
+        expected: &BTreeMap<String, f64>,
+        actual: &BTreeMap<String, f64>,
+        bad: &mut Vec<String>,
+    ) {
         for key in expected.keys().filter(|k| !actual.contains_key(*k)) {
             bad.push(format!("{label}: {key} が無くなった"));
         }
@@ -313,7 +370,10 @@ mod tests {
             match expected.get(key) {
                 None => bad.push(format!("{label}: {key} が増えた ({a})")),
                 Some(e) if (a - e).abs() > 1e-9 * e.abs().max(a.abs()) => {
-                    bad.push(format!("{label}: {key} {e} → {a} ({:+.4}%)", (a - e) / e * 100.0));
+                    bad.push(format!(
+                        "{label}: {key} {e} → {a} ({:+.4}%)",
+                        (a - e) / e * 100.0
+                    ));
                 }
                 Some(_) => {}
             }
@@ -331,17 +391,28 @@ mod tests {
             return;
         }
         let text = std::fs::read_to_string(&path).unwrap_or_else(|e| {
-            panic!("{} を読めない（初回は UPDATE_GOLDEN=1 cargo test risei_golden で作る）: {e}", path.display())
+            panic!(
+                "{} を読めない（初回は UPDATE_GOLDEN=1 cargo test risei_golden で作る）: {e}",
+                path.display()
+            )
         });
         let expected: Golden = serde_json::from_str(&text).unwrap();
 
         let mut bad = Vec::new();
         if expected.base_stages != actual.base_stages {
-            bad.push(format!("基準マップ: {:?} → {:?}", expected.base_stages, actual.base_stages));
+            bad.push(format!(
+                "基準マップ: {:?} → {:?}",
+                expected.base_stages, actual.base_stages
+            ));
         }
         diff_numbers("理性価値", &expected.values, &actual.values, &mut bad);
         diff_numbers("誤差", &expected.std_devs, &actual.std_devs, &mut bad);
-        diff_numbers("ステージ効率", &expected.stage_efficiencies, &actual.stage_efficiencies, &mut bad);
+        diff_numbers(
+            "ステージ効率",
+            &expected.stage_efficiencies,
+            &actual.stage_efficiencies,
+            &mut bad,
+        );
         assert!(
             bad.is_empty(),
             "{server:?} の理性価値表が golden と違う（{}件。先頭20件）:\n{}\n\
@@ -368,7 +439,9 @@ mod tests {
         let source = seed_source().await;
         let first = seed_engine().await;
         for _ in 0..2 {
-            let other = RiseiCalculatorEngine::load(source).await.expect("seedから理性価値表を計算できる");
+            let other = RiseiCalculatorEngine::load(source)
+                .await
+                .expect("seedから理性価値表を計算できる");
             for server in SERVERS {
                 assert_eq!(
                     Golden::from_snapshot(&first.snapshot(server).await),
@@ -399,10 +472,16 @@ mod tests {
                 snapshot.values.get_value_from_zh("龙门币1000").is_finite(),
                 "龙门币1000 value should be finite for {server:?}"
             );
-            println!("[{server:?}] 龙门币1000 value = {}", snapshot.values.get_value_from_zh("龙门币1000"));
+            println!(
+                "[{server:?}] 龙门币1000 value = {}",
+                snapshot.values.get_value_from_zh("龙门币1000")
+            );
 
             let stages = snapshot.search_main_stage("1-7");
-            assert!(!stages.is_empty(), "1-7 stage search should have candidates for {server:?}");
+            assert!(
+                !stages.is_empty(),
+                "1-7 stage search should have candidates for {server:?}"
+            );
             println!("[{server:?}] 1-7 top hit: {}", stages[0].name);
         }
     }

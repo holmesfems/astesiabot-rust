@@ -80,7 +80,10 @@ pub enum IncomingAction {
     /// 決まった文面の案内を送る（AI は呼ばない）。
     Notice(Notice),
     /// ワーカーを spawn する。`started` は新しく会話を作ったか（ログ用）。
-    StartWorker { session_id: u64, started: bool },
+    StartWorker {
+        session_id: u64,
+        started: bool,
+    },
     /// 考え中なので貯めた。
     Queued,
     /// reset で閉じた。決まった文面を送る。
@@ -186,7 +189,10 @@ impl MentionSessions {
                 session.last_participant_at = now;
                 let id = session.id;
                 return match session.conv.enqueue(msg.input) {
-                    Enqueue::StartWorker => IncomingAction::StartWorker { session_id: id, started: false },
+                    Enqueue::StartWorker => IncomingAction::StartWorker {
+                        session_id: id,
+                        started: false,
+                    },
                     Enqueue::Queued { .. } => IncomingAction::Queued,
                 };
             }
@@ -206,10 +212,15 @@ impl MentionSessions {
             return self.deny(msg.user, msg.channel, now);
         }
         if self.sessions.len() >= self.limits.max_sessions {
-            if self.busy_notice_until.get(&msg.user).is_some_and(|&t| now < t) {
+            if self
+                .busy_notice_until
+                .get(&msg.user)
+                .is_some_and(|&t| now < t)
+            {
                 return IncomingAction::Ignore;
             }
-            self.busy_notice_until.insert(msg.user, now + self.limits.busy_notice_cooldown);
+            self.busy_notice_until
+                .insert(msg.user, now + self.limits.busy_notice_cooldown);
             return self.notice(msg.channel, now, Notice::Full);
         }
 
@@ -232,12 +243,19 @@ impl MentionSessions {
                 images: 0,
             },
         );
-        IncomingAction::StartWorker { session_id: id, started: true }
+        IncomingAction::StartWorker {
+            session_id: id,
+            started: true,
+        }
     }
 
     /// ワーカーが次にやること。呼び出し上限に来ていたら閉じる。
     pub fn take_batch(&mut self, channel: u64, session_id: u64) -> WorkerStep {
-        let Some(session) = self.sessions.get_mut(&channel).filter(|s| s.id == session_id) else {
+        let Some(session) = self
+            .sessions
+            .get_mut(&channel)
+            .filter(|s| s.id == session_id)
+        else {
             return WorkerStep::Done;
         };
         // 上限まで答えたあとに発言が来たら、決まった文面のお別れで閉じる。
@@ -258,32 +276,55 @@ impl MentionSessions {
 
     /// AI の返事を受けて、履歴に積み、何を送るかを決める。考え中に reset 等で会話が替わっていても、
     /// 返事やお別れは送る（エラーの一言は送らない）。
-    pub fn finish(&mut self, channel: u64, session_id: u64, generation: u64, user_text: String, outcome: Outcome) -> FinishAction {
+    pub fn finish(
+        &mut self,
+        channel: u64,
+        session_id: u64,
+        generation: u64,
+        user_text: String,
+        outcome: Outcome,
+    ) -> FinishAction {
         let max_silent = self.limits.max_consecutive_silent;
         let max_errors = self.limits.max_consecutive_errors;
-        let Some(session) = self.sessions.get_mut(&channel).filter(|s| s.id == session_id) else {
+        let Some(session) = self
+            .sessions
+            .get_mut(&channel)
+            .filter(|s| s.id == session_id)
+        else {
             return match outcome {
-                Outcome::Reply { message, .. } if !message.trim().is_empty() => FinishAction::Send(message),
+                Outcome::Reply { message, .. } if !message.trim().is_empty() => {
+                    FinishAction::Send(message)
+                }
                 Outcome::End { message } => FinishAction::SendAndClosed(message, CloseReason::End),
                 _ => FinishAction::Nothing,
             };
         };
         let (action, close) = match outcome {
             // 中身の無い reply は silent と同じに扱う。
-            Outcome::Reply { message, made_image: false } if message.trim().is_empty() => {
+            Outcome::Reply {
+                message,
+                made_image: false,
+            } if message.trim().is_empty() => {
                 finish_silent(session, generation, user_text, max_silent)
             }
-            Outcome::Reply { message, made_image } => {
+            Outcome::Reply {
+                message,
+                made_image,
+            } => {
                 if made_image {
                     session.images += 1;
                 }
                 session.consecutive_errors = 0;
                 session.consecutive_silent = 0;
-                session.conv.finish_turn(generation, user_text, message.clone());
+                session
+                    .conv
+                    .finish_turn(generation, user_text, message.clone());
                 (FinishAction::Send(message), false)
             }
             Outcome::Silent => finish_silent(session, generation, user_text, max_silent),
-            Outcome::End { message } => (FinishAction::SendAndClosed(message, CloseReason::End), true),
+            Outcome::End { message } => {
+                (FinishAction::SendAndClosed(message, CloseReason::End), true)
+            }
             Outcome::Error => {
                 session.consecutive_errors += 1;
                 if session.consecutive_errors >= max_errors {
@@ -301,14 +342,22 @@ impl MentionSessions {
 
     /// 送信失敗・日次上限などで会話を閉じる（別の会話に替わっていたら何もしない）。
     pub fn close(&mut self, channel: u64, session_id: u64) {
-        if self.sessions.get(&channel).is_some_and(|s| s.id == session_id) {
+        if self
+            .sessions
+            .get(&channel)
+            .is_some_and(|s| s.id == session_id)
+        {
             self.sessions.remove(&channel);
         }
     }
 
     /// ワーカーが panic・早期リターンで抜けたとき。busy を下ろして貯まった発言を捨てる。
     pub fn abort_worker(&mut self, channel: u64, session_id: u64) {
-        if let Some(session) = self.sessions.get_mut(&channel).filter(|s| s.id == session_id) {
+        if let Some(session) = self
+            .sessions
+            .get_mut(&channel)
+            .filter(|s| s.id == session_id)
+        {
             session.conv.abort_worker();
         }
     }
@@ -317,16 +366,22 @@ impl MentionSessions {
         if self.denied_until.get(&user).is_some_and(|&t| now < t) {
             return IncomingAction::Ignore;
         }
-        self.denied_until.insert(user, now + self.limits.denied_cooldown);
+        self.denied_until
+            .insert(user, now + self.limits.denied_cooldown);
         self.notice(channel, now, Notice::NoRole)
     }
 
     /// 案内はチャンネル単位でも連投しない（大勢が一度にメンションしても1回だけ）。
     fn notice(&mut self, channel: u64, now: Instant, notice: Notice) -> IncomingAction {
-        if self.channel_notice_until.get(&channel).is_some_and(|&t| now < t) {
+        if self
+            .channel_notice_until
+            .get(&channel)
+            .is_some_and(|&t| now < t)
+        {
             return IncomingAction::Ignore;
         }
-        self.channel_notice_until.insert(channel, now + self.limits.channel_notice_cooldown);
+        self.channel_notice_until
+            .insert(channel, now + self.limits.channel_notice_cooldown);
         IncomingAction::Notice(notice)
     }
 
@@ -334,8 +389,9 @@ impl MentionSessions {
     /// タイマーは持たず、発言が来るたびにここで掃除する（放置された会話が同時会話の枠を埋め続けないように）。
     fn sweep(&mut self, now: Instant) {
         let timeout = self.limits.idle_timeout;
-        self.sessions
-            .retain(|_, s| s.conv.is_busy() || now.duration_since(s.last_participant_at) <= timeout);
+        self.sessions.retain(|_, s| {
+            s.conv.is_busy() || now.duration_since(s.last_participant_at) <= timeout
+        });
         self.denied_until.retain(|_, &mut t| now < t);
         self.busy_notice_until.retain(|_, &mut t| now < t);
         self.channel_notice_until.retain(|_, &mut t| now < t);
@@ -343,7 +399,12 @@ impl MentionSessions {
 }
 
 /// アステシアが黙っていたターン。続いたら閉じる（戻り値の bool が閉じるか）。
-fn finish_silent(session: &mut ChannelSession, generation: u64, user_text: String, max_silent: u32) -> (FinishAction, bool) {
+fn finish_silent(
+    session: &mut ChannelSession,
+    generation: u64,
+    user_text: String,
+    max_silent: u32,
+) -> (FinishAction, bool) {
     session.consecutive_errors = 0;
     session.consecutive_silent += 1;
     if session.consecutive_silent >= max_silent {
@@ -362,7 +423,13 @@ mod tests {
     const BOB: u64 = 2;
     const CAROL: u64 = 3;
 
-    fn msg(channel: u64, user: u64, text: &str, mentions_bot: bool, has_paid_role: bool) -> Incoming {
+    fn msg(
+        channel: u64,
+        user: u64,
+        text: &str,
+        mentions_bot: bool,
+        has_paid_role: bool,
+    ) -> Incoming {
         Incoming {
             channel,
             user,
@@ -370,13 +437,20 @@ mod tests {
             has_paid_role,
             is_admin: false,
             is_reset: false,
-            input: PendingInput { text: text.to_string(), attachments: Vec::new(), reply_to: Some(user) },
+            input: PendingInput {
+                text: text.to_string(),
+                attachments: Vec::new(),
+                reply_to: Some(user),
+            },
         }
     }
 
     fn start(s: &mut MentionSessions, now: Instant) -> u64 {
         match s.on_message(msg(CH, ALICE, "hi", true, true), now) {
-            IncomingAction::StartWorker { session_id, started: true } => session_id,
+            IncomingAction::StartWorker {
+                session_id,
+                started: true,
+            } => session_id,
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -391,7 +465,10 @@ mod tests {
     #[test]
     fn plain_message_without_session_is_ignored() {
         let mut s = MentionSessions::new(Limits::default());
-        assert_eq!(s.on_message(msg(CH, ALICE, "hi", false, true), Instant::now()), IncomingAction::Ignore);
+        assert_eq!(
+            s.on_message(msg(CH, ALICE, "hi", false, true), Instant::now()),
+            IncomingAction::Ignore
+        );
         assert!(!s.has_session(CH));
     }
 
@@ -399,23 +476,41 @@ mod tests {
     fn no_role_gets_one_notice_then_cooldown() {
         let mut s = MentionSessions::new(Limits::default());
         let now = Instant::now();
-        assert_eq!(s.on_message(msg(CH, ALICE, "hi", true, false), now), IncomingAction::Notice(Notice::NoRole));
+        assert_eq!(
+            s.on_message(msg(CH, ALICE, "hi", true, false), now),
+            IncomingAction::Notice(Notice::NoRole)
+        );
         let later = now + Duration::from_secs(60);
-        assert_eq!(s.on_message(msg(CH, ALICE, "hi", true, false), later), IncomingAction::Ignore);
+        assert_eq!(
+            s.on_message(msg(CH, ALICE, "hi", true, false), later),
+            IncomingAction::Ignore
+        );
         // 冷却が明けたらまた一言
         let after = now + Duration::from_secs(11 * 60);
-        assert_eq!(s.on_message(msg(CH, ALICE, "hi", true, false), after), IncomingAction::Notice(Notice::NoRole));
+        assert_eq!(
+            s.on_message(msg(CH, ALICE, "hi", true, false), after),
+            IncomingAction::Notice(Notice::NoRole)
+        );
     }
 
     #[test]
     fn notices_are_not_repeated_in_same_channel() {
         let mut s = MentionSessions::new(Limits::default());
         let now = Instant::now();
-        assert_eq!(s.on_message(msg(CH, ALICE, "hi", true, false), now), IncomingAction::Notice(Notice::NoRole));
-        assert_eq!(s.on_message(msg(CH, BOB, "hi", true, false), now), IncomingAction::Ignore);
+        assert_eq!(
+            s.on_message(msg(CH, ALICE, "hi", true, false), now),
+            IncomingAction::Notice(Notice::NoRole)
+        );
+        assert_eq!(
+            s.on_message(msg(CH, BOB, "hi", true, false), now),
+            IncomingAction::Ignore
+        );
         // BOB も冷却に入っている
         let later = now + Duration::from_secs(60);
-        assert_eq!(s.on_message(msg(CH, BOB, "hi", true, false), later), IncomingAction::Ignore);
+        assert_eq!(
+            s.on_message(msg(CH, BOB, "hi", true, false), later),
+            IncomingAction::Ignore
+        );
     }
 
     #[test]
@@ -424,13 +519,25 @@ mod tests {
         let now = Instant::now();
         let id = start(&mut s, now);
         run(&mut s, id);
-        assert_eq!(s.on_message(msg(CH, ALICE, "next", false, true), now), IncomingAction::Queued);
+        assert_eq!(
+            s.on_message(msg(CH, ALICE, "next", false, true), now),
+            IncomingAction::Queued
+        );
         // 参加者でない人は、課金ロールがあってもメンション無しなら拾わない
-        assert_eq!(s.on_message(msg(CH, BOB, "chat", false, true), now), IncomingAction::Ignore);
+        assert_eq!(
+            s.on_message(msg(CH, BOB, "chat", false, true), now),
+            IncomingAction::Ignore
+        );
         // メンションすれば加わる
-        assert_eq!(s.on_message(msg(CH, BOB, "join", true, true), now), IncomingAction::Queued);
+        assert_eq!(
+            s.on_message(msg(CH, BOB, "join", true, true), now),
+            IncomingAction::Queued
+        );
         // 課金ロール無しのメンションは一言だけ
-        assert_eq!(s.on_message(msg(CH, CAROL, "me too", true, false), now), IncomingAction::Notice(Notice::NoRole));
+        assert_eq!(
+            s.on_message(msg(CH, CAROL, "me too", true, false), now),
+            IncomingAction::Notice(Notice::NoRole)
+        );
         let batch = run(&mut s, id);
         assert_eq!(batch.text, "next\n\njoin");
         assert_eq!(batch.reply_to, Some(BOB));
@@ -438,26 +545,47 @@ mod tests {
 
     #[test]
     fn participant_limit() {
-        let limits = Limits { max_participants: 2, ..Limits::default() };
+        let limits = Limits {
+            max_participants: 2,
+            ..Limits::default()
+        };
         let mut s = MentionSessions::new(limits);
         let now = Instant::now();
         let id = start(&mut s, now);
         run(&mut s, id);
-        assert_eq!(s.on_message(msg(CH, BOB, "join", true, true), now), IncomingAction::Queued);
-        assert_eq!(s.on_message(msg(CH, CAROL, "join", true, true), now), IncomingAction::Ignore);
+        assert_eq!(
+            s.on_message(msg(CH, BOB, "join", true, true), now),
+            IncomingAction::Queued
+        );
+        assert_eq!(
+            s.on_message(msg(CH, CAROL, "join", true, true), now),
+            IncomingAction::Ignore
+        );
     }
 
     #[test]
     fn full_server_gets_notice_and_idle_sessions_are_swept() {
-        let limits = Limits { max_sessions: 1, ..Limits::default() };
+        let limits = Limits {
+            max_sessions: 1,
+            ..Limits::default()
+        };
         let mut s = MentionSessions::new(limits);
         let now = Instant::now();
         let id = start(&mut s, now);
         run(&mut s, id);
         assert!(s.take_batch(CH, id).is_done());
-        assert_eq!(s.on_message(msg(200, BOB, "hi", true, true), now), IncomingAction::Notice(Notice::Full));
+        assert_eq!(
+            s.on_message(msg(200, BOB, "hi", true, true), now),
+            IncomingAction::Notice(Notice::Full)
+        );
         // 同じ人には10分出さない
-        assert_eq!(s.on_message(msg(201, BOB, "hi", true, true), now + Duration::from_secs(60)), IncomingAction::Ignore);
+        assert_eq!(
+            s.on_message(
+                msg(201, BOB, "hi", true, true),
+                now + Duration::from_secs(60)
+            ),
+            IncomingAction::Ignore
+        );
         // 最初の会話が放置されて10分過ぎたら、掃除されて枠が空く
         let later = now + Duration::from_secs(10 * 60 + 1);
         assert!(matches!(
@@ -484,10 +612,22 @@ mod tests {
         let now = Instant::now();
         let id = start(&mut s, now);
         let b = run(&mut s, id);
-        s.finish(CH, id, b.generation, b.text, Outcome::Reply { message: "hello".into(), made_image: false });
+        s.finish(
+            CH,
+            id,
+            b.generation,
+            b.text,
+            Outcome::Reply {
+                message: "hello".into(),
+                made_image: false,
+            },
+        );
         assert!(s.take_batch(CH, id).is_done());
         let later = now + Duration::from_secs(10 * 60 + 1);
-        assert_eq!(s.on_message(msg(CH, ALICE, "still there?", false, true), later), IncomingAction::Ignore);
+        assert_eq!(
+            s.on_message(msg(CH, ALICE, "still there?", false, true), later),
+            IncomingAction::Ignore
+        );
         assert!(!s.has_session(CH));
     }
 
@@ -498,71 +638,139 @@ mod tests {
         let id = start(&mut s, now);
         let b = run(&mut s, id);
         s.on_message(msg(CH, ALICE, "one more", false, true), now);
-        let action = s.finish(CH, id, b.generation, b.text, Outcome::End { message: "またね".into() });
-        assert_eq!(action, FinishAction::SendAndClosed("またね".into(), CloseReason::End));
+        let action = s.finish(
+            CH,
+            id,
+            b.generation,
+            b.text,
+            Outcome::End {
+                message: "またね".into(),
+            },
+        );
+        assert_eq!(
+            action,
+            FinishAction::SendAndClosed("またね".into(), CloseReason::End)
+        );
         assert!(s.take_batch(CH, id).is_done());
         assert!(!s.has_session(CH));
     }
 
     #[test]
     fn call_limit_closes_session() {
-        let limits = Limits { max_calls: 1, ..Limits::default() };
+        let limits = Limits {
+            max_calls: 1,
+            ..Limits::default()
+        };
         let mut s = MentionSessions::new(limits);
         let now = Instant::now();
         let id = start(&mut s, now);
         let b = run(&mut s, id);
         s.on_message(msg(CH, ALICE, "more", false, true), now);
-        s.finish(CH, id, b.generation, b.text, Outcome::Reply { message: "ok".into(), made_image: false });
-        assert!(matches!(s.take_batch(CH, id), WorkerStep::Closed(CloseReason::CallLimit)));
+        s.finish(
+            CH,
+            id,
+            b.generation,
+            b.text,
+            Outcome::Reply {
+                message: "ok".into(),
+                made_image: false,
+            },
+        );
+        assert!(matches!(
+            s.take_batch(CH, id),
+            WorkerStep::Closed(CloseReason::CallLimit)
+        ));
         assert!(!s.has_session(CH));
     }
 
     #[test]
     fn consecutive_silent_closes_quietly_and_reply_resets_count() {
-        let limits = Limits { max_consecutive_silent: 2, ..Limits::default() };
+        let limits = Limits {
+            max_consecutive_silent: 2,
+            ..Limits::default()
+        };
         let mut s = MentionSessions::new(limits);
         let now = Instant::now();
         let id = start(&mut s, now);
         let b = run(&mut s, id);
-        assert_eq!(s.finish(CH, id, b.generation, b.text, Outcome::Silent), FinishAction::Nothing);
+        assert_eq!(
+            s.finish(CH, id, b.generation, b.text, Outcome::Silent),
+            FinishAction::Nothing
+        );
         s.on_message(msg(CH, ALICE, "a", false, true), now);
         let b = run(&mut s, id);
         assert_eq!(
-            s.finish(CH, id, b.generation, b.text, Outcome::Reply { message: "r".into(), made_image: false }),
+            s.finish(
+                CH,
+                id,
+                b.generation,
+                b.text,
+                Outcome::Reply {
+                    message: "r".into(),
+                    made_image: false
+                }
+            ),
             FinishAction::Send("r".into())
         );
         s.on_message(msg(CH, ALICE, "b", false, true), now);
         let b = run(&mut s, id);
-        assert_eq!(s.finish(CH, id, b.generation, b.text, Outcome::Silent), FinishAction::Nothing);
+        assert_eq!(
+            s.finish(CH, id, b.generation, b.text, Outcome::Silent),
+            FinishAction::Nothing
+        );
         s.on_message(msg(CH, ALICE, "c", false, true), now);
         let b = run(&mut s, id);
-        assert_eq!(s.finish(CH, id, b.generation, b.text, Outcome::Silent), FinishAction::Closed(CloseReason::Silent));
+        assert_eq!(
+            s.finish(CH, id, b.generation, b.text, Outcome::Silent),
+            FinishAction::Closed(CloseReason::Silent)
+        );
         assert!(!s.has_session(CH));
     }
 
     #[test]
     fn empty_reply_counts_as_silent() {
-        let limits = Limits { max_consecutive_silent: 1, ..Limits::default() };
+        let limits = Limits {
+            max_consecutive_silent: 1,
+            ..Limits::default()
+        };
         let mut s = MentionSessions::new(limits);
         let id = start(&mut s, Instant::now());
         let b = run(&mut s, id);
         assert_eq!(
-            s.finish(CH, id, b.generation, b.text, Outcome::Reply { message: " ".into(), made_image: false }),
+            s.finish(
+                CH,
+                id,
+                b.generation,
+                b.text,
+                Outcome::Reply {
+                    message: " ".into(),
+                    made_image: false
+                }
+            ),
             FinishAction::Closed(CloseReason::Silent)
         );
     }
 
     #[test]
     fn consecutive_errors_close_session() {
-        let limits = Limits { max_consecutive_errors: 2, ..Limits::default() };
+        let limits = Limits {
+            max_consecutive_errors: 2,
+            ..Limits::default()
+        };
         let mut s = MentionSessions::new(limits);
         let now = Instant::now();
         let id = start(&mut s, now);
         let b = run(&mut s, id);
-        assert_eq!(s.finish(CH, id, b.generation, b.text, Outcome::Error), FinishAction::SendError);
+        assert_eq!(
+            s.finish(CH, id, b.generation, b.text, Outcome::Error),
+            FinishAction::SendError
+        );
         s.on_message(msg(CH, ALICE, "again", false, true), now);
         let b = run(&mut s, id);
-        assert_eq!(s.finish(CH, id, b.generation, b.text, Outcome::Error), FinishAction::Closed(CloseReason::Errors));
+        assert_eq!(
+            s.finish(CH, id, b.generation, b.text, Outcome::Error),
+            FinishAction::Closed(CloseReason::Errors)
+        );
     }
 
     #[test]
@@ -570,11 +778,27 @@ mod tests {
         let mut s = MentionSessions::new(Limits::default());
         let now = Instant::now();
         let id = start(&mut s, now);
-        let WorkerStep::Run { batch, allow_image, .. } = s.take_batch(CH, id) else { panic!() };
+        let WorkerStep::Run {
+            batch, allow_image, ..
+        } = s.take_batch(CH, id)
+        else {
+            panic!()
+        };
         assert!(allow_image);
-        s.finish(CH, id, batch.generation, batch.text, Outcome::Reply { message: String::new(), made_image: true });
+        s.finish(
+            CH,
+            id,
+            batch.generation,
+            batch.text,
+            Outcome::Reply {
+                message: String::new(),
+                made_image: true,
+            },
+        );
         s.on_message(msg(CH, ALICE, "another", false, true), now);
-        let WorkerStep::Run { allow_image, .. } = s.take_batch(CH, id) else { panic!() };
+        let WorkerStep::Run { allow_image, .. } = s.take_batch(CH, id) else {
+            panic!()
+        };
         assert!(!allow_image);
     }
 
@@ -608,11 +832,23 @@ mod tests {
         assert_ne!(old, new);
         // 古いワーカーの結果は送るが、新しい会話には触らない
         assert_eq!(
-            s.finish(CH, old, b.generation, b.text, Outcome::Reply { message: "late".into(), made_image: false }),
+            s.finish(
+                CH,
+                old,
+                b.generation,
+                b.text,
+                Outcome::Reply {
+                    message: "late".into(),
+                    made_image: false
+                }
+            ),
             FinishAction::Send("late".into())
         );
         assert!(s.take_batch(CH, old).is_done());
-        assert_eq!(s.finish(CH, old, 0, "x".into(), Outcome::Error), FinishAction::Nothing);
+        assert_eq!(
+            s.finish(CH, old, 0, "x".into(), Outcome::Error),
+            FinishAction::Nothing
+        );
         let b = run(&mut s, new);
         assert_eq!(b.text, "hi");
     }
@@ -626,7 +862,10 @@ mod tests {
         s.abort_worker(CH, id);
         assert_eq!(
             s.on_message(msg(CH, ALICE, "again", false, true), now),
-            IncomingAction::StartWorker { session_id: id, started: false }
+            IncomingAction::StartWorker {
+                session_id: id,
+                started: false
+            }
         );
     }
 
