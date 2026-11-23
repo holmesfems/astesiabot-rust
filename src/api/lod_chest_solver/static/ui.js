@@ -64,9 +64,9 @@ export function initUi(s) {
   const limitButtons = [...$("limitRow").querySelectorAll("button")];
   function setLimit(v) {
     limit = v;
-    limitButtons.forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.limit) === v)));
+    limitButtons.forEach(b => { b.setAttribute("aria-pressed", String(Number(b.dataset.limit) === v)); });
   }
-  limitButtons.forEach(b => b.onclick = () => setLimit(Number(b.dataset.limit)));
+  limitButtons.forEach(b => { b.onclick = () => setLimit(Number(b.dataset.limit)); });
   setLimit(5);
 
   $("startBtn").onclick = () => {

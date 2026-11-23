@@ -385,7 +385,7 @@ function renderPresetSuggestions(query) {
 function updateActiveSuggestion() {
   const box = document.getElementById("presetSuggestions");
   const items = box.querySelectorAll(".combobox-suggestion-item");
-  items.forEach((el, i) => el.classList.toggle("active", i === activeSuggestionIndex));
+  items.forEach((el, i) => { el.classList.toggle("active", i === activeSuggestionIndex); });
   if (items[activeSuggestionIndex]) {
     items[activeSuggestionIndex].scrollIntoView({ block: "nearest" });
   }

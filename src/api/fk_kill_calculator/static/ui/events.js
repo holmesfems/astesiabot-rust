@@ -389,7 +389,7 @@ async function shareUrl() {
   try {
     await navigator.clipboard.writeText(shareUrlForState());
     showToast("URLをコピーしました");
-  } catch (e) {
+  } catch {
     showToast("コピーに失敗しました（手動でコピーしてください）");
   }
 }

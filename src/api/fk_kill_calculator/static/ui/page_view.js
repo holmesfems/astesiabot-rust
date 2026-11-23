@@ -364,7 +364,7 @@ export function renderLive() {
     if (!wrap) return;
     const cfg = sourceCfg(source);
     const result = computeInspireSource(source, cfg, catalog, state.globalBuffIds, buffLevelsState());
-    wrap.innerHTML = renderInspireResultBlock(source, cfg, result);
+    wrap.innerHTML = renderInspireResultBlock(source, result);
     // レベル入力の打鍵中でもモジュール装備可否ヒントが即座に追従するようにする。
     const moduleHint = document.querySelector(`[data-role="inspire-module-hint"][data-source-id="${source.id}"]`);
     if (moduleHint) moduleHint.innerHTML = renderModuleUnusableHint(source, cfg);

@@ -90,7 +90,7 @@ function describeInspireBreakdown(result) {
 // 結果行(→ 鼓舞 +314)+ⓘ展開ブロック。renderLiveが手入力バフ+%の打鍵中に
 // innerHTMLごと差し替えられるよう、常にラッパー(`.inspire-result-wrap`)で包む
 // (row-formulaと同じ考え方)。
-export function renderInspireResultBlock(source, cfg, result) {
+export function renderInspireResultBlock(source, result) {
   const descOpen = inspireDescOpenIds.has(source.id);
   const breakdownText = describeInspireBreakdown(result);
   const infoBtn = `<button type="button" class="special-info-btn" data-action="toggle-inspire-desc" data-source-id="${escapeHtml(source.id)}" aria-expanded="${descOpen}" title="${escapeHtml(breakdownText)}">ⓘ</button>`;
@@ -166,6 +166,6 @@ export function renderInspireSourceCard(source, singleConflicts) {
         <input type="number" step="any" data-role="inspire" data-source-id="${escapeHtml(source.id)}" data-field="buffPct" value="${fmtPct(cfg.buffPct, 3)}">
       </label>
     </div>
-    <div class="inspire-result-wrap" data-role="inspire-result" data-source-id="${escapeHtml(source.id)}">${renderInspireResultBlock(source, cfg, result)}</div>
+    <div class="inspire-result-wrap" data-role="inspire-result" data-source-id="${escapeHtml(source.id)}">${renderInspireResultBlock(source, result)}</div>
   </div>`;
 }
