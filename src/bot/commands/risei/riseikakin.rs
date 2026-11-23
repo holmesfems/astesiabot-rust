@@ -365,21 +365,14 @@ mod tests {
             .iter()
             .map(value_block)
             .collect::<Vec<_>>()
-            .join(
-                "
------ block -----
-",
-            );
+            .join("\n----- block -----\n");
         insta::assert_snapshot!("riseikakin_value_block", text);
     }
 
     #[test]
     fn snapshot_total_comparison_chunks() {
-        let text = total_comparison_chunks(&sample_limited(), &sample_constants()).join(
-            "
------ chunk -----
-",
-        );
+        let text = total_comparison_chunks(&sample_limited(), &sample_constants())
+            .join("\n----- chunk -----\n");
         insta::assert_snapshot!("riseikakin_total_comparison", text);
     }
 
