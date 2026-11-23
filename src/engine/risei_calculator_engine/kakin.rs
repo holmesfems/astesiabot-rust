@@ -375,4 +375,197 @@ mod tests {
         }
         assert!(problems.is_empty(), "\n{}", problems.join("\n"));
     }
+
+    fn hand_values(entries: &[(&str, f64)]) -> RiseiValues {
+        let const_values = entries.iter().map(|(k, v)| (k.to_string(), *v)).collect();
+        let target = crate::engine::risei_calculator_engine::server::value_target(Server::Global);
+        RiseiValues::new(
+            Server::Global,
+            nalgebra::DVector::zeros(target.len()),
+            std::sync::Arc::new(Default::default()),
+            std::sync::Arc::new(const_values),
+        )
+    }
+
+    fn pack_def(price: f64, contents: &[(&str, f64)]) -> KakinPackDef {
+        KakinPackDef {
+            price,
+            is_constant: false,
+            start: Some(jst("2026-01-02 03:04")),
+            end: Some(jst("2026-05-06 07:08")),
+            contents: contents.iter().map(|(k, v)| (k.to_string(), *v)).collect(),
+        }
+    }
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() < 1e-9,
+            "actual={actual} expected={expected}"
+        );
+    }
+
+    /// 期間限定パックのうち、開始・終了の両方が書かれているもの。
+    fn dated_limited_packs() -> Vec<(&'static String, &'static KakinPackDef)> {
+        kakin_list()
+            .iter()
+            .filter(|(_, d)| !d.is_constant && d.start.is_some() && d.end.is_some())
+            .collect()
+    }
+
+    #[test]
+    fn jst_now_is_nine_hours_ahead_of_utc() {
+        let expected = Utc::now().naive_utc() + Duration::hours(9);
+        let diff = (jst_now() - expected).num_seconds().abs();
+        assert!(diff < 5, "diff={diff}s");
+    }
+
+    #[test]
+    fn gacha_count_sums_known_items_and_ignores_unknown_ones() {
+        let contents: IndexMap<String, f64> = [
+            ("10回スカウト券".to_string(), 2.0),
+            ("スカウト券".to_string(), 3.0),
+            ("ガチャと無関係の名前".to_string(), 7.0),
+        ]
+        .into();
+        assert_close(pack_gacha_count(&contents), 23.0);
+    }
+
+    #[test]
+    fn build_kakin_pack_computes_every_figure_from_the_basic_pack_rate() {
+        let basic = basic_pack();
+        assert_eq!(basic.price, 10000.0, "基準パックの価格が変わった");
+        assert_eq!(
+            basic.contents.keys().collect::<Vec<_>>(),
+            ["純正源石"],
+            "基準パックの中身が変わった"
+        );
+        let basic_originium = basic.contents["純正源石"];
+        let values = hand_values(&[
+            ("純正源石", 0.6),
+            ("10回スカウト券", 5.0),
+            ("スカウト券", 0.5),
+        ]);
+        let def = pack_def(2000.0, &[("10回スカウト券", 3.0), ("スカウト券", 4.0)]);
+
+        let pack = build_kakin_pack("テスト", &def, &values);
+
+        let total_value = 3.0 * 5.0 + 4.0 * 0.5;
+        let basic_value = basic_originium * 0.6;
+        let real_money = total_value / basic_value * 10000.0;
+        let basic_gacha = basic_originium * const_gacha()["純正源石"];
+        assert_eq!(pack.name, "テスト");
+        assert_eq!(pack.price, 2000.0);
+        assert_eq!(pack.start, def.start);
+        assert_eq!(pack.end, def.end);
+        assert_eq!(
+            pack.contents,
+            vec![
+                ("10回スカウト券".to_string(), 3.0),
+                ("スカウト券".to_string(), 4.0)
+            ]
+        );
+        assert_close(pack.total_value, total_value);
+        assert_close(pack.total_originium, total_value / 0.6);
+        assert_close(pack.total_real_money, real_money);
+        assert_close(pack.total_efficiency, real_money / 2000.0);
+        assert_close(pack.gacha_count, 34.0);
+        assert_close(pack.gacha_efficiency, 34.0 / 2000.0 * 10000.0 / basic_gacha);
+    }
+
+    #[test]
+    fn limited_pack_defs_follow_sale_period_and_upcoming_flag() {
+        let packs = dated_limited_packs();
+        let mut times = vec![jst("2000-01-01 00:00"), jst("2999-01-01 00:00")];
+        for (_, def) in &packs {
+            let (start, end) = (def.start.unwrap(), def.end.unwrap());
+            times.extend([
+                start - Duration::minutes(1),
+                start,
+                end,
+                end + Duration::minutes(1),
+            ]);
+        }
+        for now in times {
+            for include_upcoming in [false, true] {
+                let actual: Vec<&String> = limited_pack_defs(now, include_upcoming)
+                    .map(|(name, _)| name)
+                    .collect();
+                let expected: Vec<&String> = kakin_list()
+                    .iter()
+                    .filter(|(_, d)| {
+                        !d.is_constant
+                            && (d.is_on_sale(now) || (include_upcoming && d.is_upcoming(now)))
+                    })
+                    .map(|(name, _)| name)
+                    .collect();
+                assert_eq!(actual, expected, "now={now} upcoming={include_upcoming}");
+                for (_, def) in limited_pack_defs(now, include_upcoming) {
+                    assert!(!def.is_constant);
+                }
+            }
+        }
+        for (name, def) in &packs {
+            let start = def.start.unwrap();
+            let on_sale = |now, flag| limited_pack_defs(now, flag).any(|(n, _)| n == *name);
+            assert!(on_sale(start, false), "{name}: 開始時刻から販売中");
+            assert!(!on_sale(start - Duration::minutes(1), false));
+            assert!(on_sale(start - Duration::minutes(1), true));
+        }
+    }
+
+    #[test]
+    fn limited_packs_are_built_and_sorted_by_efficiency_descending() {
+        let values = hand_values(&[("純正源石", 0.6), ("10回スカウト券", 5.0)]);
+        for (_, def) in dated_limited_packs() {
+            let now = def.start.unwrap();
+            let packs = limited_packs(&values, now, false);
+            let defs: Vec<_> = limited_pack_defs(now, false).collect();
+            assert!(!packs.is_empty());
+            assert_eq!(packs.len(), defs.len());
+            for pair in packs.windows(2) {
+                assert!(pair[0].total_efficiency >= pair[1].total_efficiency);
+            }
+            for (name, def) in defs {
+                let built = build_kakin_pack(name, def, &values);
+                let found = packs.iter().find(|p| &p.name == name).unwrap();
+                assert_close(found.total_efficiency, built.total_efficiency);
+            }
+        }
+    }
+
+    #[test]
+    fn iso_jst_string_has_seconds_and_offset() {
+        assert_eq!(
+            to_iso_jst(jst("2026-10-28 16:00")),
+            "2026-10-28T16:00:00+09:00"
+        );
+    }
+
+    #[test]
+    fn comparison_marks_a_pack_upcoming_only_before_its_start() {
+        let values = hand_values(&[("純正源石", 0.6), ("10回スカウト券", 5.0)]);
+        for (name, def) in dated_limited_packs() {
+            let (start, end) = (def.start.unwrap(), def.end.unwrap());
+            let view = |now| {
+                kakin_comparison(&values, now, true)
+                    .packs
+                    .into_iter()
+                    .find(|p| &p.name == name)
+            };
+            let at_start = view(start).expect("開始時刻には一覧に載る");
+            assert!(!at_start.upcoming, "{name}: 開始時刻ちょうどは予告でない");
+            assert_eq!(
+                at_start.sale_start.as_deref(),
+                Some(to_iso_jst(start).as_str())
+            );
+            assert_eq!(at_start.sale_end.as_deref(), Some(to_iso_jst(end).as_str()));
+            let before = view(start - Duration::minutes(1)).expect("予告として載る");
+            assert!(before.upcoming, "{name}: 開始前は予告");
+        }
+        let comparison = kakin_comparison(&values, jst("2000-01-01 00:00"), false);
+        assert_eq!(
+            comparison.baselines.len(),
+            kakin_list().values().filter(|d| d.is_constant).count()
+        );
+    }
 }
