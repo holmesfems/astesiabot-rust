@@ -29,6 +29,8 @@ pub const MAX_BATCH_ATTACHMENT_BYTES: u64 = 50 * 1024 * 1024;
 pub struct PendingInput {
     pub text: String,
     pub attachments: Vec<UranaiAttachment>,
+    /// 返事をリプライで付ける先の Discord メッセージ ID（占い館は付けないので `None`）。
+    pub reply_to: Option<u64>,
 }
 
 /// まとめて AI に渡す1回分の入力。
@@ -37,6 +39,8 @@ pub struct Batch {
     pub generation: u64,
     pub text: String,
     pub attachments: Vec<UranaiAttachment>,
+    /// まとめた中で一番新しい発言の `reply_to`。
+    pub reply_to: Option<u64>,
     /// まとめた発言の件数（ログ用）。
     pub merged: usize,
     /// 文字数・添付の上限で落とした発言・添付の件数（ログ用）。
@@ -105,6 +109,13 @@ impl Conversation {
         }
     }
 
+    /// アステシアが黙っていたターン。ユーザー発言だけ履歴に積む。
+    pub fn finish_silent(&mut self, generation: u64, user_text: String) {
+        if generation == self.generation {
+            self.history.push_user_only(user_text);
+        }
+    }
+
     /// ワーカーが正常に終わらなかった（panic・早期リターン）ときに busy を下ろす。
     /// 貯まっていた発言も捨てる（次の発言で新しいワーカーが立つ）。
     pub fn abort_worker(&mut self) {
@@ -128,8 +139,11 @@ impl Conversation {
         self.history.history_input()
     }
 
-    #[cfg(test)]
-    fn is_busy(&self) -> bool {
+    pub fn has_pending(&self) -> bool {
+        !self.pending.is_empty()
+    }
+
+    pub fn is_busy(&self) -> bool {
         self.busy
     }
 }
@@ -138,6 +152,7 @@ impl Conversation {
 /// それだけで超えるなら末尾を切る）、添付も新しい方から件数・合計サイズの上限まで残す。
 fn merge(inputs: Vec<PendingInput>, generation: u64) -> Batch {
     let total = inputs.len();
+    let reply_to = inputs.last().and_then(|i| i.reply_to);
     let mut texts: Vec<String> = Vec::new();
     let mut attachments: Vec<UranaiAttachment> = Vec::new();
     let mut chars = 0usize;
@@ -175,6 +190,7 @@ fn merge(inputs: Vec<PendingInput>, generation: u64) -> Batch {
         generation,
         text: texts.join("\n\n"),
         attachments,
+        reply_to,
         merged,
         dropped_messages: total - merged,
         dropped_attachments,
@@ -236,7 +252,7 @@ mod tests {
     const TIMEOUT: Duration = Duration::from_secs(600);
 
     fn input(text: &str) -> PendingInput {
-        PendingInput { text: text.to_string(), attachments: Vec::new() }
+        PendingInput { text: text.to_string(), attachments: Vec::new(), reply_to: None }
     }
 
     fn attachment(name: &str, size: u64) -> UranaiAttachment {
@@ -267,6 +283,17 @@ mod tests {
         assert_eq!(c.history_input().len(), 4);
         // 空になったら次の発言で新しいワーカーが立つ
         assert_eq!(c.enqueue(input("d")), Enqueue::StartWorker);
+    }
+
+    #[test]
+    fn silent_turn_keeps_only_user_text_in_history() {
+        let mut c = Conversation::new(TIMEOUT);
+        c.enqueue(input("a"));
+        let b = c.take_batch().unwrap();
+        c.finish_silent(b.generation, "a".into());
+        let h = c.history_input();
+        assert_eq!(h.len(), 1);
+        assert_eq!(h[0]["role"], "user");
     }
 
     #[test]
@@ -328,11 +355,12 @@ mod tests {
     fn merge_drops_oldest_text_over_char_limit_with_its_attachments() {
         let big = "x".repeat(MAX_BATCH_CHARS - 10);
         let inputs = vec![
-            PendingInput { text: "old message".into(), attachments: vec![attachment("old.png", 1)] },
-            PendingInput { text: big.clone(), attachments: vec![attachment("new.png", 1)] },
+            PendingInput { text: "old message".into(), attachments: vec![attachment("old.png", 1)], reply_to: Some(1) },
+            PendingInput { text: big.clone(), attachments: vec![attachment("new.png", 1)], reply_to: Some(2) },
         ];
         let batch = merge(inputs, 0);
         assert_eq!(batch.text, big);
+        assert_eq!(batch.reply_to, Some(2));
         assert_eq!(batch.dropped_messages, 1);
         assert_eq!(batch.dropped_attachments, 1);
         assert_eq!(batch.attachments.len(), 1);
@@ -351,8 +379,8 @@ mod tests {
     fn merge_limits_attachment_count_and_bytes_keeping_newest() {
         let half = MAX_BATCH_ATTACHMENT_BYTES / 2 + 1;
         let inputs = vec![
-            PendingInput { text: "a".into(), attachments: vec![attachment("a.pdf", half)] },
-            PendingInput { text: "b".into(), attachments: vec![attachment("b.pdf", half)] },
+            PendingInput { text: "a".into(), attachments: vec![attachment("a.pdf", half)], reply_to: None },
+            PendingInput { text: "b".into(), attachments: vec![attachment("b.pdf", half)], reply_to: None },
         ];
         let batch = merge(inputs, 0);
         assert_eq!(batch.merged, 2);
@@ -361,7 +389,7 @@ mod tests {
 
         let many: Vec<UranaiAttachment> =
             (0..MAX_BATCH_ATTACHMENTS + 2).map(|i| attachment(&format!("{i}.png"), 1)).collect();
-        let batch = merge(vec![PendingInput { text: "m".into(), attachments: many }], 0);
+        let batch = merge(vec![PendingInput { text: "m".into(), attachments: many, reply_to: None }], 0);
         assert_eq!(batch.attachments.len(), MAX_BATCH_ATTACHMENTS);
         assert_eq!(batch.dropped_attachments, 2);
         assert_eq!(batch.attachments.last().unwrap().filename, format!("{}.png", MAX_BATCH_ATTACHMENTS + 1));

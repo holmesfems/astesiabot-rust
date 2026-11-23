@@ -39,7 +39,26 @@ services/
   会話は `std::sync::Mutex` で持ち `.await` をまたいで握らない。ワーカーが panic しても `WorkerGuard` が busy を下ろす。
   reset は世代を進め、考え中だった返事は送るが新しい履歴には積まない。AI の呼び出しは1日（JST）`CHAT_DAILY_CALL_LIMIT`
   回まで（任意。既定200）。ツールのログに引数（ユーザー由来）を出さない。ツールの往復の2回目以降も `instructions` を送る
-  （`previous_response_id` では引き継がれない）。メンション会話を足すときはこのエンジンを共有する。
+  （`previous_response_id` では引き継がれない）。
+
+## メンション会話（uranai/mention/）
+
+鯖（GUILD_ID_F）のどのチャンネルでも、アステシアにメンションすると会話が始まる。占い館の会話エンジン・OpenAI クライアント・
+キャラ設定・日次上限を共有し、状態遷移は `mention/state.rs`（純粋ロジック。ID は素の u64）、Discord との出入りは `mention/mod.rs`。
+
+- 呼び出しは本文の `<@bot>` / `<@!bot>`（`msg.mentions` と AND）。**リプライの自動メンションだけでは始めない**。
+  handler では reply_dispatch の後ろ。占い館・公開求人の中のスレッドと `CHANNEL_IDS_MENTION_CHAT_DENY`
+  （任意・カンマ区切り。スレッドは親、ふつうのチャンネルはカテゴリでも照合）では受けない。
+- 課金ロールが無い人は決まった文面の一言＋10分無視。案内はチャンネル単位でも30秒は連投しない。
+- 会話中は「参加者」（始めた人＋メンションして加わった課金ロール持ち、最大5人）の発言だけをメンション無しで拾う。
+  参加者以外の発言は AI に渡さない。
+- 返事の要否は AI が構造化出力（`{action: reply|silent|end, message}`）で決める。最後のラウンドの message だけを読み、
+  読めなければエラー扱い（生の JSON を出さない）。画像を作ったのに silent なら送る。
+- 閉じる: end（AI のお別れ）・呼び出し20回のあとの発言（決まった文面）・silent 5回連続（黙って）・エラー3回連続・
+  参加者の最後の発言から10分（黙って。タイマーは持たず次の発言で掃除）・送信の403/404・`@アステシア reset`（参加者か管理者）。
+  同時に開ける会話は鯖全体で3つ。画像は1会話1枚。
+- 本物の OpenAI で構造化出力とツール一式が通るかの確認: `cargo test --lib -- --ignored structured_output_live --nocapture`
+  （.env の OPENAI_API_KEY を使う）。
 - **fksearch のオートコンプリート**は1時間 TTL のチェックを通さず fk_data を直接読む（コマンド本体は TTL 付き）。
 
 ## YouTube のお知らせ（youtube_notify.rs）

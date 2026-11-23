@@ -1,6 +1,7 @@
 pub mod conversation;
 pub mod functioncalling;
 mod membership;
+pub mod mention;
 mod openai_client;
 mod session;
 mod tools;
@@ -36,8 +37,10 @@ pub struct UranaiState {
     client: OpenAiClient,
     /// ユーザー区別なしの単一グローバル会話（要件定義で確定済み）。`.await` をまたいでロックを握らない。
     conversation: Mutex<Conversation>,
-    /// AI を呼んだ回数の日次上限（メンション会話を足したら共有する）。
+    /// AI を呼んだ回数の日次上限（占い館とメンション会話で共有する）。
     daily: Mutex<DailyLimit>,
+    /// メンション会話（チャンネルごとの会話）。
+    mention: mention::MentionChat,
 }
 
 impl UranaiState {
@@ -54,6 +57,7 @@ impl UranaiState {
             client: OpenAiClient::from_env(),
             conversation: Mutex::new(Conversation::new(SESSION_TIMEOUT)),
             daily: Mutex::new(DailyLimit::new(daily_limit)),
+            mention: mention::MentionChat::from_env(),
         }
     }
 
@@ -135,6 +139,7 @@ pub async fn handle(
     let input = PendingInput {
         text: format!("from {name}:\n {content_raw}"),
         attachments,
+        reply_to: None,
     };
     let enqueued = lock(&uranai.conversation).enqueue(input);
     match enqueued {
@@ -223,7 +228,7 @@ async fn run_worker(ctx: serenity::Context, channel_id: serenity::ChannelId, sta
             }
         };
 
-        if let Err(e) = send_reply(&ctx, channel_id, &reply_text, images).await {
+        if let Err(e) = send_reply(&ctx, channel_id, &reply_text, images, None).await {
             eprintln!("[uranai] 返信の送信に失敗しました: {e}");
         }
     }
@@ -241,6 +246,16 @@ async fn say(ctx: &serenity::Context, channel_id: serenity::ChannelId, text: &st
 /// 合計サイズがOpenAI側の上限(50MB)を超える添付が1つでもあれば、そのファイル名一覧を
 /// `Err`で返す（呼び出し元はGPT呼び出しをせずファイル名を添えた一言で打ち切る）。
 fn classify_attachments(attachments: &[serenity::Attachment]) -> Result<Vec<UranaiAttachment>, Vec<String>> {
+    let (valid, rejected) = split_attachments(attachments);
+    if rejected.is_empty() {
+        Ok(valid)
+    } else {
+        Err(rejected)
+    }
+}
+
+/// 添付を「渡せるもの」と「渡せないもののファイル名」に分ける。合計サイズが上限を超えたら全部渡せない。
+fn split_attachments(attachments: &[serenity::Attachment]) -> (Vec<UranaiAttachment>, Vec<String>) {
     let mut valid = Vec::new();
     let mut unsupported = Vec::new();
     let mut total_size: u64 = 0;
@@ -273,14 +288,9 @@ fn classify_attachments(attachments: &[serenity::Attachment]) -> Result<Vec<Uran
 
     if total_size > MAX_ATTACHMENT_TOTAL_BYTES {
         unsupported.extend(valid.into_iter().map(|a| a.filename));
-        return Err(unsupported);
+        return (Vec::new(), unsupported);
     }
-
-    if unsupported.is_empty() {
-        Ok(valid)
-    } else {
-        Err(unsupported)
-    }
+    (valid, unsupported)
 }
 
 /// アステシアの口調で、非対応だった添付ファイル名を添えて一言返す。
@@ -294,13 +304,17 @@ fn rejection_message(rejected_filenames: &[String]) -> String {
 /// 自然文を Discord の1メッセージ文字数上限に収まるよう分割して送信する。
 /// `images`（GPTが`image_generation`ツールで生成したPNGバイト列）があれば、最初のチャンクに
 /// まとめて添付する。
+/// `reply_to` があれば1通目だけその発言へのリプライにする（相手が消していても送れるように
+/// `fail_if_not_exists: false`、リプライのピンは飛ばさない）。
 async fn send_reply(
     ctx: &serenity::Context,
     channel_id: serenity::ChannelId,
     text: &str,
     images: Vec<Vec<u8>>,
+    reply_to: Option<serenity::MessageId>,
 ) -> Result<(), Error> {
     let mut chunks = chunk_text(text, MAX_MESSAGE_LEN);
+    chunks.retain(|c| !c.trim().is_empty());
     chunks.truncate(MAX_REPLY_MESSAGES);
     if chunks.is_empty() && !images.is_empty() {
         chunks.push(String::new());
@@ -323,13 +337,16 @@ async fn send_reply(
     }
 
     let mut attachments = Some(to_attachments(named_images)).filter(|a| !a.is_empty());
+    let mut reference = reply_to.map(|id| reply_reference(channel_id, id));
     for chunk in chunks {
+        let mut builder = no_mention_message(chunk);
+        if let Some(r) = reference.take() {
+            builder = builder.reference_message(r);
+        }
         if let Some(files) = attachments.take() {
-            channel_id
-                .send_files(&ctx.http, files, no_mention_message(chunk))
-                .await?;
+            channel_id.send_files(&ctx.http, files, builder).await?;
         } else {
-            channel_id.send_message(&ctx.http, no_mention_message(chunk)).await?;
+            channel_id.send_message(&ctx.http, builder).await?;
         }
     }
     Ok(())
@@ -342,7 +359,14 @@ async fn send_reply(
 fn no_mention_message(content: impl Into<String>) -> serenity::CreateMessage {
     serenity::CreateMessage::new()
         .content(content)
-        .allowed_mentions(serenity::CreateAllowedMentions::new())
+        .allowed_mentions(serenity::CreateAllowedMentions::new().replied_user(false))
+}
+
+/// 発言へのリプライの参照。発言が消されていてもエラーにせずふつうに送る。
+fn reply_reference(channel_id: serenity::ChannelId, message_id: serenity::MessageId) -> serenity::MessageReference {
+    let mut r = serenity::MessageReference::from((channel_id, message_id));
+    r.fail_if_not_exists = Some(false);
+    r
 }
 
 fn to_attachments(named_images: Vec<(String, Vec<u8>)>) -> Vec<serenity::CreateAttachment> {
@@ -417,7 +441,7 @@ mod tests {
         assert_eq!(json["content"], text);
         assert_eq!(
             json["allowed_mentions"],
-            serde_json::json!({ "parse": [], "users": [], "roles": [] })
+            serde_json::json!({ "parse": [], "users": [], "roles": [], "replied_user": false })
         );
     }
 }
