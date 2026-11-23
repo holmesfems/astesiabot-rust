@@ -6,11 +6,18 @@
 //! - off（既定）: 何もしない / shadow: ローカルも読むが返信は常に Google の結果 /
 //!   on: ローカルが読み切れたら Google を呼ばない。
 //! - ローカルの失敗はどれも「読めなかった」（Unsure）扱いにして Google に回す。返信には影響させない。
+//! - 日本語版の読めない画像の監視: ゲームの画面が変わるとローカルが日本語の画面を読めなくなり Google に落ちる回数が増えるので、
+//!   「ローカルが OCR の理由（グリッド無し・低スコア・重複）で読めなかったが、Google のテキストは日本語で 5 タグ取れた」画像を数える
+//!   （ダウンロード・デコードなどの失敗は数えない）。連続 3 枚（同じ画像は 1 回だけ数える。画像のハッシュで判定）で DM し、
+//!   ローカルが 1 枚読めたら連続を 0 に戻して再び DM できるようにする。読めた枚数とあわせて日次まとめに出す。
+//!   shadow でも on でも動く（off は何もしない）。状態はメモリだけで、再起動で消える。
 //! - ログは全部 `[local_ocr]` で始める（Heroku のログは約 1500 行しか残らないので、shadow の結果は DM でも残す）。
 
 use crate::engine::recruit::tag_ocr::{BoxScore, TagOcr, TagOcrResult, UnsureReason};
 use poise::serenity_prelude as serenity;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::hash_map::DefaultHasher;
+use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::Semaphore;
@@ -27,6 +34,10 @@ const MAX_ALLOC: u64 = 256 * 1024 * 1024;
 const MAX_CONCURRENT: usize = 2;
 /// Discord のメッセージの文字数の上限。
 const DISCORD_LIMIT: usize = 2000;
+/// 日本語版の読めない画像がこの枚数続いたら DM する。
+const MISS_STREAK_ALERT: usize = 3;
+/// 重複判定のために覚えておく、日本語版の読めなかった画像のハッシュの数。
+const MISS_RECENT: usize = 20;
 
 // ---- モード ----
 
@@ -90,6 +101,19 @@ impl LocalUnsure {
     }
 }
 
+/// `read_attachment` の結果。ダウンロードできたときだけ、バイト列のハッシュ（重複画像の判定用）が付く。
+#[derive(Debug, Clone, PartialEq)]
+pub struct LocalRead {
+    pub outcome: LocalOutcome,
+    pub digest: Option<u64>,
+}
+
+impl LocalRead {
+    fn without_digest(outcome: LocalOutcome) -> Self {
+        Self { outcome, digest: None }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum LocalOutcome {
     Read { tags: Vec<String>, boxes: Vec<BoxScore> },
@@ -146,6 +170,10 @@ pub struct ShadowStats {
     pub disagree: u64,
     pub google_no_tags: u64,
     pub unsure: BTreeMap<&'static str, u64>,
+    /// 日本語版の画像でローカルが読めた枚数
+    pub jp_read: u64,
+    /// 日本語版の画像でローカルが（OCR の理由で）読めなかった枚数
+    pub jp_miss: u64,
 }
 
 impl ShadowStats {
@@ -160,6 +188,74 @@ impl ShadowStats {
 
     pub fn total(&self) -> u64 {
         self.agree + self.disagree + self.google_no_tags + self.unsure.values().sum::<u64>()
+    }
+
+    /// まとめに出すものが何も無い（shadow の比較も日本語版の集計も 0）。
+    pub fn is_empty(&self) -> bool {
+        self.total() == 0 && self.jp_read + self.jp_miss == 0
+    }
+}
+
+// ---- 日本語版の読めない画像の監視 ----
+
+/// `MissWatch::miss` の結果。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MissVerdict {
+    /// 直近に同じ画像が来ていたので、何も数えない
+    Duplicate,
+    /// 数えた。`alert` が Some なら DM する（連続した画像へのリンク）
+    Counted { streak: usize, alert: Option<Vec<String>> },
+}
+
+#[derive(Debug)]
+pub struct MissWatch {
+    recent: VecDeque<u64>,
+    streak: usize,
+    armed: bool,
+    links: Vec<String>,
+}
+
+/// 起動直後は DM を出せる状態（armed）で始める。
+impl Default for MissWatch {
+    fn default() -> Self {
+        Self { recent: VecDeque::new(), streak: 0, armed: true, links: Vec::new() }
+    }
+}
+
+impl MissWatch {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// ローカルが 1 枚読めた。連続を 0 に戻し、DM を再び出せるようにする。
+    pub fn read(&mut self) {
+        self.streak = 0;
+        self.armed = true;
+        self.links.clear();
+    }
+
+    /// 日本語版の画像をローカルが読めなかった。`digest` が直近の読めなかった画像と同じなら無視する。
+    pub fn miss(&mut self, digest: Option<u64>, link: String) -> MissVerdict {
+        if let Some(d) = digest {
+            if self.recent.contains(&d) {
+                return MissVerdict::Duplicate;
+            }
+            self.recent.push_back(d);
+            if self.recent.len() > MISS_RECENT {
+                self.recent.pop_front();
+            }
+        }
+        self.streak += 1;
+        if self.links.len() < MISS_STREAK_ALERT {
+            self.links.push(link);
+        }
+        let alert = if self.streak >= MISS_STREAK_ALERT && self.armed {
+            self.armed = false;
+            Some(self.links.clone())
+        } else {
+            None
+        };
+        MissVerdict::Counted { streak: self.streak, alert }
     }
 }
 
@@ -199,8 +295,26 @@ pub fn disagreement_message(local_tags: &[String], google_tags: &HashSet<String>
     truncate_chars(&s, DISCORD_LIMIT)
 }
 
-/// 日次まとめの 1 行。
-pub fn summary_message(stats: &ShadowStats) -> String {
+/// 日本語版の画像が連続で読めなかったときの DM の本文。リンクは連続した画像のもの。
+pub fn miss_alert_message(streak: usize, links: &[String]) -> String {
+    let mut s = format!("[local_ocr] 日本語版の画像をローカルで読めないのが {streak} 枚続きました。画面が変わったかもしれません。");
+    for l in links {
+        s += &format!("\n{l}");
+    }
+    truncate_chars(&s, DISCORD_LIMIT)
+}
+
+/// 日本語版を読めなかったときのログ行（URL は入れない）。
+pub fn jp_miss_log_line(streak: usize, reason: LocalUnsure) -> String {
+    format!("[local_ocr] jp_miss streak={streak} reason={}", reason.as_str())
+}
+
+/// 日次まとめの 1 行。shadow は比較の集計に日本語版の行を足し、on は日本語版だけ。
+pub fn summary_message(stats: &ShadowStats, mode: LocalOcrMode) -> String {
+    let jp = format!("日本語版 読めた {}/{}", stats.jp_read, stats.jp_read + stats.jp_miss);
+    if mode != LocalOcrMode::Shadow {
+        return truncate_chars(&format!("[local_ocr] 直近の集計（{}）: {jp}", mode.as_str()), DISCORD_LIMIT);
+    }
     let unsure_total: u64 = stats.unsure.values().sum();
     let mut s = format!(
         "[local_ocr] 直近の shadow 集計: {} 枚 / 一致 {} / 不一致 {} / Googleがタグ無し {} / ローカル不確か {}",
@@ -214,6 +328,7 @@ pub fn summary_message(stats: &ShadowStats) -> String {
         let detail: Vec<String> = stats.unsure.iter().map(|(k, v)| format!("{k}={v}")).collect();
         s += &format!("（{}）", detail.join(", "));
     }
+    s += &format!(" / {jp}");
     truncate_chars(&s, DISCORD_LIMIT)
 }
 
@@ -255,6 +370,7 @@ pub struct LocalOcr {
     /// shadow の不一致・日次まとめを DM する相手（LOCAL_OCR_REPORT_USER_ID。無ければログだけ）
     pub report_user: Option<serenity::UserId>,
     stats: Mutex<ShadowStats>,
+    watch: Mutex<MissWatch>,
 }
 
 impl LocalOcr {
@@ -275,33 +391,38 @@ impl LocalOcr {
             permits: Arc::new(Semaphore::new(MAX_CONCURRENT)),
             report_user,
             stats: Mutex::new(ShadowStats::default()),
+            watch: Mutex::new(MissWatch::new()),
         }
     }
 
     /// 添付 1 枚をローカルで読む。失敗はすべて Unsure（呼び出し側は Google に回す）。
-    pub async fn read_attachment(&self, url: &str, size: u32) -> LocalOutcome {
+    pub async fn read_attachment(&self, url: &str, size: u32) -> LocalRead {
         if size as u64 > MAX_BYTES {
-            return LocalOutcome::unsure(LocalUnsure::TooLarge);
+            return LocalRead::without_digest(LocalOutcome::unsure(LocalUnsure::TooLarge));
         }
         let Ok(_permit) = self.permits.clone().acquire_owned().await else {
-            return LocalOutcome::unsure(LocalUnsure::Internal);
+            return LocalRead::without_digest(LocalOutcome::unsure(LocalUnsure::Internal));
         };
         let bytes = match self.download(url).await {
             Ok(b) => b,
-            Err(reason) => return LocalOutcome::unsure(reason),
+            Err(reason) => return LocalRead::without_digest(LocalOutcome::unsure(reason)),
         };
+        let mut hasher = DefaultHasher::new();
+        bytes.hash(&mut hasher);
+        let digest = Some(hasher.finish());
         let ocr = self.tag_ocr.clone();
         let joined = tokio::task::spawn_blocking(move || {
             let img = decode_limited(&bytes)?;
             Ok::<_, LocalUnsure>(ocr.read(&img))
         })
         .await;
-        match joined {
+        let outcome = match joined {
             Ok(Ok(TagOcrResult::Read { tags, boxes })) => LocalOutcome::Read { tags, boxes },
             Ok(Ok(TagOcrResult::Unsure { reason, boxes })) => LocalOutcome::Unsure { reason: LocalUnsure::Ocr(reason), boxes },
             Ok(Err(reason)) => LocalOutcome::unsure(reason),
             Err(_) => LocalOutcome::unsure(LocalUnsure::Internal),
-        }
+        };
+        LocalRead { outcome, digest }
     }
 
     async fn download(&self, url: &str) -> Result<Vec<u8>, LocalUnsure> {
@@ -327,6 +448,21 @@ impl LocalOcr {
     /// shadow の結果を集計に足す。
     pub fn record(&self, c: &Comparison) {
         self.stats.lock().unwrap_or_else(|e| e.into_inner()).record(c);
+    }
+
+    /// ローカルが 1 枚読めた（日本語版として数える）。監視の連続も戻す。
+    pub fn record_read(&self) {
+        self.stats.lock().unwrap_or_else(|e| e.into_inner()).jp_read += 1;
+        self.watch.lock().unwrap_or_else(|e| e.into_inner()).read();
+    }
+
+    /// 日本語版の画像をローカルが読めなかった。重複なら何も数えない。
+    pub fn record_jp_miss(&self, digest: Option<u64>, link: String) -> MissVerdict {
+        let verdict = self.watch.lock().unwrap_or_else(|e| e.into_inner()).miss(digest, link);
+        if matches!(verdict, MissVerdict::Counted { .. }) {
+            self.stats.lock().unwrap_or_else(|e| e.into_inner()).jp_miss += 1;
+        }
+        verdict
     }
 
     /// 集計を取り出して 0 に戻す。
@@ -369,15 +505,15 @@ async fn try_send_dm(http: &serenity::Http, user: serenity::UserId, text: String
     Ok(())
 }
 
-/// 毎日 JST 0:00 に shadow の集計を DM する。前回から 1 枚も処理していなければ送らない。
+/// 毎日 JST 0:00 に集計（shadow の比較・日本語版の読めた数）を DM する。前回から何も数えていなければ送らない。
 /// 集計は送るたびに 0 に戻す。bot 起動中ずっと動くので `tokio::spawn` すること。
 pub async fn run_daily_summary(ctx: serenity::Context, state: Arc<crate::api::AppState>) {
     let Some(user) = state.local_ocr.report_user else { return };
     loop {
         tokio::time::sleep(crate::bot::services::birthday::duration_until_next_midnight_jst()).await;
         let stats = state.local_ocr.take_stats();
-        if stats.total() > 0 {
-            send_dm(&ctx.http, user, summary_message(&stats)).await;
+        if !stats.is_empty() {
+            send_dm(&ctx.http, user, summary_message(&stats, state.local_ocr.mode)).await;
         }
     }
 }
@@ -429,9 +565,74 @@ mod tests {
         s.record(&Comparison::LocalUnsure(LocalUnsure::Ocr(UnsureReason::GridNotFound)));
         s.record(&Comparison::LocalUnsure(LocalUnsure::Download));
         assert_eq!(s.total(), 7);
-        let text = summary_message(&s);
+        let text = summary_message(&s, LocalOcrMode::Shadow);
+        assert!(text.ends_with("日本語版 読めた 0/0"), "{text}");
         assert!(text.contains("7 枚") && text.contains("一致 2") && text.contains("不一致 1"), "{text}");
         assert!(text.contains("grid_not_found=2") && text.contains("download_failed=1"), "{text}");
+    }
+
+    #[test]
+    fn summary_in_both_modes() {
+        let mut s = ShadowStats::default();
+        assert!(s.is_empty());
+        s.jp_read = 8;
+        s.jp_miss = 2;
+        assert!(!s.is_empty());
+        s.record(&Comparison::Agree);
+        let shadow = summary_message(&s, LocalOcrMode::Shadow);
+        assert!(shadow.contains("1 枚") && shadow.ends_with(" / 日本語版 読めた 8/10"), "{shadow}");
+        assert_eq!(summary_message(&s, LocalOcrMode::On), "[local_ocr] 直近の集計（on）: 日本語版 読めた 8/10");
+    }
+
+    #[test]
+    fn miss_watch_alerts_once_per_streak() {
+        let mut w = MissWatch::new();
+        let l = |i: u64| format!("link{i}");
+        assert_eq!(w.miss(Some(1), l(1)), MissVerdict::Counted { streak: 1, alert: None });
+        assert_eq!(w.miss(Some(2), l(2)), MissVerdict::Counted { streak: 2, alert: None });
+        assert_eq!(w.miss(Some(3), l(3)), MissVerdict::Counted { streak: 3, alert: Some(vec![l(1), l(2), l(3)]) });
+        // 以降は DM しない
+        assert_eq!(w.miss(Some(4), l(4)), MissVerdict::Counted { streak: 4, alert: None });
+        // 読めたら再び出せる
+        w.read();
+        assert_eq!(w.miss(Some(5), l(5)), MissVerdict::Counted { streak: 1, alert: None });
+        w.miss(Some(6), l(6));
+        assert_eq!(w.miss(Some(7), l(7)), MissVerdict::Counted { streak: 3, alert: Some(vec![l(5), l(6), l(7)]) });
+    }
+
+    #[test]
+    fn miss_watch_ignores_duplicates() {
+        let mut w = MissWatch::new();
+        assert_eq!(w.miss(Some(1), "a".into()), MissVerdict::Counted { streak: 1, alert: None });
+        assert_eq!(w.miss(Some(1), "b".into()), MissVerdict::Duplicate);
+        assert_eq!(w.miss(Some(2), "c".into()), MissVerdict::Counted { streak: 2, alert: None });
+        // 読めても、覚えている重複は覚えたまま
+        w.read();
+        assert_eq!(w.miss(Some(2), "d".into()), MissVerdict::Duplicate);
+        // 古いものは忘れる
+        for i in 10..10 + MISS_RECENT as u64 {
+            w.miss(Some(i), "x".into());
+        }
+        assert!(matches!(w.miss(Some(1), "e".into()), MissVerdict::Counted { .. }));
+    }
+
+    #[test]
+    fn record_jp_miss_counts_only_non_duplicates() {
+        let ocr = TagOcr::load(crate::engine::recruit::tag_ocr::TEMPLATE_DIR).unwrap();
+        let o = LocalOcr::new(LocalOcrMode::On, ocr, None);
+        o.record_read();
+        o.record_jp_miss(Some(1), "a".into());
+        assert_eq!(o.record_jp_miss(Some(1), "a".into()), MissVerdict::Duplicate);
+        let s = o.take_stats();
+        assert_eq!((s.jp_read, s.jp_miss), (1, 1));
+    }
+
+    #[test]
+    fn miss_alert_message_has_count_and_links() {
+        let links = vec!["https://discord.com/channels/1/2/3".to_string(), "https://discord.com/channels/1/2/4".to_string()];
+        let m = miss_alert_message(3, &links);
+        assert!(m.starts_with("[local_ocr] 日本語版の画像をローカルで読めないのが 3 枚続きました") && m.ends_with(&links[1]) && m.contains(&links[0]), "{m}");
+        assert!(jp_miss_log_line(2, LocalUnsure::Ocr(UnsureReason::LowScore)).starts_with("[local_ocr] "));
     }
 
     #[test]
@@ -523,6 +724,12 @@ mod tests {
         stats.record(&Comparison::Agree);
         stats.record(&Comparison::Disagree);
         stats.record(&Comparison::LocalUnsure(LocalUnsure::Ocr(UnsureReason::GridNotFound)));
-        try_send_dm(&http, user, format!("【テスト】{}", summary_message(&stats))).await.expect("まとめの DM を送れなかった");
+        stats.jp_read = 1;
+        stats.jp_miss = 1;
+        try_send_dm(&http, user, format!("【テスト】{}", summary_message(&stats, LocalOcrMode::Shadow))).await.expect("まとめの DM を送れなかった");
+        try_send_dm(&http, user, format!("【テスト】{}", summary_message(&stats, LocalOcrMode::On))).await.expect("on のまとめの DM を送れなかった");
+
+        let links = vec!["（テスト送信のためリンクなし 1）".to_string(), "（2）".into(), "（3）".into()];
+        try_send_dm(&http, user, format!("【テスト】{}", miss_alert_message(3, &links))).await.expect("連続の DM を送れなかった");
     }
 }

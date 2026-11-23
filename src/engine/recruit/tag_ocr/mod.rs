@@ -206,6 +206,17 @@ mod tests {
         }
     }
 
+    #[test]
+    fn every_tag_has_a_template() {
+        // 逆向き: tagList.json の全タグにテンプレートがあること（ゲームにタグが増えたら読めなくなるので気づく）
+        let list: serde_json::Value = serde_json::from_str(&std::fs::read_to_string("data/recruitment/tagList.json").unwrap()).unwrap();
+        let have: HashSet<String> = ocr().names.iter().cloned().collect();
+        for t in list.as_object().unwrap().values().flat_map(|v| v.as_array().unwrap()) {
+            let t = t.as_str().unwrap();
+            assert!(have.contains(t), "タグ「{t}」のテンプレートがありません。fit_tag_templates でテンプレートを作り直してください");
+        }
+    }
+
     /// meta.json に持つ紛らわしい組が、PNG から計算し直したものと一致する（重いので release で: `cargo test --release -- --ignored`）。
     #[test]
     #[ignore]

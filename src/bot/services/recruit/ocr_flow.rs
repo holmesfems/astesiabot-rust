@@ -2,7 +2,8 @@ use crate::bot::data::{Data, Error};
 use crate::bot::reply::EmbedReply;
 use poise::serenity_prelude as serenity;
 use std::collections::HashSet;
-use super::local_ocr::{self, LocalOcrMode, LocalOutcome};
+use super::local_ocr::{self, LocalOcrMode, LocalOutcome, LocalRead, LocalUnsure, MissVerdict};
+use crate::engine::recruit::matcher::{MatchResult, TagLang};
 use super::ocr::OcrText;
 
 /// OCRフローの結果。
@@ -26,13 +27,17 @@ pub async fn build(ctx: &serenity::Context, msg: &serenity::Message, data: &Data
     let local_ocr = &data.state.local_ocr;
     let mut outcomes = Vec::new();
     for attachment in msg.attachments.iter().filter(|a| super::is_image_attachment(a)) {
-        let local = match local_ocr.mode {
+        let read = match local_ocr.mode {
             LocalOcrMode::Off => None,
             _ => Some(local_ocr.read_attachment(&attachment.url, attachment.size).await),
         };
+        let local = read.as_ref().map(|r| &r.outcome);
+        if matches!(local, Some(LocalOutcome::Read { .. })) {
+            local_ocr.record_read();
+        }
 
         // on: ローカルが読み切れたら Google を呼ばない。読めなければそのまま Google へ
-        if let (LocalOcrMode::On, Some(o)) = (local_ocr.mode, &local) {
+        if let (LocalOcrMode::On, Some(o)) = (local_ocr.mode, local) {
             println!("{}", local_ocr::on_log_line(o));
             if let LocalOutcome::Read { tags, .. } = o {
                 let result = super::embed::build_embed_reply_from_tags(&data.state.recruit, tags);
@@ -47,7 +52,7 @@ pub async fn build(ctx: &serenity::Context, msg: &serenity::Message, data: &Data
             OcrText::Text(t) => t,
             // 文字の無い画像は求人画像ではないだけ。他の画像の処理は続ける
             OcrText::NoText => {
-                if let (LocalOcrMode::Shadow, Some(o)) = (local_ocr.mode, &local) {
+                if let (LocalOcrMode::Shadow, Some(o)) = (local_ocr.mode, local) {
                     shadow_report(ctx, msg, data, o, &HashSet::new());
                 }
                 continue;
@@ -61,9 +66,12 @@ pub async fn build(ctx: &serenity::Context, msg: &serenity::Message, data: &Data
             }
         };
 
-        if let (LocalOcrMode::Shadow, Some(o)) = (local_ocr.mode, &local) {
-            let google_tags = data.state.recruit.matcher.match_tag(&text).matches;
-            shadow_report(ctx, msg, data, o, &google_tags);
+        if let Some(read) = &read {
+            let matched = data.state.recruit.matcher.match_tag(&text);
+            if local_ocr.mode == LocalOcrMode::Shadow {
+                shadow_report(ctx, msg, data, &read.outcome, &matched.matches);
+            }
+            jp_miss_report(ctx, msg, data, read, &matched);
         }
 
         let result = super::embed::build_embed_reply(&data.state.recruit, &text);
@@ -76,6 +84,28 @@ pub async fn build(ctx: &serenity::Context, msg: &serenity::Message, data: &Data
         });
     }
     Ok(outcomes)
+}
+
+/// 日本語版の読めない画像の監視（shadow・on 共通）。ローカルが OCR の理由で読めず、Google のテキストが
+/// 日本語で 5 タグ取れた画像を数え、連続したらオーナーに DM する。重複画像は数えない。
+fn jp_miss_report(ctx: &serenity::Context, msg: &serenity::Message, data: &Data, read: &LocalRead, matched: &MatchResult) {
+    let LocalOutcome::Unsure { reason: reason @ LocalUnsure::Ocr(_), .. } = &read.outcome else { return };
+    if matched.lang != TagLang::Ja || matched.matches.len() != 5 {
+        return;
+    }
+    let local_ocr = &data.state.local_ocr;
+    let link = local_ocr::jump_link(msg.guild_id, msg.channel_id, msg.id);
+    match local_ocr.record_jp_miss(read.digest, link) {
+        MissVerdict::Duplicate => {}
+        MissVerdict::Counted { streak, alert } => {
+            println!("{}", local_ocr::jp_miss_log_line(streak, *reason));
+            if let (Some(user), Some(links)) = (local_ocr.report_user, alert) {
+                let text = local_ocr::miss_alert_message(streak, &links);
+                let ctx = ctx.clone();
+                tokio::spawn(async move { local_ocr::send_dm(&ctx.http, user, text).await });
+            }
+        }
+    }
 }
 
 /// shadow: ローカルと Google のタグ集合を比べて、ログ・集計・（不一致なら）オーナーへの DM に残す。
