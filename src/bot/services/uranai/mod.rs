@@ -1,39 +1,59 @@
+pub mod conversation;
 pub mod functioncalling;
 mod membership;
 mod openai_client;
 mod session;
 mod tools;
 
+use crate::api::AppState;
 use crate::bot::data::{Data, Error};
 use crate::bot::reply::EmbedReply;
+use conversation::{Conversation, DailyLimit, Enqueue, PendingInput};
 use membership::MembershipConfig;
 use openai_client::{AttachmentKind, OpenAiClient, UranaiAttachment};
 use poise::serenity_prelude as serenity;
-use session::ChatSession;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 /// 会話メモリの無操作タイムアウト（10分）。
 const SESSION_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 /// Discordの1メッセージあたりの文字数上限。
 const MAX_MESSAGE_LEN: usize = 2000;
+/// 1回の返事で送るメッセージの最大数（AI に誘導されて長文の壁を作らせない）。
+const MAX_REPLY_MESSAGES: usize = 2;
 const SYSTEM_PROMPT: &str = include_str!("system_prompt.txt");
 /// OpenAI Responses APIの1リクエストあたりファイル合計サイズ上限（50MB）に合わせる。
-const MAX_ATTACHMENT_TOTAL_BYTES: u64 = 50 * 1024 * 1024;
+const MAX_ATTACHMENT_TOTAL_BYTES: u64 = conversation::MAX_BATCH_ATTACHMENT_BYTES;
+/// AI を呼ぶ回数の1日（JST）の上限の既定値。`CHAT_DAILY_CALL_LIMIT` で変えられる。
+const DEFAULT_DAILY_CALL_LIMIT: u32 = 200;
+const DAILY_LIMIT_MESSAGE: &str =
+    "ごめんなさい、今日はもう星がよく見えないみたい。また明日話しかけてちょうだい。";
+const ERROR_MESSAGE: &str = "ごめんなさい、エラーが発生したみたい。";
 
 /// 占い館（OpenAIチャット）のbot起動中ずっと保持する状態。AppStateから共有される。
 pub struct UranaiState {
     membership: MembershipConfig,
     client: OpenAiClient,
-    /// ユーザー区別なしの単一グローバル会話セッション（要件定義で確定済み）。
-    session: tokio::sync::Mutex<ChatSession>,
+    /// ユーザー区別なしの単一グローバル会話（要件定義で確定済み）。`.await` をまたいでロックを握らない。
+    conversation: Mutex<Conversation>,
+    /// AI を呼んだ回数の日次上限（メンション会話を足したら共有する）。
+    daily: Mutex<DailyLimit>,
 }
 
 impl UranaiState {
     pub fn from_env() -> Self {
+        let daily_limit = match std::env::var("CHAT_DAILY_CALL_LIMIT") {
+            Ok(v) => v
+                .trim()
+                .parse()
+                .unwrap_or_else(|_| panic!("CHAT_DAILY_CALL_LIMIT is not a number: {v}")),
+            Err(_) => DEFAULT_DAILY_CALL_LIMIT,
+        };
         Self {
             membership: MembershipConfig::from_env(),
             client: OpenAiClient::from_env(),
-            session: tokio::sync::Mutex::new(ChatSession::new()),
+            conversation: Mutex::new(Conversation::new(SESSION_TIMEOUT)),
+            daily: Mutex::new(DailyLimit::new(daily_limit)),
         }
     }
 
@@ -43,11 +63,24 @@ impl UranaiState {
         let instructions = format!("{SYSTEM_PROMPT}\n\n{task}");
         self.client.generate_text(&instructions, user_message).await
     }
+
+    /// 今日（JST）の AI 呼び出し枠を1回使う。残っていなければ `false`。
+    fn try_acquire_daily(&self) -> bool {
+        let today = chrono::Utc::now()
+            .with_timezone(&chrono_tz::Asia::Tokyo)
+            .date_naive();
+        lock(&self.daily).try_acquire(today)
+    }
 }
 
-/// 占い館チャンネルの入口。membershipチェック→OpenAI呼び出しをバックグラウンドで行う。
-/// 実際の返信はこの関数内（正確には spawn したタスク内）で直接送信するため、
-/// 呼び出し元への戻り値は常に `Ok(None)`。
+/// panic で毒された Mutex も中身をそのまま使う（会話の状態は壊れても次の発言で立て直せる）。
+fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// 占い館チャンネルの入口。membershipチェック→会話に積む。考え中でなければワーカーを spawn し、
+/// 考え中なら貯めるだけ（返事を送ったあとにまとめて答える）。
+/// 実際の返信はワーカーが直接送信するため、呼び出し元への戻り値は常に `Ok(None)`。
 pub async fn handle(
     ctx: &serenity::Context,
     msg: &serenity::Message,
@@ -57,73 +90,121 @@ pub async fn handle(
         // チャンネル自体がロール制限されている想定の二重チェックなので、無反応でよい
         return Ok(None);
     }
-
-    if msg.attachments.is_empty() {
-        println!("[uranai] GPT accepted");
-    } else {
-        let names: Vec<&str> = msg.attachments.iter().map(|a| a.filename.as_str()).collect();
-        println!("[uranai] GPT accepted with attachments: [{}]", names.join(", "));
+    if !is_conversational(msg.kind, &msg.content, msg.attachments.len()) {
+        return Ok(None);
     }
 
-    let ctx = ctx.clone();
+    let uranai = &data.state.uranai;
     let channel_id = msg.channel_id;
-    let content_raw = msg.content.trim().to_string();
-    let user_name = msg.author.name.clone();
-    let content = format!("from {}:\n {}", user_name, content_raw);
-    let raw_attachments = msg.attachments.clone();
-    let state = data.state.clone();
+    let content_raw = msg.content.trim();
 
-    tokio::spawn(async move {
-        let uranai = &state.uranai;
-        // 既にリクエスト処理中（GPTが思考中）なら、新規メッセージはキューイングせず無視する。
-        // ロックは reset/continue の即時応答も含め、この処理が終わるまで保持し続ける。
-        let Ok(mut session) = uranai.session.try_lock() else {
-            return;
-        };
-
-        let command = session_command(&content_raw);
-        if command == Some(SessionCommand::Reset) {
-            session.reset();
-            drop(session);
-            if let Err(e) = channel_id.say(&ctx.http, "会話履歴をリセットしたわ。").await {
-                eprintln!("[uranai] 返信の送信に失敗しました: {e}");
-            }
-            return;
+    match session_command(content_raw) {
+        Some(SessionCommand::Reset) => {
+            lock(&uranai.conversation).reset();
+            say(ctx, channel_id, "会話履歴をリセットしたわ。").await;
+            return Ok(None);
         }
-        if command == Some(SessionCommand::Continue) {
-            session.touch();
-            drop(session);
-            if let Err(e) = channel_id.say(&ctx.http, "会話を延長したわ。").await {
-                eprintln!("[uranai] 返信の送信に失敗しました: {e}");
-            }
-            return;
+        Some(SessionCommand::Continue) => {
+            lock(&uranai.conversation).touch();
+            say(ctx, channel_id, "会話を延長したわ。").await;
+            return Ok(None);
         }
+        None => {}
+    }
 
-        // 添付に非対応形式(画像/PDF以外)やサイズ超過が含まれる場合は、GPTを呼ばずにその場で
-        // 打ち切る。会話履歴にも積まない（要件定義で確定済み）。
-        let attachments = match classify_attachments(&raw_attachments) {
-            Ok(attachments) => attachments,
-            Err(rejected) => {
-                drop(session);
-                let builder = no_mention_message(rejection_message(&rejected));
-                if let Err(e) = channel_id.send_message(&ctx.http, builder).await {
-                    eprintln!("[uranai] 返信の送信に失敗しました: {e}");
+    // 添付に非対応形式(画像/PDF以外)やサイズ超過が含まれる場合は、GPTを呼ばずにその場で
+    // 打ち切る。会話履歴にも積まない（要件定義で確定済み）。
+    let attachments = match classify_attachments(&msg.attachments) {
+        Ok(attachments) => attachments,
+        Err(rejected) => {
+            say(ctx, channel_id, &rejection_message(&rejected)).await;
+            return Ok(None);
+        }
+    };
+    if attachments.is_empty() {
+        println!("[uranai] GPT accepted");
+    } else {
+        println!("[uranai] GPT accepted with {} attachment(s)", attachments.len());
+    }
+
+    let name = conversation::speaker_name(
+        msg.member.as_ref().and_then(|m| m.nick.as_deref()),
+        msg.author.global_name.as_deref(),
+        &msg.author.name,
+    );
+    let input = PendingInput {
+        text: format!("from {name}:\n {content_raw}"),
+        attachments,
+    };
+    let enqueued = lock(&uranai.conversation).enqueue(input);
+    match enqueued {
+        Enqueue::StartWorker => {
+            tokio::spawn(run_worker(ctx.clone(), channel_id, data.state.clone()));
+        }
+        Enqueue::Queued { dropped } => {
+            println!("[uranai] 考え中なので貯めた（上限で捨てた古い発言: {dropped}件）");
+        }
+    }
+    Ok(None)
+}
+
+/// AI に渡す発言か。ピン留め・ブースト通知などのシステムメッセージと、本文も添付も無い発言
+/// （スタンプだけ等）は渡さない。
+fn is_conversational(kind: serenity::MessageType, content: &str, attachment_count: usize) -> bool {
+    matches!(kind, serenity::MessageType::Regular | serenity::MessageType::InlineReply)
+        && (!content.trim().is_empty() || attachment_count > 0)
+}
+
+/// ワーカーが panic・早期リターンで抜けたときに busy を下ろす。正常に抜けるときは
+/// `take_batch` が busy を下ろしているので `armed = false` にする。
+struct WorkerGuard {
+    state: Arc<AppState>,
+    armed: bool,
+}
+
+impl Drop for WorkerGuard {
+    fn drop(&mut self) {
+        if self.armed {
+            eprintln!("[uranai] ワーカーが途中で止まったので会話の busy を下ろします");
+            lock(&self.state.uranai.conversation).abort_worker();
+        }
+    }
+}
+
+/// 貯まった発言をまとめて AI に渡し、返事を送る。空になるまで繰り返す。
+async fn run_worker(ctx: serenity::Context, channel_id: serenity::ChannelId, state: Arc<AppState>) {
+    let mut guard = WorkerGuard { state: state.clone(), armed: true };
+    let uranai = &state.uranai;
+    loop {
+        let (batch, history_input) = {
+            let mut conv = lock(&uranai.conversation);
+            match conv.take_batch() {
+                Some(batch) => {
+                    let history = conv.history_input();
+                    (batch, history)
                 }
-                return;
+                None => break,
             }
         };
-
-        if session.is_expired(SESSION_TIMEOUT) {
-            session.reset();
+        if batch.merged > 1 || batch.dropped_messages > 0 || batch.dropped_attachments > 0 {
+            println!(
+                "[uranai] {}件をまとめて渡す（落とした発言: {}件・添付: {}件）",
+                batch.merged, batch.dropped_messages, batch.dropped_attachments
+            );
         }
-        let history_input = session.history_input();
+
+        if !uranai.try_acquire_daily() {
+            println!("[uranai] 1日の呼び出し上限に達しました");
+            say(&ctx, channel_id, DAILY_LIMIT_MESSAGE).await;
+            continue;
+        }
 
         let typing = channel_id.start_typing(&ctx.http);
         println!("[uranai] ChatGPT start thinking...");
         let think_start = Instant::now();
         let result = uranai
             .client
-            .run_turn(SYSTEM_PROMPT, history_input, &content, &attachments, &state)
+            .run_turn(SYSTEM_PROMPT, history_input, &batch.text, &batch.attachments, &state)
             .await;
         println!(
             "[uranai] Thinking completed. ({:.2}秒)",
@@ -133,22 +214,27 @@ pub async fn handle(
 
         let (reply_text, images) = match result {
             Ok(turn) => {
-                session.push_exchange(content, turn.text.clone());
+                lock(&uranai.conversation).finish_turn(batch.generation, batch.text, turn.text.clone());
                 (turn.text, turn.images)
             }
             Err(e) => {
                 eprintln!("[uranai] OpenAI呼び出しに失敗しました: {e}");
-                ("ごめんなさい、エラーが発生したみたい。".to_string(), Vec::new())
+                (ERROR_MESSAGE.to_string(), Vec::new())
             }
         };
-        drop(session);
 
         if let Err(e) = send_reply(&ctx, channel_id, &reply_text, images).await {
             eprintln!("[uranai] 返信の送信に失敗しました: {e}");
         }
-    });
+    }
+    guard.armed = false;
+}
 
-    Ok(None)
+/// 決まった文面を送る（失敗はログだけ）。
+async fn say(ctx: &serenity::Context, channel_id: serenity::ChannelId, text: &str) {
+    if let Err(e) = channel_id.send_message(&ctx.http, no_mention_message(text)).await {
+        eprintln!("[uranai] 返信の送信に失敗しました: {e}");
+    }
 }
 
 /// `msg.attachments`を画像/PDFに分類する。非対応形式(画像/application-pdf以外)、または
@@ -170,6 +256,7 @@ fn classify_attachments(attachments: &[serenity::Attachment]) -> Result<Vec<Uran
                 url: a.url.clone(),
                 filename: a.filename.clone(),
                 kind: AttachmentKind::Image,
+                size: a.size as u64,
             });
         } else if is_pdf {
             total_size += a.size as u64;
@@ -177,6 +264,7 @@ fn classify_attachments(attachments: &[serenity::Attachment]) -> Result<Vec<Uran
                 url: a.url.clone(),
                 filename: a.filename.clone(),
                 kind: AttachmentKind::Pdf,
+                size: a.size as u64,
             });
         } else {
             unsupported.push(a.filename.clone());
@@ -213,6 +301,7 @@ async fn send_reply(
     images: Vec<Vec<u8>>,
 ) -> Result<(), Error> {
     let mut chunks = chunk_text(text, MAX_MESSAGE_LEN);
+    chunks.truncate(MAX_REPLY_MESSAGES);
     if chunks.is_empty() && !images.is_empty() {
         chunks.push(String::new());
     }
@@ -308,6 +397,17 @@ mod tests {
         assert_eq!(session_command("reset please"), None);
         assert_eq!(session_command("from bob:
  reset"), None);
+    }
+
+    #[test]
+    fn system_messages_and_empty_messages_are_not_conversational() {
+        use serenity::MessageType;
+        assert!(is_conversational(MessageType::Regular, "こんにちは", 0));
+        assert!(is_conversational(MessageType::InlineReply, "返信", 0));
+        assert!(is_conversational(MessageType::Regular, "", 1));
+        assert!(!is_conversational(MessageType::Regular, "  ", 0));
+        assert!(!is_conversational(MessageType::PinsAdd, "", 0));
+        assert!(!is_conversational(MessageType::NitroBoost, "x", 0));
     }
 
     #[test]
