@@ -7,7 +7,7 @@ export function findModule(op, moduleId) {
 }
 
 /* ============================================================
-   P6: 昇進(elite)/レベル(level)/信頼度(trust)を指定してベースATKを計算する。
+   昇進(elite)/レベル(level)/信頼度(trust)を指定してベースATKを計算する。
    `op`(CatalogOperator/InspireSourceどちらも同じ形状)の`phases`
    (`[{maxLevel, atkMin, atkMax}, ...]`。インデックス0=E0)を線形補間して求める。
    詳細はオーナー確認済みの実測値で検証済み:
@@ -55,7 +55,7 @@ export function computeBaseAtk(op, elite, level, trust) {
   return Math.round(raw) + trustAtk;
 }
 
-/** row/cfgの`elite`(未設定なら`op`の最大昇進)。古い形(P1〜P5)のstate/共有URLとの
+/** row/cfgの`elite`(未設定なら`op`の最大昇進)。古い形(eliteを持たない)のstate/共有URLとの
  * 互換のためのフォールバック(`dropStaleRows`が本来は補完するが、念のためここでも安全策)。 */
 export function effectiveElite(op, rowOrCfg) {
   return rowOrCfg && rowOrCfg.elite != null ? rowOrCfg.elite : maxEliteFor(op);
@@ -112,7 +112,7 @@ export function skillUnlockWarning(op, entry, row) {
 }
 
 /**
- * P7: 昇進(elite)ごとに実際に到達できるスキルLvの上限(ゲームの一般ルール。オペレーター/
+ * 昇進(elite)ごとに実際に到達できるスキルLvの上限(ゲームの一般ルール。オペレーター/
  * スキルには依らない): E0はSLv4まで、E1はSLv7まで、特化1〜3(SLv8〜10)は昇進2が必要。
  */
 export function maxSkillLevelForElite(elite) {
@@ -134,7 +134,7 @@ export function skillLevelWarning(elite, skillLevel) {
 }
 
 /**
- * P8: 潜在ランク(0始まり。0=潜在1〜5=潜在6)からATK加算値を引く。範囲外はクランプする。
+ * 潜在ランク(0始まり。0=潜在1〜5=潜在6)からATK加算値を引く。範囲外はクランプする。
  * `op.atkPotentialByRank`(カタログ由来。長さ6の累積配列)があればそれをそのまま引く。
  * 無い(verify.mjs等の簡易opオブジェクト)場合は`op.atkPotential`(合計値)を
  * 「潜在0(潜在1)だけ+0、それ以外は全額」という単純な表として扱う後方互換フォールバック。
@@ -147,8 +147,8 @@ export function resolveAtkPotential(op, potentialRank) {
 }
 
 /**
- * P8: 潜在ランク(`row.potential`/鼓舞ソースcfgの`potential`)の値を検証する。0〜5の数値なら
- * そのまま、そうでなければ(旧boolean形式・欠損値)既定値(5=潜在6)にリセットする
+ * 潜在ランク(`row.potential`/鼓舞ソースcfgの`potential`)の値を検証する。0〜5の数値なら
+ * そのまま、そうでなければ(boolean値などの古い形式・欠損値)既定値(5=潜在6)にリセットする
  * (`dropStaleRows`が使う。丁寧な移行はしない方針の詳細は同関数のコメント参照)。
  */
 export function normalizePotentialRank(v) {

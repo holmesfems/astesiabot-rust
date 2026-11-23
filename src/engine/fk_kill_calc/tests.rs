@@ -31,7 +31,7 @@ fn catalog_builds_from_seeds() {
     assert!(!result.catalog.operators.is_empty());
     assert!(
         !result.catalog.buffers.is_empty(),
-        "P2でbuffers.yaml起点のバフが入るはず"
+        "buffers.yaml起点のバフが入るはず"
     );
 }
 
@@ -102,7 +102,7 @@ fn every_override_key_points_to_existing_operator_and_skill_num() {
     );
 }
 
-/// overrides.yamlの`special.requires_module`(P2 follow-upで追加)が、実データの
+/// overrides.yamlの`special.requires_module`が、実データの
 /// modules一覧に存在するuniEquipIdを指していること。ゲームデータ更新でモジュールIDが
 /// 変わった際のドリフト検知用。
 #[test]
@@ -116,8 +116,8 @@ fn every_special_requires_module_points_to_an_existing_module() {
     );
 }
 
-/// overrides.yamlの`special.mul_multiplier`(P8 follow-upで素質値テーブル参照
-/// `{ talent, key }`へ置き換え)が、実データ(operator_combatのtalents)に解決でき、
+/// overrides.yamlの`special.mul_multiplier`(素質値テーブル参照
+/// `{ talent, key }`)が、実データ(operator_combatのtalents)に解決でき、
 /// 最大成長で値0以下(=キー名のスペルミス等)でないこと。ゲームデータ更新でtalent構成が
 /// 変わった際のドリフト検知用。
 #[test]
@@ -220,7 +220,7 @@ fn wan_s3_stone_board_uses_second_talent_tables() {
 /// ブレイズ(char_017_huang) S3: self_atk_pctは特殊強化の有無に関わらず常に0.712
 /// (Manual。バグにより理論値0.8の8/9しか反映されない実測値)で、特殊強化
 /// 「待機ボーナス」はモジュールX(uniequip_002_huang)Lv2で+4%/Lv3で+6%を「加算」する
-/// (置き換えではない)。P2 follow-upの回帰テスト。
+/// (置き換えではない)。
 #[test]
 fn blaze_s3_self_atk_pct_is_always_0_712_and_special_is_additive_module_gated() {
     let result = build_from_seeds();
@@ -262,8 +262,7 @@ fn blaze_s3_self_atk_pct_is_always_0_712_and_special_is_additive_module_gated() 
 }
 
 /// ファイヤーウォッチ(char_158_milu) S2「遠距離特効」: 乗算系(mul_multiplier)。
-/// P8 follow-upで固定値から素質「暗殺者」(talent[0].atk_scale)の値テーブル参照へ
-/// 置き換えた。E1=1.2(潜在1〜4)/1.25(潜在5〜6)、E2=1.4/1.45、モジュールY
+/// 値は素質「暗殺者」(talent[0].atk_scale)の値テーブル参照。E1=1.2(潜在1〜4)/1.25(潜在5〜6)、E2=1.4/1.45、モジュールY
 /// (uniequip_002_milu)Lv1=E2基礎値のまま(素質強化が付かない)/Lv2=1.45,1.5/Lv3=1.5,1.55。
 /// E0は素質自体が未解放なので値0(オーナー確認済みの実データ値)。
 #[test]
@@ -376,7 +375,7 @@ fn fw_s2_special_uses_mul_multiplier_talent_table() {
 
 /// ウィーディ(char_400_weedy) S3「蓄水砲配置バフ」: 加算系(requires_module +
 /// add_self_atk_pct_by_module_level)で、モジュールX(uniequip_002_weedy)
-/// Lv1=0/Lv2=0.15/Lv3=0.20(P2 follow-up 2回目で実データから再導出)。
+/// Lv1=0/Lv2=0.15/Lv3=0.20(実データから導出)。
 #[test]
 fn weedy_s3_special_add_values_match_module_x_levels() {
     let result = build_from_seeds();
@@ -425,7 +424,7 @@ fn fullwidth_paren_operator_name_resolves() {
 
 /// ブレイズ(char_017_huang) S3: multiplierのoverrideを外した後もblackboardの
 /// `damage_by_atk_scale`(末尾一致ルール)経由でAutoの4.0が採れること。
-/// self_atk_pctはP2 follow-upで「バグ込みの実測値0.712固定」に変更したため、
+/// self_atk_pctは「バグ込みの実測値0.712固定」なので、
 /// 常にManualの0.712になる(このケースの詳細は
 /// `blaze_s3_self_atk_pct_is_always_0_712_and_special_is_additive_module_gated`参照)。
 #[test]
@@ -479,8 +478,8 @@ fn horn_s2_multiplier_candidates_are_deterministically_ordered() {
 }
 
 /// ホルン(異格。char_4039_horn)S2「テンペストオーダー」は`durationType == "AMMO"`の
-/// 弾薬スキルなので、機械タグ"弾薬スキル"を持つこと(P2)。P10で物理/術は1エントリ
-/// (parts2件)にまとまったので、タグは統合後のエントリ1件が持つ。
+/// 弾薬スキルなので、機械タグ"弾薬スキル"を持つこと。物理/術は1エントリ
+/// (parts2件)にまとまっているので、タグは統合後のエントリ1件が持つ。
 #[test]
 fn horn_s2_entries_are_tagged_ammo_skill() {
     let result = build_from_seeds();
@@ -498,7 +497,7 @@ fn horn_s2_entries_are_tagged_ammo_skill() {
     assert_eq!(
         s2_entries.len(),
         1,
-        "P10でホルンのS2は物理+術の1エントリ(parts2件)にまとまるはず"
+        "ホルンのS2は物理+術の1エントリ(parts2件)にまとまるはず"
     );
     for e in &s2_entries {
         assert!(
@@ -511,7 +510,7 @@ fn horn_s2_entries_are_tagged_ammo_skill() {
 }
 
 /// フィアメッタ(char_300_phenxi、nationId=laterano)のカタログエントリが
-/// 勢力タグ"ラテラーノ"を持つこと(P2。「異格エクシア」バフのラテラーノ2倍判定に使う)。
+/// 勢力タグ"ラテラーノ"を持つこと(「異格エクシア」バフのラテラーノ2倍判定に使う)。
 #[test]
 fn fiammetta_has_laterano_faction_tag() {
     let result = build_from_seeds();
@@ -535,7 +534,7 @@ fn fiammetta_has_laterano_faction_tag() {
     }
 }
 
-/// P3: 濁心スカジの鼓舞ソースがカタログに載り、スキル比率・素質パーツが期待通りであること。
+/// 濁心スカジの鼓舞ソースがカタログに載り、スキル比率・素質パーツが期待通りであること。
 #[test]
 fn skadi2_inspire_source_has_expected_skills_and_self_parts() {
     let result = build_from_seeds();
@@ -604,7 +603,7 @@ fn every_inspire_source_points_to_existing_operator_skill_and_modules() {
     );
 }
 
-/// P4: buffers.yamlのconditional(source付き)が実データ(operator_combat/operator_data/
+/// buffers.yamlのconditional(source付き)が実データ(operator_combat/operator_data/
 /// skill_data)と整合していることのドリフト検知。ゲームデータ更新でオペレーターID・
 /// talentIndex・skill_num・キー名が変わった場合、このテストが不一致キーを列挙して落ちる。
 #[test]
@@ -620,7 +619,7 @@ fn every_conditional_source_points_to_existing_operator_talent_or_skill() {
     );
 }
 
-/// P5: buffers.yamlのindividual(source付き)が実データ(operator_combat/operator_data/
+/// buffers.yamlのindividual(source付き)が実データ(operator_combat/operator_data/
 /// skill_data)と整合していることのドリフト検知。ゲームデータ更新でオペレーターID・
 /// talentIndex・skill_num・skill_id・キー名が変わった場合、このテストが不一致キーを
 /// 列挙して落ちる。
@@ -637,7 +636,7 @@ fn every_individual_source_points_to_existing_operator_talent_or_skill() {
     );
 }
 
-/// P5: オーナー確認済みの実データ値と一致すること。ゲームデータ更新で
+/// オーナー確認済みの実データ値と一致すること。ゲームデータ更新で
 /// 数値が変わった場合はここを見直す(デフォルト値は「最大成長」設定。非デフォルトの
 /// 値もいくつか併せて検証する)。
 #[test]
@@ -799,7 +798,7 @@ fn individual_source_default_and_selected_values_match_verified_gamedata() {
     assert_eq!(max_targets.count, 2);
 }
 
-/// P4: オーナー確認済みの実データ値と一致すること。ゲームデータ更新で
+/// オーナー確認済みの実データ値と一致すること。ゲームデータ更新で
 /// 数値が変わった場合はここを見直す。
 #[test]
 fn conditional_source_default_values_match_verified_gamedata() {
@@ -881,10 +880,9 @@ fn conditional_source_default_values_match_verified_gamedata() {
         "pepeはモジュールを装備しても値が変わらないのでmodules軸が空のはず"
     );
 
-    // P9: ホルン(異格。char_4039_horn)素質「軍事要塞」。E1(.10/潜在3で.13)/
+    // ホルン(異格。char_4039_horn)素質「軍事要塞」。E1(.10/潜在3で.13)/
     // E2(.20/潜在3で.23)、モジュールX(uniequip_002_horn)Lv2(.25/潜在3で.28)/
-    // Lv3(.28/潜在3で.31)。デフォルト(最大成長)は.31(旧overrides.yamlの固定
-    // self_atk_pctと一致する)。
+    // Lv3(.28/潜在3で.31)。デフォルト(最大成長)は.31。
     let horn = find("horn");
     assert!(
         approx_eq(horn.value, 0.31),
@@ -978,7 +976,7 @@ fn conditional_source_default_values_match_verified_gamedata() {
     // 存在と基本値.13だけを確認する(.13×2=.26になることはJS側のverify.mjsで検証する)。
 }
 
-/// P7: Ashの300/400/800%は`multiplier_key`でスキルLv別に追従すること
+/// Ashの300/400/800%は`multiplier_key`でスキルLv別に追従すること
 /// (SLv1[index0]〜特化3[index9]、L1/L10の実データ値を確認する)。
 #[test]
 fn ash_s3_multiplier_follows_skill_level_via_multiplier_key() {
@@ -1042,12 +1040,11 @@ fn ash_s3_multiplier_follows_skill_level_via_multiplier_key() {
     );
 }
 
-/// P7: ホルンS2の物理/術パーツは`multiplier_key`でスキルLv別に追従する。P9: 固定
-/// self_atk_pct(0.31)はconditionalバフ「horn」(素質「軍事要塞」)へ移設したため、
-/// self_atk_pctはAuto=0になる(ホルンS2のskill_table.jsonのblackboardに"atk"キーが
-/// 無いため。実データ確認済み)。旧0.31相当は
+/// ホルンS2の物理/術パーツは`multiplier_key`でスキルLv別に追従する。self_atk_pctは
+/// conditionalバフ「horn」(素質「軍事要塞」)側で扱うのでAuto=0になる(ホルンS2の
+/// skill_table.jsonのblackboardに"atk"キーが無いため。実データ確認済み)。.31相当は
 /// `conditional_source_default_values_match_verified_gamedata`の`horn`バフで検証する。
-/// P10: 物理/術は1エントリ・parts2件にまとまり、トップレベル(=パーツ0)は物理の値を持つ。
+/// 物理/術は1エントリ・parts2件にまとまり、トップレベル(=パーツ0)は物理の値を持つ。
 #[test]
 fn horn_s2_multiplier_follows_skill_level_and_self_atk_pct_is_auto_zero() {
     let result = build_from_seeds();
@@ -1073,7 +1070,7 @@ fn horn_s2_multiplier_follows_skill_level_and_self_atk_pct_is_auto_zero() {
     assert_eq!(
         s2.self_atk_pct.source,
         dto::ValueSource::Auto,
-        "self_atk_pctのoverrideは撤去済み(P9でバフ側へ移設)のはずAuto"
+        "self_atk_pctはoverrideでなくバフ側で扱うのでAutoのはず"
     );
     assert_eq!(s2.self_atk_pct.value, 0.0);
     assert!(
@@ -1102,7 +1099,7 @@ fn horn_s2_multiplier_follows_skill_level_and_self_atk_pct_is_auto_zero() {
     assert_eq!(arts.damage_type.value, dto::DamageType::Arts);
 }
 
-/// P10: overrides.yamlの`combined`(P10)が正しく使われていることのドリフト検知。
+/// overrides.yamlの`combined`が正しく使われていることのドリフト検知。
 #[test]
 fn every_combined_variant_group_is_consistent() {
     let bad = validate_combined_variants(Overrides::global());
@@ -1113,7 +1110,7 @@ fn every_combined_variant_group_is_consistent() {
     );
 }
 
-/// P7: ブレイズS3のself_atk_pct_factor(0.89)がAutoのスキルレベル別セルフ%(atk)に
+/// ブレイズS3のself_atk_pct_factor(0.89)がAutoのスキルレベル別セルフ%(atk)に
 /// 掛かり、SLv7(L7)=0.534・特化3(L10)=0.712になること(浮動小数ドリフトは
 /// round4で吸収する)。
 #[test]
@@ -1149,7 +1146,7 @@ fn blaze_s3_self_atk_pct_factor_follows_skill_level() {
     );
 }
 
-/// P7: ファイヤーウォッチS2はAuto(override無し)のままだが、blackboardのatk_scaleが
+/// ファイヤーウォッチS2はAuto(override無し)のままだが、blackboardのatk_scaleが
 /// スキルLv別(SLv1=1.8〜特化3=3.0)に追従すること。
 #[test]
 fn fw_s2_multiplier_by_level_is_auto_and_follows_skill_level() {
@@ -1170,8 +1167,8 @@ fn fw_s2_multiplier_by_level_is_auto_and_follows_skill_level() {
     assert_eq!(s2.multiplier_by_level.last().copied(), Some(3.0), "特化3");
 }
 
-/// P7: 濁心スカジの鼓舞ソースはratio_keyでスキルLv別に追従し、特化3(L10)の値が
-/// P3時点の実測値(S2=0.6/S3=1.1)と一致すること(後方互換のratioフィールド)。
+/// 濁心スカジの鼓舞ソースはratio_keyでスキルLv別に追従し、特化3(L10)の値が
+/// 実測値(S2=0.6/S3=1.1。後方互換のratioフィールド)と一致すること。
 #[test]
 fn skadi2_inspire_ratio_follows_skill_level() {
     let result = build_from_seeds();
@@ -1194,7 +1191,7 @@ fn skadi2_inspire_ratio_follows_skill_level() {
     assert_eq!(s3.ratio, 1.1);
 }
 
-/// P7: overrides.yamlの`multiplier_key`/`self_atk_pct_factor`が実データ(blackboard)と
+/// overrides.yamlの`multiplier_key`/`self_atk_pct_factor`が実データ(blackboard)と
 /// 整合していることのドリフト検知。ゲームデータ更新でキー名が変わった場合、
 /// このテストが不一致キーを列挙して落ちる。
 #[test]

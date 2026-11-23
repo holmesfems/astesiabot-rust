@@ -20,8 +20,8 @@
 //!   - `label`: バリアントの表示名(例: "300%"、"物理")
 //!   - `multiplier`: スキル倍率(固定値。スキルLvに関わらず同じ値を使う)
 //!   - `multiplier_key`: スキルLv別に倍率を追従させたい場合、固定`multiplier`の代わりに
-//!     こちらを使う(そのスキルのblackboardキー名。値そのものはスキルLv別に機械抽出する。
-//!     P7で追加)。`multiplier`と同時指定は不可(`validate_override_level_fields`が検証)。
+//!     こちらを使う(そのスキルのblackboardキー名。値そのものはスキルLv別に機械抽出する)。
+//!     `multiplier`と同時指定は不可(`validate_override_level_fields`が検証)。
 //!     例: Ash S3の"400%"バリアントは`multiplier_key: not_hitwall_scale`
 //!     (L1=3.0〜L10=4.0)、Horn S2の"物理"バリアントは
 //!     `multiplier_key: attack@s2.atk_scale`(L1=1.3〜L10=2.4)。
@@ -29,20 +29,20 @@
 //!     例: Hornの0.31は素質由来でスキルLvに追従しないため固定のまま[将来バフへ
 //!     移設予定])
 //!   - `self_atk_pct_factor`: Autoのスキルレベル別セルフ%("atk"キー)にこの係数を掛けた値を
-//!     採用する(P7で追加)。`self_atk_pct`と同時指定は不可。各レベルの値は小数第4位に
+//!     採用する。`self_atk_pct`と同時指定は不可。各レベルの値は小数第4位に
 //!     丸める(浮動小数のドリフト対策)。例: ブレイズS3は`self_atk_pct_factor: 0.89`
 //!     (Autoの"atk"[L1=.30〜L10=.80]に掛けてL10=0.712・L7=0.534)
 //!   - `hits`: Hit数
 //!   - `damage_type`: "physical" | "arts" | "true"
 //!     (YAMLで`true`を無引用で書くとbool扱いになるため、bool trueも`true`属性として
 //!     受け付ける。文字列で書く場合は`"true"`と引用符を付けること)
-//!   - `tags`: 追加のタグ(機械判定のタグに加算する。省略時は追加無し)。P2で追加。
+//!   - `tags`: 追加のタグ(機械判定のタグに加算する。省略時は追加無し)。
 //!     `engine::fk_kill_calc::tags::tag_vocabulary()`に無い名前は
 //!     `validate_overrides`系のドリフト検知(`buffers.rs`)で弾かれる想定。
-//!   - `special`: 「特殊強化」トグル(P2で追加)。省略可能。無いスキルはUIにチェックボックスを
+//!   - `special`: 「特殊強化」トグル。省略可能。無いスキルはUIにチェックボックスを
 //!     出さない。`label`以外は全フィールド省略可能で、以下の効果を持てる:
 //!       - `label`: チェックボックス/ヒントの表示名(必須)
-//!       - `description`: ⓘボタンで開く説明文(条件+効果を短く。P2 follow-upで追加。
+//!       - `description`: ⓘボタンで開く説明文(条件+効果を短く。
 //!         フロントが末尾に「現在: +N%」/「現在: ×N」を動的に付け足す)
 //!       - **加算系**(`requires_module` + `add_self_atk_pct_by_module_level`): モジュール依存の
 //!         特殊強化。`requires_module`(uniEquipId)を指定したモジュールを装備している時だけ、
@@ -53,11 +53,10 @@
 //!         スナップショットしない＝モジュールを変えれば即座に反映される)。モジュール未装備/
 //!         条件を満たさない時はUIがチェックボックスの代わりにヒントを出す。
 //!         例: ブレイズS3「待機ボーナス」はモジュールX(`uniequip_002_huang`)Lv1=0/Lv2=0.04/Lv3=0.06
-//!       - **乗算系**(`mul_multiplier`。P2 follow-up 2回目で追加。P8 follow-upで固定値
-//!         (`base`+`module`+`by_module_level`)から素質値テーブル参照へ置き換えた):
+//!       - **乗算系**(`mul_multiplier`。素質値テーブル参照):
 //!         `talent`(`RawOperatorCombat.talents`のインデックス。0始まり) + `key`
 //!         (そのtalentのblackboardキー名。例: "atk_scale")を指定する。値の解決は
-//!         `conditional_source::build_talent_source`(P4の条件付きバフ`source.talent`と
+//!         `conditional_source::build_talent_source`(条件付きバフの`source.talent`と
 //!         全く同じビルダーを再利用。昇進×潜在 + モジュールLv×潜在の値テーブルを機械抽出する)
 //!         に委ね、`Special.mul_multiplier`に`dto::ConditionalTalentSource`として持たせる。
 //!         行の`multiplier`(スキル倍率)に**乗算**する係数は、固定値ではなく**行自身の
@@ -71,7 +70,7 @@
 //!         モジュールY(`uniequip_002_milu`)Lv1=E2基礎値のまま(素質強化が付かない)/
 //!         Lv2=1.45,1.5/Lv3=1.5,1.55(潜在1〜4/5〜6)。E0は素質自体が未解放(値0→factor 1)。
 //!   - `note`: 補足コメント(フロント表示用)
-//!   - `combined`: 省略時false(P10)。同じskill_num内で`combined: true`のバリアントは
+//!   - `combined`: 省略時false。同じskill_num内で`combined: true`のバリアントは
 //!     個別に選ぶ選択肢ではなく「同時に発生する複数のダメージパーツ」として1つのFkEntryに
 //!     まとめる(例: ホルンS2の物理+術)。先頭バリアントがパーツ0(FkEntryのトップレベル
 //!     multiplier/hits/damage_type等はこのパーツの値)になり、self_atk_pct/special/tags/note
@@ -84,15 +83,9 @@
 //! スプレッドシートを出典とする手動補正である。ゲームデータ更新で機械側の値が
 //! 変わった場合はこのファイルも見直すこと。
 //!
-//! (P2 follow-up時点のメモ: 旧来の置き換え系フィールド`multiplier`/`self_atk_pct`/
-//! `dmg_mult`/`hits`はFW/Weedyの実データ精査の結果どちらも不要と判明したため
-//! `OverrideSpecial`から削除した。将来また置き換え系が要る特殊強化が出てきたら
-//! 素直に生やせばよい。)
-//!
-//! (P8 follow-upのメモ: `mul_multiplier`は当初`base`+`module`+`by_module_level`の
-//! 固定値だったが、FWの「遠距離特効」が実は素質「暗殺者」の値そのもの(行の昇進/潜在で
-//! 変わる)だったため、固定値では行の潜在設定を無視してしまう不具合があった。
-//! `{ talent, key }`(素質値テーブル参照)へ置き換えて解消した。)
+//! `mul_multiplier`を固定値にしないのは、FWの「遠距離特効」が素質「暗殺者」の値そのもの
+//! (行の昇進/潜在で変わる)で、固定値では行の潜在設定を無視してしまうため。
+//! `{ talent, key }`(素質値テーブル参照)で持つ。
 
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -100,8 +93,7 @@ use std::sync::OnceLock;
 
 use super::dto::DamageType;
 
-/// 特殊強化の乗算系(P2 follow-up。`mul_multiplier`)。P8 follow-upで固定値
-/// (`base`/`module`/`by_module_level`)から素質値テーブル参照へ置き換えた。
+/// 特殊強化の乗算系(`mul_multiplier`。素質値テーブル参照)。
 /// フィールドの意味はファイル冒頭コメント参照。
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 pub struct OverrideMulMultiplier {
@@ -125,7 +117,7 @@ pub struct OverrideStoneBoard {
     pub max_stacks_key: String,
 }
 
-/// 「特殊強化」トグル1件分(P2)。`label`以外は全て省略可能。
+/// 「特殊強化」トグル1件分。`label`以外は全て省略可能。
 /// フィールドの意味の詳細はファイル冒頭コメント参照。
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 pub struct OverrideSpecial {
@@ -135,13 +127,13 @@ pub struct OverrideSpecial {
     pub requires_module: Option<String>,
     /// 加算系の値(モジュールLv1〜3ごとのセルフ%への加算値。要素数3必須)。
     pub add_self_atk_pct_by_module_level: Option<[f64; 3]>,
-    /// 乗算系(P2 follow-up 2回目で追加。P8 follow-upで素質値テーブル参照へ置き換え)。
+    /// 乗算系(素質値テーブル参照)。
     pub mul_multiplier: Option<OverrideMulMultiplier>,
 }
 
 /// overrides.yaml 1バリアント分。`label`〜`note`は全フィールド省略可能。
 ///
-/// P7(スキルLv対応)で追加した`multiplier_key`/`self_atk_pct_factor`は、固定値の
+/// スキルLv対応の`multiplier_key`/`self_atk_pct_factor`は、固定値の
 /// `multiplier`/`self_atk_pct`とそれぞれ排他(`build_catalog`側でも両立しない設計だが、
 /// 実データの誤りとして`cargo test`のドリフト検知[`validate_override_level_fields`]が
 /// 検出する)。詳細はファイル冒頭コメント参照。
@@ -150,10 +142,10 @@ pub struct OverrideVariant {
     pub label: Option<String>,
     pub multiplier: Option<f64>,
     /// スキルLv別に倍率を追従させたい場合、固定`multiplier`の代わりにこのキー名
-    /// (そのスキルのblackboardキー)を指定する(P7)。`multiplier`と同時指定は不可。
+    /// (そのスキルのblackboardキー)を指定する。`multiplier`と同時指定は不可。
     pub multiplier_key: Option<String>,
     pub self_atk_pct: Option<f64>,
-    /// Autoのスキルレベル別セルフ%("atk"キー)にこの係数を掛けた値を採用する(P7)。
+    /// Autoのスキルレベル別セルフ%("atk"キー)にこの係数を掛けた値を採用する。
     /// 各レベルの値は小数第4位に丸める(浮動小数のドリフト対策)。`self_atk_pct`と
     /// 同時指定は不可。
     pub self_atk_pct_factor: Option<f64>,
@@ -171,7 +163,7 @@ pub struct OverrideVariant {
     pub default_module: Option<String>,
     pub note: Option<String>,
     /// 同じskill_num内でtrueのバリアントを「同時発生する複数パーツ」として1つのFkEntryに
-    /// まとめる(P10)。省略時false。詳細はファイル冒頭コメント参照。
+    /// まとめる。省略時false。詳細はファイル冒頭コメント参照。
     #[serde(default)]
     pub combined: bool,
 }

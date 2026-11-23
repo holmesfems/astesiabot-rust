@@ -27,7 +27,7 @@ pub struct SkillItem {
     /// `description`の文字列組み立てとは独立に持つ。`IndexMap`はJSON上の元の並び順を
     /// 保持するため（挿入順保持が必要な他ソースとの一貫性。厳密な順序依存は今のところ無い）。
     pub blackboard: IndexMap<String, f64>,
-    /// レベル1〜(データに存在する数だけ)のblackboard一覧（P4で追加。フレームキル計算機の
+    /// レベル1〜(データに存在する数だけ)のblackboard一覧（フレームキル計算機の
     /// 「条件付きバフ」がスキルLv/特化段階から値を機械抽出するために使う。`blackboard`
     /// (最大レベルのみ)とは独立に持つ。既存の`get_blackboard`のAPIは変えない）。
     #[serde(default)]
@@ -38,7 +38,7 @@ pub struct SkillItem {
     pub is_ammo_skill: bool,
 }
 
-/// スキルID→名前/説明文（旧`SkillNames`を統合）。
+/// スキルID→名前/説明文。
 #[derive(Serialize, Deserialize, Default)]
 pub struct SkillData {
     id_to_item: HashMap<String, SkillItem>,
@@ -67,7 +67,7 @@ impl SkillData {
     }
 
     /// idからレベル1〜(データに存在する数だけ)のblackboard一覧を解決する。無ければ`None`。
-    /// P4: フレームキル計算機の「条件付きバフ」がスキルLv/特化段階から値を機械抽出するために使う。
+    /// フレームキル計算機の「条件付きバフ」がスキルLv/特化段階から値を機械抽出するために使う。
     pub fn get_blackboard_by_level(&self, id: &str) -> Option<&Vec<IndexMap<String, f64>>> {
         self.id_to_item
             .get(id)
@@ -129,7 +129,7 @@ async fn fetch_impl() -> Result<SkillData, FetchError> {
                 .filter_map(|item| item.value.map(|v| (item.key.clone(), v)))
                 .collect();
             let is_ammo_skill = level.duration_type == "AMMO";
-            // P4: レベル1〜(データに存在する数だけ)のblackboardも保持する。1レベルでも
+            // レベル1〜(データに存在する数だけ)のblackboardも保持する。1レベルでも
             // deserialize/構造が壊れているものは黙って空blackboardのまま積む
             // （name/description解決自体は最大レベルのみに依存するため、ここで丸ごと
             // スキップして`id_to_item`への挿入自体を諦める必要は無い）。

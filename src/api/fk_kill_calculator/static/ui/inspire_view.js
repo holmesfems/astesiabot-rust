@@ -24,7 +24,7 @@ import {
   state,
 } from "./store.js";
 
-/* ---------------- 描画: 鼓舞(インスパイア)ソース(P3) ---------------- */
+/* ---------------- 描画: 鼓舞(インスパイア)ソース ---------------- */
 
 // entry.tagsと同様、source.modulesから種別名("X"等)を引く(見つからなければ"?")。
 function moduleTypeNameForSource(source, moduleId) {
@@ -33,11 +33,11 @@ function moduleTypeNameForSource(source, moduleId) {
 }
 
 // self_partsのうち常時ONでないもの(トグル可能/モジュール条件付き)を並べる。
-// requiresModuleを持つが現在のモジュール選択と一致しない間はP2の特殊強化ヒントと
+// requiresModuleを持つが現在のモジュール選択と一致しない間は特殊強化のヒントと
 // 同じ考え方でヒント文に切り替える(チェックボックスを隠す)。
 function renderInspireSelfPartsControls(source, cfg) {
   const parts = source.selfParts || [];
-  // P6: モジュール条件は`effectiveModuleId`(elite/level込みの装備可否)経由で判定する
+  // モジュール条件は`effectiveModuleId`(elite/level込みの装備可否)経由で判定する
   // (computeInspireSelfPartsと同じ判定を使う。未装備/装備不可の間はヒント側に回る)。
   const moduleId = effectiveModuleId(source, cfg);
   let html = "";
@@ -99,7 +99,7 @@ export function renderInspireResultBlock(source, cfg, result) {
 }
 
 // 鼓舞ソース1件分のカード。OFFの間はトグルチップだけ。ONになると
-// スキル/潜在(P8。旧攻撃凸+素質凸を統合)/モジュール/自己%パーツ/個別バフ/手入力バフ
+// スキル/潜在/モジュール/自己%パーツ/個別バフ/手入力バフ
 // +結果行を表示する。
 export function renderInspireSourceCard(source, singleConflicts) {
   const cfg = sourceCfg(source);
@@ -115,7 +115,7 @@ export function renderInspireSourceCard(source, singleConflicts) {
       return `<option value="${escapeHtml(s.skillNum)}"${s.skillNum === cfg.skillNum ? " selected" : ""}>${escapeHtml(label)}</option>`;
     })
     .join("");
-  // P7: 現在選択中のスキルのratioByLevelの長さでスキルLvの選択肢数を決める。
+  // 現在選択中のスキルのratioByLevelの長さでスキルLvの選択肢数を決める。
   const currentSkill = source.skills.find((s) => s.skillNum === cfg.skillNum) || source.skills[0];
   const skillLevelN = (currentSkill && currentSkill.ratioByLevel && currentSkill.ratioByLevel.length) || 10;
 

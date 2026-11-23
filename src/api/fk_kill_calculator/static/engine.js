@@ -10,16 +10,16 @@
 
    全体の流れ（1行=1オペレーターのFK指定）:
      atk    = atkBase + (potential ? atkPotential : 0) + (module ? module.atkByLevel[lv-1] : 0)
-     pct    = selfPct + buffPct + extraPct + specialAddPct （加算。extraPctはP2で追加した
+     pct    = selfPct + buffPct + extraPct + specialAddPct （加算。extraPctは
               個別バフ(row.buffIds)+条件付きバフ(state.globalBuffIds)のΣ、
-              specialAddPctはP2 follow-upで追加した特殊強化(加算系)のΣ。
+              specialAddPctは特殊強化(加算系)のΣ。
               `computeBuffBreakdown`/`resolveSpecialAddPct`が計算し、
               `computeTotal`経由で流し込む）
      final  = ((atk + buffFlat) × (1 + pct) + inspireFlat) × multiplier × specialMulFactor
               （buffFlat=手入力の基礎攻撃力加算。%バフの前に足す。行自身のダメージにだけ効き、
               鼓舞ソースのATKには乗らない）
-              （inspireFlatはP1では常に0。P2でflat種のバフ(Σ鼓舞)をここに足す。
-              specialMulFactorはP2 follow-upで追加した特殊強化(乗算系)の係数。
+              （inspireFlatはflat種のバフ(Σ鼓舞)の合計。
+              specialMulFactorは特殊強化(乗算系)の係数。
               無ければ1＝影響なし。`resolveSpecialMultiplierFactor`が計算する）
      defEff = max(def × (1 − defPct) − defFlat − ignoreDef, 0)
      resEff = clamp(res − resFlat, 0, 100)
@@ -29,21 +29,21 @@
      rowDamage = perHit × dmgMult × (1 + vulnPct) × hits
      total = Σ rowDamage; killed = total >= hp
 
-   P2で追加したバフの適用ルール（`computeBuffBreakdown`）:
+   バフの適用ルール（`computeBuffBreakdown`）:
      - 個別バフ(catalog.buffers中`scope.type==="individual"`): row.buffIdsに
        含まれるものを無条件に合算する(タグ判定なし。行ごとにユーザーが選ぶため)。
      - 条件付きバフ(`scope.type==="conditional"`): state.globalBuffIdsでON中の
        ものだけ対象。`scope.targetTags`とエントリの`entry.tags`が1つでも
        重なれば適用。基本値は`b.value`(固定)または`resolveConditionalValue(b, levels)`
-       (P4。`b.source`付きバフはゲームデータから機械抽出した値を選択中の昇進/潜在/
+       (`b.source`付きバフはゲームデータから機械抽出した値を選択中の昇進/潜在/
        モジュール/スキルLvで解決する。詳細は同関数のコメント参照)。`bonus`(省略可)が
        ある場合、`bonus.targetTags`とも重なっていれば基本値の代わりに
-       `bonus.value`(固定)または`基本値×bonus.mult`(P4)を採用する(置き換え。加算ではない。
+       `bonus.value`(固定)または`基本値×bonus.mult`を採用する(置き換え。加算ではない。
        例: 異格エクシアは弾薬スキル+13%だが、ラテラーノ勢は基本値の2倍(26%)に置き換わる)。
      - どちらも`kind`(pct/flat)ごとに合算し、pct分はextraPctへ、flat分は
        extraFlatへ(inspireFlatとして)反映する。
 
-   P4で追加した「条件付きバフの動的値解決」(`resolveConditionalValue`)。
+   「条件付きバフの動的値解決」(`resolveConditionalValue`)。
    `b.source`(素質由来 or スキルLv由来)を持つ条件付きバフは、固定`b.value`の代わりに
    `state.globalBuffLevels[b.id]`(昇進/潜在/モジュール/モジュールLv/スキルLv/トグルON)の
    選択に応じて値を都度計算する。素質由来はモジュール選択があれば`source.talent.modules`
@@ -54,17 +54,16 @@
    (`engine::fk_kill_calc::conditional_source`)が事前に解決済みなので、JS側は
    テーブル引きと軸のフォールバック(未選択時は`source.defaults`)だけを行う。
 
-   P2 follow-upで追加した「特殊強化」の2系統(`entry.special`。詳細は各関数のコメント参照)。
-   どちらも`row.specialOn`が有効かつモジュール条件を満たす時だけ効く。置き換え系
-   (旧仕様。行フィールドをスナップショットで上書き)はFW/Weedy実データ精査の結果
-   不要と判明したため撤去済み(`resolveEntryValues`はもうentry.specialを見ない):
+   「特殊強化」の2系統(`entry.special`。詳細は各関数のコメント参照)。
+   どちらも`row.specialOn`が有効かつモジュール条件を満たす時だけ効く。行フィールドを
+   上書きする置き換え系は無い(`resolveEntryValues`はentry.specialを見ない):
      - 加算系(`requires_module`+`addSelfAtkPctByModuleLevel`): セルフ%に加算
        (`resolveSpecialAddPct`)。例: ブレイズ/ウィーディ
      - 乗算系(`mulMultiplier`): `multiplier`に乗算する係数(`resolveSpecialMultiplierFactor`)。
        モジュール未装備でも`mulMultiplier.base`が常に効く(「常に適用可能」＝UIは
        チェックボックスを隠さない)。例: ファイヤーウォッチ
 
-   P3で追加した「鼓舞(インスパイア)」(`catalog.inspireSources`。詳細は各関数のコメント参照)。
+   「鼓舞(インスパイア)」(`catalog.inspireSources`。詳細は各関数のコメント参照)。
    鼓舞ソース(現時点では濁心スカジのみ。FKする側ではなく味方に鼓舞を撒く側)は
    fk_dataシートに載らないため、行(row)とは別に`state.inspire.sources[id]`で
    独立に設定を持つ。行との対応関係:
@@ -78,8 +77,8 @@
      - 鼓舞ソース自身の行(`row.opId === source.operatorId`)には、そのソース自身の
        鼓舞は乗らない(自分で自分を鼓舞しない。他ソースがあれば対象になり得る)。
 
-   P7で追加した「スキルLv」(`row.skillLevel`/鼓舞ソースの`cfg.skillLevel`。1〜10。
-   SLv1〜7+特化1〜3。既定10=特化3で旧デフォルトと完全互換)。カタログ側は
+   「スキルLv」(`row.skillLevel`/鼓舞ソースの`cfg.skillLevel`。1〜10。
+   SLv1〜7+特化1〜3。既定10=特化3)。カタログ側は
    `FkEntry.multiplierByLevel`/`selfAtkPctByLevel`/`multiplierCandidates[].valuesByLevel`
    （倍率候補）、鼓舞ソースの`skills[].ratioByLevel`としてスキルLv別の配列を持つ
    （`valueAtLevel`/`resolveMultiplierAtLevel`/`resolveSelfAtkPctAtLevel`/
@@ -90,7 +89,7 @@
    「E0はSLv4まで、E1はSLv7まで、特化1〜3は昇進2が必要」というゲーム側の一般ルールを
    判定する(既存のskillUnlockWarningと同じく、警告を出しても計算自体は続行する)。
 
-   P10で追加した「混合スキル」(`entry.parts`。例: ホルンS2の物理+術)。1回の攻撃で
+   「混合スキル」(`entry.parts`。例: ホルンS2の物理+術)。1回の攻撃で
    複数系統のダメージパーツを同時に与えるスキルは、育成・バフ設定(昇進/潜在/モジュール/
    スキルLv/セルフ%/手入力バフ/防御無視/Hit数/個別バフ/条件付きバフ/特殊強化/鼓舞)を1つだけ
    共有し、パーツごとに違うのは倍率/ダメージ種別/ダメージ倍率だけにする(Hit数は1回の攻撃で

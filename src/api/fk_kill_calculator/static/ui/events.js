@@ -58,14 +58,14 @@ function onOperatorNameChange(idx, name) {
     return;
   }
   state.rows[idx] = makeDefaultRow(op, 0);
-  // P9: このオペレーターをsource.operatorIdに持つ条件付きバフ(例: ホルンの「軍事要塞」)を
+  // このオペレーターをsource.operatorIdに持つ条件付きバフ(例: ホルンの「軍事要塞」)を
   // 一度だけ自動でONにする(以後はユーザー操作でOFFにでき、行の他フィールド変更では
   // 再ONにならない。呼び出しタイミングをここ[opId確定時]だけに絞ることで実現している)。
   state.globalBuffIds = autoEnableSourcedBuffs(catalog, state.globalBuffIds || [], op.id);
   render();
 }
 
-// P10(混合スキル): data-part(1以上)ならrow.extraParts[part-1]、それ以外(未指定/0)なら
+// 混合スキル: data-part(1以上)ならrow.extraParts[part-1]、それ以外(未指定/0)なら
 // row自身を対象にする共通ヘルパー。multiplier/dmgMultだけがdata-partを
 // 持ちうる(selfPct/buffPct/ignoreDef等は元々data-part無しの入力なので、このヘルパーを
 // 通しても常にrow自身が返る)。
@@ -92,7 +92,7 @@ function onRowFieldChange(el) {
     const newIdx = Number(el.value);
     const entry = op ? findEntry(op, newIdx) : null;
     row.entryIdx = newIdx;
-    // P7: FK対象を選び直しても、選んでいたスキルLvはそのまま保つ(育成状況はスキル間で
+    // FK対象を選び直しても、選んでいたスキルLvはそのまま保つ(育成状況はスキル間で
     // 揃っていることが多いため)。Lv数の少ないスキルでは値の解決時にクランプされる。
     if (entry) {
       const values = resolveEntryValues(entry, row.skillLevel);
@@ -102,13 +102,13 @@ function onRowFieldChange(el) {
       row.dmgType = values.dmgType;
       row.dmgMult = values.dmgMult;
     }
-    // P10(混合スキル): パーツ1以降も新しいentryのカタログ既定値へ作り直す。
+    // 混合スキル: パーツ1以降も新しいentryのカタログ既定値へ作り直す。
     row.extraParts = makeDefaultExtraParts(entry, row.skillLevel);
     render();
     return;
   }
   if (field === "skillLevel") {
-    // P7: スキルLvを変えたら、その時点のカタログ既定値(倍率/セルフ%)へ行フィールドを
+    // スキルLvを変えたら、その時点のカタログ既定値(倍率/セルフ%)へ行フィールドを
     // 再スナップする(entryIdx変更と同じ扱い。ユーザーはそこから更に手動で上書きできる)。
     const op = findOperator(catalog, row.opId);
     const entry = op ? findEntry(op, row.entryIdx) : null;
@@ -121,13 +121,13 @@ function onRowFieldChange(el) {
       row.dmgType = values.dmgType;
       row.dmgMult = values.dmgMult;
     }
-    // P10(混合スキル): パーツ1以降もこの時点のカタログ既定値へ再スナップする。
+    // 混合スキル: パーツ1以降もこの時点のカタログ既定値へ再スナップする。
     row.extraParts = makeDefaultExtraParts(entry, row.skillLevel);
     render();
     return;
   }
   if (field === "specialOn") {
-    // P2 follow-upで置き換え系の特殊強化を撤去したため、ONにしても行フィールドの
+    // 特殊強化は置き換え系を持たないので、ONにしても行フィールドの
     // 再スナップは不要(加算系/乗算系はcomputeTotal側で都度計算される)。
     row.specialOn = el.checked;
     render();
@@ -144,7 +144,7 @@ function onRowFieldChange(el) {
     return;
   }
   if (field === "potential") {
-    // P8: 潜在セレクト(0〜5の数値。旧「攻撃凸」チェックボックスの後継)。
+    // 潜在セレクト(0〜5の数値。攻撃の潜在)。
     row.potential = Number(el.value);
     render();
     return;
@@ -162,13 +162,13 @@ function onRowFieldChange(el) {
   if (field === "elite") {
     const op = findOperator(catalog, row.opId);
     row.elite = Number(el.value);
-    // P6: 昇進を変えたらレベルはその昇進の最大値へ合わせる(仕様どおり)。
+    // 昇進を変えたらレベルはその昇進の最大値へ合わせる(仕様どおり)。
     row.level = op ? maxLevelForElite(op, row.elite) : row.level;
     render();
     return;
   }
   if (field === "dmgType") {
-    // P10(混合スキル): data-partが付いていればそのパーツ(row.extraParts[part-1])を、
+    // 混合スキル: data-partが付いていればそのパーツ(row.extraParts[part-1])を、
     // 無ければ従来通りrow自身(=パーツ0)を更新する。
     partTarget(row, el).dmgType = el.value;
     render();
@@ -187,7 +187,7 @@ function onResetField(idx, field, partIndex = 0) {
   const row = state.rows[idx];
   const op = findOperator(catalog, row.opId);
   const entry = op ? findEntry(op, row.entryIdx) : null;
-  // P10(混合スキル): partIndexが1以上ならentry.parts[partIndex]基準の既定値を
+  // 混合スキル: partIndexが1以上ならentry.parts[partIndex]基準の既定値を
   // row.extraParts[partIndex-1]へ書き戻す。
   if (partIndex > 0) {
     const part = entry && entry.parts && entry.parts[partIndex];
@@ -251,7 +251,7 @@ function toggleGlobalBuff(buffId) {
   render();
 }
 
-// P4: `source`付き条件付きバフの軸選択(昇進/潜在/モジュール/モジュールLv/スキルLv/トグル)。
+// `source`付き条件付きバフの軸選択(昇進/潜在/モジュール/モジュールLv/スキルLv/トグル)。
 // 全てselect/checkboxなので常にrenderで確定させる(onInspireFieldChangeと同じ方針)。
 function onGlobalBuffLevelChange(el) {
   const buffId = el.dataset.buffId;
@@ -269,7 +269,7 @@ function onGlobalBuffLevelChange(el) {
   render();
 }
 
-/* ---------------- イベント処理: 鼓舞ソース(P3) ---------------- */
+/* ---------------- イベント処理: 鼓舞ソース ---------------- */
 
 function toggleInspireSource(sourceId) {
   const source = (catalog.inspireSources || []).find((s) => s.id === sourceId);
@@ -308,7 +308,7 @@ function onInspireFieldChange(el) {
     return;
   }
   if (field === "skillNum") {
-    // P7: スキルを選び直しても、選んでいたスキルLvはそのまま保つ(FK行のentryIdx変更と同じ扱い)。
+    // スキルを選び直しても、選んでいたスキルLvはそのまま保つ(FK行のentryIdx変更と同じ扱い)。
     setSourceCfg(sourceId, { skillNum: el.value });
     render();
     return;
@@ -319,7 +319,7 @@ function onInspireFieldChange(el) {
     return;
   }
   if (field === "potential") {
-    // P8: 潜在セレクト(0〜5の数値。旧「攻撃凸」+「素質凸」チェックボックスの後継)。
+    // 潜在セレクト(0〜5の数値。攻撃と素質の潜在をまとめて選ぶ)。
     setSourceCfg(sourceId, { potential: Number(el.value) });
     render();
     return;
@@ -336,7 +336,7 @@ function onInspireFieldChange(el) {
   }
   if (field === "elite") {
     const elite = Number(el.value);
-    // P6: 昇進を変えたらレベルはその昇進の最大値へ合わせる(行と同じ仕様)。
+    // 昇進を変えたらレベルはその昇進の最大値へ合わせる(行と同じ仕様)。
     setSourceCfg(sourceId, { elite, level: maxLevelForElite(source, elite) });
     render();
     return;

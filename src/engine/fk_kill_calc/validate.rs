@@ -40,7 +40,7 @@ pub fn validate_inspire_sources(
                         ));
                         continue;
                     };
-                    // P7: ratio(固定)/ratio_key(スキルLv別追従)はどちらか一方が必須。
+                    // ratio(固定)/ratio_key(スキルLv別追従)はどちらか一方が必須。
                     match (sk.ratio, &sk.ratio_key) {
                         (None, None) => bad.push(format!(
                             "inspire:{} (skill_num'{}'はratioかratio_keyのどちらかが必要)",
@@ -153,7 +153,7 @@ pub fn validate_overrides(
 /// overrides.yamlの`special.requires_module`(加算系特殊強化のモジュール条件)が、
 /// そのオペレーターの実際のモジュール(operator_combatのmodules)を指しているかを検証する。
 /// 存在しない参照の一覧を返す(空ならOK)。ゲームデータ更新でuniEquipIdが変わった際の
-/// ドリフト検知用(`cargo test`で実行する。P2 follow-upで追加)。
+/// ドリフト検知用(`cargo test`で実行する)。
 pub fn validate_special_requires_module(
     overrides: &Overrides,
     combat: &OperatorCombat,
@@ -195,14 +195,14 @@ pub fn validate_special_requires_module(
     bad
 }
 
-/// overrides.yamlの`special.mul_multiplier`(乗算系。P8 follow-upで固定値から素質値
-/// テーブル参照`{ talent, key }`へ置き換えた)が、実データ(`operator_combat`のtalents)に
+/// overrides.yamlの`special.mul_multiplier`(乗算系。素質値
+/// テーブル参照`{ talent, key }`)が、実データ(`operator_combat`のtalents)に
 /// 解決できるかを検証する。`talent_index`が範囲外な参照に加え、「最大成長(E2・潜在6)でも
 /// 値が0以下」(=`key`のスペルミス等で存在しないキーを指している。存在しないキーは
 /// `resolve_talent_base`が0にフォールバックしてしまい、`build_talent_source`自体は
 /// 成功[Some]を返すため、これが無いと静かに見逃す)も不一致として検出する。
 /// 存在しない参照の一覧を返す(空ならOK)。ゲームデータ更新でtalent構成が変わった際の
-/// ドリフト検知用(`cargo test`で実行する。P8 follow-upで追加)。
+/// ドリフト検知用(`cargo test`で実行する)。
 pub fn validate_special_mul_multiplier(
     overrides: &Overrides,
     combat: &OperatorCombat,
@@ -285,7 +285,7 @@ pub fn validate_stone_board(overrides: &Overrides, combat: &OperatorCombat) -> V
     bad
 }
 
-/// overrides.yamlの`multiplier_key`/`self_atk_pct_factor`(P7)が実データと整合しているかを
+/// overrides.yamlの`multiplier_key`/`self_atk_pct_factor`が実データと整合しているかを
 /// 検証する。固定値との同時指定・存在しないキー参照の一覧を返す(空ならOK)。ゲームデータ
 /// 更新でblackboardのキー名が変わった際のドリフト検知用(`cargo test`で実行する)。
 pub fn validate_override_level_fields(
@@ -329,7 +329,7 @@ pub fn validate_override_level_fields(
     bad
 }
 
-/// overrides.yamlの`combined`(P10)が正しく使われているかを検証する:
+/// overrides.yamlの`combined`が正しく使われているかを検証する:
 ///   (a) 同じskill_num内でcombinedが一部のバリアントだけtrueになっていないこと
 ///   (b) combinedの2番目以降のバリアントがself_atk_pct/self_atk_pct_factor/special/tagsを
 ///       持たないこと(default_moduleは先頭と同値なら可)

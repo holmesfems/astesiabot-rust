@@ -3,7 +3,7 @@
 //! 推測であり、実データとズレる場合は`overrides.yaml`の`damage_type`/`tags`で個別に
 //! 上書きする想定。
 //!
-//! `TAG_VOCAB`はP2で追加した「タグの語彙」。`FkEntry.tags`に載りうる全タグ名を1箇所に
+//! `TAG_VOCAB`は「タグの語彙」。`FkEntry.tags`に載りうる全タグ名を1箇所に
 //! 集約し、`buffers.yaml`の`targets`/`bonus.tags`のドリフト検知(`buffers.rs`のテスト)が
 //! これを参照する。新しいタグ種別(勢力タグ等)を足すときはここに追加すること。
 

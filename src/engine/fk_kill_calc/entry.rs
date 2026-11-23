@@ -8,7 +8,7 @@ use crate::engine::external_source::operator_combat::RawOperatorCombat;
 use indexmap::IndexMap;
 
 /// `overrides.yaml`の`special`(手動データ)をDTO(`dto::Special`)へ変換する。
-/// `mul_multiplier`(P8 follow-upで素質値テーブル参照になった)が実データ(`op.talents`)に
+/// `mul_multiplier`(素質値テーブル参照)が実データ(`op.talents`)に
 /// 解決できない(talent_index範囲外)場合は`None`を返し、呼び出し側が`skipped`に記録する。
 pub(super) fn to_special_dto(special: &OverrideSpecial, op: &RawOperatorCombat) -> Option<Special> {
     let mul_multiplier = match &special.mul_multiplier {
@@ -84,7 +84,7 @@ pub(super) fn build_entry(
     }
 }
 
-/// P10: 同じskill_num内の`combined: true`バリアント群を1つのFkEntryにまとめる。
+/// 同じskill_num内の`combined: true`バリアント群を1つのFkEntryにまとめる。
 /// トップレベルのmultiplier/multiplier_by_level/hits/damage_type等 = 先頭バリアント
 /// (=パーツ0)。self_atk_pct/special/tags/default_module/noteも先頭バリアントのものを
 /// 使う(2番目以降がこれらを持っていないことは`validate_combined_variants`が検証する)。
@@ -199,7 +199,7 @@ pub(super) fn build_combined_entry(
 /// (`write_seed_file`がJSONキーを再帰的にソートして書き出す影響で、Seed読み込み時と
 /// 実fetch時とでIndexMapの挿入順が食い違うため。この関数の出力を常に決定的にすることで
 /// フロント側の表示順がSeed/本番のどちらでも変わらないようにする)。
-/// P7: `blackboard_by_level`の各レベルから`key`の値を取り出した配列を作る(無ければ0.0で
+/// `blackboard_by_level`の各レベルから`key`の値を取り出した配列を作る(無ければ0.0で
 /// 埋める)。`blackboard_by_level`自体が無ければ`num_levels`個(0なら1個)の0.0配列を返す
 /// (「スキルLv別データが無い＝単一値のフォールバック」を1箇所に集約する)。
 pub(super) fn values_by_level_for_key(
@@ -216,13 +216,13 @@ pub(super) fn values_by_level_for_key(
     }
 }
 
-/// 小数第4位に丸める(P7。`self_atk_pct_factor`計算時の浮動小数ドリフト対策。
+/// 小数第4位に丸める(`self_atk_pct_factor`計算時の浮動小数ドリフト対策。
 /// 例: `0.8 × 0.89`が`0.7119999999999999`のような値になっても`0.712`に正規化する)。
 pub(super) fn round4(v: f64) -> f64 {
     (v * 10000.0).round() / 10000.0
 }
 
-/// バリアントの倍率(Valued値・スキルLv別配列・固定フラグ)を解決する(P7)。
+/// バリアントの倍率(Valued値・スキルLv別配列・固定フラグ)を解決する。
 /// `multiplier`(固定)/`multiplier_key`(そのスキルのblackboardキー名でスキルLvに追従)は
 /// どちらか一方のみが指定されている前提(両方/どちらも無い場合の整合性は
 /// `validate_override_level_fields`が検証し、ここではAutoへ安全にフォールバックする)。
@@ -248,7 +248,7 @@ pub(super) fn resolve_variant_multiplier(
     )
 }
 
-/// バリアントのセルフATK%(Valued値・スキルLv別配列・固定フラグ)を解決する(P7)。
+/// バリアントのセルフATK%(Valued値・スキルLv別配列・固定フラグ)を解決する。
 /// `self_atk_pct`(固定)/`self_atk_pct_factor`(Autoのスキルレベル別セルフ%に係数を掛けて
 /// 追従させる)はどちらか一方のみが指定されている前提。
 pub(super) fn resolve_variant_self_atk_pct(
@@ -296,7 +296,7 @@ pub(super) fn resolve_multiplier_defaults(
         .collect();
     candidates.sort_by(|(a, _), (b, _)| a.cmp(b));
 
-    // P7: `candidates`をこの後mutate(先頭への並び替え)するため、chosen_keyは所有権付き
+    // `candidates`をこの後mutate(先頭への並び替え)するため、chosen_keyは所有権付き
     // (`String`)にしてcandidatesへの借用を早めに切る(借用したままmutateしようとすると
     // 借用チェッカに弾かれる)。
     let chosen_key: Option<String> = if blackboard.contains_key("atk_scale") {
@@ -323,7 +323,7 @@ pub(super) fn resolve_multiplier_defaults(
         }
     }
 
-    // P7: 選ばれたキーのスキルLv別配列がデフォルト倍率(`multiplierByLevel`)、
+    // 選ばれたキーのスキルLv別配列がデフォルト倍率(`multiplierByLevel`)、
     // 候補一覧の各キーもそれぞれスキルLv別配列を持たせる(倍率候補ドロップダウンが
     // 現在のスキルLvでの値を表示できるようにする)。
     let default_multiplier_by_level = match &chosen_key {

@@ -42,8 +42,8 @@ export function minimalIntegerSatisfying(lo, hi, predicate) {
  * 種類: 'rowBuffPct'(その行のバフ+n%、上限+300%) / 'rowHits'(その行のHit数+n、上限+3) /
  *       'enemyDefFlat'(敵の防御-n、物理行が1つでも5%floorでなければ。上限は敵の現在の防御値) /
  *       'enemyResFlat'(敵の術耐性-n、術行が1つでも5%floorでなければ。上限は敵の現在の術耐性値) /
- *       'addIndividualBuff'(P2。その行にまだ選んでいない個別バフを1つ追加する) /
- *       'toggleGlobalBuff'(P2。まだOFFの条件付きバフを1つONにする)。
+ *       'addIndividualBuff'(その行にまだ選んでいない個別バフを1つ追加する) /
+ *       'toggleGlobalBuff'(まだOFFの条件付きバフを1つONにする)。
  * 上限を超えないと撃破できない場合や、効果が無い（floor済みで伸びしろが無い等）場合は
  * その種類の提案を出さない。全種類が出せなければ`suggest()`は空配列を返す
  * （呼び出し側は「現実的な補正では届きません」のような文言を出す想定）。
@@ -53,7 +53,7 @@ export function minimalIntegerSatisfying(lo, hi, predicate) {
  */
 export function suggest(state, catalog) {
   const { rows, enemy, globalBuffIds = [] } = state;
-  // P9: FK行リンク込みの解決値を使う(`state.globalBuffLevels`を直接見ない)。
+  // FK行リンク込みの解決値を使う(`state.globalBuffLevels`を直接見ない)。
   const globalBuffLevels = computeEffectiveGlobalBuffLevels(catalog, state);
   const inspireSourceStates = (state.inspire && state.inspire.sources) || {};
   const { results, killed } = computeTotal(catalog, rows, enemy, globalBuffIds, inspireSourceStates, globalBuffLevels);
@@ -80,7 +80,7 @@ export function suggest(state, catalog) {
       suggestions.push({ kind: "rowBuffPct", rowIndex: i, amount: buffNeeded, effort: buffNeeded });
     }
 
-    // P10(混合スキル): Hit数は全パーツ共通(row.hits)なので、提案も行単位で1回だけ。
+    // 混合スキル: Hit数は全パーツ共通(row.hits)なので、提案も行単位で1回だけ。
     const hitsNeeded = minimalIntegerSatisfying(1, SUGGEST_CAP_HITS, (extraHits) =>
       killsWith(rows.map((row, j) => (j === i ? { ...row, hits: row.hits + extraHits } : row))),
     );
@@ -91,7 +91,7 @@ export function suggest(state, catalog) {
 
   // 防御/術耐性の-固定は「敵の現在値を超えて下げる提案はしない」という上限を持つ
   // （0以下にはできない探索区間にする。現在値が0ならそもそも探索しない＝提案を出さない）。
-  // P10(混合スキル): 「非floorの物理/術があるか」はパーツまで見る(entry.dmgTypeは
+  // 混合スキル: 「非floorの物理/術があるか」はパーツまで見る(entry.dmgTypeは
   // パーツ0の属性でしかないため、r.partsの各dmgType/atFloorを確認する)。
   const hasNonFloorPhysical = results.some((r) => r && r.parts.some((d) => d.dmgType === "physical" && !d.atFloor));
   const defCap = Math.floor(enemy.def);
@@ -115,7 +115,7 @@ export function suggest(state, catalog) {
     }
   }
 
-  // P2: 個別バフを1件追加するだけで撃破できる行を提案する（+300%キャップを流用: そのバフ
+  // 個別バフを1件追加するだけで撃破できる行を提案する（+300%キャップを流用: そのバフ
   // 自体のpctが300%を超えることは無いが、念のため同じ上限で足切りする）。
   const buffers = (catalog && catalog.buffers) || [];
   const individualBuffers = buffers.filter((b) => b.scope.type === "individual");
@@ -133,7 +133,7 @@ export function suggest(state, catalog) {
     }
   });
 
-  // P2: 条件付きバフを1件ONにするだけで撃破できる場合を提案する。
+  // 条件付きバフを1件ONにするだけで撃破できる場合を提案する。
   const conditionalBuffers = buffers.filter((b) => b.scope.type === "conditional");
   for (const b of conditionalBuffers) {
     if (globalBuffIds.includes(b.id)) continue;
@@ -144,7 +144,7 @@ export function suggest(state, catalog) {
     }
   }
 
-  // P3: 鼓舞ソースをONにするだけで撃破できる場合を提案する(effort=0固定。「ONにする/
+  // 鼓舞ソースをONにするだけで撃破できる場合を提案する(effort=0固定。「ONにする/
   // しない」の2択でしかなく、%やHit数のような度合いが無いため)。既に設定済みのcfgが
   // あればそれを流用し(スキル/モジュール等はそのまま)、無ければ既定値でONにして試す。
   const inspireSources = (catalog && catalog.inspireSources) || [];
@@ -157,7 +157,7 @@ export function suggest(state, catalog) {
     }
   }
 
-  // P3: 行の鼓舞トグルをONにするだけで撃破できる場合を提案する(effort=0固定。理由は上と同じ)。
+  // 行の鼓舞トグルをONにするだけで撃破できる場合を提案する(effort=0固定。理由は上と同じ)。
   rows.forEach((r, i) => {
     if (!r.opId || r.inspireOn !== false) return;
     const testRows = rows.map((r2, j) => (j === i ? { ...r2, inspireOn: true } : r2));
@@ -166,7 +166,7 @@ export function suggest(state, catalog) {
     }
   });
 
-  // P3: ONになっている鼓舞ソースに個別バフを1件追加するだけで撃破できる場合を提案する
+  // ONになっている鼓舞ソースに個別バフを1件追加するだけで撃破できる場合を提案する
   // (OFFのソースへ追加しても効果が測れないため対象外)。
   for (const source of inspireSources) {
     const cur = inspireSourceStates[source.id];
