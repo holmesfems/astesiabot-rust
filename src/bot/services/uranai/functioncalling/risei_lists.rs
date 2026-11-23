@@ -13,8 +13,7 @@ struct Args {
 }
 
 /// `/riseilists`の`RiseiListTarget`(poise::ChoiceParameter)の`#[name]`一覧をenum値として使う。
-/// 以前は手書きの英語8件だったが、結晶交換所(Pinch Out)相当の2件は実装されておらず
-/// `RiseiListTarget`には存在しないため実態と食い違っていた。コマンド側の選択肢と
+/// 手書きの一覧にすると、コマンド側に無い選択肢が混ざって実態と食い違う。コマンド側の選択肢と
 /// 単一の情報源にすることでズレを防ぐ。
 fn risei_list_targets() -> Vec<String> {
     RiseiListTarget::list()

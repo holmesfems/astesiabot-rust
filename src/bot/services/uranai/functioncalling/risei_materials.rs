@@ -16,9 +16,8 @@ struct Args {
 }
 
 /// カテゴリのenum値(`data/risei/stage_category.json`の`main`+`new`の`to_ja`)。
-/// 以前は誤選択対策で英語表記に固定していたが、GPT側の精度向上を踏まえて
-/// 日本語の`to_ja`表記に切り替える(`main`のみ19件だった旧enumには大陸先行の
-/// `new`2件が含まれていなかったため、こちらの方が実際のカテゴリ一覧と一致する)。
+/// 表記は日本語の`to_ja`（GPT は日本語のままで正しく選べる）。`main`だけでなく大陸先行の`new`も
+/// 含めるので、実際のカテゴリ一覧と一致する。
 fn material_categories() -> Vec<String> {
     let file = load_stage_category_file().expect("data/risei/stage_category.json should parse");
     file.main

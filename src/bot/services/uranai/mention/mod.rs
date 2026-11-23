@@ -84,7 +84,7 @@ pub async fn handle(
     }
     let bot_id = ctx.cache.current_user().id;
     // Discord の入力補完では bot 本人のほかに、bot に自動で付くロール（同じような名前）も候補に出る。
-    // ロールのほうを選んでも呼び出しとして扱う（2026-11-23、スレッドでロールの方を選んで呼べなかった）。
+    // ロールのほうを選んでも呼び出しとして扱う。
     let bot_role = bot_managed_role(ctx, msg.guild_id, bot_id);
     let mentions_bot = (msg.mentions.iter().any(|u| u.id == bot_id)
         && content_mentions_user(&msg.content, bot_id.get()))

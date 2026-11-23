@@ -286,7 +286,7 @@ function renderVerdict() {
   </section>`;
 }
 
-// 判定に応じて画面の縁を光らせる(#31)。OK=緑/NG=赤/HP未入力=光らせない。
+// 判定に応じて画面の縁を光らせる。OK=緑/NG=赤/HP未入力=光らせない。
 // renderVerdictはHTMLを返すだけなので、bodyのクラス切り替えはここで別に行う。
 function updateVerdictGlow() {
   const { killed } = computeTotal(catalog, state.rows, state.enemy, state.globalBuffIds, inspireStates(), buffLevelsState());

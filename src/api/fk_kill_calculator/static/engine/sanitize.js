@@ -135,7 +135,7 @@ export function dropStaleRows(state, catalog) {
         skillLevel,
         hits: finiteNumberOr(row.hits, 1),
         ignoreDef: finiteNumberOr(row.ignoreDef, 0),
-        buffFlat: finiteNumberOr(row.buffFlat, 0), // 手入力 基礎攻撃力+ (#29)
+        buffFlat: finiteNumberOr(row.buffFlat, 0), // 手入力 基礎攻撃力+
         dmgType: enumOr(row.dmgType, DMG_TYPES, "physical"),
         moduleId: stringOrNull(row.moduleId),
         moduleLv: intInRange(row.moduleLv, 1, 3, 3),

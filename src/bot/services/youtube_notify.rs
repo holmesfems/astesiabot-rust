@@ -4,12 +4,11 @@
 //! キャラ設定）を添えてお知らせ用チャンネルに投稿する。
 //!
 //! RSS（`/feeds/videos.xml`）は使わない。Heroku（AWS）の IP からはどのチャンネルでも 404 が
-//! 返り、読めなくなったため（動画ページ・チャンネルページは読める。2026-10 に確認）。
+//! 返るため（動画ページ・チャンネルページは読める）。
 //!
 //! 配信（ライブ）もアップロード一覧に載るので、Data API の `videos`（`liveStreamingDetails`）で見分ける。
-//! 動画ページの `ytInitialPlayerResponse` だけで決めていたら、Heroku から読んだ配信中のページに
-//! `isLiveContent` が無く（ボット確認のページなど）、配信中の枠をふつうの動画としてお知らせしてしまった
-//! （2026-10-26）。
+//! 動画ページの `ytInitialPlayerResponse` だけでは決めない。Heroku から読んだ配信中のページには
+//! `isLiveContent` が無いことがあり（ボット確認のページなど）、配信中の枠をふつうの動画と取り違える。
 //! 配信中になったら、配信告知チャンネルに決まった文面で投稿する（AI は通さない）。
 //! 配信予定・プレミア公開前のものは、始まるまで待つ。過去の配信はお知らせしない。
 //!
@@ -774,7 +773,7 @@ mod tests {
         assert!(videos.iter().any(|v| v.video_id == "XeOiPXCJyFA"));
         assert!(!is_short(&no_redirect, "XeOiPXCJyFA").await.unwrap());
         assert!(is_short(&no_redirect, "ebu6YObXPiA").await.unwrap());
-        // 2件目は配信中に動画としてお知らせしてしまった配信（2026-10-26）
+        // 2件目は、ページだけで見ると動画と取り違える配信
         let ids = ["XeOiPXCJyFA", "HX2CRfRKt8Y", "ebu6YObXPiA", "0rLwW1TIu1k"];
         let live = fetch_live(&feed_client, &config, &ids).await.unwrap();
         let kind = |id: &'static str| classify(&feed_client, &no_redirect, id, live.get(id));

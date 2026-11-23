@@ -265,7 +265,7 @@ fn blaze_s3_self_atk_pct_is_always_0_712_and_special_is_additive_module_gated() 
 /// P8 follow-upで固定値から素質「暗殺者」(talent[0].atk_scale)の値テーブル参照へ
 /// 置き換えた。E1=1.2(潜在1〜4)/1.25(潜在5〜6)、E2=1.4/1.45、モジュールY
 /// (uniequip_002_milu)Lv1=E2基礎値のまま(素質強化が付かない)/Lv2=1.45,1.5/Lv3=1.5,1.55。
-/// E0は素質自体が未解放なので値0(オーナー確認済みの実データ値。2026-09時点)。
+/// E0は素質自体が未解放なので値0(オーナー確認済みの実データ値)。
 #[test]
 fn fw_s2_special_uses_mul_multiplier_talent_table() {
     let result = build_from_seeds();
@@ -637,7 +637,7 @@ fn every_individual_source_points_to_existing_operator_talent_or_skill() {
     );
 }
 
-/// P5: オーナー確認済みの実データ値(2026-09時点)と一致すること。ゲームデータ更新で
+/// P5: オーナー確認済みの実データ値と一致すること。ゲームデータ更新で
 /// 数値が変わった場合はここを見直す(デフォルト値は「最大成長」設定。非デフォルトの
 /// 値もいくつか併せて検証する)。
 #[test]
@@ -799,7 +799,7 @@ fn individual_source_default_and_selected_values_match_verified_gamedata() {
     assert_eq!(max_targets.count, 2);
 }
 
-/// P4: オーナー確認済みの実データ値(2026-09時点)と一致すること。ゲームデータ更新で
+/// P4: オーナー確認済みの実データ値と一致すること。ゲームデータ更新で
 /// 数値が変わった場合はここを見直す。
 #[test]
 fn conditional_source_default_values_match_verified_gamedata() {

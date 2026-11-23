@@ -29,8 +29,8 @@ pub struct RawSkillLevel {
 
 #[derive(Deserialize)]
 pub struct RawSpData {
-    /// 本来は`"INCREASE_WITH_TIME"`等の文字列だが、一部スキル(PASSIVE中心に600件超、
-    /// 2024年時点のCNデータで確認済み)は数値(例: `8`)が入っている。ここを`String`型で
+    /// 本来は`"INCREASE_WITH_TIME"`等の文字列だが、一部スキル(PASSIVE中心に600件超。
+    /// CNデータで確認済み)は数値(例: `8`)が入っている。ここを`String`型で
     /// 厳格にパースするとそのスキル1件全体(name/descriptionを含む)がdeserializeに失敗し、
     /// スキル名解決が丸ごと欠落する。`string_or_number`で数値も文字列化して受け付け、
     /// 「name/descriptionは必ず解決できる」を保証する。

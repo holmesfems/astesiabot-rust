@@ -198,7 +198,7 @@ async function runMainScenario(browser, baseUrl) {
     await page.fill('#enemy-def', '0');
     await page.waitForTimeout(150);
 
-    // --- #29 手入力 基礎攻撃力+: 打鍵中にフォーミュラ行へ(atk+150)が反映される ---
+    // --- 手入力 基礎攻撃力+: 打鍵中にフォーミュラ行へ(atk+150)が反映される ---
     const flatInput = page.locator('input[data-field="buffFlat"]');
     ok('expanded row has the buffFlat input', (await flatInput.count()) === 1);
     await flatInput.fill('');
@@ -211,7 +211,7 @@ async function runMainScenario(browser, baseUrl) {
     ok('buffFlat=0 removes the "+150" from the formula line', !(await page.locator('.row-formula').innerText()).includes('+150'),
       await page.locator('.row-formula').innerText());
 
-    // --- #31 判定に応じた画面縁のグロー(body class) ---
+    // --- 判定に応じた画面縁のグロー(body class) ---
     const bodyClass = () => page.evaluate(() => document.body.className);
     await page.fill('#enemy-hp', '1');
     await page.waitForTimeout(100);
@@ -227,7 +227,7 @@ async function runMainScenario(browser, baseUrl) {
     await page.fill('#enemy-hp', '5000');
     await page.waitForTimeout(150);
 
-    // --- #30 展開ビュー上部の「折りたたむ」ボタン ---
+    // --- 展開ビュー上部の「折りたたむ」ボタン ---
     await page.locator('.row-actions-top [data-action="collapse-row"]').click();
     await page.waitForTimeout(100);
     ok('top collapse button collapses the expanded row', (await page.locator('.row-expanded').count()) === 0);
