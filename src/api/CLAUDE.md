@@ -4,7 +4,7 @@
 
 ## ルーティング
 
-- `mod.rs`: `AppState`、`run_api`、`base_url()`、`/robots.txt`・`/sitemap.xml`、`web_ui_router()`。
+- 入口は `mod.rs` の `run_api`（本番）と `web_ui_router()`（本番と `serve_web` で共通の UI ルート）。
 - **UI ルートは `web_ui_router()` に足す**。`run_api` に直接書くと dev 用の `serve_web` と `e2e.mjs`
   から見えなくなり、dev と本番でルートがずれる。`run_api` はそれに状態が要るルート
   （`/recruitment/`、`/api/risei/*`、FK の catalog.json）と SwaggerUi を足すだけにする。
@@ -36,8 +36,8 @@
   （64KiB。このルートだけ DefaultBodyLimit、超えたら413）。入手用固定 URL
   `GET /shortcut/recruitment`（iCloud リンクへ307。`shortcut_router()`、web_ui_router に載せる）と、
   Apple Intelligence 非対応機種向けの `GET /shortcut/recruitment-lite`（shortcut.yaml の `lite_url`。版番号は同じ）。
-- `risei/` … `GET /api/risei/*`（理性価値計算と育成コストの REST API。認証なし公開。`mod.rs` が router、`spec.rs` が `ENDPOINTS`、`handlers.rs` と `operator_cost.rs` がハンドラ、`params.rs` が引数とエラー、`suggest.rs` が候補、`skill.rs` が skill.zip。
-  理性効率動画づくりで Claude が叩く）。engine の DTO をそのまま JSON で返し、エラーは常に JSON で
+- `risei/` … `GET /api/risei/*`（理性価値計算と育成コストの REST API。認証なし公開。
+  理性効率動画づくりで Claude が叩く）。エンドポイントの一覧は `spec.rs` の `ENDPOINTS`。engine の DTO をそのまま JSON で返し、エラーは常に JSON で
   `did_you_mean` / `usage` を添える。`GET /api/risei` が使い方一覧（`ENDPOINTS` 表）。
   `router(RiseiApiState { risei, external_source })` を run_api が merge する（serve_web には無い）。
   `/api/risei/operators/*` は `server` 引数を持たず、bot と同じく `cn_only` で換算サーバを切り替える。
@@ -76,10 +76,10 @@
   オープニング（`opening.js`）の再生中は、ダイヤルと北極をエンブレム（`.opening-stage`）に重ねて置く（`--open-tx/ty/s` の FLIP）。
   自然に終わると `html.opening-done` で CSS がダイヤルと空を本来の位置へ滑らせ、スキップ（クリック・キー）はクラスを外すだけでその場で最終状態になる。
   両 JS は `window` の `home-opening-end` イベントで緩く連携する。
-- **ef_recipe_calculator は計算をブラウザでする**（サーバーは計算しない。issue #69）。計算層 `static/solver.js`
+- **ef_recipe_calculator は計算をブラウザでする**（サーバーは計算しない。認証なしの公開ページで重い計算をサーバーに任せない）。計算層 `static/solver.js`
   （アルゴリズムは `EFRecipeCalculator.md` §4）、表示層 `static/render.js`、エディタ `static/app.js`。
   ページは `app.js?v=N` で読む（旧版のキャッシュ対策。app.js の作りを変えたら N を上げる）。
-- **wl_battery_simulator も計算をブラウザでする**（issue #69）。計算層 `static/optimizer.js`（入口）と
+- **wl_battery_simulator も計算をブラウザでする**（理由は EF と同じ）。計算層 `static/optimizer.js`（入口）と
   `static/battery_sim.js`、表示層 `static/render.js`（Chart.js は CDN のグローバル）、ページの処理 `static/app.js`
   （`?v=N` は EF と同じ）。`testdata/golden.json` は移す前の Rust 版の出力で、verify.mjs が突き合わせる
   （計算を意図して変えたときだけ作り直す）。可変周期入力式標準制御器（CTL_2）は不安定なので対象外。

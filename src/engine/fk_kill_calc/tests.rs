@@ -1218,3 +1218,12 @@ fn coverage_report() {
     );
     assert!(resolved > 0);
 }
+
+#[test]
+fn normalize_operator_name_unifies_paren_width_and_whitespace() {
+    let expected = normalize_operator_name("アーミヤ(前衛)");
+    assert_eq!(expected, "アーミヤ(前衛)");
+    assert_eq!(normalize_operator_name("アーミヤ（前衛）"), expected);
+    assert_eq!(normalize_operator_name("  アーミヤ（前衛）\t"), expected);
+    assert_eq!(normalize_operator_name(" アーミヤ(前衛) "), expected);
+}

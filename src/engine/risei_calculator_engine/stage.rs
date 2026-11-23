@@ -14,7 +14,6 @@ pub struct DropItem {
 }
 
 /// ステージ1件分のドロップ集計。
-/// 最小試行数は使い道が無いため持たず、最大試行数（`max_times`）だけを保持する。
 #[derive(Clone, Default)]
 pub struct DropList {
     drop_dict: HashMap<String, DropItem>,
@@ -37,7 +36,6 @@ impl DropList {
         }
     }
 
-    /// 重複するアイテムIDは新しいものを適用する。
     pub fn merge_from(&mut self, other: DropList) {
         for (key, value) in other.drop_dict {
             self.drop_dict.insert(key, value);
@@ -154,7 +152,6 @@ impl StageItem {
         }
     }
 
-    /// matrix由来のドロップ記録を1件追加する（value_targetに含まれる場合のみ）。
     pub fn add_drop_record(
         &mut self,
         record: &RawDropRecord,
@@ -183,7 +180,7 @@ impl StageItem {
         self.to_drop_array(value_target, item_names).sum() >= EPSILON
     }
 
-    /// ドロップ配列（理性消費に応じた龍門幣1000のボーナスを加算済み）。
+    /// ドロップ配列（龍門幣1000に理性消費分のボーナスを加算済み）。
     pub fn to_drop_array(&self, value_target: &[&str], item_names: &ItemNames) -> DVector<f64> {
         let mut arr = self.drop_list.to_drop_array(value_target, item_names);
         if let Some(lmd_index) = value_target.iter().position(|x| *x == "龙门币1000") {
@@ -214,7 +211,6 @@ impl StageItem {
         total_value / self.ap_cost
     }
 
-    /// 指定アイテム群だけに絞った効率。
     pub fn get_partial_efficiency(&self, values: &RiseiValues, items: &[&str]) -> f64 {
         let total_value: f64 = items
             .iter()
@@ -226,7 +222,6 @@ impl StageItem {
         total_value / self.ap_cost
     }
 
-    /// 理性効率の誤差項。
     pub fn get_std_dev(&self, values: &RiseiValues) -> f64 {
         let std_dev = self.to_std_dev_array(&values.value_target, &values.item_names);
         let drop_array = self.to_drop_array(&values.value_target, &values.item_names);
@@ -244,12 +239,54 @@ impl StageItem {
     }
 
     /// 最もドロップ率の高い主ドロップアイテム(名前, ドロップ率)。
-    /// `is_valid_for_show` を通過済みのステージ（ドロップが1件以上ある）でのみ呼ぶ想定。
     pub fn get_max_efficiency_item(&self, item_names: &ItemNames) -> Option<(String, f64)> {
         self.drop_list
             .drop_dict
             .iter()
             .max_by(|a, b| a.1.drop_rate.total_cmp(&b.1.drop_rate))
             .map(|(id, item)| (item_names.get_str(id).to_string(), item.drop_rate))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn list(entries: &[(&str, f64, i64)], max_times: i64) -> DropList {
+        DropList {
+            drop_dict: entries
+                .iter()
+                .map(|(id, rate, times)| {
+                    (
+                        id.to_string(),
+                        DropItem {
+                            drop_rate: *rate,
+                            times: *times,
+                        },
+                    )
+                })
+                .collect(),
+            max_times,
+        }
+    }
+
+    #[test]
+    fn merge_from_takes_newer_value_for_duplicate_item() {
+        let mut a = list(&[("x", 0.1, 100), ("y", 0.2, 100)], 100);
+        a.merge_from(list(&[("x", 0.5, 50)], 50));
+        assert_eq!(a.drop_dict["x"].drop_rate, 0.5);
+        assert_eq!(a.drop_dict["x"].times, 50);
+        assert_eq!(a.drop_dict["y"].drop_rate, 0.2);
+    }
+
+    #[test]
+    fn merge_from_keeps_larger_max_times_in_both_directions() {
+        let mut a = list(&[("x", 0.1, 100)], 100);
+        a.merge_from(list(&[("y", 0.1, 500)], 500));
+        assert_eq!(a.max_times(), 500);
+
+        let mut b = list(&[("x", 0.1, 500)], 500);
+        b.merge_from(list(&[("y", 0.1, 100)], 100));
+        assert_eq!(b.max_times(), 500);
     }
 }

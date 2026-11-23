@@ -1,9 +1,6 @@
 // 制限モード（回数制限内に開く確率の最大化）の検証スクリプト。
 // 実 engine.js を import して決定木を1回だけ辿る全数検証（1コードずつのシミュレーションはしない）。
-//
-// 実行方法（このマシンには node が無いため、VS Code の Electron を node として使う）:
-//   $env:ELECTRON_RUN_AS_NODE="1"
-//   & "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" src/api/lod_chest_solver/verify.mjs
+// 実行方法はルートの CLAUDE.md。
 
 import { ALL, bestGuesses, narrow, hintCandidates } from "./static/engine.js";
 
@@ -53,7 +50,7 @@ const PATTERNS = [
   { name: "ABCD (0123, 24通り)", hints: ["0", "1", "2", "3"] },
   { name: "ABCC (0012, 12通り)", hints: ["0", "0", "1", "2"] },
   { name: "AABB (0011, 6通り)", hints: ["0", "0", "1", "1"] },
-  { name: "AAAB (0001, 3通り)", hints: ["0", "0", "0", "1"] },
+  { name: "AAAB (0001, 4通り)", hints: ["0", "0", "0", "1"] },
 ];
 const LIMITS = [2, 4, 6, 8, 10];
 
@@ -134,6 +131,31 @@ console.log("\n=== ヒント未見モード（1000通り全数、10回制限） 
   const sNull = summarize(cands, openedNull, new Set());
   console.log(`  無制限: 最悪 ${sNull.worst}手`);
   check("ヒント未見・無制限モードの最悪手数が14手のまま", sNull.worst === 14);
+}
+
+console.log("\n=== ヒントからの候補の数と、推測での分け方 ===\n");
+for (const [hints, expected] of [
+  [["0", "1", "2", "3"], 24],
+  [["0", "0", "1", "2"], 12],
+  [["0", "0", "1", "1"], 6],
+  [["0", "0", "0", "1"], 4],
+]) {
+  const n = hintCandidates(hints).length;
+  check(`hintCandidates(${hints.join("")}) は ${expected} 通り`, n === expected);
+}
+{
+  const cands = hintCandidates(["0", "1", "2", "3"]);
+  let ok = true;
+  for (const g of cands) {
+    const hit = narrow(cands, g, true);
+    const miss = narrow(cands, g, false);
+    const disjoint = hit.every(c => !miss.includes(c));
+    const union = new Set([...hit, ...miss]);
+    const rest = cands.filter(c => c !== g);
+    const covers = union.size === rest.length && rest.every(c => union.has(c));
+    if (hit.includes(g) || miss.includes(g) || !disjoint || !covers) ok = false;
+  }
+  check("narrow は推測したコードを除き、開いた／開かないで候補の残りをちょうど2つに分ける", ok);
 }
 
 console.log(`\n${allOk ? "=== すべて合格 ===" : "=== 不合格の項目あり ==="}`);

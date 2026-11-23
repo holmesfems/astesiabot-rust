@@ -415,8 +415,6 @@ impl Calculator {
             const_values.clone(),
         )?;
 
-        // 明らかに現在の基準マップより効率の良いステージが見つからなくなるまで、
-        // 基準マップを差し替えて再計算し続ける。
         let mut converged = false;
         for _ in 0..MAX_BASE_STAGE_UPDATE_ITERATIONS {
             if !base_stage_matrix.update(&stage_info, &values)? {
@@ -442,7 +440,6 @@ impl Calculator {
         }
         println!("[risei_calculator_engine] Risei calculate end ({server:?})");
 
-        // 誤差(標準偏差)を計算する。
         let prob_matrix = build_prob_matrix(
             &value_target_list,
             &item_names,

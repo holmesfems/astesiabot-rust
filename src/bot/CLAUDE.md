@@ -1,28 +1,14 @@
 # bot（Discord bot。poise / serenity）
 
-## 構成
+## どこから読むか
 
-```
-mod.rs       … run_bot。setup() で ChannelRouting::from_env()・誕生日チャンネルの解決（未設定なら panic）・
-               誕生日スケジューラ・（環境変数が揃っていれば）YouTube お知らせを spawn
-data.rs      … Data { state, channel_routing }
-handler.rs   … メッセージの振り分け（自分 → bot/webhook → スパム → チャンネル別）。
-               ChannelRouting（振り分け先チャンネルの定義と env 解決）も同居。
-               振り分け先を増やすときはここだけ触る（data.rs / mod.rs は変えない）
-reply.rs     … EmbedReply（embed の分割送信。reply_marker を footer に出す）
-utils/       … env.rs（channel_id_env 等。不正値なら起動時 panic）/ xlsx.rs（riseiXXX の csv_file 添付）
-commands/    … スラッシュコマンド（1コマンド1ファイル）。fksearch.rs / risei/ / operator_cost_calc/
-services/
-  moderation/       … スパム検知・連投/爆撃・罠チャンネル・全体通知 BAN（mod.rs が入口と状態、detect.rs が検知、action.rs が処断と通報）
-  recruit/          … 公開求人チャンネル（OCR → 計算 → embed、リプライでのタグ編集）。local_ocr.rs がローカルのタグ枠 OCR の bot 側
-  uranai/           … 占い館（OpenAI のチャット。functioncalling/ に bot 機能を呼ぶ関数）
-  reply_dispatch.rs … コマンド応答 embed へのリプライを、footer のマーカーから由来コマンドに戻す
-  birthday.rs       … 毎日 JST 0:00 にオペレーターの誕生日をお祝い
-  anniversary.rs    … 周年ロール付与など
-  youtube_notify.rs … YouTube 新着・配信のお知らせ
-```
+- 起動は `mod.rs` の `run_bot`。メッセージの振り分けは `handler.rs`（自分 → bot/webhook → スパム → チャンネル別）。
+- スラッシュコマンドは `commands/`（1コマンド1ファイル）、チャンネルごとの機能は `services/`。
 
 ## 守ること
+
+- **振り分け先を増やすときは `handler.rs` だけ触る**（`ChannelRouting` もここにある。`data.rs` / `mod.rs` は変えない）。
+- **環境変数の不正値は起動時に panic する**（`utils/env.rs`）。
 
 - **bot / webhook の発言はモデレーションに渡さない**: 他 bot の返信はメンバーがコマンドで好きに
   出せるので、author で連投検知すると他 bot を BAN させられる。代わりにスラッシュコマンドへの返信は
@@ -65,14 +51,14 @@ services/
 
 - 10分ごとに YouTube Data API v3 の `playlistItems`（チャンネルID の `UC` を `UU` にしたアップロード一覧。
   `YOUTUBE_API_KEY`）を読む。**RSS（`/feeds/videos.xml`）に戻さない**: Heroku（AWS）の IP からは
-  どのチャンネルでも404（2026-10 に `heroku run` で確認。動画ページ・チャンネルページは読める）。
+  どのチャンネルでも404（`heroku run` で確認できる。動画ページ・チャンネルページは読める）。
 - API キーは URL に載るので、reqwest のエラーは `without_url()` してからログに出す。
 - ふつうの動画: 公開から24時間以内・ショート以外（`/shorts/<ID>` が200ならショート、303なら動画）・
   未投稿のものを、アステシアの宣伝文（`UranaiState::write_in_character`）付きで投稿。生成に失敗したら決まった文面。
   宣伝文は AI の出力なので allowed_mentions で `ROLE_ID_YOUTUBE_NOTIFY` だけに絞る。
 - 配信: Data API の `videos`（`snippet.liveBroadcastContent` が live / upcoming、`liveStreamingDetails` の有無）で
   種類を決める。**動画ページの `ytInitialPlayerResponse` だけで決めない**: Heroku から読むと `isLiveContent` が
-  欠けることがあり、配信中の枠を動画としてお知らせした（2026-10-26）。ページは「終わった配信」と「公開済みの
+  欠けることがあり、配信中の枠を動画と取り違える。ページは「終わった配信」と「公開済みの
   プレミア」の見分けにだけ使い、`isLiveContent` が無ければ配信とみなす。
   配信中になったら `CHANNEL_ID_STREAM_NOTIFY`（任意。無ければ配信は流さない）に決まった文面で投稿し
   `ROLE_ID_STREAM_NOTIFY`（任意）をメンション。予定・プレミア前は始まるまで待ち、過去の配信は流さない。

@@ -55,6 +55,8 @@ import {
   makeDefaultExtraParts,
   findOperator,
   findEntry,
+  resolveDefEff,
+  resolveResEff,
 } from "./static/engine.js";
 
 let allOk = true;
@@ -2499,6 +2501,96 @@ console.log("\n=== 信頼できない状態の検証(extraParts・型の強制�
   check("minimalIntegerSatisfying は安全整数を超える区間でも終了する(null)", minimalIntegerSatisfying(1, 1e18, (x) => x >= 5e17) === null);
   check("minimalIntegerSatisfying は非有限の区間でも終了する(null)", minimalIntegerSatisfying(1, Infinity, () => true) === null);
 }
+
+console.log("\n=== 敵の防御/術耐性の有効値(resolveDefEff/resolveResEff) ===\n");
+{
+  // 防御: 割合(defPct)で減らしてから、固定(defFlat)と防御無視(ignoreDef)を引く。
+  const enemy = { ...enemyNeutral, def: 1000, defPct: 0.3, defFlat: 100, resFlat: 0 };
+  check("防御有効値 = def×(1-defPct) - defFlat - ignoreDef", resolveDefEff(enemy, 50) === 1000 * 0.7 - 100 - 50, resolveDefEff(enemy, 50));
+  check("防御有効値は0未満にならない(巨大なdefFlat)", resolveDefEff({ ...enemy, defFlat: 1e9 }, 0) === 0);
+  check("防御有効値は0未満にならない(巨大なignoreDef)", resolveDefEff(enemy, 1e9) === 0);
+  check("術耐性有効値は100を超えない(res150→100)", resolveResEff({ ...enemyNeutral, res: 150, resFlat: 0 }) === 100);
+  check("術耐性有効値は0未満にならない(res10, resFlat50→0)", resolveResEff({ ...enemyNeutral, res: 10, resFlat: 50 }) === 0);
+  check("術耐性有効値 = res - resFlat", resolveResEff({ ...enemyNeutral, res: 40, resFlat: 15 }) === 25);
+}
+
+console.log("\n=== 個別バフ提案の+300%キャップ ===\n");
+{
+  const catalogWith = (buffer) => ({
+    operators: [{ ...op(1000, 0, null), id: "a", fkEntries: [{}] }],
+    buffers: [{ id: "ib", name: "個別", singleTarget: false, bonus: null, scope: { type: "individual" }, ...buffer }],
+  });
+  const rows = [row({ opId: "a", moduleId: null, dmgType: "true", hits: 1 })]; // final=1000
+  const addSug = (buffer, hp) =>
+    suggest({ v: 1, enemy: { ...enemyNeutral, hp }, rows }, catalogWith(buffer)).find((s) => s.kind === "addIndividualBuff");
+  // 通常の+%提案(上限+300%)では届かないhp=4500でも、+400%の個別バフなら撃破できる。
+  check("前提: +400%の個別バフを足せば撃破できる", computeTotal({ ...catalogWith({ kind: "pct", value: 4 }) }, [{ ...rows[0], buffIds: ["ib"] }], { ...enemyNeutral, hp: 4500 }).killed === true);
+  check("上限(+300%)を超える個別%バフは撃破できても提案しない", addSug({ kind: "pct", value: 4 }, 4500) === undefined);
+  const atCap = addSug({ kind: "pct", value: 3 }, 4000);
+  check("上限ちょうど(+300%)の個別%バフは提案される", !!atCap && atCap.buffId === "ib" && atCap.effort === 300, atCap);
+  const flat = addSug({ kind: "flat", value: 5000 }, 5500);
+  check("固定値の個別バフはキャップの対象外で提案される", !!flat && flat.buffId === "ib" && flat.effort === 5000, flat);
+}
+
+console.log("\n=== dropStaleRows: 鼓舞ソースcfgと行のトグルの正規化 ===\n");
+{
+  const source = { id: "src", operatorId: "other", name: "src", tags: [], atkBase: 1000, atkPotential: 0, modules: [], skills: [{ skillNum: "1", ratio: 1, ratioByLevel: [1], ratioFixed: true }], selfParts: [{ id: "p1" }, { id: "p2" }] };
+  const buf = (id) => ({ id, name: id, kind: "pct", value: 0.1, scope: { type: "conditional", targetTags: ["全員"] }, singleTarget: false, bonus: null, source: { defaults: {} } });
+  const catalog = { operators: [{ ...op(1000, 0, null), id: "real", fkEntries: [{}] }], buffers: [buf("known")], inspireSources: [source] };
+  const mk = (extra) => ({
+    v: 1,
+    enemy: enemyNeutral,
+    rows: [],
+    inspire: { sources: { src: { on: true, skillNum: "1", ...extra }, ghost: { on: true } } },
+    globalBuffLevels: { known: { elite: 1 }, unknownKey: { elite: 1 } },
+  });
+  const cleaned = dropStaleRows(mk({ talentPotential: 3, parts: { p1: true, bogus: true } }), catalog).state;
+  const cfg = cleaned.inspire.sources.src;
+  check("旧キーtalentPotentialは鼓舞ソースcfgから取り除かれる", !("talentPotential" in cfg), cfg);
+  check("未知の鼓舞ソースidは捨てられる", Object.keys(cleaned.inspire.sources).join() === "src", Object.keys(cleaned.inspire.sources));
+  check("cfg.partsは既知のパーツidだけ残る", JSON.stringify(cfg.parts) === JSON.stringify({ p1: true }), cfg.parts);
+  check("onは厳密なtrueだけがtrue", cfg.on === true);
+  check("on=\"true\"(文字列)はfalseになる", dropStaleRows(mk({ on: "true" }), catalog).state.inspire.sources.src.on === false);
+  check("globalBuffLevelsは既知のバフidのキーだけ残る", Object.keys(cleaned.globalBuffLevels).join() === "known", Object.keys(cleaned.globalBuffLevels));
+
+  // 行のトグル: 欠損/booleanでない値はON、明示的なfalseはOFFのまま。
+  const rowState = (extra) => ({ v: 1, enemy: enemyNeutral, rows: [row({ opId: "real", entryIdx: 0, moduleId: null, ...extra })] });
+  const r1 = dropStaleRows(rowState({}), catalog).state.rows[0];
+  check("specialOn/inspireOn欠損は両方true", r1.specialOn === true && r1.inspireOn === true, r1);
+  const r2 = dropStaleRows(rowState({ specialOn: "no", inspireOn: 0 }), catalog).state.rows[0];
+  check("specialOn/inspireOnがbooleanでなければ(falseではないので)true", r2.specialOn === true && r2.inspireOn === true, r2);
+  const r3 = dropStaleRows(rowState({ specialOn: false, inspireOn: false }), catalog).state.rows[0];
+  check("明示的なfalseはfalseのまま", r3.specialOn === false && r3.inspireOn === false, r3);
+}
+
+console.log("\n=== resolveConditionalValueの段階/スキルLvのクランプ ===\n");
+{
+  const stageBuff = {
+    id: "stg", name: "stg", kind: "pct", value: 0.6, scope: { type: "individual" }, singleTarget: false, bonus: null,
+    source: { talent: null, skill: null, scale: null, basePct: null, stage: { values: [0.2, 0.4, 0.6] }, defaults: { stageIndex: 2 } },
+  };
+  const val = (b, lv) => resolveConditionalValue(b, lv);
+  check("段階: 範囲超え(99)は最後の値", val(stageBuff, { stageIndex: 99 }) === 0.6);
+  check("段階: 0以下は最初の値", val(stageBuff, { stageIndex: 0 }) === 0.2 && val(stageBuff, { stageIndex: -5 }) === 0.2);
+  check("段階: 未指定はdefaultsのstageIndexを使う", val(stageBuff, {}) === 0.4);
+  const skillBuff = {
+    id: "sk", name: "sk", kind: "pct", value: 0.3, scope: { type: "individual" }, singleTarget: false, bonus: null,
+    source: { talent: null, basePct: null, skill: { valuesByLevel: [0.1, 0.2, 0.3] }, defaults: { skillLevel: 2 } },
+  };
+  check("スキルLv: 0は最初の値、999は最後の値", val(skillBuff, { skillLevel: 0 }) === 0.1 && val(skillBuff, { skillLevel: 999 }) === 0.3);
+  check("スキルLv: 未指定はdefaultsのskillLevelを使う", val(skillBuff, {}) === 0.2);
+}
+
+console.log("\n=== makeDefaultRowの既定値 ===\n");
+{
+  const entry = { skillNum: "1", skillLabel: "s1", variantLabel: null, multiplier: { value: 1, source: "auto" }, multiplierCandidates: [], selfAtkPct: { value: 0, source: "auto" }, hits: { value: 1, source: "auto" }, damageType: { value: "physical", source: "auto" }, tags: [] };
+  const o = { ...op(1000, 0, null), id: "dflt", fkEntries: [entry], phases: [{ maxLevel: 90, atkMin: 900, atkMax: 1000 }] };
+  const r = makeDefaultRow(o, 0);
+  check("スキルLv10・潜在5・モジュールLv3", r.skillLevel === 10 && r.potential === 5 && r.moduleLv === 3, r);
+  check("specialOn/inspireOnは既定でtrue", r.specialOn === true && r.inspireOn === true);
+  check("buffPct/buffFlat/ignoreDefは0、buffIds/stonesは空", r.buffPct === 0 && r.buffFlat === 0 && r.ignoreDef === 0 && r.buffIds.length === 0 && r.stones.length === 0, r);
+}
+
 
 console.log("\n=== engine.js が document を参照していないこと ===\n");
 {

@@ -119,9 +119,7 @@ export function resolveConditionalValue(b, levels = {}) {
       const potential = levels.potential ?? defaults.potential ?? 5;
       const moduleId = levels.moduleId !== undefined ? levels.moduleId : (defaults.moduleId ?? null);
       const moduleLevel = levels.moduleLevel ?? defaults.moduleLevel ?? 3;
-      // 素質値テーブルの解決は特殊強化の乗算系(mulMultiplier)と
-      // 共通の`resolveTalentTableValue`を使う(モジュールは昇進2でしか装備
-      // できないのでE0/E1ではモジュール選択を無視する、という判定も含めて同じロジック)。
+      // 特殊強化の乗算系(mulMultiplier)と共通。モジュールは昇進2でしか装備できないので、E0/E1では無視する。
       primary = resolveTalentTableValue(source.talent, { elite, potential, moduleId, moduleLevel });
     } else {
       primary = source.basePct ?? 0;
@@ -151,8 +149,6 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = [], gl
   for (const id of row.buffIds || []) {
     const b = byId.get(id);
     if (!b || b.scope.type !== "individual") continue;
-    // sourceを持つ個別バフはglobalBuffLevels[id](育成設定)で解決した値を使う
-    // (conditionalと同じ`resolveConditionalValue`をそのまま再利用する)。
     const value = b.source ? resolveConditionalValue(b, (globalBuffLevels && globalBuffLevels[id]) || {}) : b.value;
     if (b.kind === "pct") individualPct += value;
     else individualFlat += value;
@@ -175,7 +171,7 @@ export function computeBuffBreakdown(row, entry, catalog, globalBuffIds = [], gl
     const b = byId.get(id);
     if (!b || b.scope.type !== "conditional") continue;
     if (b.exclusiveGroup && bestInGroup.get(b.exclusiveGroup) !== b) continue;
-    // "全員"は特別なタグで、どのエントリにも一致する(エントリ側のtagsには載らない)。
+    // "全員"はエントリ側のtagsには載らない特別なタグ。
     const matches = b.scope.targetTags.some((t) => t === ALL_TAG || entryTags.includes(t));
     if (!matches) {
       notAppliedConditional.push({ id, name: b.name });

@@ -67,9 +67,8 @@ fn fixed1_str(value: f64) -> String {
     format!("{value:.1}")
 }
 
-/// `{field}`/`{field:spec}`1個分を解決する。フィールドが見つからない、または
-/// 未知のフォーマット指定子の場合は`None`（呼び出し側で`{...}`をそのまま残す）。
-/// 実データ調査済みの4種類（指定子なし/`"0"`/`"0%"`/`".0%"`/`"0.0%"`/`"0.0"`）のみ対応する。
+/// `{field}`/`{field:spec}`1個分を解決する。解決できなければ`None`。
+/// 対応する指定子は実データにある指定子なし/`0`/`0%`/`.0%`/`0.0%`/`0.0`のみ。
 fn resolve_placeholder(inner: &str, values: &HashMap<String, f64>) -> Option<String> {
     let (field, spec) = match inner.find(':') {
         Some(idx) => (&inner[..idx], Some(&inner[idx + 1..])),
@@ -380,5 +379,22 @@ mod tests {
             &[("crit", 0.155)],
         );
         assert_eq!(build_description(&lv), "パッシブ\n会心率+15.5%");
+    }
+
+    #[test]
+    fn unresolvable_placeholders_are_left_verbatim() {
+        let lv = level(
+            "PASSIVE",
+            "INCREASE_WITH_TIME",
+            0,
+            0,
+            0.0,
+            "未知指定子{atk:0.00%}と欠けたキー{nokey}と通常{atk}",
+            &[("atk", 0.5)],
+        );
+        assert_eq!(
+            build_description(&lv),
+            "パッシブ\n未知指定子{atk:0.00%}と欠けたキー{nokey}と通常0.5"
+        );
     }
 }

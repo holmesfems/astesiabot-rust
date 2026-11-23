@@ -15,10 +15,10 @@ bot にも api にも依存しない。入力のプールは `external_source::r
   辞書や正規表現を変えるときは既存の挙動を崩さない。
 - **fancy-regex を使う**: `(?!上級)` のような否定先読みが標準 regex では書けない。
 - **分割は文字数で数える**: format.rs は `chars().count()`。`String::len()`（バイト数）にすると
-  日本語で分割位置がずれる。
+  日本語で分割位置がずれる（テスト: `chunk_text_counts_chars_not_bytes`）。
 - **並び順**: `sort_items` は安定ソートの重ねがけ（keyLen desc → valueLen asc → maxstar desc →
-  minstar desc → containsPickup desc。最後が最優先）。順序を変えると結果の並びが変わる。
-- **`star_set` は BTreeSet**: ★表記（★4,5 など）を昇順で安定させるため。HashSet にしない。
+  minstar desc → containsPickup desc。最後が最優先）。順序を変えると結果の並びが変わる（テスト: `sort_*`）。
+- **`star_set` は BTreeSet**: ★表記（★4,5 など）を昇順で安定させるため。HashSet にしない（テスト: `calculate_orders_operators_and_star_set_by_stars_ascending`）。
 - **future（CN 追加分）の扱い**: `jp_release.yaml` の日付の `RECRUIT_FUTURE_HOUR` 時（既定 16:00 JST）を
   過ぎたら、JP のゲームデータに無くても JP として扱う（データ更新の遅れ対策）。それまでと未設定の間は
   大陸版でだけ対象。JP のデータが追いつけば自動で jp 側に移るので、YAML に残った行は無視される。
@@ -42,7 +42,7 @@ bot にも api にも依存しない。入力のプールは `external_source::r
   `collect_recruit_samples`（スクショと bot の返信のタグを集める）→ `cut_tag_boxes`（枠を検出して切り抜く）→
   `fit_tag_templates --export data/recruitment/tag_templates`（時系列で古い 80% で学習・T, M を検証側で選び、
   量子化した PNG を `TagOcr::load` し元のスクショから読み直した評価も出す。`--export` は英語を除く全データで学習し直して書き出す）。
-  目安: テスト誤読率 ≤ 1%（現在 0.101%）・全部読み切れる率 ≥ 95%（現在 97.32%）、英語の画像の読み切りは 0。
+  目安: テスト誤読率 ≤ 1%・全部読み切れる率 ≥ 95%（今の値は fit_tag_templates が出す）、英語の画像の読み切りは 0。
   英語の画像は `local/recruit_samples/english_images.txt`（目で確認した手書きの一覧）。
 - 検出・特徴・採点のコードは lib にだけある（`cut_tag_boxes`・`fit_tag_templates` もこれを呼ぶ）。
   学習側（EM・代表の分割・T, M の選択・評価）は `fit_tag_templates` にだけある。

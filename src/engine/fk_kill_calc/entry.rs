@@ -181,24 +181,6 @@ pub(super) fn build_combined_entry(
     entry
 }
 
-/// blackboardから倍率のデフォルト値と候補一覧を作る。
-///
-/// デフォルト値の選定順序:
-///   1. 厳密一致の`atk_scale`キーがあればその値
-///   2. 無ければ、キーが`atk_scale`または`damage_scale`で終わる項目のうち、
-///      キー名アルファベット順で最初のもの(例: `damage_by_atk_scale`、
-///      `attack@s2.atk_scale`。後者は`attack@s2.magic_atk_scale`より
-///      アルファベット順で先に来るため、物理側が選ばれる)
-///   3. どちらも無ければ1.0
-///
-/// (1敗のBlaze/Hornで実データ調査済み。詳細は`overrides.yaml`のコメント参照)。
-///
-/// 候補一覧はキーに"scale"を含む項目全部。**順序はSeed経由/実fetch経由で
-/// blackboardの元の並びが変わっても揺れないよう、常に「選ばれたデフォルトのキーを
-/// 先頭、残りはキー名のアルファベット順」に正規化する**
-/// (`write_seed_file`がJSONキーを再帰的にソートして書き出す影響で、Seed読み込み時と
-/// 実fetch時とでIndexMapの挿入順が食い違うため。この関数の出力を常に決定的にすることで
-/// フロント側の表示順がSeed/本番のどちらでも変わらないようにする)。
 /// `blackboard_by_level`の各レベルから`key`の値を取り出した配列を作る(無ければ0.0で
 /// 埋める)。`blackboard_by_level`自体が無ければ`num_levels`個(0なら1個)の0.0配列を返す
 /// (「スキルLv別データが無い＝単一値のフォールバック」を1箇所に集約する)。
@@ -278,6 +260,21 @@ pub(super) fn resolve_variant_self_atk_pct(
     )
 }
 
+/// blackboardから倍率のデフォルト値と候補一覧を作る。
+///
+/// デフォルト値の選定順序:
+///   1. 厳密一致の`atk_scale`キーがあればその値
+///   2. 無ければ、キーが`atk_scale`または`damage_scale`で終わる項目のうち、
+///      キー名アルファベット順で最初のもの(例: `damage_by_atk_scale`、
+///      `attack@s2.atk_scale`。後者は`attack@s2.magic_atk_scale`より
+///      アルファベット順で先に来るため、物理側が選ばれる)
+///   3. どちらも無ければ1.0
+///
+/// (1敗のBlaze/Hornで実データ調査済み。詳細は`overrides.yaml`のコメント参照)。
+///
+/// 候補一覧はキーに"scale"を含む項目全部。順序は「選ばれたデフォルトのキーを先頭、残りは
+/// キー名のアルファベット順」で、blackboardの挿入順に依存しない(`write_seed_file`がキーを
+/// ソートするため、Seed経由と実fetch経由で挿入順が食い違う。テスト: `entry::tests`)。
 pub(super) fn resolve_multiplier_defaults(
     blackboard: Option<&IndexMap<String, f64>>,
     blackboard_by_level: Option<&[IndexMap<String, f64>]>,
@@ -296,9 +293,6 @@ pub(super) fn resolve_multiplier_defaults(
         .collect();
     candidates.sort_by(|(a, _), (b, _)| a.cmp(b));
 
-    // `candidates`をこの後mutate(先頭への並び替え)するため、chosen_keyは所有権付き
-    // (`String`)にしてcandidatesへの借用を早めに切る(借用したままmutateしようとすると
-    // 借用チェッカに弾かれる)。
     let chosen_key: Option<String> = if blackboard.contains_key("atk_scale") {
         Some("atk_scale".to_string())
     } else {
@@ -314,8 +308,6 @@ pub(super) fn resolve_multiplier_defaults(
         None => 1.0,
     };
 
-    // 選ばれたキーを候補一覧の先頭へ動かす(既にアルファベット順ソート済みなので、
-    // それ以外の並びは変えない = 「選ばれたもの優先、残りはアルファベット順」)。
     if let Some(key) = &chosen_key {
         if let Some(pos) = candidates.iter().position(|(k, _)| k == key) {
             let picked = candidates.remove(pos);
@@ -323,9 +315,6 @@ pub(super) fn resolve_multiplier_defaults(
         }
     }
 
-    // 選ばれたキーのスキルLv別配列がデフォルト倍率(`multiplierByLevel`)、
-    // 候補一覧の各キーもそれぞれスキルLv別配列を持たせる(倍率候補ドロップダウンが
-    // 現在のスキルLvでの値を表示できるようにする)。
     let default_multiplier_by_level = match &chosen_key {
         Some(key) => values_by_level_for_key(blackboard_by_level, key, num_levels),
         None => vec![1.0; num_levels],
@@ -346,4 +335,96 @@ pub(super) fn resolve_multiplier_defaults(
         default_multiplier_by_level,
         multiplier_candidates,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bb(pairs: &[(&str, f64)]) -> IndexMap<String, f64> {
+        pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+    }
+
+    fn keys(c: &[MultiplierCandidate]) -> Vec<&str> {
+        c.iter().map(|c| c.key.as_str()).collect()
+    }
+
+    #[test]
+    fn exact_atk_scale_wins_over_suffix_keys() {
+        let b = bb(&[
+            ("attack@s2.atk_scale", 2.0),
+            ("atk_scale", 1.5),
+            ("damage_scale", 3.0),
+        ]);
+        let (value, by_level, _) = resolve_multiplier_defaults(Some(&b), None);
+        assert_eq!(value, 1.5);
+        // スキルLv別データが無いときは単一値の0.0配列(`values_by_level_for_key`の約束)。
+        assert_eq!(by_level, vec![0.0]);
+    }
+
+    #[test]
+    fn without_exact_key_alphabetically_first_suffix_key_is_chosen() {
+        // 挿入順では magic が先だが、アルファベット順で `attack@...` が先に選ばれる。
+        let b = bb(&[
+            ("attack@s2.magic_atk_scale", 2.5),
+            ("attack@s2.atk_scale", 1.8),
+            ("zzz_damage_scale", 9.0),
+        ]);
+        let (value, _, candidates) = resolve_multiplier_defaults(Some(&b), None);
+        assert_eq!(value, 1.8);
+        assert_eq!(candidates[0].key, "attack@s2.atk_scale");
+    }
+
+    #[test]
+    fn no_matching_suffix_defaults_to_one_but_lists_candidates() {
+        let b = bb(&[("talent_scale", 2.0), ("atk", 100.0)]);
+        let (value, by_level, candidates) = resolve_multiplier_defaults(Some(&b), None);
+        assert_eq!(value, 1.0);
+        assert_eq!(by_level, vec![1.0]);
+        assert_eq!(keys(&candidates), vec!["talent_scale"]);
+    }
+
+    #[test]
+    fn missing_blackboard_gives_defaults_and_no_candidates() {
+        let levels = vec![bb(&[("atk_scale", 1.0)]), bb(&[("atk_scale", 2.0)])];
+        let (value, by_level, candidates) = resolve_multiplier_defaults(None, Some(&levels));
+        assert_eq!(value, 1.0);
+        assert_eq!(by_level, vec![1.0, 1.0]);
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn candidate_order_is_chosen_first_then_alphabetical_regardless_of_input_order() {
+        // `a_scale` は `atk_scale` よりアルファベット順で先。デフォルト(atk_scale)が先頭に来る。
+        let forward = bb(&[("a_scale", 1.0), ("atk_scale", 2.0), ("z_scale", 3.0)]);
+        let reversed = bb(&[("z_scale", 3.0), ("atk_scale", 2.0), ("a_scale", 1.0)]);
+        let (_, _, c1) = resolve_multiplier_defaults(Some(&forward), None);
+        let (_, _, c2) = resolve_multiplier_defaults(Some(&reversed), None);
+        assert_eq!(keys(&c1), vec!["atk_scale", "a_scale", "z_scale"]);
+        assert_eq!(keys(&c1), keys(&c2));
+    }
+
+    #[test]
+    fn candidate_order_is_alphabetical_when_no_default_is_chosen() {
+        let b = bb(&[("z_scale", 1.0), ("b_scale", 1.0), ("a_scale", 1.0)]);
+        let (_, _, c) = resolve_multiplier_defaults(Some(&b), None);
+        assert_eq!(keys(&c), vec!["a_scale", "b_scale", "z_scale"]);
+    }
+
+    #[test]
+    fn only_scale_keys_are_candidates_with_zero_filled_by_level_values() {
+        let b = bb(&[("atk_scale", 1.0), ("atk", 5.0), ("other_scale", 4.0)]);
+        let levels = vec![
+            bb(&[("atk_scale", 1.0), ("other_scale", 4.0)]),
+            bb(&[("atk_scale", 1.2)]),
+            bb(&[("atk_scale", 1.4), ("other_scale", 6.0)]),
+        ];
+        let (value, by_level, candidates) = resolve_multiplier_defaults(Some(&b), Some(&levels));
+        assert_eq!(value, 1.0);
+        assert_eq!(by_level, vec![1.0, 1.2, 1.4]);
+        assert_eq!(keys(&candidates), vec!["atk_scale", "other_scale"]);
+        assert_eq!(candidates[0].values_by_level, vec![1.0, 1.2, 1.4]);
+        // 2レベル目に other_scale が無いので 0.0 で埋まる。
+        assert_eq!(candidates[1].values_by_level, vec![4.0, 0.0, 6.0]);
+    }
 }

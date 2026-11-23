@@ -218,7 +218,7 @@ impl RecruitData {
         }
     }
 
-    /// 入力タグ列を「既知のタグのみ・重複除去・定義順ソート」に正規化。
+    /// 入力タグ列を正規化する。
     fn normalize_input(&self, input: &[String]) -> Vec<Tag> {
         let seen: HashSet<&String> = input.iter().collect();
         let mut valid: Vec<&String> = seen
@@ -297,7 +297,6 @@ impl RecruitData {
             if satisfied.is_empty() {
                 continue;
             }
-            // 星昇順ソート
             satisfied.sort_by_key(|o| o.stars);
             let ms = min_star_of(&satisfied);
 
@@ -403,9 +402,7 @@ pub struct GuaranteedTagCombo {
 pub struct MatchItem {
     pub combo: Vec<String>,
     pub min_star: u8,
-    /// 星昇順ソート済み
     pub operators: Vec<OperatorRef>,
-    /// 表示順を安定させるため BTreeSet（昇順）
     pub star_set: BTreeSet<u8>,
     pub contains_pickup: bool,
     /// `operators` のうちピックアップ指定された名前（format.rs で包含判定にだけ使う）。
@@ -509,6 +506,31 @@ mod guaranteed_star_tags_tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].tags, vec!["狙撃".to_string()]);
         assert_eq!(result[0].operators, vec!["D".to_string()]);
+    }
+
+    #[test]
+    fn normalize_names_drops_unknown_and_duplicates_in_definition_order() {
+        let data = make_data();
+        let input: Vec<String> = ["罠師", "存在しない", "狙撃", "罠師", "前衛"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(data.normalize_names(&input), vec!["前衛", "狙撃", "罠師"]);
+    }
+
+    #[test]
+    fn calculate_orders_operators_and_star_set_by_stars_ascending() {
+        let mut data = make_data();
+        data.main_map.insert(
+            vec!["前衛".to_string()],
+            vec![op("C", 5), op("A", 3), op("B", 4)],
+        );
+        let result = data.calculate(&["前衛".to_string()], true, 1, None);
+        assert_eq!(result.len(), 1);
+        let stars: Vec<u8> = result[0].operators.iter().map(|o| o.stars).collect();
+        assert_eq!(stars, vec![3, 4, 5]);
+        let set: Vec<u8> = result[0].star_set.iter().copied().collect();
+        assert_eq!(set, vec![3, 4, 5]);
     }
 
     #[test]
