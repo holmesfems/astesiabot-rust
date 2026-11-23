@@ -2,10 +2,20 @@ use super::Error;
 use fancy_regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 
-/// マッチング結果。matches とグローバル版フラグ。
+/// どの言語の辞書で 5 個以上取れたか（どれも 5 個に届かないフォールバックは Mixed）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TagLang {
+    Ja,
+    En,
+    Zh,
+    Mixed,
+}
+
+/// マッチング結果。matches とグローバル版フラグ、取れた言語。
 pub struct MatchResult {
     pub matches: HashSet<String>,
     pub is_global: bool,
+    pub lang: TagLang,
 }
 
 /// 3言語の辞書とextra辞書を保持。起動時に一度読み込む。
@@ -101,6 +111,7 @@ impl Matcher {
             return MatchResult {
                 matches: jp,
                 is_global: true,
+                lang: TagLang::Ja,
             };
         }
         let en = self.match_core(&lines, &self.en, None);
@@ -108,6 +119,7 @@ impl Matcher {
             return MatchResult {
                 matches: en,
                 is_global: true,
+                lang: TagLang::En,
             };
         }
         let zh = self.match_core(&lines, &self.zh, Some(&self.zh_extra));
@@ -115,6 +127,7 @@ impl Matcher {
             return MatchResult {
                 matches: zh,
                 is_global: false,
+                lang: TagLang::Zh,
             };
         }
         // フォールバック：日中結合
@@ -123,11 +136,13 @@ impl Matcher {
             return MatchResult {
                 matches: jpzh,
                 is_global: jp.len() >= zh.len(),
+                lang: TagLang::Mixed,
             };
         }
         MatchResult {
             matches: en,
             is_global: true,
+            lang: TagLang::Mixed,
         }
     }
 
@@ -200,5 +215,16 @@ mod tests {
             let r = m.match_tag(&text);
             assert!(r.matches.contains("COST回復"), "{typo}: {:?}", r.matches);
         }
+    }
+
+    #[test]
+    fn lang_is_reported() {
+        let m = Matcher::load().unwrap();
+        let ja = m.match_tag("近距離\n遠距離\n治療\n火力\n牽制");
+        assert_eq!((ja.lang, ja.matches.len(), ja.is_global), (TagLang::Ja, 5, true));
+        let zh = m.match_tag("近战位\n远程位\n治疗\n输出\n支援");
+        assert_eq!((zh.lang, zh.is_global), (TagLang::Zh, false), "{:?}", zh.matches);
+        let none = m.match_tag("hello");
+        assert_eq!(none.lang, TagLang::Mixed);
     }
 }
