@@ -172,6 +172,7 @@
     "ジャッキー": "char_347_jaksel",
     "ジュナー": "char_260_durnar",
     "ジュー": "char_4221_ju",
+    "ジンオウSカタパルト": "char_1049_catap2",
     "スカイフレア": "char_166_skfire",
     "スカイボックス": "char_4213_skybx",
     "スカジ": "char_263_skadi",
@@ -438,8 +439,7 @@
     "血掟テキサス": "char_1028_texas2",
     "豊川祥子": "char_4182_oblvns",
     "赤刃明霄チェン": "char_1050_chen3",
-    "遊龍チェン": "char_1013_chen2",
-    "雷狼竜Sカタパルト": "char_1049_catap2"
+    "遊龍チェン": "char_1013_chen2"
   },
   "operators": {
     "char_002_amiya": {
@@ -4428,7 +4428,7 @@
           ],
           "eq_id": "uniequip_003_yato2",
           "eq_type": "Y",
-          "name": "罗德岛制式双刀",
+          "name": "ロドス制式双刀",
           "talent_overrides_by_level": [
             [],
             [
@@ -8339,7 +8339,7 @@
           ],
           "eq_id": "uniequip_002_orchd2",
           "eq_type": "X",
-          "name": "梓兰特制箭靶",
+          "name": "特注の的",
           "talent_overrides_by_level": [
             [],
             [
@@ -8557,7 +8557,7 @@
           ],
           "eq_id": "uniequip_002_catap2",
           "eq_type": "X",
-          "name": "狩猎之路",
+          "name": "狩猟の道",
           "talent_overrides_by_level": [
             [],
             [
@@ -8605,7 +8605,7 @@
           "unlock_phase": 2
         }
       ],
-      "name": "雷狼竜Sカタパルト",
+      "name": "ジンオウSカタパルト",
       "nation_id": "rhodes",
       "phases": [
         {
@@ -36589,7 +36589,7 @@
           ],
           "eq_id": "uniequip_003_vulpis",
           "eq_type": "Y",
-          "name": "剑舞",
+          "name": "刀さす女",
           "talent_overrides_by_level": [
             [],
             [
@@ -47742,7 +47742,7 @@
           ],
           "eq_id": "uniequip_003_narant",
           "eq_type": "Y",
-          "name": "“致我们的老大”",
+          "name": "「我らがボスへ」",
           "talent_overrides_by_level": [
             [],
             [
