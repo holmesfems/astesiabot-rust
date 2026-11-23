@@ -103,7 +103,7 @@ mod tests {
     /// 実ネットワークでFKスプレッドシートを取得できるかの疎通確認。
     /// `cargo test -- --ignored` で明示実行する（通常のCIでは走らせない）。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn fetch_gets_real_sheet_data() {
         dotenvy::dotenv().ok();
         let data = fetch()

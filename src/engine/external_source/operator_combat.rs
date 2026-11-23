@@ -814,7 +814,7 @@ mod tests {
     /// 実ネットワークで戦闘生データを取得できるかの疎通確認。
     /// `cargo test -- --ignored` で明示実行する（通常のCIでは走らせない）。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn fetch_gets_real_gamedata() {
         let data = fetch()
             .await

@@ -29,7 +29,6 @@ import {
   inspirePotentialGroups,
   computeBaseAtk,
   resolveAtk,
-  resolveAtkPotential,
   moduleUsable,
   effectiveModuleId,
   maxEliteFor,

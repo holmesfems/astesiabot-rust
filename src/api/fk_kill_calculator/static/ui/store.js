@@ -150,7 +150,7 @@ export function saveState() {
   saveTimer = setTimeout(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (e) {
+    } catch {
       /* プライベートモード等で保存できなくても計算自体は続けられる */
     }
   }, 300);
@@ -159,7 +159,7 @@ export function saveState() {
 export function loadSavedState() {
   try {
     return parseStoredState(localStorage.getItem(STORAGE_KEY));
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -177,7 +177,7 @@ export function takeStateFromSharedUrl() {
   history.replaceState(null, "", location.pathname + location.search);
   try {
     return parseStoredState(window.LZString.decompressFromEncodedURIComponent(m[1]));
-  } catch (e) {
+  } catch {
     return null;
   }
 }

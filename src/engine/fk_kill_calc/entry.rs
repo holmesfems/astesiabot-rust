@@ -40,7 +40,10 @@ pub(super) fn to_stone_board_dto(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "シートの1行と上書きの各要素から1エントリを組み立てるので引数が多い"
+)]
 pub(super) fn build_entry(
     row: &FkSheetRow,
     skill_label: String,
@@ -89,7 +92,10 @@ pub(super) fn build_entry(
 /// (=パーツ0)。self_atk_pct/special/tags/default_module/noteも先頭バリアントのものを
 /// 使う(2番目以降がこれらを持っていないことは`validate_combined_variants`が検証する)。
 /// `variant_label`はパーツラベルを"+"で連結する(例: "物理+術")。
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "シートの1行と上書きの各要素から1エントリを組み立てるので引数が多い"
+)]
 pub(super) fn build_combined_entry(
     row: &FkSheetRow,
     skill_label: &str,

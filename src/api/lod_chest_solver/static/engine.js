@@ -117,7 +117,7 @@ function exactBest(cands, top, pivot, tries) {
   const hitMask = new Int32Array(1000);
   const selfBit = new Int32Array(1000);
   const pos = new Map();
-  cands.forEach((c, i) => pos.set(c, i));
+  cands.forEach((c, i) => { pos.set(c, i); });
   for (let g = 0; g < 1000; g++) {
     const [ga, gb, gc] = DIG[g];
     let m = 0;

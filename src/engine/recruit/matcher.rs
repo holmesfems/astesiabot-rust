@@ -106,7 +106,7 @@ impl Matcher {
                 .collect();
         }
 
-        let jp = self.match_core(&lines, &self.ja, Some(&self.ja_extra));
+        let jp = Self::match_core(&lines, &self.ja, Some(&self.ja_extra));
         if jp.len() >= 5 {
             return MatchResult {
                 matches: jp,
@@ -114,7 +114,7 @@ impl Matcher {
                 lang: TagLang::Ja,
             };
         }
-        let en = self.match_core(&lines, &self.en, None);
+        let en = Self::match_core(&lines, &self.en, None);
         if en.len() >= 5 {
             return MatchResult {
                 matches: en,
@@ -122,7 +122,7 @@ impl Matcher {
                 lang: TagLang::En,
             };
         }
-        let zh = self.match_core(&lines, &self.zh, Some(&self.zh_extra));
+        let zh = Self::match_core(&lines, &self.zh, Some(&self.zh_extra));
         if zh.len() >= 5 {
             return MatchResult {
                 matches: zh,
@@ -148,7 +148,6 @@ impl Matcher {
 
     /// 完全一致 or 空白split一致 → extraで正規表現補正。
     fn match_core(
-        &self,
         result: &[String],
         base: &BTreeMap<String, String>,
         extra: Option<&[(Regex, String)]>,
@@ -263,19 +262,18 @@ mod tests {
 
     #[test]
     fn match_core_finds_a_tag_that_is_one_word_of_a_line() {
-        let m = Matcher::load().unwrap();
         let base: BTreeMap<String, String> = [("火力".to_string(), "火力".to_string())]
             .into_iter()
             .collect();
         let lines = vec!["abc 火力 def".to_string()];
-        assert!(m.match_core(&lines, &base, None).contains("火力"));
+        assert!(Matcher::match_core(&lines, &base, None).contains("火力"));
     }
 
     #[test]
     fn match_core_extra_patterns_match_one_word_of_a_line() {
         let m = Matcher::load().unwrap();
         let lines = vec!["狙撃タイプ xyz".to_string()];
-        let r = m.match_core(&lines, &BTreeMap::new(), Some(&m.ja_extra));
+        let r = Matcher::match_core(&lines, &BTreeMap::new(), Some(&m.ja_extra));
         assert!(r.contains("狙撃"), "{r:?}");
     }
 }

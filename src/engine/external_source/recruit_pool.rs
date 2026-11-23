@@ -580,7 +580,7 @@ mod tests {
 
     /// 実ネットワークでの疎通確認。`cargo test -- --ignored` で明示実行する。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn fetch_gets_real_pool() {
         let pool = fetch()
             .await

@@ -1,4 +1,4 @@
-# PR と master への push で、rustfmt・clippy・cargo test・verify.mjs を回す。
+# PR と master への push で、rustfmt・clippy・cargo test・Biome（JS の lint）・verify.mjs を回す。
 # 本番（Heroku）と同じ Linux で回す。e2e.mjs は Windows 専用（taskkill / LOCALAPPDATA）なので入れない。
 name: CI
 
@@ -39,6 +39,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - uses: biomejs/setup-biome@v2
+        with:
+          version: 2.6.6
+      - run: biome ci --error-on-warnings
       - run: node src/api/lod_chest_solver/verify.mjs
       - run: node src/api/fk_kill_calculator/verify.mjs
       - run: node src/api/ef_recipe_calculator/verify.mjs

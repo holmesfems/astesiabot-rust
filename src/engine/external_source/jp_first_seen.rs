@@ -275,7 +275,7 @@ where
             }
             hi
         };
-        first_seen.insert(id.to_string(), dates[idx].chars().take(10).collect());
+        first_seen.insert((*id).clone(), dates[idx].chars().take(10).collect());
     }
     Ok(new_ids.len())
 }
@@ -371,7 +371,7 @@ mod tests {
     /// 実ネットワークで記録を一から作れることの確認（ダウンロード回数も表示する）。
     /// `cargo test -- --ignored` で明示実行する。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn builds_record_from_scratch_against_real_history() {
         let mut record = JpFirstSeenRecord::default();
         update_record(&mut record)

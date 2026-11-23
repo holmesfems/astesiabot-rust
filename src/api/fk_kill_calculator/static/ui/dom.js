@@ -76,7 +76,7 @@ export function withPreservedFocus(fn) {
       if (typeof el.setSelectionRange === "function" && selStart != null) {
         try {
           el.setSelectionRange(selStart, selEnd);
-        } catch (e) {
+        } catch {
           /* select等setSelectionRangeを持たない要素は無視 */
         }
       }

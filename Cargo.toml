@@ -35,3 +35,15 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 calamine = "0.38"
 tower = { version = "0.5", features = ["util"] }
 insta = "1"
+
+# 厳しめのルール（pedantic など）は全部かけず、方針に合うものだけ選んで足す。
+[lints.clippy]
+allow_attributes_without_reason = "warn"
+ignore_without_reason = "warn"
+dbg_macro = "warn"
+todo = "warn"
+redundant_clone = "warn"
+implicit_clone = "warn"
+needless_collect = "warn"
+unused_async = "warn"
+unused_self = "warn"

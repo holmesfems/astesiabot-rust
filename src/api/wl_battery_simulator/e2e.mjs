@@ -84,12 +84,12 @@ function killProcessTree(pid) {
   if (process.platform === 'win32') {
     try {
       execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' });
-    } catch (e) {
+    } catch {
       // 既に終了している場合など。無視してよい。
     }
   } else {
-    try { process.kill(-pid, 'SIGKILL'); } catch (e) { /* ignore */ }
-    try { process.kill(pid, 'SIGKILL'); } catch (e) { /* ignore */ }
+    try { process.kill(-pid, 'SIGKILL'); } catch { /* ignore */ }
+    try { process.kill(pid, 'SIGKILL'); } catch { /* ignore */ }
   }
 }
 
@@ -257,7 +257,7 @@ try {
   console.log('FAIL  fatal -> ' + (e && e.stack ? e.stack : e));
 } finally {
   if (browser) {
-    try { await browser.close(); } catch (e) { /* ignore */ }
+    try { await browser.close(); } catch { /* ignore */ }
   }
   cleanup();
 }

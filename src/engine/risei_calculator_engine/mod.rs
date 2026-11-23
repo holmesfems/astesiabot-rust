@@ -458,7 +458,7 @@ mod tests {
     /// riseiXXX相当のDTO構築ロジックはbot層(`bot/commands/risei/*.rs`)に移ったため
     /// ここでは検証しない。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn load_and_solve_against_real_network() {
         let outer_source = ExternalSourceRegistry::load(false).await;
         let engine = RiseiCalculatorEngine::load(&outer_source)

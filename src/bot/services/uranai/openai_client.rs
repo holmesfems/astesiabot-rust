@@ -208,7 +208,10 @@ impl OpenAiClient {
 
     /// ツールの往復を含む1ターン。2回目以降も `instructions`・`tools`・`text`（出力の形）を毎回送る
     /// （`previous_response_id` ではどれも引き継がれない）。
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "1ターンで毎回送る要素が多く、まとめる型を作るほどの再利用が無い"
+    )]
     async fn run_loop(
         &self,
         instructions: &str,
@@ -420,7 +423,7 @@ mod tests {
     /// image_generation）を一緒に送って受け付けられ、返事が読めるか。.env の OPENAI_API_KEY / OPENAI_MODEL を使う。
     /// `cargo test --lib -- --ignored structured_output_live --nocapture`
     #[tokio::test]
-    #[ignore]
+    #[ignore = "本物の OpenAI を呼ぶ"]
     async fn structured_output_live() {
         dotenvy::dotenv().ok();
         let client = OpenAiClient::from_env();

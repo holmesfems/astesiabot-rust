@@ -508,7 +508,7 @@ mod tests {
     /// 実ネットワークでキャラ/モジュール/昇格情報を取得できるかの疎通確認。
     /// `cargo test -- --ignored` で明示実行する（通常のCIでは走らせない）。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn fetch_gets_real_gamedata() {
         let data = fetch()
             .await
@@ -526,7 +526,7 @@ mod tests {
     /// 名前解決ロジックを壊していないかのゴールデン照合）。新規追加オペレーターにより
     /// `operator_data`側の件数が増えるのは許容するが、既存キーの変換結果は一致必須。
     #[tokio::test]
-    #[ignore]
+    #[ignore = "実ネットワークから取得する"]
     async fn cn_to_ja_matches_legacy_operator_names_seed() {
         #[derive(serde::Deserialize)]
         struct LegacySeed {
