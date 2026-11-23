@@ -18,8 +18,8 @@ export function defaultInspireSourceCfg(source) {
   return {
     on: false,
     skillNum: source.skills && source.skills[0] ? source.skills[0].skillNum : "",
-    skillLevel: 10, // スキルLv(既定は特化3)
-    potential: 5, // 潜在ランク(0始まり。既定は潜在6=フル。攻撃と素質の潜在をまとめて選ぶ)
+    skillLevel: 10,
+    potential: 5, // 攻撃と素質の潜在をまとめて選ぶ
     moduleId: null,
     moduleLv: 3,
     elite,

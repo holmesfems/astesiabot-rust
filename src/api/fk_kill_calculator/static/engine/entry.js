@@ -251,31 +251,31 @@ export function resolveSpecialCurrentValue(op, entry, row) {
  */
 export function makeDefaultRow(op, entryIdx) {
   const entry = op.fkEntries[entryIdx];
-  const skillLevel = 10; // 既定は特化3。
+  const skillLevel = 10;
   const values = resolveEntryValues(entry, skillLevel);
   const elite = maxEliteFor(op);
   return {
     opId: op.id,
     entryIdx,
     dmgType: values.dmgType,
-    potential: 5, // 潜在ランク(0始まり。既定は潜在6=フル)
+    potential: 5,
     elite,
     level: maxLevelForElite(op, elite),
     trust: 100,
-    skillLevel, // スキルLv(1〜10。SLv1〜7+特化1〜3)
+    skillLevel,
     moduleId: defaultModuleId(op, entry),
     moduleLv: 3,
     multiplier: values.multiplier,
     selfPct: values.selfPct,
     hits: values.hits,
     buffPct: 0,
-    buffFlat: 0, // 手入力 基礎攻撃力+(%バフの前に足す)
+    buffFlat: 0,
     dmgMult: values.dmgMult,
     ignoreDef: 0,
-    buffIds: [], // 個別バフ(行ごとに選ぶ)
-    specialOn: true, // 特殊強化トグル(デフォルトON。entry.specialが無ければ意味を持たない)
-    inspireOn: true, // 鼓舞トグル(デフォルトON。鼓舞ソースが無ければ意味を持たない)
-    extraParts: makeDefaultExtraParts(entry, skillLevel), // 混合スキルのパーツ1以降(通常エントリは空)
-    stones: [], // 碁石盤のマス番号(entry.stoneBoardが無ければ意味を持たない)
+    buffIds: [],
+    specialOn: true,
+    inspireOn: true,
+    extraParts: makeDefaultExtraParts(entry, skillLevel),
+    stones: [],
   };
 }

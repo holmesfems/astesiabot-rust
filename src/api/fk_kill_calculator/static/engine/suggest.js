@@ -10,12 +10,9 @@ import { defaultInspireSourceCfg } from "./inspire.js";
    「効果が単調に増える1変数」を整数二分探索で求める素朴な実装。
    ============================================================ */
 
-// 「現実的にありえそうな範囲」に上限を設ける（UIラウンド2でオーナー指摘: 無制限探索だと
-// 「Hit数を+29増やす」「バフ+4806%増やす」のような非現実的な提案が出てしまっていた）。
-// 上限を超えないと撃破できない変更は「不可能」として提案から除外する
-// （`minimalIntegerSatisfying`はhiまで探しても見つからなければnullを返す）。
-const SUGGEST_CAP_BUFF_PCT = 300; // 追加バフ%の上限（+300%まで。仕様どおりの固定値）
-const SUGGEST_CAP_HITS = 3; // 追加Hit数の上限（仕様どおりシンプルに3固定）
+// 非現実的な提案(「Hit数+29」など)を避けるため、上限を超えないと撃破できない変更は提案から除外する。
+const SUGGEST_CAP_BUFF_PCT = 300;
+const SUGGEST_CAP_HITS = 3;
 
 /**
  * `predicate`が[lo,hi]区間で単調非減少(false...false,true...true)である前提で、
@@ -115,8 +112,7 @@ export function suggest(state, catalog) {
     }
   }
 
-  // 個別バフを1件追加するだけで撃破できる行を提案する（+300%キャップを流用: そのバフ
-  // 自体のpctが300%を超えることは無いが、念のため同じ上限で足切りする）。
+  // 個別バフを1件追加するだけで撃破できる行を提案する（%バフは同じ+300%上限で足切り）。
   const buffers = (catalog && catalog.buffers) || [];
   const individualBuffers = buffers.filter((b) => b.scope.type === "individual");
   rows.forEach((row, i) => {

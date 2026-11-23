@@ -113,7 +113,7 @@ export function dropStaleRows(state, catalog) {
       // (`makeDefaultRow`と同じ既定: 最大昇進・その最大レベル・信頼度100)。
       const elite = finiteNumberOr(row.elite, maxEliteFor(op));
       const level = finiteNumberOr(row.level, maxLevelForElite(op, elite));
-      const skillLevel = intInRange(row.skillLevel, 1, 10, 10); // スキルLvが無い古い形の補完
+      const skillLevel = intInRange(row.skillLevel, 1, 10, 10);
       // extraPartsの形/長さがentry.partsの2番目以降と合わなければ作り直す。
       const expectedExtraLen = Math.max(((entry && entry.parts && entry.parts.length) || 0) - 1, 0);
       // 形が合っていても、既知のフィールドだけを型を揃えて作り直す(余計なキーや非数を通さない)。
@@ -132,7 +132,7 @@ export function dropStaleRows(state, catalog) {
         skillLevel,
         hits: finiteNumberOr(row.hits, 1),
         ignoreDef: finiteNumberOr(row.ignoreDef, 0),
-        buffFlat: finiteNumberOr(row.buffFlat, 0), // 手入力 基礎攻撃力+
+        buffFlat: finiteNumberOr(row.buffFlat, 0),
         dmgType: enumOr(row.dmgType, DMG_TYPES, "physical"),
         moduleId: stringOrNull(row.moduleId),
         moduleLv: intInRange(row.moduleLv, 1, 3, 3),
@@ -193,7 +193,7 @@ export function dropStaleRows(state, catalog) {
   const cleanedSources = {};
   for (const [sourceId, cfg] of Object.entries(rawInspireSources)) {
     const source = sourceById.get(sourceId);
-    if (!source || !cfg) continue; // 未知のソースidは静かに除去
+    if (!source || !cfg) continue;
     const knownPartIds = new Set((source.selfParts || []).map((p) => p.id));
     const parts = {};
     for (const [partId, on] of Object.entries(cfg.parts || {})) {
@@ -204,8 +204,7 @@ export function dropStaleRows(state, catalog) {
     // 戻し、onはbooleanにする(文字列のまま残すとUIのinnerHTMLにマークアップとして入り得る)。
     const elite = finiteNumberOr(cfg.elite, maxEliteFor(source));
     const level = finiteNumberOr(cfg.level, maxLevelForElite(source, elite));
-    // 古い`talentPotential`は`potential`(潜在ランク)に統合済みなので、
-    // spread元から取り除いて捨てる(restCfgには残さない)。
+    // 旧キーtalentPotentialはspread元から取り除く。
     const { talentPotential, ...restCfg } = cfg;
     cleanedSources[sourceId] = {
       ...restCfg,
@@ -213,12 +212,12 @@ export function dropStaleRows(state, catalog) {
       elite,
       level,
       trust: finiteNumberOr(cfg.trust, 100),
-      skillLevel: intInRange(cfg.skillLevel, 1, 10, 10), // スキルLvが無い古い形の補完
+      skillLevel: intInRange(cfg.skillLevel, 1, 10, 10),
       moduleId: stringOrNull(cfg.moduleId),
       skillNum: typeof cfg.skillNum === "string" ? cfg.skillNum : "",
       moduleLv: intInRange(cfg.moduleLv, 1, 3, 3),
       buffPct: finiteNumberOr(cfg.buffPct, 0),
-      potential: normalizePotentialRank(cfg.potential), // 数値でなければ既定値(5)へリセット
+      potential: normalizePotentialRank(cfg.potential),
       buffIds: migrateStainlessIds(cfg.buffIds || []).filter((id) => validBuffIds.has(id)),
       parts,
     };
