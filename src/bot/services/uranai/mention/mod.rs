@@ -77,8 +77,12 @@ pub async fn handle(
         return Ok(());
     }
     let bot_id = ctx.cache.current_user().id;
-    let mentions_bot =
-        msg.mentions.iter().any(|u| u.id == bot_id) && content_mentions_user(&msg.content, bot_id.get());
+    // Discord の入力補完では bot 本人のほかに、bot に自動で付くロール（同じような名前）も候補に出る。
+    // ロールのほうを選んでも呼び出しとして扱う（2026-11-23、スレッドでロールの方を選んで呼べなかった）。
+    let bot_role = bot_managed_role(ctx, msg.guild_id, bot_id);
+    let mentions_bot = (msg.mentions.iter().any(|u| u.id == bot_id)
+        && content_mentions_user(&msg.content, bot_id.get()))
+        || bot_role.is_some_and(|r| msg.mention_roles.contains(&r) && content_mentions_role(&msg.content, r.get()));
     let channel_id = msg.channel_id;
 
     // 2. 会話の無いチャンネルでは、メンションだけを、除外チャンネル以外で受ける
@@ -101,7 +105,7 @@ pub async fn handle(
             (u.id.get(), speaker_name(nick, u.global_name.as_deref(), &u.name))
         })
         .collect();
-    let body = clean_content(&msg.content, bot_id.get(), &names);
+    let body = clean_content(&msg.content, bot_id.get(), bot_role.map(|r| r.get()), &names);
     let is_reset = mentions_bot && matches!(body.as_str(), "reset" | "clear");
     let (attachments, rejected) = super::split_attachments(&msg.attachments);
     let body = if !body.is_empty() || !attachments.is_empty() {
@@ -345,16 +349,39 @@ fn outcome_label(outcome: &Outcome) -> &'static str {
     }
 }
 
+/// bot に自動で付く（integration の）ロール。キャッシュに鯖が無ければ `None`。
+fn bot_managed_role(
+    ctx: &serenity::Context,
+    guild_id: Option<serenity::GuildId>,
+    bot_id: serenity::UserId,
+) -> Option<serenity::RoleId> {
+    let guild = ctx.cache.guild(guild_id?)?;
+    guild
+        .roles
+        .values()
+        .find(|r| r.tags.bot_id == Some(bot_id))
+        .map(|r| r.id)
+}
+
+/// 本文に `<@&id>` があるか。
+fn content_mentions_role(content: &str, role_id: u64) -> bool {
+    content.contains(&format!("<@&{role_id}>"))
+}
+
 /// 本文に `<@id>` か `<@!id>` があるか（リプライの自動メンションは本文に出ないので、これで区別する）。
 fn content_mentions_user(content: &str, user_id: u64) -> bool {
     content.contains(&format!("<@{user_id}>")) || content.contains(&format!("<@!{user_id}>"))
 }
 
-/// AI に渡す本文: bot へのメンションは消し、他の人へのメンションは `@表示名` にする。前後の空白は削る。
-fn clean_content(content: &str, bot_id: u64, names: &[(u64, String)]) -> String {
+/// AI に渡す本文: bot（とその自動ロール）へのメンションは消し、他の人へのメンションは `@表示名` にする。
+/// 前後の空白は削る。
+fn clean_content(content: &str, bot_id: u64, bot_role: Option<u64>, names: &[(u64, String)]) -> String {
     let mut s = content
         .replace(&format!("<@{bot_id}>"), "")
         .replace(&format!("<@!{bot_id}>"), "");
+    if let Some(role) = bot_role {
+        s = s.replace(&format!("<@&{role}>"), "");
+    }
     for (id, name) in names {
         if *id == bot_id {
             continue;
@@ -378,16 +405,27 @@ mod tests {
         // リプライの自動メンションは本文に出ない
         assert!(!content_mentions_user("こんにちは", BOT));
         assert!(!content_mentions_user("<@9990>", BOT));
+        // ロールのメンションはユーザーのメンションとは別
+        assert!(!content_mentions_user("<@&999>", BOT));
+        assert!(content_mentions_role("<@&555> はろー！", 555));
+        assert!(!content_mentions_role("<@555>", 555));
+    }
+
+    #[test]
+    fn clean_content_removes_bot_role_mention() {
+        assert_eq!(clean_content("<@&555>\nはろー！", BOT, Some(555), &[]), "はろー！");
+        // 他のロールのメンションは残す
+        assert_eq!(clean_content("<@&556> どう？", BOT, Some(555), &[]), "<@&556> どう？");
     }
 
     #[test]
     fn clean_content_removes_bot_and_names_others() {
         let names = vec![(BOT, "アステシア".to_string()), (42, "ドクターA".to_string())];
-        assert_eq!(clean_content("<@999> <@42> と話してたの", BOT, &names), "@ドクターA と話してたの");
-        assert_eq!(clean_content("<@!999>", BOT, &names), "");
-        assert_eq!(clean_content("  reset <@999> ", BOT, &names), "reset");
+        assert_eq!(clean_content("<@999> <@42> と話してたの", BOT, None, &names), "@ドクターA と話してたの");
+        assert_eq!(clean_content("<@!999>", BOT, None, &names), "");
+        assert_eq!(clean_content("  reset <@999> ", BOT, None, &names), "reset");
         // 知らない ID はそのまま
-        assert_eq!(clean_content("<@7>", BOT, &names), "<@7>");
+        assert_eq!(clean_content("<@7>", BOT, None, &names), "<@7>");
     }
 
     #[test]
