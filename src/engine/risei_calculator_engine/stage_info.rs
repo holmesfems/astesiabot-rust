@@ -320,7 +320,7 @@ impl StageInfo {
 mod tests {
     use super::*;
     use crate::engine::external_source::ark_matrix::RawDropRecord;
-    use crate::engine::external_source::ark_stages::RawStage;
+    use crate::engine::external_source::ark_stages::{RawDropInfo, RawStage};
 
     const ITEM_ID: &str = "item_a";
     const ITEM_ZH: &str = "基础作战记录";
@@ -427,5 +427,171 @@ mod tests {
         let stage = &info.event_stage_dict["act_ev"];
         let rate = stage.get_drop_rate(ITEM_ZH, &info.value_target, &info.item_names);
         assert!((rate - 0.9).abs() < 1e-9, "rate = {rate}");
+    }
+
+    fn build_with_categories(
+        categories: &[(&str, &[&str])],
+        stages: Vec<RawStage>,
+        records: Vec<RawDropRecord>,
+    ) -> StageInfo {
+        let main = categories
+            .iter()
+            .map(|(key, codes)| {
+                (
+                    key.to_string(),
+                    StageCategoryInfo {
+                        stages: codes.iter().map(|c| c.to_string()).collect(),
+                        items: Vec::new(),
+                        main_item: String::new(),
+                        to_ja: String::new(),
+                        sub_item: Vec::new(),
+                        sub_order: Vec::new(),
+                    },
+                )
+            })
+            .collect();
+        StageInfo::build(
+            Server::Mainland,
+            &StageCategoryFile {
+                main,
+                new: BTreeMap::new(),
+            },
+            &ArkStages { stages },
+            &ArkMatrix { matrix: records },
+            &Zones::default(),
+            item_names(),
+            &HashMap::new(),
+        )
+    }
+
+    fn event_stage_ids(stage_type: &str, zone_id: &str, stage_id: &str) -> Vec<String> {
+        let info = build(vec![raw_stage(stage_id, stage_type, zone_id)], Vec::new());
+        info.event_stage_dict.keys().cloned().collect()
+    }
+
+    #[test]
+    fn event_stage_must_be_an_activity_stage() {
+        assert!(event_stage_ids("SUB", "tough_act1", "s").is_empty());
+        assert_eq!(event_stage_ids("ACTIVITY", "act1side", "s"), ["s"]);
+    }
+
+    #[test]
+    fn permanent_activity_zone_is_never_an_event_stage() {
+        assert!(event_stage_ids("ACTIVITY", "tough_permanent_act", "s").is_empty());
+    }
+
+    #[test]
+    fn event_stage_zone_must_contain_act() {
+        assert!(event_stage_ids("ACTIVITY", "zone_x", "s").is_empty());
+    }
+
+    #[test]
+    fn gacha_stage_is_never_an_event_stage() {
+        assert!(event_stage_ids("ACTIVITY", "act1side", "act_gacha_1").is_empty());
+    }
+
+    #[test]
+    fn act10d5_zone_is_never_an_event_stage() {
+        assert!(event_stage_ids("ACTIVITY", "act10d5side", "s").is_empty());
+    }
+
+    #[test]
+    fn category_max_efficiency_keeps_the_first_stage_on_a_tie() {
+        let info = build_with_categories(
+            &[("a_cat", &["s1"]), ("b_cat", &["s2"])],
+            vec![
+                raw_stage("s1", "MAIN", "zone1"),
+                raw_stage("s2", "MAIN", "zone1"),
+            ],
+            vec![
+                record("s1", 2000, 1000.0, None),
+                record("s2", 2000, 1000.0, None),
+            ],
+        );
+        let target = value_target(Server::Mainland);
+        let mut value_array = nalgebra::DVector::zeros(target.len());
+        value_array[target.iter().position(|x| *x == ITEM_ZH).unwrap()] = 2.0;
+        let values = RiseiValues::new(
+            Server::Mainland,
+            value_array,
+            item_names(),
+            Arc::new(HashMap::new()),
+        );
+        let best = info.get_category_max_efficiency(&values, 1000).unwrap();
+        assert_eq!(best.stage.stage_id, "s1");
+        assert_eq!(best.categories, ["a_cat"]);
+        // 2.0 * 0.5 / 10
+        assert!((best.max_value - 0.1).abs() < 1e-9);
+    }
+
+    fn with_main_drop(mut stage: RawStage, id: &str) -> RawStage {
+        stage.drop_infos.push(RawDropInfo {
+            item_id: Some(id.to_string()),
+            drop_type: "NORMAL_DROP".to_string(),
+        });
+        stage
+    }
+
+    #[test]
+    fn auto_complete_main_stage_returns_label_with_main_drop_and_code() {
+        let mut re = raw_stage("main_re", "MAIN", "main_re_1");
+        re.code = "1-7".to_string();
+        let info = build(
+            vec![with_main_drop(re, ITEM_ID)],
+            vec![record("main_re", 2000, 1000.0, None)],
+        );
+        assert_eq!(
+            info.auto_complete_main_stage("1-", 10),
+            [("1-7(Re) ja_a".to_string(), "1-7(Re)".to_string())]
+        );
+        assert!(info.auto_complete_main_stage("9-", 10).is_empty());
+    }
+
+    #[test]
+    fn auto_complete_main_stage_truncates_to_limit() {
+        let info = build(
+            vec![
+                raw_stage("m1", "MAIN", "zone1"),
+                raw_stage("m2", "MAIN", "zone1"),
+            ],
+            vec![
+                record("m1", 2000, 1000.0, None),
+                record("m2", 2000, 1000.0, None),
+            ],
+        );
+        assert_eq!(info.auto_complete_main_stage("m", 10).len(), 2);
+        assert_eq!(info.auto_complete_main_stage("m", 1).len(), 1);
+    }
+
+    #[test]
+    fn auto_complete_event_stage_returns_label_with_main_drop_and_code() {
+        let info = build(
+            vec![with_main_drop(
+                raw_stage("act_ev", "ACTIVITY", "act1side"),
+                ITEM_ID,
+            )],
+            vec![record("act_ev", 2000, 1000.0, None)],
+        );
+        assert_eq!(
+            info.auto_complete_event_stage("act", 10),
+            [("act_ev ja_a".to_string(), "act_ev".to_string())]
+        );
+        assert!(info.auto_complete_event_stage("zzz", 10).is_empty());
+    }
+
+    #[test]
+    fn auto_complete_event_stage_truncates_to_limit() {
+        let info = build(
+            vec![
+                raw_stage("act_1", "ACTIVITY", "act1side"),
+                raw_stage("act_2", "ACTIVITY", "act1side"),
+            ],
+            vec![
+                record("act_1", 2000, 1000.0, None),
+                record("act_2", 2000, 1000.0, None),
+            ],
+        );
+        assert_eq!(info.auto_complete_event_stage("act", 10).len(), 2);
+        assert_eq!(info.auto_complete_event_stage("act", 1).len(), 1);
     }
 }
