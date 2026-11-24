@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>B案ひな形 | アステシアちゃんbot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070a1c; --gold:#E3C67B; --gold-dim:#8F7A48; --ivory:#F1E9D2;
+    --text:#e4e7f0; --faint:#b0b7ca;
+    --mincho:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-snap-type:y proximity}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,system-ui,sans-serif;
+    font-size:16px;line-height:1.7}
+
+  /* 舞台(カメラ固定): 空・ダイヤル・文字はすべて fixed。スクロールは下の .beat が作るだけ */
+  #sky{position:fixed;left:0;top:0;pointer-events:none;will-change:rotate}
+  #sky canvas{display:block}
+  #dial{position:fixed;pointer-events:none;border-radius:50%}
+  #ring{display:block;width:100%;height:100%;will-change:rotate}
+  #ring text{transition:opacity .3s ease, font-size .3s ease}
+  #pointer{position:fixed;width:10px;height:14px;background:var(--gold);pointer-events:none;
+    clip-path:polygon(100% 0,0 50%,100% 100%)}
+
+  .beat{height:100vh;scroll-snap-align:start}
+
+  .scene{position:fixed;opacity:0;pointer-events:none;will-change:opacity,translate}
+  .scene.on{pointer-events:auto}
+  .scene h1,.scene h2{margin:0;font-family:var(--mincho);font-weight:500;color:var(--ivory);
+    line-height:1.2;letter-spacing:.04em;word-break:keep-all;text-wrap:balance}
+  .scene h1{font-size:clamp(40px,6.4vw,96px);word-break:keep-all}
+  .scene h2{font-size:clamp(34px,4.4vw,72px)}
+  .scene p{margin:18px 0 0;font-size:clamp(16px,1.5vw,21px);color:var(--text);max-width:30em}
+  .scene .meta{margin-top:10px;font-size:13.5px;color:var(--faint)}
+  .actions{margin-top:32px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 26px;border:1px solid var(--gold);
+    border-radius:999px;color:var(--ivory);text-decoration:none;font-weight:500;
+    transition:background-color .18s cubic-bezier(.22,1,.36,1)}
+  .btn:hover,.btn:focus-visible{background:rgba(227,198,123,.12)}
+  .btn:focus-visible,.sub:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+  .sub{color:var(--gold);font-size:14.5px;text-decoration:none;border-bottom:1px solid rgba(227,198,123,.35)}
+  .fine{margin-top:40px;font-size:11.5px;color:var(--faint);line-height:1.6}
+  .fine a{color:var(--gold)}
+
+
+  @media (max-width:899px){
+    #pointer{clip-path:polygon(0 100%,50% 0,100% 100%);width:14px;height:10px}
+    .scene p{font-size:16px}
+  }
+  @media (prefers-reduced-motion: reduce){ .scene{translate:none !important} }
+</style>
+</head>
+<body>
+<div id="sky" aria-hidden="true"><canvas id="stars"></canvas></div>
+<div id="dial" aria-hidden="true">
+  <svg id="ring" viewBox="0 0 512 512" fill="none" stroke="#E3C67B">
+    <circle cx="256" cy="256" r="242" stroke-width="1.5" opacity=".5"/>
+    <circle cx="256" cy="256" r="222" stroke-width=".75" opacity=".3"/>
+    <circle cx="256" cy="256" r="232" stroke-width="10" stroke-dasharray="1.5 119.97" opacity=".5"/>
+    <circle cx="256" cy="256" r="217" stroke-width="5" stroke-dasharray="1 17.93" opacity=".25"/>
+    <circle cx="256" cy="256" r="204" stroke-width=".75" opacity=".25"/>
+    <g id="glyphs" fill="#E3C67B" stroke="none" text-anchor="middle" dominant-baseline="central"
+       font-family="'Segoe UI Symbol','Noto Sans Symbols','Noto Sans Symbols 2','Apple Symbols','DejaVu Sans',serif"></g>
+  </svg>
+</div>
+<div id="pointer" aria-hidden="true"></div>
+
+<main id="scenes">
+  <section class="scene" data-name="">
+    <h1>アステシア<wbr>ちゃんbot</h1>
+    <p>F鯖を支えるbotと、便利ツールのご案内</p>
+  </section>
+  <section class="scene" data-name="公開求人">
+    <h2>公開求人<wbr>ショートカット</h2>
+    <p>iPhone で求人画面を撮るだけで、おすすめのタグの組み合わせが分かります。</p>
+    <div class="meta">アークナイツ</div>
+    <div class="actions"><a class="btn" href="#">ショートカットを入手</a><a class="sub" href="#">Apple Intelligence 非対応の機種はこちら</a></div>
+  </section>
+  <section class="scene" data-name="理性タイマー">
+    <h2>理性タイマー</h2>
+    <p>理性が満タンになる時刻を iPhone がお知らせします。</p>
+    <div class="meta">アークナイツ</div>
+    <div class="actions"><a class="btn" href="#">ショートカットを入手</a></div>
+  </section>
+  <section class="scene" data-name="フレームキル">
+    <h2>フレームキル<wbr>計算機</h2>
+    <p>そのスキル一発で敵を倒し切れるかを、ダメージから計算します。</p>
+    <div class="meta">アークナイツ</div>
+    <div class="actions"><a class="btn" href="#">計算機を開く</a></div>
+  </section>
+  <section class="scene" data-name="理性効率API">
+    <h2>理性効率<wbr>APIスキル</h2>
+    <p>理性効率と理性価値を Claude が直接引けるようになるスキルです。</p>
+    <div class="meta">アークナイツ・Claude 用</div>
+    <div class="actions"><a class="btn" href="#">スキルをダウンロード</a></div>
+  </section>
+  <section class="scene" data-name="武陵発電">
+    <h2>武陵発電<wbr>計算機</h2>
+    <p>武陵ステージの発電制御を、電池が切れない範囲で最適化します。</p>
+    <div class="meta">エンドフィールド</div>
+    <div class="actions"><a class="btn" href="#">計算機を開く</a></div>
+  </section>
+  <section class="scene" data-name="レシピ">
+    <h2>レシピ計算機</h2>
+    <p>作りたい資材から、必要な設備と原料の量を逆算します。</p>
+    <div class="meta">エンドフィールド</div>
+    <div class="actions"><a class="btn" href="#">計算機を開く</a></div>
+  </section>
+  <section class="scene" data-name="幽霊船">
+    <h2>幽霊船宝箱<wbr>ソルバー</h2>
+    <p>レジェンド オブ ドラグーンの幽霊船の宝箱を、少ない手数で解きます。</p>
+    <div class="meta">他の趣味ツール</div>
+    <div class="actions"><a class="btn" href="#">ソルバーを開く</a></div>
+  </section>
+  <section class="scene" data-name="AI解説スタジオ">
+    <h2>AI解説スタジオ</h2>
+    <p>台本・声・演出を Claude と一緒に作る、解説動画の編集アプリです。</p>
+    <div class="meta">他の趣味ツール・GitHub</div>
+    <div class="actions"><a class="btn" href="#">GitHub で見る</a></div>
+  </section>
+  <section class="scene" data-name="なでなで">
+    <h2>Clawd<wbr> なでなで Mod</h2>
+    <p>Claude Code がお仕事している間、Clawd をなでられます。</p>
+    <div class="meta">他の趣味ツール・GitHub</div>
+    <div class="actions"><a class="btn" href="#">GitHub で見る</a></div>
+  </section>
+  <section class="scene" data-name="F鯖">
+    <h2>F鯖（フレーム鯖）</h2>
+    <p>約2000人のアークナイツ Discord サーバー。高速周回の情報共有を中心に、初心者支援や雑談も。</p>
+    <div class="actions"><a class="btn" href="#">Discord に参加する</a></div>
+  </section>
+  <section class="scene" data-name="アステシアちゃん">
+    <h2>アステシアちゃん</h2>
+    <p>F鯖の日々を支える案内役の bot。誕生日のお知らせや計算、サーバーの見回りをしています。</p>
+    <div class="actions"><a class="btn" href="#">GitHub で見る</a><a class="sub" href="#">YouTube</a><a class="sub" href="#">X</a><a class="sub" href="#">メール</a></div>
+    <div class="fine">本サイトは非公式のファンサイトです。アークナイツ ©Hypergryph / Yostar、アークナイツ：エンドフィールド ©Hypergryph / GRYPHLINE<br>
+      ドロップ率: Penguin Statistics（CC BY-NC 4.0）／ゲームデータ: Kengxxiao/ArknightsGameData ほか／星の位置: Yale Bright Star Catalog</div>
+  </section>
+</main>
+<div id="beats" aria-hidden="true"></div>
+
+<script>
+(function(){
+  "use strict";
+  var GLYPHS = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"];
+  var scenes = Array.prototype.slice.call(document.querySelectorAll(".scene"));
+  var N = scenes.length;
+  var beats = document.getElementById("beats");
+  for(var i = 0; i < N; i++){ var b = document.createElement("div"); b.className = "beat"; beats.appendChild(b) }
+
+  // 場面 i は記号 k = (-i mod 12)。時計回りに回すと、目印の位置へ反時計側の記号が順に来るため
+  function glyphOf(i){ return ((-i) % 12 + 12) % 12 }
+  var g = document.getElementById("glyphs"), glyphEls = [];
+  for(var k = 0; k < 12; k++){
+    var t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("x", 256); t.setAttribute("y", 66);
+    t.setAttribute("transform", "rotate(" + (15 + 30 * k) + " 256 256)");
+    t.textContent = GLYPHS[k] + "︎";
+    g.appendChild(t); glyphEls.push(t);
+  }
+
+  var sky = document.getElementById("sky"), canvas = document.getElementById("stars"), ctx = canvas.getContext("2d");
+  var dial = document.getElementById("dial"), ring = document.getElementById("ring");
+  var pointer = document.getElementById("pointer");
+  var wide = true, cx = 0, cy = 0, r = 0, base = 0, vh = 0, R = 1, dpr = 1;
+  var stars = null, zodiac = null;
+
+  function layout(){
+    var vw = innerWidth; vh = innerHeight;
+    wide = vw >= 900;
+    if(wide){
+      // 横: ダイヤルを左に半分沈め、目印は環の右(3時)。文字は環の右側の空き地
+      r = Math.min(0.62 * vh, 0.32 * vw);
+      cx = 0.42 * vw - r; cy = vh / 2;
+      base = 75;   // 記号0(15°)を 90° に
+      var left = cx + r + Math.max(48, 0.05 * vw);
+      scenes.forEach(function(s){ s.style.left = left + "px"; s.style.right = "6vw"; s.style.top = "50%"; s.style.bottom = "auto"; s.style.transform = "translateY(-50%)" });
+      pointer.style.left = (cx + r * 0.86) + "px"; pointer.style.top = (cy - 7) + "px";
+    } else {
+      // 縦: ダイヤルを画面の下に沈め、目印は環の上(12時)。文字は上の空き地
+      r = Math.max(0.95 * vw / 2 * 1.3, 0.36 * vh);
+      cx = vw / 2; cy = vh + r * 0.12;
+      base = -15;
+      scenes.forEach(function(s){ s.style.left = "24px"; s.style.right = "24px"; s.style.top = "max(56px, 9vh)"; s.style.bottom = "auto"; s.style.transform = "none" });
+      pointer.style.left = (cx - 7) + "px"; pointer.style.top = (cy - r * 0.86 - 10) + "px";
+    }
+    dial.style.left = (cx - r) + "px"; dial.style.top = (cy - r) + "px";
+    dial.style.width = dial.style.height = (2 * r) + "px";
+    // 空: 北極 = ダイヤルの中心。画面の一番遠い角まで覆う
+    var far = Math.max(Math.hypot(cx, cy), Math.hypot(vw - cx, cy), Math.hypot(cx, vh - cy), Math.hypot(vw - cx, vh - cy));
+    R = far * 1.02;
+    dpr = Math.min(2, devicePixelRatio || 1, 4096 / (2 * R));
+    canvas.width = canvas.height = Math.round(2 * R * dpr);
+    canvas.style.width = canvas.style.height = sky.style.width = sky.style.height = (2 * R) + "px";
+    sky.style.left = (cx - R) + "px"; sky.style.top = (cy - R) + "px";
+    draw(); update();
+  }
+
+  var SPAN = 145, D = Math.PI / 180;
+  function draw(){
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var gr = ctx.createRadialGradient(R, R, 0, R, R, R);
+    gr.addColorStop(0, "#141c4a"); gr.addColorStop(.6, "#0d1336"); gr.addColorStop(1, "#070a1c");
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, 2 * R, 2 * R);
+    ctx.strokeStyle = "rgba(227,198,123,.08)"; ctx.lineWidth = 1;
+    [60, 30, 0, -30].forEach(function(d){ ctx.beginPath(); ctx.arc(R, R, (90 - d) / SPAN * R, 0, 7); ctx.stroke() });
+    if(zodiac){
+      ctx.strokeStyle = "rgba(227,198,123,.26)"; ctx.lineWidth = .8; ctx.beginPath();
+      for(var i = 0; i < zodiac.length; i++){
+        var z = zodiac[i], a1 = z[0] / 10 * D, r1 = (90 - z[1] / 10) / SPAN * R, a2 = z[2] / 10 * D, r2 = (90 - z[3] / 10) / SPAN * R;
+        ctx.moveTo(R + r1 * Math.sin(a1), R - r1 * Math.cos(a1)); ctx.lineTo(R + r2 * Math.sin(a2), R - r2 * Math.cos(a2));
+      }
+      ctx.stroke();
+    }
+    if(!stars){ return }
+    for(var j = 0; j < stars.length; j++){
+      var s = stars[j], dec = s[1] / 10; if(dec < -55){ continue }
+      var mag = s[2] / 10, br = 5.6 - mag, rr = (90 - dec) / SPAN * R, th = s[0] / 10 * D;
+      ctx.fillStyle = "rgba(235,238,255," + Math.min(1, .25 + br * .18).toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(R + rr * Math.sin(th), R - rr * Math.cos(th), Math.max(.45, br * .5), 0, 7); ctx.fill();
+    }
+  }
+
+  var still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var lastActive = -1;
+  function update(){
+    var p = vh > 0 ? scrollY / vh : 0;    // 0..N-1 の連続値。1画面 = 1場面
+    var rot = base + 30 * p;              // 1場面で 30° 時計回り
+    ring.style.rotate = rot + "deg";
+    sky.style.rotate = rot + "deg";
+    var active = Math.max(0, Math.min(N - 1, Math.round(p)));
+    scenes.forEach(function(s, i){
+      var d = i - p, o = Math.max(0, 1 - Math.abs(d) * 1.8);
+      s.style.opacity = o;
+      if(!still){ s.style.translate = "0 " + (d * (wide ? 60 : 40)) + "px" }
+      s.classList.toggle("on", i === active && o > .5);
+    });
+    if(active !== lastActive){
+      lastActive = active;
+      glyphEls.forEach(function(t, k){
+        var on = k === glyphOf(active);
+        t.setAttribute("font-size", on ? 30 : 20);
+        t.setAttribute("opacity", on ? 1 : .45);
+      });
+    }
+  }
+  var pend = false;
+  addEventListener("scroll", function(){ if(!pend){ pend = true; requestAnimationFrame(function(){ pend = false; update() }) } }, { passive: true });
+  addEventListener("resize", layout);
+  fetch("stars.json").then(function(r){ return r.json() }).then(function(d){ stars = d; draw() });
+  fetch("zodiac_lines.json").then(function(r){ return r.json() }).then(function(d){ zodiac = d; draw() });
+  layout();
+})();
+</script>
+</body>
+</html>
