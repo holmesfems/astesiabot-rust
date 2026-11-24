@@ -97,16 +97,15 @@
      星空は /static/planisphere.js が描く: 実在の星を天の北極中心に、一辺 2R の正方形の canvas へ回転0で1回だけ描く。
      canvas を包む #sky の中心(=回転軸)が北極で、スクロールに合わせて #sky と環 #dial-ring を CSS の rotate で回す
      (再描画なし。スマホの慣性スクロールにメインスレッドが追いつかず空がガクガクしたため)。
-     北極は #dial の中心。ダイヤルは本文カバーの右辺を軸にした大きな金の環で、カバーの背景の上・文字の下に敷く。
+     北極は #dial の中心。ダイヤルは本文カバーの右辺を軸にした大きな金の環で、星空と同じくカバーの下に敷く。
      本文の読みやすさは、本文カラム(.plate)を早見盤のカバーに見立てた濃紺の面(不透明度 .70)にして確保する。
-     透かしたカバー越しに、ダイヤルの左半分と目盛り・星座記号がうっすら見える(空はスクロール中しか動かない)。
+     ダイヤルをカバーの上に置くと、文字の後ろを環や星座記号が横切って読みにくい。下に置けば、弓なりの上辺を含む
+     カバーの形どおりに、スクロールしても JS なしで隠れる。
 
      重ね順(奥→手前)は、全幅で次の1通り。どこにも z-index つきの重ね合わせ文脈(stacking context)を作らず、
-     ルート文脈の中で並べる(.wrap と .plate に z-index を付けない。付けるとダイヤルをその間に挟めなくなる):
-       星空 #sky(z -1) → .plate の背景と弓・目盛り(位置指定で z-index 無し=z 0 の段) → #dial(z 1)
+     ルート文脈の中で並べる(.wrap と .plate に z-index を付けない。付けるとカバーの下にダイヤルを敷けなくなる):
+       星空 #sky(z -1) → #dial(z -1。木の順で #sky より後) → .plate の背景と弓・目盛り(位置指定で z-index 無し=z 0 の段)
        → 文字とリンク(ヒーロー・.plate > main > section・footer。position:relative; z-index:2) → #dial-index(3) → ツールナビ(1000)
-     (z-index 無しの位置指定要素は z 0 の段で木の順に塗られ、その中身はまとめて #dial より下になる。
-      文字側を z 2 で持ち上げるので、パネルの面ごとダイヤルの手前に出る。)
      #dial は pointer-events:none なので、下の文字やリンクはそのまま触れる。ダイヤルは掴めない(ページを普通にスクロールすると回る)。
      #sky・ダイヤルとも aria-hidden で読み上げに影響しない。 */
   /* 位置(北極)と大きさ(2R)は planisphere.js が入れる。回転は個別プロパティ rotate(translate はオープニングの
@@ -133,7 +132,7 @@
      合成されるとき、transform の -50% まで scale で拡縮されて中心がずれてしまうため。 */
   #dial{
     --dial-size:min(78vh,160vw);
-    position:fixed;z-index:1;left:100%;top:calc(50% + 18px);
+    position:fixed;z-index:-1;left:100%;top:calc(50% + 18px);
     margin:calc(var(--dial-size) / -2) 0 0 calc(var(--dial-size) / -2);
     width:var(--dial-size);height:var(--dial-size);border-radius:50%;
     pointer-events:none;
@@ -164,7 +163,7 @@
   @media (min-width:900px){
     .hero{padding:64px 0 96px}
   }
-  .hero h1,.hero p{position:relative;z-index:2}  /* ダイヤル(z 1)より手前 */
+  .hero h1,.hero p{position:relative;z-index:2}  /* カバーの背景・弓(z 0 の段)より手前 */
   .hero h1{
     margin:0 0 10px;
     font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
@@ -174,7 +173,7 @@
   .hero p{margin:0;color:var(--faint);letter-spacing:.08em}
 
   section{margin-top:72px}
-  .plate > main > section{position:relative;z-index:2}  /* ダイヤル(z 1)より手前。<main> 自体には重ね合わせ文脈を作るものを付けない */
+  .plate > main > section{position:relative;z-index:2}  /* カバーの背景・弓(z 0 の段)より手前。<main> 自体には重ね合わせ文脈を作るものを付けない */
   /* 環の下側は文字が無く、そのまま 72px 空けると間延びするので最初のセクションだけ詰める
      (上の余白は .plate の padding-top が受け持つ) */
   .plate > main > section:first-child{margin-top:24px}
